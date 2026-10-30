@@ -16,6 +16,8 @@ const KINDS = {
     wanderRange: 6,
     idleTime: [2, 6], // seconds spent grazing between wanders
     turnSpeed: 10,
+    lureRange: 18, // notices traps this far away...
+    lureChance: 0.35, // ...and heads for one this often when it decides where to go
     placeholder: placeholders.rabbit,
   },
   deer: {
@@ -43,6 +45,8 @@ export class Animals {
     this.all = [];
     this.respawns = [];
     this.models = {};
+    // Things that draw animals in (set by Traps): a function returning [{ x, z }].
+    this.lures = () => [];
     for (const kind of Object.keys(KINDS)) {
       loadModel(kind).then((model) => {
         if (!model) return;
@@ -165,6 +169,16 @@ export class Animals {
 
   wander(animal) {
     const { position, config } = animal;
+    if (config.lureRange && this.random.next() < config.lureChance) {
+      const lure = this.lures().find(
+        (l) => Math.hypot(l.x - position.x, l.z - position.z) < config.lureRange,
+      );
+      if (lure) {
+        animal.state = 'wander';
+        animal.target = { x: lure.x, z: lure.z };
+        return;
+      }
+    }
     for (let tries = 0; tries < 10; tries++) {
       const angle = this.random.range(0, Math.PI * 2);
       const distance = this.random.range(config.wanderRange * 0.3, config.wanderRange);

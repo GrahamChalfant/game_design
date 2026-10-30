@@ -1,3 +1,4 @@
+import { canCraft, RECIPES } from './crafting.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 import { formatDuration } from './survival.js';
 
@@ -5,7 +6,7 @@ const LOW = 25; // bars flash below this
 
 // Shows the survival stats, clock, prompts and game-over screen.
 export class Hud {
-  constructor({ onRestart, onSelectSlot }) {
+  constructor({ onRestart, onSelectSlot, onCraft }) {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
@@ -28,9 +29,33 @@ export class Hud {
       hotbar.append(slot);
       return slot;
     });
+
+    this.crafting = document.getElementById('crafting');
+    const list = this.crafting.querySelector('.recipes');
+    this.recipes = RECIPES.map((recipe) => {
+      const { name, icon } = ITEMS[recipe.item];
+      const cost = Object.entries(recipe.cost)
+        .map(([item, count]) => `${count} ${ITEMS[item].name.toLowerCase()}`)
+        .join(', ');
+      const button = document.createElement('button');
+      button.className = 'recipe';
+      button.innerHTML = `<span class="icon">${icon}</span>
+        <span><strong>${name}</strong><small>${recipe.description}</small></span>
+        <span class="cost">${cost}</span>`;
+      button.addEventListener('click', () => onCraft(recipe));
+      list.append(button);
+      return { recipe, button };
+    });
+    this.crafting.querySelector('.close').addEventListener('click', () => this.toggleCrafting());
+  }
+
+  toggleCrafting() {
+    this.crafting.hidden = !this.crafting.hidden;
   }
 
   update(survival, inventory, { prompt, progress }) {
+    for (const { recipe, button } of this.recipes) button.disabled = !canCraft(inventory, recipe);
+
     this.slots.forEach((slot, i) => {
       const contents = inventory.slots[i];
       slot.classList.toggle('selected', i === inventory.selected);

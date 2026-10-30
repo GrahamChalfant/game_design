@@ -48,6 +48,8 @@ automatically whenever you save a file.
 | Space or left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
 | E (hold, at the water's edge or in the lake) | Drink |
 | E (next to a campfire) | Add a log to the fire |
+| E (at a trap) | Take the catch, or pick up an empty trap |
+| C | Open or close the crafting panel |
 | Mouse wheel / trackpad scroll | Zoom in and out |
 
 ### How to play
@@ -66,6 +68,12 @@ A fire burns for 2 in-game hours; stand next to it and press E to add a log
 Rabbits and deer roam the map, but there aren't many of them. They graze and wander
 until you get too close, then bolt. Both run faster than you, and deer spook from much
 farther away, so you won't catch them by chasing.
+
+To catch rabbits, press C and craft a trap (3 wood), then select it and press Space to
+set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
+close while you're nearby. When one is caught, press E at the trap for 2 raw meat.
+Hold raw meat at a burning fire and hold Space to cook it, then press Space away from
+the fire to eat. Eating meat raw works in a pinch, but it makes you sick.
 
 To tune the difficulty, edit the numbers at the top of `src/survival.js`.
 
@@ -86,6 +94,9 @@ src/trees.js          Choppable trees: chopping progress, falling and stumps
 src/seeThrough.js     Makes trees see-through where they'd hide the player
 src/campfires.js      Building campfires, fuel, flames and firelight
 src/animals.js        Rabbits and deer: wandering, grazing and running from the player
+src/traps.js          Snare traps that catch rabbits
+src/crafting.js       Crafting recipes (add new ones here)
+src/actions.js        What the player is doing each frame: chopping, building, cooking, eating…
 src/inventory.js      Items and the hotbar
 src/survival.js       Hunger, thirst, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
@@ -116,6 +127,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `rock.glb` | Boulder | ~1 m across |
 | `rabbit.glb` | Rabbit (the stand-in is drawn a bit bigger than life, to be easy to spot) | ~0.55 m long |
 | `deer.glb` | Deer | ~1.6 m tall at the head |
+| `trap.glb` | Snare trap | ~0.7 m across |
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
 | `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |
