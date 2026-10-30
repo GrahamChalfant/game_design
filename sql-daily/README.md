@@ -14,11 +14,16 @@ Everyone gets the same feature on the same day. Day 1 is *The Lord of the Rings*
 From inside the `sql-daily` folder, run:
 
 ```bash
-python3 -m http.server 8001
+python3 serve.py
 ```
 
 Then open http://localhost:8001. Press **Ctrl+C** in the terminal to stop the server.
 (Port 8001 keeps it out of the way of the survival game on 8000.)
+
+`serve.py` is a tiny web server that tells your browser not to cache the game's files. The
+usual `python3 -m http.server` works too, but after you pull changes the browser can mix old
+cached files with new ones, which shows up as a broken, unstyled page. If that happens, do a
+hard refresh: **Cmd+Shift+R** on a Mac, **Ctrl+Shift+R** on Windows or Linux.
 
 You can't just double-click `index.html`, because browsers block this kind of page when it's
 opened as a local file. If you try, the page tells you what to do instead.
