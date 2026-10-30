@@ -5,6 +5,14 @@ import { formatDuration } from './survival.js';
 
 const LOW = 25; // bars flash below this
 
+// Game buttons never take keyboard focus. Otherwise, after clicking one, keys like Tab and
+// Space would act on the button (e.g. Space would "click" a hotbar slot again).
+function unfocusable(button) {
+  button.tabIndex = -1;
+  button.addEventListener('mousedown', (e) => e.preventDefault());
+  return button;
+}
+
 // Shows the survival stats, clock, prompts and game-over screen.
 export class Hud {
   constructor({ onRestart, onSlotClick, onCraft }) {
@@ -19,7 +27,12 @@ export class Hud {
       hunger: document.querySelector('#stat-hunger .fill'),
       thirst: document.querySelector('#stat-thirst .fill'),
     };
-    document.getElementById('restart').addEventListener('click', onRestart);
+    unfocusable(document.getElementById('restart')).addEventListener('click', onRestart);
+
+    // The pause menu with the controls. It's open when the game starts.
+    this.menu = document.getElementById('menu');
+    this.resume = unfocusable(document.getElementById('resume'));
+    this.resume.addEventListener('click', () => this.toggleMenu());
 
     // Hotbar slots (numbered 1–6) at the bottom, then the backpack's slots in its panel.
     const hotbar = document.getElementById('hotbar');
@@ -27,14 +40,14 @@ export class Hud {
     const backpackGrid = this.backpack.querySelector('.grid');
     this.slots = Array.from({ length: HOTBAR_SIZE + BACKPACK_SIZE }, (_, i) => {
       const inHotbar = i < HOTBAR_SIZE;
-      const slot = document.createElement('button');
+      const slot = unfocusable(document.createElement('button'));
       slot.className = 'slot';
       slot.innerHTML = `<span class="key">${inHotbar ? i + 1 : ''}</span><span class="icon"></span><span class="count"></span>`;
       slot.addEventListener('click', () => onSlotClick(i));
       (inHotbar ? hotbar : backpackGrid).append(slot);
       return slot;
     });
-    this.backpack.querySelector('.close').addEventListener('click', () => this.toggleBackpack());
+    unfocusable(this.backpack.querySelector('.close')).addEventListener('click', () => this.toggleBackpack());
 
     this.crafting = document.getElementById('crafting');
     const list = this.crafting.querySelector('.recipes');
@@ -43,7 +56,7 @@ export class Hud {
       const cost = Object.entries(recipe.cost)
         .map(([item, count]) => `${count} ${ITEMS[item].name.toLowerCase()}`)
         .join(', ');
-      const button = document.createElement('button');
+      const button = unfocusable(document.createElement('button'));
       button.className = 'recipe';
       button.innerHTML = `<span class="icon">${icon}</span>
         <span><strong>${name}</strong><small>${recipe.description}</small></span>
@@ -52,11 +65,30 @@ export class Hud {
       list.append(button);
       return { recipe, button };
     });
-    this.crafting.querySelector('.close').addEventListener('click', () => this.toggleCrafting());
+    unfocusable(this.crafting.querySelector('.close')).addEventListener('click', () => this.toggleCrafting());
   }
 
   toggleCrafting() {
     this.crafting.hidden = !this.crafting.hidden;
+  }
+
+  get menuOpen() {
+    return !this.menu.hidden;
+  }
+
+  toggleMenu() {
+    this.menu.hidden = !this.menu.hidden;
+    this.resume.textContent = 'Resume';
+  }
+
+  // Esc closes an open panel first; otherwise it opens or closes the pause menu.
+  escape() {
+    if (this.backpackOpen || !this.crafting.hidden) {
+      if (this.backpackOpen) this.toggleBackpack();
+      this.crafting.hidden = true;
+    } else {
+      this.toggleMenu();
+    }
   }
 
   get backpackOpen() {

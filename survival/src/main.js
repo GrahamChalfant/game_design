@@ -121,6 +121,20 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05); // avoid huge jumps after a tab switch
 
+  // Menus and panels.
+  if (input.wasPressed('Escape')) hud.escape();
+  if (hud.menuOpen) {
+    // Paused: keep drawing the scene, but nothing moves or uses up time.
+    hud.update(survival, inventory, { prompt: null });
+    updateCamera(dt);
+    daylight.update(survival.hourOfDay, cameraTarget);
+    input.endFrame();
+    renderer.render(scene, camera);
+    return;
+  }
+  if (input.wasPressed('KeyC')) hud.toggleCrafting();
+  if (input.wasPressed('Tab') || input.wasPressed('KeyI')) hud.toggleBackpack();
+
   const actions = updateActions(dt);
   survival.update(dt, actions, TIME_SPEED);
   campfires.update(survival.alive ? dt * GAME_MINUTES_PER_SECOND * TIME_SPEED : 0, clock.elapsedTime);
@@ -133,8 +147,6 @@ renderer.setAnimationLoop(() => {
   animals.update(dt, player.position, player.sneaking);
   traps.update();
   pickups.update(clock.elapsedTime);
-  if (input.wasPressed('KeyC')) hud.toggleCrafting();
-  if (input.wasPressed('Tab') || input.wasPressed('KeyI')) hud.toggleBackpack();
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);

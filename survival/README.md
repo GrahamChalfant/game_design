@@ -54,8 +54,11 @@ automatically whenever you save a file.
 | Tab or I | Open or close the backpack (click an item to move it to or from the hotbar) |
 | C | Open or close the crafting panel |
 | Mouse wheel / trackpad scroll | Zoom in and out |
+| Esc | Pause and show the controls (also closes the backpack or crafting panel) |
 
 ### How to play
+
+The game starts paused on a menu listing the controls. Press Esc at any time to see it again.
 
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
 you start losing health. Drink from the lake to stay hydrated. While you're well fed and
