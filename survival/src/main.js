@@ -119,7 +119,7 @@ renderer.setAnimationLoop(() => {
   player.update(dt, input, world);
   updateCamera(dt);
   world.update(dt, clock.elapsedTime);
-  animals.update(dt, player.position);
+  animals.update(dt, player.position, player.sneaking);
   traps.update();
   if (input.wasPressed('KeyC')) hud.toggleCrafting();
   snow.update(dt, clock.elapsedTime, cameraTarget);

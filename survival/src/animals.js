@@ -33,6 +33,7 @@ const KINDS = {
     placeholder: placeholders.deer,
   },
 };
+const SNEAK_FACTOR = 0.5; // sneaking players are noticed at half the usual distance
 const SPAWN_DISTANCE = 25; // new animals appear at least this far from the player
 const RESPAWN_TIME = 60; // seconds before a caught animal is replaced
 
@@ -104,8 +105,8 @@ export class Animals {
     this.respawns.push({ kind: animal.kind, timer: RESPAWN_TIME });
   }
 
-  update(dt, playerPosition) {
-    for (const animal of this.all) this.updateAnimal(animal, dt, playerPosition);
+  update(dt, playerPosition, sneaking) {
+    for (const animal of this.all) this.updateAnimal(animal, dt, playerPosition, sneaking);
 
     for (const respawn of this.respawns) respawn.timer -= dt;
     for (const respawn of this.respawns.filter((r) => r.timer <= 0)) {
@@ -114,12 +115,13 @@ export class Animals {
     }
   }
 
-  updateAnimal(animal, dt, playerPosition) {
+  updateAnimal(animal, dt, playerPosition, sneaking) {
     const { config, position } = animal;
     const playerDistance = Math.hypot(position.x - playerPosition.x, position.z - playerPosition.z);
 
     // Notice the player and bolt; settle down again once well away.
-    if (playerDistance < config.scareDistance) animal.state = 'flee';
+    const scareDistance = config.scareDistance * (sneaking ? SNEAK_FACTOR : 1);
+    if (playerDistance < scareDistance) animal.state = 'flee';
     if (animal.state === 'flee' && playerDistance > config.calmDistance) this.rest(animal);
 
     let direction = null;

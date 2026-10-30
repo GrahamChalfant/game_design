@@ -4,6 +4,7 @@ import * as placeholders from './placeholders.js';
 
 const RADIUS = 0.4;
 const WALK_SPEED = 5;
+const SNEAK_SPEED = 2.2;
 const SWIM_SPEED = 2.2;
 const SWIM_DEPTH = 1.25; // once the water is this deep, the player swims with their head above water
 const TURN_SPEED = 12;
@@ -64,7 +65,10 @@ export class Player {
     const depth = world.terrain.waterDepth(this.position.x, this.position.z);
     this.swimming = depth > SWIM_DEPTH;
     // Wading slows you down the deeper you go; swimming is slower still.
-    const speed = THREE.MathUtils.lerp(WALK_SPEED, SWIM_SPEED, Math.min(1, depth / SWIM_DEPTH));
+    // Hold Shift to sneak: slower and crouched, so animals don't notice you as soon.
+    this.sneaking = input.isDown('ShiftLeft', 'ShiftRight') && !this.swimming;
+    const landSpeed = this.sneaking ? SNEAK_SPEED : WALK_SPEED;
+    const speed = THREE.MathUtils.lerp(landSpeed, SWIM_SPEED, Math.min(1, depth / SWIM_DEPTH));
 
     if (moving) {
       const step = new THREE.Vector2(x, z).normalize().multiplyScalar(speed * dt);
@@ -83,12 +87,14 @@ export class Player {
     this.position.y = Math.max(ground, world.terrain.waterLevel - SWIM_DEPTH);
     this.object.position.copy(this.position);
     this.object.rotation.y = this.facing;
+    const crouch = this.sneaking ? 0.75 : 1;
+    this.body.scale.y += (crouch - this.body.scale.y) * Math.min(1, dt * 10);
     if (this.swimming) {
       // Bob gently in the water.
       this.body.position.y = Math.sin(performance.now() / 400) * 0.06;
     } else {
       // A little bounce while walking.
-      this.body.position.y = moving ? Math.abs(Math.sin(this.walkTime * 10)) * 0.08 : 0;
+      this.body.position.y = moving ? Math.abs(Math.sin(this.walkTime * 10)) * (this.sneaking ? 0.03 : 0.08) : 0;
     }
   }
 
