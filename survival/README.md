@@ -109,6 +109,9 @@ the fire to eat. Eating meat raw works in a pinch, but it makes you sick.
 
 To tune the difficulty, edit the numbers at the top of `src/survival.js`.
 
+The game has a painterly filter that makes it look hand-painted. If it runs slowly on your
+computer, or to compare, add `?classic` to the address to turn it off.
+
 To test faster, add `?speed=20` to the address (for example http://localhost:8000/?speed=20).
 Time then passes 20 times faster.
 
@@ -119,7 +122,8 @@ index.html            Page shell and HUD
 src/main.js           Renderer, lighting, camera and the main game loop
 src/daylight.js       Day and night: the sun and moon, light colours, sky and fog
 src/world.js          Builds the map from a seed: places trees, rocks and grass
-src/terrain.js        Hills, the lake, and the colours painted on the ground
+src/terrain.js        The valley: hills, rocky walls, the lake, the river and the ground colours
+src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
 src/grass.js          Swaying grass blades
 src/snow.js           Light snowfall
 src/player.js         Player movement, swimming and collisions

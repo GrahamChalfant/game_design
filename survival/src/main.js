@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createActions } from './actions.js';
 import { Daylight } from './daylight.js';
+import { createPainterlyRenderer } from './painterly.js';
 import { Animals } from './animals.js';
 import { Campfires } from './campfires.js';
 import { craft } from './crafting.js';
@@ -20,10 +21,14 @@ import { buildWorld, WORLD_SIZE } from './world.js';
 const SEED = 20261030;
 // Add ?speed=20 to the URL to make time pass 20x faster (handy for testing hunger and thirst).
 const TIME_SPEED = Number(new URLSearchParams(location.search).get('speed')) || 1;
+// Add ?classic to the URL to turn off the painterly filter (e.g. to compare, or on a slow computer).
+const PAINTERLY = !new URLSearchParams(location.search).has('classic');
 
 // --- Renderer, scene, camera ---
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// The painterly filter softens the picture anyway, so it draws at normal resolution
+// (not double, on high-res screens), which also keeps it fast.
+renderer.setPixelRatio(PAINTERLY ? 1 : Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -127,6 +132,9 @@ function updateCamera(dt) {
 
 }
 
+const painter = PAINTERLY ? createPainterlyRenderer(renderer, scene, camera) : null;
+const draw = () => (painter ? painter.render() : renderer.render(scene, camera));
+
 // --- Main loop ---
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
@@ -140,7 +148,7 @@ renderer.setAnimationLoop(() => {
     updateCamera(dt);
     daylight.update(survival.hourOfDay, cameraTarget);
     input.endFrame();
-    renderer.render(scene, camera);
+    draw();
     return;
   }
   if (input.wasPressed('KeyC')) hud.toggleCrafting();
@@ -167,5 +175,5 @@ renderer.setAnimationLoop(() => {
   daylight.update(survival.hourOfDay, cameraTarget);
 
   input.endFrame();
-  renderer.render(scene, camera);
+  draw();
 });
