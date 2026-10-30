@@ -44,7 +44,19 @@ automatically whenever you save a file.
 | Key | Action |
 | --- | --- |
 | W A S D / arrow keys | Walk |
+| E (hold, at the water's edge or in the lake) | Drink |
 | Mouse wheel / trackpad scroll | Zoom in and out |
+
+### How to play
+
+Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
+you start losing health. Drink from the lake to stay hydrated. While you're well fed and
+watered, your health slowly recovers. One in-game day lasts 10 real minutes.
+
+To tune the difficulty, edit the numbers at the top of `src/survival.js`.
+
+To test faster, add `?speed=20` to the address (for example http://localhost:8000/?speed=20).
+Time then passes 20 times faster.
 
 ## Project layout
 
@@ -55,7 +67,9 @@ src/world.js          Builds the map from a seed: places trees, rocks and grass
 src/terrain.js        Hills, the lake, and the colours painted on the ground
 src/grass.js          Swaying grass blades
 src/snow.js           Light snowfall
-src/player.js         Player movement and collisions
+src/player.js         Player movement, swimming and collisions
+src/survival.js       Hunger, thirst, health and the survival clock
+src/hud.js            On-screen stats, clock, prompts and game-over screen
 src/input.js          Keyboard and mouse handling
 src/models.js         Loads Blender models and draws many copies efficiently
 src/placeholders.js   Simple stand-in shapes used until Blender models exist
