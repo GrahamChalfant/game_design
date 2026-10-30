@@ -4,6 +4,8 @@ import * as placeholders from './placeholders.js';
 
 const RADIUS = 0.4;
 const WALK_SPEED = 5;
+const SWIM_SPEED = 2.2;
+const SWIM_DEPTH = 1.25; // once the water is this deep, the player swims with their head above water
 const TURN_SPEED = 12;
 
 export class Player {
@@ -30,9 +32,13 @@ export class Player {
   update(dt, input, world) {
     const { x, z } = input.moveAxis();
     const moving = x !== 0 || z !== 0;
+    const depth = world.terrain.waterDepth(this.position.x, this.position.z);
+    this.swimming = depth > SWIM_DEPTH;
+    // Wading slows you down the deeper you go; swimming is slower still.
+    const speed = THREE.MathUtils.lerp(WALK_SPEED, SWIM_SPEED, Math.min(1, depth / SWIM_DEPTH));
 
     if (moving) {
-      const step = new THREE.Vector2(x, z).normalize().multiplyScalar(WALK_SPEED * dt);
+      const step = new THREE.Vector2(x, z).normalize().multiplyScalar(speed * dt);
       // Move one axis at a time so the player slides along trees and the shore.
       this.tryMove(step.x, 0, world);
       this.tryMove(0, step.y, world);
@@ -44,20 +50,22 @@ export class Player {
       this.walkTime += dt;
     }
 
-    this.position.y = world.terrain.heightAt(this.position.x, this.position.z);
+    const ground = world.terrain.heightAt(this.position.x, this.position.z);
+    this.position.y = Math.max(ground, world.terrain.waterLevel - SWIM_DEPTH);
     this.object.position.copy(this.position);
     this.object.rotation.y = this.facing;
-    // A little bounce while walking.
-    this.body.position.y = moving ? Math.abs(Math.sin(this.walkTime * 10)) * 0.08 : 0;
+    if (this.swimming) {
+      // Bob gently in the water.
+      this.body.position.y = Math.sin(performance.now() / 400) * 0.06;
+    } else {
+      // A little bounce while walking.
+      this.body.position.y = moving ? Math.abs(Math.sin(this.walkTime * 10)) * 0.08 : 0;
+    }
   }
 
   tryMove(dx, dz, world) {
     const x = THREE.MathUtils.clamp(this.position.x + dx, -this.limit, this.limit);
     const z = THREE.MathUtils.clamp(this.position.z + dz, -this.limit, this.limit);
-    // Look one body-width ahead so the player stops at the water's edge.
-    const ahead = Math.sign(dx) * RADIUS;
-    const aheadZ = Math.sign(dz) * RADIUS;
-    if (world.terrain.isWater(x + ahead, z + aheadZ)) return;
     for (const o of world.obstacles) {
       if (Math.hypot(o.x - x, o.z - z) < o.radius + RADIUS) return;
     }

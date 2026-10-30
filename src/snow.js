@@ -4,7 +4,9 @@ const COUNT = 350;
 const AREA = 50; // size of the box of snowflakes that follows the camera
 const HEIGHT = 25;
 
-// A light flurry of snow: a box of falling flakes that follows the player.
+// A light flurry of snow. Flakes stay put in the world as the player walks through them;
+// any that drift too far from the player wrap around to the other side, so there's
+// always snow nearby.
 export class Snowfall {
   constructor(scene) {
     const positions = new Float32Array(COUNT * 3);
@@ -33,16 +35,20 @@ export class Snowfall {
   }
 
   update(dt, time, center) {
-    this.points.position.set(center.x, 0, center.z);
     const positions = this.points.geometry.attributes.position;
     for (let i = 0; i < COUNT; i++) {
       let y = positions.getY(i) - dt * 1.6;
-      if (y < 0) y += HEIGHT;
-      positions.setY(i, y);
-      positions.setX(i, positions.getX(i) + Math.sin(time + this.drift[i]) * dt * 0.3);
+      if (y < -5) y += HEIGHT;
+      const x = positions.getX(i) + Math.sin(time + this.drift[i]) * dt * 0.3;
+      positions.setXYZ(i, wrap(x, center.x), y, wrap(positions.getZ(i), center.z));
     }
     positions.needsUpdate = true;
   }
+}
+
+// Moves `value` by whole box-widths so it stays within half a box of `center`.
+function wrap(value, center) {
+  return value - Math.round((value - center) / AREA) * AREA;
 }
 
 // A soft white dot, so flakes are round instead of square.
