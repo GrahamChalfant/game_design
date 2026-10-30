@@ -6,7 +6,7 @@ import { Campfires } from './campfires.js';
 import { craft } from './crafting.js';
 import { Hud } from './hud.js';
 import { Input } from './input.js';
-import { ITEMS, Inventory } from './inventory.js';
+import { HOTBAR_SIZE, ITEMS, Inventory } from './inventory.js';
 import { Player } from './player.js';
 import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
@@ -77,7 +77,15 @@ const hud = new Hud({
     animals.reset(player.position);
     hud.hideGameOver();
   },
-  onSelectSlot: (i) => inventory.select(i),
+  // With the backpack open, clicking a slot moves its items between the backpack and
+  // the hotbar; otherwise clicking a hotbar slot selects it.
+  onSlotClick: (i) => {
+    if (hud.backpackOpen) {
+      if (!inventory.move(i)) hud.toast('No room');
+    } else if (i < HOTBAR_SIZE) {
+      inventory.select(i);
+    }
+  },
   onCraft: (recipe) => {
     if (craft(inventory, recipe)) hud.toast(`+${recipe.count} ${ITEMS[recipe.item].name}`);
     else hud.toast('No room in your inventory');
@@ -122,6 +130,7 @@ renderer.setAnimationLoop(() => {
   animals.update(dt, player.position, player.sneaking);
   traps.update();
   if (input.wasPressed('KeyC')) hud.toggleCrafting();
+  if (input.wasPressed('Tab') || input.wasPressed('KeyI')) hud.toggleBackpack();
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);
