@@ -3,6 +3,9 @@ import * as THREE from 'three';
 // Northern summer: long days. The sun is up from SUNRISE to SUNSET; the moon lights the rest.
 const SUNRISE = 5;
 const SUNSET = 20;
+// The sun hands over to the moon (and back) on opposite sides of the sky. To hide the
+// jump, their light fades out this many hours before the switch and back in after it.
+const HANDOVER = 0.75;
 
 // How the world looks at different times of day; everything in between is blended.
 // The sun is stronger at dawn and dusk because low sunlight hits the ground at a slant.
@@ -44,7 +47,9 @@ export class Daylight {
     const t = (hour - a.hour) / (b.hour - a.hour);
 
     mix(a.light[0], b.light[0], t, this.sun.color);
-    this.sun.intensity = THREE.MathUtils.lerp(a.light[1], b.light[1], t);
+    const fromHandover = Math.min(Math.abs(hour - SUNRISE), Math.abs(hour - SUNSET));
+    this.sun.intensity =
+      THREE.MathUtils.lerp(a.light[1], b.light[1], t) * THREE.MathUtils.smoothstep(fromHandover, 0, HANDOVER);
     mix(a.sky, b.sky, t, this.ambient.color);
     mix(a.ground, b.ground, t, this.ambient.groundColor);
     this.ambient.intensity = THREE.MathUtils.lerp(a.ambient, b.ambient, t);
