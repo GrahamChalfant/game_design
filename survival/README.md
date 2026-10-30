@@ -150,7 +150,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `rock.glb` | Boulder | ~1 m across |
 | `rabbit.glb` | Rabbit (the stand-in is drawn a bit bigger than life, to be easy to spot) | ~0.55 m long |
 | `deer.glb` | Deer | ~1.6 m tall at the head |
-| `plane.glb` | The crashed bush plane, nose along +Y in Blender (it's placed already crashed, so model it that way) | ~8 m long |
+| `plane.glb` | The crashed bush plane, nose pointing toward you in Blender's **Front** view (model it already crashed) | ~8 m long |
 | `backpack.glb` | Backpack lying in the grass | ~0.5 m tall |
 | `axe-ground.glb` | Axe lying on the ground | ~0.75 m long |
 | `logs.glb` | Pile of logs lying on the ground | ~0.7 m long |
