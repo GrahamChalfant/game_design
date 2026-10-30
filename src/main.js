@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createActions } from './actions.js';
+import { Daylight } from './daylight.js';
 import { Animals } from './animals.js';
 import { Campfires } from './campfires.js';
 import { craft } from './crafting.js';
@@ -28,10 +29,10 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
 document.body.appendChild(renderer.domElement);
 
-const HAZE = 0xe9dcb8; // warm, golden-hour haze on the horizon
+// The sky, fog and light colours are set by Daylight (src/daylight.js) as the day goes on.
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(HAZE);
-scene.fog = new THREE.Fog(HAZE, 40, 100);
+scene.background = new THREE.Color();
+scene.fog = new THREE.Fog(0xffffff, 40, 100);
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 300);
 
@@ -41,22 +42,24 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// --- Lighting: a low, golden late-afternoon sun ---
-scene.add(new THREE.HemisphereLight(0xdbe8ff, 0x8a9a5a, 1.7));
-const sun = new THREE.DirectionalLight(0xffe2b0, 3.0);
+// --- Lighting: ambient light from the sky, plus the sun (or moon) ---
+const ambient = new THREE.HemisphereLight();
+scene.add(ambient);
+const sun = new THREE.DirectionalLight();
 sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.03;
+sun.shadow.intensity = 0.8; // shadows let a little light through, so shady areas aren't too dark
 Object.assign(sun.shadow.camera, { left: -35, right: 35, top: 35, bottom: -35, near: 1, far: 120 });
 scene.add(sun, sun.target);
-const SUN_OFFSET = new THREE.Vector3(-35, 45, -8);
 
 // --- Game objects ---
 const input = new Input(renderer.domElement);
 const world = buildWorld(scene, SEED);
 const player = new Player(scene, world.spawn, WORLD_SIZE);
 const snow = new Snowfall(scene);
+const daylight = new Daylight(scene, sun, ambient, snow);
 const survival = new Survival();
 const inventory = new Inventory();
 const campfires = new Campfires(scene, world);
@@ -100,9 +103,6 @@ function updateCamera(dt) {
   // Keep the player visible through any trees in the way.
   updateSeeThrough(camera, renderer, player.position.clone().setY(player.position.y + 1));
 
-  // Keep the sun's shadow area centred on the player.
-  sun.position.copy(cameraTarget).add(SUN_OFFSET);
-  sun.target.position.copy(cameraTarget);
 }
 
 // --- Main loop ---
@@ -123,6 +123,8 @@ renderer.setAnimationLoop(() => {
   traps.update();
   if (input.wasPressed('KeyC')) hud.toggleCrafting();
   snow.update(dt, clock.elapsedTime, cameraTarget);
+  // Move the sun/moon for the time of day, keeping its shadows centred on the player.
+  daylight.update(survival.hourOfDay, cameraTarget);
 
   input.endFrame();
   renderer.render(scene, camera);
