@@ -13,6 +13,7 @@ const HEALING_PER_HOUR = 5; // health regained while well fed and watered
 const WELL_FED = 50; // hunger and thirst both need to be above this to heal
 
 const DRINK_PER_SECOND = 30; // thirst regained per real second while drinking
+const WORK_HUNGER = 3; // hard work (like chopping) makes you hungry this many times faster
 
 export class Survival {
   constructor() {
@@ -28,13 +29,13 @@ export class Survival {
   }
 
   // `speed` makes time pass faster for testing (see README).
-  update(dt, { drinking }, speed = 1) {
+  update(dt, { drinking, working }, speed = 1) {
     if (!this.alive) return;
     const minutes = dt * GAME_MINUTES_PER_SECOND * speed;
     const hours = minutes / 60;
     this.minutesSurvived += minutes;
 
-    this.hunger = clamp(this.hunger - HUNGER_PER_HOUR * hours);
+    this.hunger = clamp(this.hunger - HUNGER_PER_HOUR * hours * (working ? WORK_HUNGER : 1));
     this.thirst = clamp(this.thirst - THIRST_PER_HOUR * hours);
     if (drinking) this.thirst = clamp(this.thirst + DRINK_PER_SECOND * dt * speed);
 

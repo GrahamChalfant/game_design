@@ -90,17 +90,41 @@ canvas {
   to { background: rgb(224 90 71 / 0.6); }
 }
 
-#prompt {
+#action {
   position: fixed;
   left: 50%;
   bottom: 22%;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
   transform: translateX(-50%);
+  pointer-events: none;
+}
+
+#progress {
+  width: 160px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgb(20 30 40 / 0.6);
+}
+
+#progress .fill {
+  background: #e8d9a8;
+  transition: none;
+}
+
+#progress[hidden] {
+  display: none;
+}
+
+#prompt {
   padding: 8px 16px;
   border-radius: 6px;
   color: #fff;
   background: rgb(20 30 40 / 0.65);
   font-size: 16px;
-  pointer-events: none;
+  white-space: nowrap;
 }
 
 #prompt[hidden],
@@ -144,4 +168,107 @@ canvas {
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+}
+
+/* --- Hotbar --- */
+
+#hotbar {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 10px;
+  background: rgb(20 30 40 / 0.55);
+  transform: translateX(-50%);
+}
+
+.slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 2px solid rgb(255 255 255 / 0.15);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.08);
+  cursor: pointer;
+}
+
+.slot.selected {
+  border-color: #e8d9a8;
+  background: rgb(232 217 168 / 0.22);
+}
+
+.slot .icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.slot .key,
+.slot .count {
+  position: absolute;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+}
+
+.slot .key {
+  top: 3px;
+  left: 5px;
+  opacity: 0.7;
+}
+
+.slot .count {
+  right: 5px;
+  bottom: 3px;
+  font-size: 13px;
+}
+
+/* On narrow screens, move the stats above the hotbar. */
+@media (max-width: 720px) {
+  #stats {
+    bottom: 90px;
+  }
+
+  .slot {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* --- "+4 Wood" messages --- */
+
+#toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 30%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-shadow: 0 2px 4px rgb(0 0 0 / 0.7);
+  animation: float-up 1.6s ease-out forwards;
+}
+
+@keyframes float-up {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -60px);
+  }
 }

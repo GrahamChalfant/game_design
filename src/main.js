@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Hud } from './hud.js';
 import { Input } from './input.js';
+import { HOTBAR_SIZE, ITEMS, Inventory } from './inventory.js';
 import { Player } from './player.js';
 import { Snowfall } from './snow.js';
 import { Survival } from './survival.js';
@@ -51,13 +52,49 @@ const world = buildWorld(scene, SEED);
 const player = new Player(scene, world.spawn, WORLD_SIZE);
 const snow = new Snowfall(scene);
 const survival = new Survival();
+const inventory = new Inventory();
 const hud = new Hud({
   onRestart: () => {
     survival.reset();
+    inventory.reset();
+    world.trees.reset();
     player.reset();
     hud.hideGameOver();
   },
+  onSelectSlot: (i) => inventory.select(i),
 });
+
+// Works out what the player is doing this frame (drinking, chopping) and what to tell them.
+function updateActions(dt) {
+  if (!survival.alive) return { prompt: null };
+  for (let i = 0; i < HOTBAR_SIZE; i++) {
+    if (input.wasPressed(`Digit${i + 1}`)) inventory.select(i);
+  }
+
+  const held = inventory.selectedItem;
+  const canDrink = player.canDrink(world);
+  const drinking = canDrink && input.isDown('KeyE');
+  const tree = player.treeInReach(world);
+  const chopping = tree && held === 'axe' && input.usingTool();
+  let prompt = null;
+  let progress = null;
+
+  if (tree && held !== 'axe') {
+    prompt = `Press ${inventory.slotOf('axe') + 1} to take out your axe`;
+  } else if (tree) {
+    prompt = chopping ? 'Chopping…' : 'Hold Space or click to chop';
+    progress = world.trees.progress(tree);
+  }
+  if (chopping && world.trees.chop(tree, dt, player.position.x, player.position.z)) {
+    const leftOver = inventory.add('wood', tree.wood);
+    hud.toast(`+${tree.wood - leftOver} ${ITEMS.wood.name}`);
+    if (leftOver > 0) hud.toast('Inventory full');
+  }
+  if (canDrink) prompt = drinking ? 'Drinking…' : 'Hold E to drink';
+
+  player.setAction(held, chopping);
+  return { drinking, working: chopping, prompt, progress };
+}
 
 // --- Top-down camera that follows the player ---
 let zoom = 20; // distance from the player
@@ -84,15 +121,14 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05); // avoid huge jumps after a tab switch
 
-  const canDrink = survival.alive && player.canDrink(world);
-  const drinking = canDrink && input.isDown('KeyE');
-  survival.update(dt, { drinking }, TIME_SPEED);
+  const actions = updateActions(dt);
+  survival.update(dt, actions, TIME_SPEED);
   if (!survival.alive && player.alive) player.die();
-  hud.update(survival, { prompt: canDrink && (drinking ? 'Drinking…' : 'Hold E to drink') });
+  hud.update(survival, inventory, actions);
 
   player.update(dt, input, world);
   updateCamera(dt);
-  world.update(clock.elapsedTime);
+  world.update(dt, clock.elapsedTime);
   snow.update(dt, clock.elapsedTime, cameraTarget);
 
   input.endFrame();

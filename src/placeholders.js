@@ -48,6 +48,29 @@ export function broadleaf() {
   return tree;
 }
 
+// Tree stump left after chopping, base at the origin. Scaled to match the tree.
+export function stump() {
+  const group = new THREE.Group();
+  const bark = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.36, 0.45, 12), BARK);
+  bark.position.y = 0.225;
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.02, 12), material(0xd9b98a));
+  top.position.y = 0.455;
+  group.add(bark, top);
+  return group;
+}
+
+// Axe held in the player's hand. The origin is where the hand grips the handle.
+export function axe() {
+  const group = new THREE.Group();
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.75, 8), material(0x8a6a45));
+  handle.position.y = 0.25;
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.16, 0.22), material(0x9aa0a6, 0.4));
+  head.position.set(0, 0.55, 0.08);
+  group.add(handle, head);
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
 // Rounded boulder about 1 m across, base at the origin.
 export function rock() {
   const geometry = new THREE.IcosahedronGeometry(0.6, 3);

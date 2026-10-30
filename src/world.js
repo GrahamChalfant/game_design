@@ -4,6 +4,7 @@ import { instancedModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { createNoise, createRandom } from './random.js';
 import { createTerrain } from './terrain.js';
+import { Trees } from './trees.js';
 
 export const WORLD_SIZE = 140; // meters across; the playable area is a square centred on 0,0
 const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into the haze
@@ -28,28 +29,32 @@ export function buildWorld(scene, seed) {
     obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + spacing);
 
   const place = (x, z, radius, scale) => {
-    obstacles.push({ x, z, radius: radius * scale });
+    const obstacle = { x, z, radius: radius * scale };
+    obstacles.push(obstacle);
     // Sink things slightly so they don't float on slopes.
-    return transform(x, terrain.heightAt(x, z) - 0.1, z, random.range(0, Math.PI * 2), scale);
+    return { x, y: terrain.heightAt(x, z) - 0.1, z, rotation: random.range(0, Math.PI * 2), scale, obstacle };
   };
+
+  const trees = new Trees(scene);
 
   // Tall conifers grow together in forests...
   const conifers = scatter(random, CONIFER_COUNT, (x, z) => {
     if (terrain.forest(x, z) < random.range(-0.15, 0.45) || !isFree(x, z, 1.4)) return null;
     return place(x, z, 0.5, random.range(0.8, 1.3));
   });
-  scene.add(instancedModel('pine', placeholders.conifer(), conifers));
+  trees.add('pine', placeholders.conifer(), conifers);
 
   // ...while round leafy trees stand alone or in small groups out in the fields.
   const broadleaves = scatter(random, BROADLEAF_COUNT, (x, z) => {
     if (terrain.forest(x, z) > 0 || !isFree(x, z, 4)) return null;
     return place(x, z, 0.45, random.range(0.8, 1.25));
   });
-  scene.add(instancedModel('broadleaf', placeholders.broadleaf(), broadleaves));
+  trees.add('broadleaf', placeholders.broadleaf(), broadleaves);
 
   const rocks = scatter(random, ROCK_COUNT, (x, z) => {
     if (!isFree(x, z, 1)) return null;
-    return place(x, z, 0.55, random.range(0.6, 1.8));
+    const { y, rotation, scale } = place(x, z, 0.55, random.range(0.6, 1.8));
+    return transform(x, y, z, rotation, scale);
   });
   scene.add(instancedModel('rock', placeholders.rock(), rocks));
 
@@ -59,8 +64,12 @@ export function buildWorld(scene, seed) {
   return {
     terrain,
     obstacles,
+    trees,
     spawn: new THREE.Vector3(0, terrain.heightAt(0, 0), 0),
-    update: (time) => grass.update(time),
+    update(dt, time) {
+      grass.update(time);
+      trees.update(dt);
+    },
   };
 }
 

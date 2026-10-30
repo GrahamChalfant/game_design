@@ -44,6 +44,8 @@ automatically whenever you save a file.
 | Key | Action |
 | --- | --- |
 | W A S D / arrow keys | Walk |
+| 1–6, or click a slot | Pick an item from the hotbar |
+| Space or left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
 | E (hold, at the water's edge or in the lake) | Drink |
 | Mouse wheel / trackpad scroll | Zoom in and out |
 
@@ -52,6 +54,9 @@ automatically whenever you save a file.
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
 you start losing health. Drink from the lake to stay hydrated. While you're well fed and
 watered, your health slowly recovers. One in-game day lasts 10 real minutes.
+
+You start with an axe. Face a tree, take out the axe and hold Space to chop it down
+for wood. Hard work makes you hungry faster.
 
 To tune the difficulty, edit the numbers at the top of `src/survival.js`.
 
@@ -68,6 +73,8 @@ src/terrain.js        Hills, the lake, and the colours painted on the ground
 src/grass.js          Swaying grass blades
 src/snow.js           Light snowfall
 src/player.js         Player movement, swimming and collisions
+src/trees.js          Choppable trees: chopping progress, falling and stumps
+src/inventory.js      Items and the hotbar
 src/survival.js       Hunger, thirst, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
 src/input.js          Keyboard and mouse handling
@@ -95,6 +102,8 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `pine.glb` | Tall conifer that grows in the forests | ~9 m tall |
 | `broadleaf.glb` | Round, leafy tree found alone in the fields | ~6 m tall |
 | `rock.glb` | Boulder | ~1 m across |
+| `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
+| `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |
 
 ## Updating Three.js
 
