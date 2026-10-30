@@ -59,6 +59,122 @@ export function stump() {
   return group;
 }
 
+const PAINT = material(0xd9a52b, 0.6); // classic yellow bush-plane paint
+const STRIPE = material(0xa83a2a, 0.6);
+const METAL = material(0x7d8288, 0.5);
+const GLASS = material(0x2a3a44, 0.2);
+
+// A small single-engine bush plane, crashed nose-first into the ground. It's about
+// 8 m long with its nose pointing along +z; one wing has broken off (see brokenWing).
+export function crashedPlane() {
+  const wreck = new THREE.Group();
+  const plane = new THREE.Group();
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.8, 4.6, 16), PAINT);
+  body.rotation.x = Math.PI / 2;
+  body.position.set(0, 0.8, 0.6);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.2, 3, 16), PAINT);
+  tail.rotation.x = -Math.PI / 2;
+  tail.position.set(0, 0.95, -3.2);
+  const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.81, 0.81, 0.35, 16), STRIPE);
+  stripe.rotation.x = Math.PI / 2;
+  stripe.position.set(0, 0.8, -0.8);
+  const engine = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.78, 0.9, 16), METAL);
+  engine.rotation.x = Math.PI / 2;
+  engine.position.set(0, 0.75, 3.3);
+  const windscreen = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.9), GLASS);
+  windscreen.position.set(0, 1.45, 1.8);
+  windscreen.rotation.x = -0.35;
+  const sideWindows = new THREE.Mesh(new THREE.BoxGeometry(1.58, 0.45, 1.3), GLASS);
+  sideWindows.position.set(0, 1.2, 0.8);
+
+  // The remaining (left) wing, mounted high on the body, plus its strut.
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.12, 1.6), PAINT);
+  wing.position.set(-3.2, 1.75, 1.1);
+  wing.rotation.z = 0.12; // bent from the crash
+  const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.6, 6), METAL);
+  strut.position.set(-1.6, 1.15, 1.1);
+  strut.rotation.z = 1.15;
+
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.3, 1.2), PAINT);
+  fin.position.set(0, 1.75, -4.1);
+  const finStripe = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 1.2), STRIPE);
+  finStripe.position.set(0, 2.2, -4.1);
+  const stabilizer = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 0.9), PAINT);
+  stabilizer.position.set(0, 1.1, -4.1);
+
+  // Bent propeller.
+  const hub = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), METAL);
+  hub.position.set(0, 0.75, 3.85);
+  const blade = new THREE.BoxGeometry(0.12, 1.1, 0.05).translate(0, 0.55, 0);
+  for (const [angle, bend] of [[0.3, 0.6], [Math.PI + 0.3, -0.4]]) {
+    const b = new THREE.Mesh(blade, METAL);
+    b.position.copy(hub.position);
+    b.rotation.set(bend, 0, angle);
+    plane.add(b);
+  }
+
+  plane.add(body, tail, stripe, engine, windscreen, sideWindows, wing, strut, fin, finStripe, stabilizer, hub);
+  // Nose dug into the ground, tilted onto one side.
+  plane.rotation.set(0.14, 0, -0.18);
+  plane.position.y = -0.25;
+  wreck.add(plane);
+  wreck.traverse((child) => (child.castShadow = child.receiveShadow = true));
+  return wreck;
+}
+
+// The wing that broke off in the crash, lying on the ground. About 5.5 m long.
+export function brokenWing() {
+  const group = new THREE.Group();
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.12, 1.6), PAINT);
+  wing.position.y = 0.2;
+  wing.rotation.set(0.05, 0, 0.08);
+  const tip = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.13, 1.6), STRIPE);
+  tip.position.set(2.5, 0.4, 0);
+  tip.rotation.z = 0.08;
+  group.add(wing, tip);
+  group.traverse((child) => (child.castShadow = child.receiveShadow = true));
+  return group;
+}
+
+// A torn scrap of the plane lying in the grass.
+export function debris() {
+  const scrap = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.6), PAINT);
+  scrap.position.y = 0.05;
+  scrap.rotation.set(0.2, 0.4, -0.15);
+  scrap.castShadow = true;
+  return scrap;
+}
+
+// The axe lying flat on the ground.
+export function axeOnGround() {
+  const tool = axe();
+  tool.rotation.set(Math.PI / 2, 0, 0.6);
+  tool.position.y = 0.05;
+  const group = new THREE.Group();
+  group.add(tool);
+  return group;
+}
+
+// A canvas backpack, about 0.5 m tall, base at the origin.
+export function backpack() {
+  const group = new THREE.Group();
+  const canvas = material(0x4f6b45);
+  const bag = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.55, 0.28), canvas);
+  bag.position.y = 0.28;
+  const flap = new THREE.Mesh(new THREE.BoxGeometry(0.47, 0.18, 0.3), material(0x3f5737));
+  flap.position.y = 0.5;
+  const pocket = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.08), material(0x3f5737));
+  pocket.position.set(0, 0.2, 0.17);
+  const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.5, 10), material(0x8a3a2a));
+  roll.rotation.z = Math.PI / 2;
+  roll.position.y = 0.64;
+  group.add(bag, flap, pocket, roll);
+  group.rotation.set(0, 0.5, -0.25); // tipped over in the grass
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
 // A small pile of cut logs lying on the ground, base at the origin.
 export function logPile() {
   const group = new THREE.Group();

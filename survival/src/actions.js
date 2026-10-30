@@ -82,8 +82,14 @@ export function createActions({ input, inventory, player, world, campfires, trap
     if (!fire && pile) {
       // Something on the ground: E picks up as much as fits.
       const { name } = ITEMS[pile.item];
-      prompt = `${name} ×${pile.count} on the ground · E to pick up`;
-      if (pressedE) {
+      const amount = pile.count > 1 ? ` ×${pile.count}` : '';
+      prompt = `${name}${amount} on the ground · E to pick up`;
+      if (pressedE && pile.item === 'backpack') {
+        // The backpack isn't stored in a slot: finding it gives you its extra slots.
+        pickups.remove(pile);
+        inventory.hasBackpack = true;
+        hud.toast('Found a backpack! Press Tab to open it');
+      } else if (pressedE) {
         const taken = pickups.pickUp(pile, inventory);
         hud.toast(taken > 0 ? `+${taken} ${name}` : 'Inventory full');
       }
@@ -106,7 +112,10 @@ export function createActions({ input, inventory, player, world, campfires, trap
         }
       }
     } else if (!fire && tree && held !== 'axe') {
-      prompt = `Press ${inventory.slotOf('axe') + 1} to take out your axe`;
+      const axeSlot = inventory.slotOf('axe');
+      if (axeSlot === -1) prompt = 'You need an axe to chop trees';
+      else if (axeSlot >= HOTBAR_SIZE) prompt = 'Move the axe from your backpack to the hotbar to use it';
+      else prompt = `Press ${axeSlot + 1} to take out your axe`;
     } else if (!fire && tree) {
       prompt = chopping ? 'Chopping…' : 'Hold Space or click to chop';
       progress = world.trees.progress(tree);
