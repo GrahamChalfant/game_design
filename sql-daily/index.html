@@ -4,120 +4,144 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SQL: The Sequel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="top">
-      <div class="brand">
-        <h1>SQL: The Sequel</h1>
-        <span id="puzzle-label" class="muted"></span>
+    <div class="curtain left" aria-hidden="true"></div>
+    <div class="curtain right" aria-hidden="true"></div>
+
+    <header class="hud">
+      <div class="hud-box brand">
+        <span class="marquee">SQL: The Sequel</span>
+        <span id="puzzle-label" class="tiny"></span>
       </div>
-      <div class="score">
-        <span class="muted">Score</span>
-        <strong id="total-score">0</strong><span class="muted">/ 1000</span>
+      <div class="progress" aria-live="polite">
+        <div id="dots" class="dots"></div>
+        <div id="progress-text" class="tiny"></div>
       </div>
+      <div class="hud-box score">
+        <span class="tiny">Score</span>
+        <strong id="total-score">0</strong>
+      </div>
+      <button id="help-btn" class="icon-btn" aria-label="How to play">?</button>
     </header>
 
-    <nav id="steps" class="steps" aria-label="Today's questions"></nav>
+    <main class="stage">
+      <div class="beam" aria-hidden="true"></div>
+      <div id="screen" class="screen">
+        <div id="loading" class="center-view">Warming up the projector…</div>
 
-    <main>
-      <div id="loading" class="panel">Loading the SQL engine…</div>
+        <!-- One screen, one button. -->
+        <section id="view-start" class="center-view" hidden>
+          <p class="eyebrow">Now showing</p>
+          <h2 id="start-theme" class="feature-title"></h2>
+          <p id="start-tagline" class="tagline"></p>
+          <p class="muted">3 parts · 1, 2 and 3 minutes</p>
+          <button id="begin-btn" class="primary big">Begin</button>
+        </section>
 
-      <section id="start-card" class="panel center start" hidden>
-        <p class="eyebrow">Today's feature</p>
-        <h2 id="start-theme" class="feature-title"></h2>
-        <p id="start-tagline" class="tagline"></p>
-        <p class="muted">Three questions · one minute each</p>
-        <button id="start-btn" class="primary big">Begin</button>
-      </section>
-
-      <section id="question" hidden>
-        <div class="q-head">
-          <div>
-            <span id="q-tier" class="badge"></span>
-            <h2 id="q-title"></h2>
+        <!-- Old-school film leader before every part. -->
+        <section id="view-countdown" class="center-view leader-view" hidden>
+          <div class="leader">
+            <div class="leader-sweep"></div>
+            <span id="countdown-num">3</span>
           </div>
-          <div id="timer" class="timer">
-            <div class="timer-row">
-              <span id="timer-text" class="timer-text">0:00</span>
-              <span id="bonus-text" class="muted"></span>
-            </div>
-            <div class="timer-bar"><div id="timer-fill"></div></div>
+          <p id="countdown-label" class="eyebrow"></p>
+        </section>
+
+        <section id="view-question" hidden>
+          <p id="q-eyebrow" class="eyebrow"></p>
+          <h2 id="q-title" class="q-title"></h2>
+          <p id="q-prompt" class="prompt"></p>
+          <p class="columns">Columns: <span id="q-columns"></span></p>
+          <ul id="hints" class="hints"></ul>
+          <div id="feedback" class="feedback" hidden></div>
+          <div id="results" class="results"></div>
+        </section>
+
+        <section id="view-reveal" class="center-view" hidden>
+          <p id="reveal-eyebrow" class="eyebrow"></p>
+          <h2 id="reveal-title" class="feature-title small"></h2>
+          <p id="reveal-points" class="reveal-points"></p>
+          <div class="solution">
+            <p class="tiny">One way to write it</p>
+            <pre id="solution-sql"></pre>
           </div>
+          <button id="next-btn" class="primary big"></button>
+        </section>
+
+        <section id="view-credits" class="center-view" hidden>
+          <p class="eyebrow">The End</p>
+          <h2 id="credits-theme" class="feature-title small"></h2>
+          <div class="final-score"><strong id="final-score">0</strong><span>/ 1000</span></div>
+          <ol id="credits" class="credits"></ol>
+          <button id="share-btn" class="primary">Copy results</button>
+          <pre id="share-preview" class="share-preview"></pre>
+          <div id="stats" class="stats"></div>
+          <p class="muted">Next feature in <strong id="countdown"></strong></p>
+        </section>
+      </div>
+
+      <!-- The player's console, sitting in the audience below the screen. -->
+      <div id="console" class="console" hidden>
+        <div class="timer">
+          <svg viewBox="0 0 64 64" class="ring" aria-hidden="true">
+            <circle cx="32" cy="32" r="28" class="ring-track" />
+            <circle cx="32" cy="32" r="28" id="ring-fill" class="ring-fill" />
+            <line id="boost-tick" x1="32" y1="1" x2="32" y2="9" class="boost-tick" />
+          </svg>
+          <span id="timer-text" class="timer-text">0</span>
         </div>
-
-        <p id="q-prompt" class="prompt"></p>
-        <p class="columns muted">Return these columns: <span id="q-columns"></span></p>
-
-        <div class="workspace">
-          <aside class="schema">
-            <h3>Tables</h3>
-            <p class="muted small">Click a table to preview its rows.</p>
-            <div id="schema"></div>
-          </aside>
-
-          <div class="editor-area">
-            <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off"
-              placeholder="SELECT ... FROM ..." aria-label="Your SQL query"></textarea>
-            <div class="actions">
-              <button id="run-btn" title="Ctrl + Enter">Run <kbd>Ctrl ↵</kbd></button>
-              <button id="submit-btn" class="primary" title="Ctrl + Shift + Enter">Submit answer</button>
-              <span class="spacer"></span>
-              <button id="hint-btn" class="ghost">Hint</button>
-              <button id="giveup-btn" class="ghost danger">Give up</button>
-            </div>
-            <ul id="hints" class="hints"></ul>
-            <div id="feedback" class="feedback" hidden></div>
-            <div id="solution" hidden>
-              <h3>Solution</h3>
-              <pre id="solution-sql"></pre>
-            </div>
-            <div id="next-row" hidden><button id="next-btn" class="primary big"></button></div>
-            <div id="results"></div>
+        <div class="console-main">
+          <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off"
+            placeholder="SELECT …" aria-label="Your SQL query"></textarea>
+          <div class="console-row">
+            <span id="boost-text" class="boost-text"></span>
+            <span class="spacer"></span>
+            <button id="hint-btn" class="text-btn">Hint</button>
+            <button id="giveup-btn" class="text-btn danger">Give up</button>
           </div>
+          <div id="schema" class="schema"></div>
         </div>
-      </section>
-
-      <section id="summary" class="panel" hidden>
-        <p class="eyebrow center">End credits</p>
-        <h2 id="summary-theme" class="center"></h2>
-        <div class="final-score"><strong id="final-score">0</strong><span class="muted">/ 1000</span></div>
-        <table id="breakdown" class="breakdown"></table>
-        <div class="actions center-row">
-          <button id="share-btn" class="primary">Copy results to share</button>
+        <div class="console-actions">
+          <button id="run-btn" title="Ctrl + Enter">Run</button>
+          <button id="submit-btn" class="primary" title="Ctrl + Shift + Enter">Submit</button>
         </div>
-        <pre id="share-preview" class="share-preview"></pre>
-        <div id="stats" class="stats"></div>
-        <p class="muted center">Next feature in <strong id="countdown"></strong></p>
-      </section>
-
-      <details class="panel how">
-        <summary>How to play</summary>
-        <p>Every day is a new feature: a movie-themed trilogy of SQL questions. Part I is easy, Part II is medium and Part III is hard. They come one at a time.</p>
-        <ul>
-          <li>You get one minute per question. The clock starts when you click <b>Begin</b>, and each next part starts as soon as you move on. When time runs out, the question is over.</li>
-          <li><b>Run</b> your query as often as you like to see its output. When you think it's right, <b>Submit</b> it. Wrong submissions don't cost points.</li>
-          <li>The game runs SQLite, so use <code>LIMIT</code> (not <code>TOP</code>) and <code>strftime()</code> for dates.</li>
-        </ul>
-        <table class="breakdown">
-          <tr><th></th><th>Correct</th><th>Speed bonus</th></tr>
-          <tr><td>Part I (easy)</td><td>100</td><td>up to +50</td></tr>
-          <tr><td>Part II (medium)</td><td>200</td><td>up to +100</td></tr>
-          <tr><td>Part III (hard)</td><td>300</td><td>up to +150</td></tr>
-          <tr><td>All three correct</td><td>+100</td><td></td></tr>
-          <tr><th>Perfect day</th><th colspan="2">1,000</th></tr>
-        </table>
-        <p class="muted small">The speed bonus shrinks as the timer runs down. Hints are free.</p>
-      </details>
+      </div>
     </main>
+
+    <div class="seats" aria-hidden="true"></div>
+
+    <dialog id="help" class="help">
+      <h2>How to play</h2>
+      <p>Every day is a new feature: a movie-themed trilogy of quick SQL questions, one at a time.</p>
+      <table>
+        <tr><th></th><th>Time</th><th>Correct</th><th>Boost</th></tr>
+        <tr><td>Part I (easy)</td><td>1:00</td><td>100</td><td>+50</td></tr>
+        <tr><td>Part II (medium)</td><td>2:00</td><td>200</td><td>+100</td></tr>
+        <tr><td>Part III (hard)</td><td>3:00</td><td>300</td><td>+150</td></tr>
+        <tr><td>All three correct</td><td></td><td>+100</td><td></td></tr>
+        <tr><th>Perfect day</th><th></th><th colspan="2">1,000</th></tr>
+      </table>
+      <ul>
+        <li>Answer with more than a third of the time left to earn the <b>boost</b>.</li>
+        <li><b>Run</b> as often as you like to see your output. <b>Submit</b> when you're ready. Wrong answers and hints are free.</li>
+        <li>The game runs SQLite: use <code>LIMIT</code> (not <code>TOP</code>) and <code>strftime()</code> for dates.</li>
+        <li>Click a table name under the editor to preview its rows on the screen.</li>
+      </ul>
+      <form method="dialog"><button class="primary">Got it</button></form>
+    </dialog>
 
     <script>
       // Browsers won't run this game from a double-clicked file. Say so instead of showing a blank page.
       if (location.protocol === 'file:') {
         document.getElementById('loading').innerHTML =
           '<b>This page needs to be opened through a web server.</b><br>' +
-          'In a terminal, go to the sql-daily folder and run <code>python3 -m http.server 8000</code>, ' +
-          'then open <a href="http://localhost:8000">http://localhost:8000</a>.';
+          'In a terminal, go to the sql-daily folder and run <code>python3 -m http.server 8001</code>, ' +
+          'then open <a href="http://localhost:8001">http://localhost:8001</a>.';
       }
     </script>
     <script src="vendor/sql-wasm.js"></script>

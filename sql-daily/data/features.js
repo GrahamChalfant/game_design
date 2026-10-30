@@ -1,5 +1,17 @@
-// The daily features. Each day is one feature: a movie-themed trilogy of questions
-// (Part I is easy, Part II is medium, Part III is hard), played in order, one minute each.
+// The daily features. Each day is one feature: a movie-themed trilogy of questions, played in order.
+//
+//   Part I   easy    1 minute   1–2 pieces: WHERE, GROUP BY with COUNT/SUM/AVG, ORDER BY with LIMIT,
+//                               DISTINCT, simple CASE WHEN, BETWEEN/IN/LIKE, basic string/date functions.
+//                               No trick questions (no NULL or join traps).
+//   Part II  medium  2 minutes  2–3 pieces: a join plus aggregation, HAVING, a subquery in WHERE, COALESCE,
+//                               strftime() grouping, conditional aggregation SUM(CASE WHEN ...), or ONE basic
+//                               window function (ROW_NUMBER/RANK). Gotchas are OK if the prompt warns about them.
+//   Part III hard    3 minutes  3–4 pieces: LAG/LEAD, running totals, a CTE that filters a window result
+//                               (top-N per group), self-joins, NOT EXISTS anti-joins, frame clauses
+//                               (ROWS BETWEEN ...), percent of total with x / SUM(x) OVER ().
+//
+// Hard should be hard because of the SQL, never because the wording is unclear. Always spell out the
+// output columns and the sort order. The game uses SQLite, so dates use strftime(), not DATE_TRUNC.
 //
 // A feature needs:
 //   id         Unique, never changes once players have seen it (used for saved progress).
@@ -15,10 +27,8 @@
 //     hints        One or more nudges, from gentle to more direct.
 //     tests        (optional) accept: other correct queries; reject: common mistakes.
 //
-// Players get ONE MINUTE per question, so keep answers short to type. Hard questions should be
-// hard to think through, not long to write.
-//
-// After editing, run the validator (see README.md).
+// After editing, run the validator (see README.md). It also warns when a question looks like it's
+// in the wrong tier.
 
 import { TIER_ORDER } from '../js/config.js';
 
@@ -29,53 +39,66 @@ export const features = [
     tagline: 'One query to rule them all.',
     questions: {
       easy: {
-        title: 'The Extended Edition',
-        prompt: 'Which Middle-earth film has the longest runtime? Return its title and runtime.',
+        title: 'The Extended Editions',
+        prompt: 'List the title and runtime of every Middle-earth film longer than 170 minutes, longest first.',
         columns: ['title', 'runtime'],
-        orderMatters: false,
-        solution: `SELECT title, runtime FROM films WHERE franchise = 'Middle-earth' ORDER BY runtime DESC LIMIT 1;`,
-        hints: ['Sort by runtime from longest to shortest.', 'ORDER BY runtime DESC LIMIT 1 keeps only the top row.'],
+        orderMatters: true,
+        solution: `SELECT title, runtime FROM films WHERE franchise = 'Middle-earth' AND runtime > 170 ORDER BY runtime DESC;`,
+        hints: ['Combine two conditions in WHERE with AND.', 'Sort with ORDER BY runtime DESC.'],
         tests: {
-          accept: [`SELECT title, MAX(runtime) FROM films WHERE franchise = 'Middle-earth'`],
-          reject: [`SELECT title, runtime FROM films ORDER BY runtime DESC LIMIT 1`],
+          reject: [
+            `SELECT title, runtime FROM films WHERE runtime > 170 ORDER BY runtime DESC`,
+            `SELECT title, runtime FROM films WHERE franchise = 'Middle-earth' AND runtime > 170 ORDER BY runtime`,
+          ],
         },
       },
       medium: {
-        title: 'The Lady of the Wood',
-        prompt: 'List the title and year of every film Cate Blanchett appears in, oldest first.',
-        columns: ['title', 'year'],
-        orderMatters: true,
-        solution: `
-          SELECT f.title, f.year
-          FROM films f JOIN roles r ON r.film_id = f.id
-          WHERE r.actor = 'Cate Blanchett'
-          ORDER BY f.year;`,
-        hints: ['Actors are in the roles table. Join it to films on roles.film_id = films.id.', 'Then filter on actor and sort by year.'],
-        tests: {
-          accept: [`SELECT title, year FROM films WHERE id IN (SELECT film_id FROM roles WHERE actor = 'Cate Blanchett') ORDER BY year`],
-          reject: [`SELECT f.title, f.year FROM films f JOIN roles r ON r.film_id = f.id WHERE r.character = 'Galadriel' ORDER BY f.year`],
-        },
-      },
-      hard: {
-        title: 'There and Back Again',
+        title: 'The Fellowship of the Seats',
         prompt:
-          'Which actors appear in more than one franchise? Return the actor and the number of different franchises they appear in, sorted by actor.',
-        columns: ['actor', 'franchises'],
+          'For each Middle-earth film shown at The Sequel this week, return its title and the total tickets sold. Most tickets first.',
+        columns: ['title', 'tickets'],
         orderMatters: true,
         solution: `
-          SELECT r.actor, COUNT(DISTINCT f.franchise) AS franchises
-          FROM roles r JOIN films f ON f.id = r.film_id
-          GROUP BY r.actor
-          HAVING franchises > 1
-          ORDER BY r.actor;`,
+          SELECT f.title, SUM(s.tickets_sold) AS tickets
+          FROM films f JOIN screenings s ON s.film_id = f.id
+          WHERE f.franchise = 'Middle-earth'
+          GROUP BY f.id
+          ORDER BY tickets DESC;`,
         hints: [
-          'Join roles to films so you know each role\'s franchise, then GROUP BY actor.',
-          'COUNT(DISTINCT franchise) counts franchises, not films. Filter groups with HAVING.',
+          'Join screenings to films on screenings.film_id = films.id.',
+          'GROUP BY the film and SUM(tickets_sold).',
         ],
         tests: {
           reject: [
-            `SELECT r.actor, COUNT(f.franchise) AS n FROM roles r JOIN films f ON f.id = r.film_id
-             GROUP BY r.actor HAVING n > 1 ORDER BY r.actor`,
+            `SELECT f.title, COUNT(*) AS tickets FROM films f JOIN screenings s ON s.film_id = f.id
+             WHERE f.franchise = 'Middle-earth' GROUP BY f.id ORDER BY tickets DESC`,
+          ],
+        },
+      },
+      hard: {
+        title: 'The Return of the King',
+        prompt: 'Which screening sold the most tickets each day? Return show_date, title and tickets_sold, sorted by date.',
+        columns: ['show_date', 'title', 'tickets_sold'],
+        orderMatters: true,
+        solution: `
+          WITH r AS (
+            SELECT show_date, title, tickets_sold,
+                   RANK() OVER (PARTITION BY show_date ORDER BY tickets_sold DESC) AS rnk
+            FROM screenings JOIN films ON films.id = film_id
+          )
+          SELECT show_date, title, tickets_sold FROM r WHERE rnk = 1 ORDER BY show_date;`,
+        hints: [
+          'Rank each day\'s screenings: RANK() OVER (PARTITION BY show_date ORDER BY tickets_sold DESC).',
+          'You can\'t filter on a window function in WHERE. Put it in a CTE (WITH ranked AS (...)), then keep rank 1.',
+        ],
+        tests: {
+          accept: [
+            `SELECT s.show_date, f.title, MAX(s.tickets_sold) FROM screenings s JOIN films f ON f.id = s.film_id
+             GROUP BY s.show_date ORDER BY s.show_date`,
+          ],
+          reject: [
+            `SELECT s.show_date, f.title, s.tickets_sold FROM screenings s JOIN films f ON f.id = s.film_id
+             ORDER BY s.tickets_sold DESC LIMIT 7`,
           ],
         },
       },
@@ -88,47 +111,68 @@ export const features = [
     questions: {
       easy: {
         title: 'Totally Eighties',
-        prompt: 'List the title and year of every film released in the 1980s (1980 to 1989), oldest first, then by title.',
+        prompt: 'List the title and year of every film released from 1980 to 1989, oldest first, then by title.',
         columns: ['title', 'year'],
         orderMatters: true,
         solution: `SELECT title, year FROM films WHERE year BETWEEN 1980 AND 1989 ORDER BY year, title;`,
-        hints: ['BETWEEN 1980 AND 1989 includes both ends.', 'You can sort by two columns: ORDER BY year, title.'],
+        hints: ['BETWEEN 1980 AND 1989 includes both ends.', 'Sort by two columns: ORDER BY year, title.'],
         tests: {
           accept: [`SELECT title, year FROM films WHERE year >= 1980 AND year < 1990 ORDER BY 2, 1`],
           reject: [`SELECT title, year FROM films WHERE year > 1980 AND year < 1989 ORDER BY year, title`],
         },
       },
       medium: {
-        title: 'Decade by Decade',
-        prompt: 'How many films came out in each decade? Return the decade (like 1980) and the number of films, sorted by decade.',
-        columns: ['decade', 'films'],
+        title: 'Matinee or Late Show',
+        prompt:
+          'For each show_date, return tickets sold at matinees (show_time before \'17:00\') and evening shows (\'17:00\' or later). Columns: show_date, matinee, evening. Sort by date.',
+        columns: ['show_date', 'matinee', 'evening'],
         orderMatters: true,
-        solution: `SELECT year / 10 * 10 AS decade, COUNT(*) AS films FROM films GROUP BY decade ORDER BY decade;`,
+        solution: `
+          SELECT show_date,
+                 SUM(CASE WHEN show_time < '17:00' THEN tickets_sold END) AS matinee,
+                 SUM(CASE WHEN show_time >= '17:00' THEN tickets_sold END) AS evening
+          FROM screenings
+          GROUP BY show_date
+          ORDER BY show_date;`,
         hints: [
-          'Dividing whole numbers drops the remainder: 1985 / 10 is 198.',
-          'So year / 10 * 10 turns 1985 into 1980. GROUP BY that.',
+          'Times are text like \'13:00\', so you can compare them: show_time < \'17:00\'.',
+          'Add up only some rows with SUM(CASE WHEN ... THEN tickets_sold ELSE 0 END).',
         ],
         tests: {
-          accept: [`SELECT year - year % 10 AS d, COUNT(*) FROM films GROUP BY d ORDER BY d`],
-          reject: [`SELECT year, COUNT(*) FROM films GROUP BY year ORDER BY year`],
+          accept: [
+            `SELECT show_date, SUM(tickets_sold) FILTER (WHERE show_time < '17:00'),
+                    SUM(tickets_sold) FILTER (WHERE show_time >= '17:00')
+             FROM screenings GROUP BY 1 ORDER BY 1`,
+          ],
+          reject: [
+            `SELECT show_date, COUNT(CASE WHEN show_time < '17:00' THEN 1 END), COUNT(CASE WHEN show_time >= '17:00' THEN 1 END)
+             FROM screenings GROUP BY show_date ORDER BY show_date`,
+          ],
         },
       },
       hard: {
-        title: 'The Gap Years',
+        title: 'Back in Time',
         prompt:
-          'For every film, show its title and how many years passed since the previous film in the same franchise (NULL for the first film). Sort by franchise, then part.',
-        columns: ['title', 'gap'],
+          'For each show_date, return the day\'s revenue (tickets_sold × ticket_price) and the change from the day before (NULL for the first day). Columns: show_date, revenue, change. Sort by date.',
+        columns: ['show_date', 'revenue', 'change'],
         orderMatters: true,
         solution: `
-          SELECT title, year - LAG(year) OVER (PARTITION BY franchise ORDER BY part) AS gap
-          FROM films
-          ORDER BY franchise, part;`,
+          WITH daily AS (
+            SELECT show_date, SUM(tickets_sold * ticket_price) AS revenue
+            FROM screenings GROUP BY show_date
+          )
+          SELECT show_date, revenue, revenue - LAG(revenue) OVER (ORDER BY show_date) AS change
+          FROM daily
+          ORDER BY show_date;`,
         hints: [
-          'LAG(year) gives the year from the previous row.',
-          'Make "previous" mean previous in the same franchise: OVER (PARTITION BY franchise ORDER BY part).',
+          'First get each day\'s revenue with GROUP BY show_date (a CTE keeps it tidy).',
+          'LAG(revenue) OVER (ORDER BY show_date) is the previous day\'s revenue. Subtract it.',
         ],
         tests: {
-          reject: [`SELECT title, year - LAG(year) OVER (ORDER BY year) AS gap FROM films ORDER BY franchise, part`],
+          reject: [
+            `SELECT show_date, SUM(tickets_sold * ticket_price), LEAD(SUM(tickets_sold * ticket_price)) OVER (ORDER BY show_date)
+               - SUM(tickets_sold * ticket_price) FROM screenings GROUP BY show_date ORDER BY show_date`,
+          ],
         },
       },
     },
@@ -139,45 +183,67 @@ export const features = [
     tagline: 'Every toy has its day.',
     questions: {
       easy: {
-        title: 'Toy Box Inventory',
-        prompt: 'How many films does each franchise have? Return the franchise and the number of films, most films first, then by franchise name.',
-        columns: ['franchise', 'films'],
+        title: 'Short or Feature',
+        prompt:
+          'For each Toy Story film, return title and length: \'Short\' if runtime is under 95, otherwise \'Feature\'. Sort by year.',
+        columns: ['title', 'length'],
         orderMatters: true,
-        solution: `SELECT franchise, COUNT(*) AS films FROM films GROUP BY franchise ORDER BY films DESC, franchise;`,
-        hints: ['GROUP BY franchise gives one row per franchise.', 'ORDER BY films DESC, franchise sorts by count, then name.'],
-        tests: { reject: [`SELECT franchise, COUNT(*) AS films FROM films GROUP BY franchise ORDER BY films DESC`] },
+        solution: `
+          SELECT title, CASE WHEN runtime < 95 THEN 'Short' ELSE 'Feature' END AS length
+          FROM films WHERE franchise = 'Toy Story' ORDER BY year;`,
+        hints: ['CASE WHEN condition THEN \'a\' ELSE \'b\' END makes a new column.', 'Filter with WHERE franchise = \'Toy Story\'.'],
+        tests: {
+          accept: [`SELECT title, IIF(runtime < 95, 'Short', 'Feature') FROM films WHERE franchise = 'Toy Story' ORDER BY year`],
+          reject: [
+            `SELECT title, CASE WHEN runtime <= 92 THEN 'short' ELSE 'feature' END FROM films WHERE franchise = 'Toy Story' ORDER BY year`,
+          ],
+        },
       },
       medium: {
-        title: 'Short and Sweet',
-        prompt: 'Show each franchise and its average runtime, rounded to the nearest minute. Shortest average first.',
-        columns: ['franchise', 'avg_runtime'],
+        title: 'Full House',
+        prompt:
+          'For each franchise shown this week, return the franchise and its average tickets sold per screening, rounded to 1 decimal place. Highest average first, then by franchise.',
+        columns: ['franchise', 'avg_tickets'],
         orderMatters: true,
-        solution: `SELECT franchise, ROUND(AVG(runtime)) AS avg_runtime FROM films GROUP BY franchise ORDER BY avg_runtime;`,
-        hints: ['AVG() works with GROUP BY.', 'ROUND(x) rounds to a whole number.'],
+        solution: `
+          SELECT f.franchise, ROUND(AVG(s.tickets_sold), 1) AS avg_tickets
+          FROM screenings s JOIN films f ON f.id = s.film_id
+          GROUP BY f.franchise
+          ORDER BY avg_tickets DESC, f.franchise;`,
+        hints: ['Join screenings to films to get each screening\'s franchise.', 'GROUP BY franchise, then ROUND(AVG(tickets_sold), 1).'],
         tests: {
-          reject: [`SELECT franchise, AVG(runtime) AS a FROM films GROUP BY franchise ORDER BY a`],
+          reject: [
+            `SELECT f.franchise, ROUND(AVG(s.tickets_sold), 1) AS a FROM screenings s JOIN films f ON f.id = s.film_id
+             GROUP BY f.franchise ORDER BY a DESC, f.franchise DESC`,
+          ],
         },
       },
       hard: {
         title: 'The Sequel Strikes Back',
         prompt:
-          'Which sequels made more money (gross) than the first film in their franchise? Return the sequel\'s title, sorted by title.',
-        columns: ['title'],
+          'For each franchise, how many sequels made more (gross) than its first film (part = 1)? Return franchise and sequels, for franchises with at least one. Sort by franchise.',
+        columns: ['franchise', 'sequels'],
         orderMatters: true,
         solution: `
-          SELECT s.title
+          SELECT s.franchise, COUNT(*) AS sequels
           FROM films s JOIN films o ON o.franchise = s.franchise AND o.part = 1
           WHERE s.gross > o.gross
-          ORDER BY s.title;`,
+          GROUP BY s.franchise
+          ORDER BY s.franchise;`,
         hints: [
-          'Join films to itself: one copy for the sequel, one for the original (part = 1) of the same franchise.',
-          'FROM films s JOIN films o ON o.franchise = s.franchise AND o.part = 1, then compare s.gross with o.gross.',
+          'Join films to itself: one copy for the sequel (s), one for the original (o) of the same franchise, with o.part = 1.',
+          'Keep rows where s.gross > o.gross, then GROUP BY franchise and COUNT.',
         ],
         tests: {
           accept: [
-            `SELECT title FROM films f WHERE gross > (SELECT gross FROM films WHERE franchise = f.franchise AND part = 1) ORDER BY title`,
+            `SELECT franchise, COUNT(*) FROM films f
+             WHERE gross > (SELECT gross FROM films WHERE franchise = f.franchise AND part = 1)
+             GROUP BY franchise ORDER BY franchise`,
           ],
-          reject: [`SELECT title FROM films WHERE part > 1 AND gross > (SELECT AVG(gross) FROM films) ORDER BY title`],
+          reject: [
+            `SELECT s.franchise, COUNT(*) FROM films s JOIN films o ON o.franchise = s.franchise
+             WHERE s.gross > o.gross GROUP BY s.franchise ORDER BY s.franchise`,
+          ],
         },
       },
     },
@@ -189,7 +255,7 @@ export const features = [
     questions: {
       easy: {
         title: 'And the Oscar Goes To',
-        prompt: 'List the title and Oscar wins of every film that won at least 4 Oscars. Most wins first, then by title.',
+        prompt: 'List the title and oscar_wins of every film that won at least 4 Oscars. Most wins first, then by title.',
         columns: ['title', 'oscar_wins'],
         orderMatters: true,
         solution: `SELECT title, oscar_wins FROM films WHERE oscar_wins >= 4 ORDER BY oscar_wins DESC, title;`,
@@ -197,35 +263,63 @@ export const features = [
         tests: { reject: [`SELECT title, oscar_wins FROM films WHERE oscar_wins > 4 ORDER BY oscar_wins DESC, title`] },
       },
       medium: {
-        title: 'Recast',
-        prompt: 'Which characters were played by more than one actor? Return the character and the number of actors, sorted by character.',
-        columns: ['character', 'actors'],
+        title: 'Leave the Gun, Take the Zeros',
+        prompt:
+          'Return each Godfather film\'s title and total tickets sold this week, sorted by part. Careful: a film with no screenings should show 0, not NULL or be missing.',
+        columns: ['title', 'tickets'],
         orderMatters: true,
         solution: `
-          SELECT character, COUNT(DISTINCT actor) AS actors
-          FROM roles GROUP BY character HAVING actors > 1 ORDER BY character;`,
-        hints: ['GROUP BY character, and count the different actors with COUNT(DISTINCT actor).', 'Filter the groups with HAVING.'],
+          SELECT f.title, COALESCE(SUM(s.tickets_sold), 0) AS tickets
+          FROM films f LEFT JOIN screenings s ON s.film_id = f.id
+          WHERE f.franchise = 'The Godfather'
+          GROUP BY f.id
+          ORDER BY f.part;`,
+        hints: [
+          'An INNER JOIN drops films that have no screenings. A LEFT JOIN keeps them.',
+          'SUM over no rows is NULL. COALESCE(SUM(...), 0) turns it into 0.',
+        ],
         tests: {
-          reject: [`SELECT character, COUNT(*) AS n FROM roles GROUP BY character HAVING n > 1 ORDER BY character`],
+          accept: [
+            `SELECT title, (SELECT IFNULL(SUM(tickets_sold), 0) FROM screenings WHERE film_id = films.id)
+             FROM films WHERE franchise = 'The Godfather' ORDER BY part`,
+          ],
+          reject: [
+            `SELECT f.title, SUM(s.tickets_sold) FROM films f JOIN screenings s ON s.film_id = f.id
+             WHERE f.franchise = 'The Godfather' GROUP BY f.id ORDER BY f.part`,
+            `SELECT f.title, SUM(s.tickets_sold) FROM films f LEFT JOIN screenings s ON s.film_id = f.id
+             WHERE f.franchise = 'The Godfather' GROUP BY f.id ORDER BY f.part`,
+          ],
         },
       },
       hard: {
-        title: 'The Family Favorite',
+        title: 'The Family Business',
         prompt:
-          'For each franchise, find the film with the most Oscar wins. Return the franchise, title and oscar_wins, sorted by franchise.',
-        columns: ['franchise', 'title', 'oscar_wins'],
+          'What share of the week\'s ticket revenue did each franchise earn? Return franchise, revenue (tickets_sold × ticket_price) and pct (its percentage of all revenue, rounded to 1 decimal place). Highest revenue first.',
+        columns: ['franchise', 'revenue', 'pct'],
         orderMatters: true,
         solution: `
-          SELECT franchise, title, oscar_wins FROM films f
-          WHERE oscar_wins = (SELECT MAX(oscar_wins) FROM films WHERE franchise = f.franchise)
-          ORDER BY franchise;`,
+          WITH r AS (
+            SELECT franchise, SUM(tickets_sold * ticket_price) AS revenue
+            FROM screenings JOIN films ON films.id = film_id
+            GROUP BY franchise
+          )
+          SELECT franchise, revenue, ROUND(100.0 * revenue / SUM(revenue) OVER (), 1) AS pct
+          FROM r ORDER BY revenue DESC;`,
         hints: [
-          'Compare each film with the best in its own franchise: a subquery with MAX(oscar_wins) WHERE franchise = f.franchise.',
-          'In SQLite, SELECT franchise, title, MAX(oscar_wins) ... GROUP BY franchise also returns the matching title.',
+          'Get revenue per franchise with GROUP BY first (a CTE helps).',
+          'SUM(revenue) OVER () is the grand total on every row. Divide by it, times 100.',
         ],
         tests: {
-          accept: [`SELECT franchise, title, MAX(oscar_wins) FROM films GROUP BY franchise ORDER BY franchise`],
-          reject: [`SELECT franchise, title, oscar_wins FROM films ORDER BY oscar_wins DESC LIMIT 7`],
+          accept: [
+            `WITH r AS (SELECT f.franchise, SUM(s.tickets_sold * s.ticket_price) AS rev
+                        FROM screenings s JOIN films f ON f.id = s.film_id GROUP BY f.franchise)
+             SELECT franchise, rev, ROUND(rev * 100 / (SELECT SUM(rev) FROM r), 1) FROM r ORDER BY rev DESC`,
+          ],
+          reject: [
+            `WITH r AS (SELECT f.franchise, SUM(s.tickets_sold * s.ticket_price) AS rev
+                        FROM screenings s JOIN films f ON f.id = s.film_id GROUP BY f.franchise)
+             SELECT franchise, rev, ROUND(rev / SUM(rev) OVER (), 1) FROM r ORDER BY rev DESC`,
+          ],
         },
       },
     },
@@ -245,35 +339,46 @@ export const features = [
         tests: { reject: [`SELECT title, year FROM films WHERE franchise = 'Jurassic Park' ORDER BY year`] },
       },
       medium: {
-        title: 'Clever Directors',
-        prompt:
-          'For each director, show the director, how many films they made, and their total gross. Most films first, then by director.',
-        columns: ['director', 'films', 'total_gross'],
+        title: 'Paddock Report',
+        prompt: 'For each screen, return its name, the number of screenings it showed and the total tickets it sold. Sort by name.',
+        columns: ['name', 'screenings', 'tickets'],
         orderMatters: true,
         solution: `
-          SELECT director, COUNT(*) AS films, SUM(gross) AS total_gross
-          FROM films GROUP BY director ORDER BY films DESC, director;`,
-        hints: ['GROUP BY director, then use both COUNT(*) and SUM(gross).', 'ORDER BY films DESC, director.'],
+          SELECT sc.name, COUNT(*) AS screenings, SUM(s.tickets_sold) AS tickets
+          FROM screens sc JOIN screenings s ON s.screen_id = sc.id
+          GROUP BY sc.id
+          ORDER BY sc.name;`,
+        hints: ['Join screens to screenings on screenings.screen_id = screens.id.', 'GROUP BY the screen, then COUNT(*) and SUM(tickets_sold).'],
         tests: {
-          reject: [`SELECT director, COUNT(*) AS films, AVG(gross) FROM films GROUP BY director ORDER BY films DESC, director`],
+          reject: [
+            `SELECT sc.name, COUNT(*), SUM(sc.seats) FROM screens sc JOIN screenings s ON s.screen_id = sc.id
+             GROUP BY sc.id ORDER BY sc.name`,
+          ],
         },
       },
       hard: {
-        title: 'Survival of the Fittest',
+        title: 'Life Finds a Moving Average',
         prompt:
-          'Which films made more than the average gross of their own franchise? Return the title, franchise and gross, highest gross first.',
-        columns: ['title', 'franchise', 'gross'],
+          'For each show_date, return the total tickets sold that day and the average of daily tickets over that day and the 2 days before it, rounded to 1 decimal place. Columns: show_date, tickets, avg_3_day. Sort by date.',
+        columns: ['show_date', 'tickets', 'avg_3_day'],
         orderMatters: true,
         solution: `
-          SELECT title, franchise, gross FROM films f
-          WHERE gross > (SELECT AVG(gross) FROM films WHERE franchise = f.franchise)
-          ORDER BY gross DESC;`,
+          WITH daily AS (
+            SELECT show_date, SUM(tickets_sold) AS tickets FROM screenings GROUP BY show_date
+          )
+          SELECT show_date, tickets,
+                 ROUND(AVG(tickets) OVER (ORDER BY show_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 1) AS avg_3_day
+          FROM daily
+          ORDER BY show_date;`,
         hints: [
-          'You need each franchise\'s own average, not the overall average.',
-          'A correlated subquery does it: (SELECT AVG(gross) FROM films WHERE franchise = f.franchise).',
+          'Get tickets per day first (GROUP BY show_date, in a CTE).',
+          'A frame clause limits the window: AVG(tickets) OVER (ORDER BY show_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW).',
         ],
         tests: {
-          reject: [`SELECT title, franchise, gross FROM films WHERE gross > (SELECT AVG(gross) FROM films) ORDER BY gross DESC`],
+          reject: [
+            `WITH d AS (SELECT show_date, SUM(tickets_sold) AS t FROM screenings GROUP BY show_date)
+             SELECT show_date, t, ROUND(AVG(t) OVER (ORDER BY show_date), 1) FROM d ORDER BY show_date`,
+          ],
         },
       },
     },
@@ -294,13 +399,14 @@ export const features = [
       },
       medium: {
         title: 'Agents Everywhere',
-        prompt: 'Which actors appear in at least 5 films? Return the actor and their number of films, most first, then by actor.',
+        prompt: 'Which actors appear in at least 5 films? Return actor and films (their number of films), most films first, then by actor.',
         columns: ['actor', 'films'],
         orderMatters: true,
         solution: `
           SELECT actor, COUNT(*) AS films FROM roles
-          GROUP BY actor HAVING films >= 5 ORDER BY films DESC, actor;`,
-        hints: ['Each row in roles is one actor in one film. GROUP BY actor and COUNT.', 'Use HAVING to keep only 5 or more.'],
+          GROUP BY actor HAVING COUNT(*) >= 5
+          ORDER BY films DESC, actor;`,
+        hints: ['Each row in roles is one actor in one film. GROUP BY actor and COUNT.', 'Filter groups with HAVING, not WHERE.'],
         tests: {
           reject: [`SELECT actor, COUNT(*) AS films FROM roles GROUP BY actor HAVING films > 5 ORDER BY films DESC, actor`],
         },
@@ -308,25 +414,25 @@ export const features = [
       hard: {
         title: 'Mr. Anderson, Meet Galadriel',
         prompt:
-          'Hugo Weaving and Cate Blanchett have shared the screen. List the title of every film they both appear in, oldest first.',
-        columns: ['title'],
+          'Hugo Weaving and Cate Blanchett have shared the screen. List the title and year of every film they both appear in, oldest first.',
+        columns: ['title', 'year'],
         orderMatters: true,
         solution: `
-          SELECT f.title FROM films f
+          SELECT f.title, f.year FROM films f
           JOIN roles a ON a.film_id = f.id AND a.actor = 'Hugo Weaving'
           JOIN roles b ON b.film_id = f.id AND b.actor = 'Cate Blanchett'
           ORDER BY f.year;`,
         hints: [
           'You need two different rows from roles for the same film. Join roles twice, with different aliases.',
-          'Or find each actor\'s film_ids and keep the ones in both lists (IN, or INTERSECT).',
+          'Or find each actor\'s film_ids and keep the ones in both lists (INTERSECT).',
         ],
         tests: {
           accept: [
-            `SELECT title FROM films WHERE id IN (SELECT film_id FROM roles WHERE actor = 'Hugo Weaving'
+            `SELECT title, year FROM films WHERE id IN (SELECT film_id FROM roles WHERE actor = 'Hugo Weaving'
              INTERSECT SELECT film_id FROM roles WHERE actor = 'Cate Blanchett') ORDER BY year`,
           ],
           reject: [
-            `SELECT DISTINCT f.title FROM films f JOIN roles r ON r.film_id = f.id
+            `SELECT DISTINCT f.title, f.year FROM films f JOIN roles r ON r.film_id = f.id
              WHERE r.actor IN ('Hugo Weaving', 'Cate Blanchett') ORDER BY f.year`,
           ],
         },
@@ -348,39 +454,47 @@ export const features = [
         tests: { reject: [`SELECT COUNT(*) FROM films WHERE franchise = 'Indiana Jones' AND year < 2020`] },
       },
       medium: {
-        title: 'Supporting Cast',
+        title: 'Ranking the Relics',
         prompt:
-          'For each Indiana Jones film, show the title and the number of cast members listed in roles. Sort by year.',
-        columns: ['title', 'cast_size'],
+          'Rank the Indiana Jones films by gross, with the highest gross ranked 1. Return title, gross and gross_rank, highest gross first.',
+        columns: ['title', 'gross', 'gross_rank'],
         orderMatters: true,
         solution: `
-          SELECT f.title, COUNT(*) AS cast_size
-          FROM films f JOIN roles r ON r.film_id = f.id
-          WHERE f.franchise = 'Indiana Jones'
-          GROUP BY f.id ORDER BY f.year;`,
-        hints: ['Join films to roles, keep only Indiana Jones films.', 'GROUP BY the film, COUNT the roles, ORDER BY year.'],
+          SELECT title, gross, RANK() OVER (ORDER BY gross DESC) AS gross_rank
+          FROM films WHERE franchise = 'Indiana Jones'
+          ORDER BY gross DESC;`,
+        hints: ['RANK() OVER (ORDER BY gross DESC) numbers the rows from highest to lowest.', 'Filter to Indiana Jones films with WHERE.'],
         tests: {
-          reject: [
-            `SELECT f.title, COUNT(*) FROM films f JOIN roles r ON r.film_id = f.id GROUP BY f.id ORDER BY f.year`,
-          ],
+          accept: [`SELECT title, gross, ROW_NUMBER() OVER (ORDER BY gross DESC) FROM films WHERE franchise = 'Indiana Jones' ORDER BY 2 DESC`],
+          reject: [`SELECT title, gross, RANK() OVER (ORDER BY gross) FROM films WHERE franchise = 'Indiana Jones' ORDER BY gross DESC`],
         },
       },
       hard: {
-        title: 'X Marks the Running Total',
+        title: 'Raiders of the Lost Reels',
         prompt:
-          'For each Indiana Jones film, show the title, its gross, and the franchise\'s running total gross up to and including that film. Sort by year.',
-        columns: ['title', 'gross', 'running_total'],
+          'Some films weren\'t shown at The Sequel this week. For each franchise with at least one such film, return franchise and missing (how many of its films had no screenings). Sort by franchise.',
+        columns: ['franchise', 'missing'],
         orderMatters: true,
         solution: `
-          SELECT title, gross, SUM(gross) OVER (ORDER BY year) AS running_total
-          FROM films WHERE franchise = 'Indiana Jones' ORDER BY year;`,
-        hints: ['A window function can add up rows "so far".', 'SUM(gross) OVER (ORDER BY year).'],
+          SELECT franchise, COUNT(*) AS missing
+          FROM films f
+          WHERE NOT EXISTS (SELECT 1 FROM screenings s WHERE s.film_id = f.id)
+          GROUP BY franchise
+          ORDER BY franchise;`,
+        hints: [
+          'Find films with no matching screening: WHERE NOT EXISTS (SELECT 1 FROM screenings WHERE film_id = f.id).',
+          'Then GROUP BY franchise and COUNT.',
+        ],
         tests: {
           accept: [
-            `SELECT title, gross, (SELECT SUM(gross) FROM films g WHERE g.franchise = f.franchise AND g.year <= f.year)
-             FROM films f WHERE franchise = 'Indiana Jones' ORDER BY year`,
+            `SELECT f.franchise, COUNT(*) FROM films f LEFT JOIN screenings s ON s.film_id = f.id
+             WHERE s.id IS NULL GROUP BY f.franchise ORDER BY f.franchise`,
+            `SELECT franchise, COUNT(*) FROM films WHERE id NOT IN (SELECT film_id FROM screenings) GROUP BY 1 ORDER BY 1`,
           ],
-          reject: [`SELECT title, gross, SUM(gross) OVER () FROM films WHERE franchise = 'Indiana Jones' ORDER BY year`],
+          reject: [
+            `SELECT f.franchise, COUNT(*) FROM films f JOIN screenings s ON s.film_id = f.id
+             GROUP BY f.franchise ORDER BY f.franchise`,
+          ],
         },
       },
     },

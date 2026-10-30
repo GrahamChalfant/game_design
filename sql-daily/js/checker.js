@@ -6,6 +6,7 @@
 import { datasets } from '../data/datasets.js';
 
 const MAX_ROWS = 1000;
+const CHECK_WHERE_VALUES = 'Check the values in your WHERE clause. Text has to match exactly, including capitals and spelling.';
 
 // A fresh database for every query, so nothing a player runs can change the data.
 export function openDatabase(SQL, datasetName) {
@@ -266,7 +267,10 @@ export function checkAnswer(SQL, question, sql) {
   const problems = compareResults(expected, result, question.orderMatters);
   if (problems.length === 0) return { status: 'correct', result };
   const [message, ...details] = problems;
-  return { status: 'wrong', message, details: [...misspelledValues(SQL, question.dataset, sql), ...details], result };
+  // A specific "did you mean" beats the generic advice about checking WHERE values.
+  const typos = misspelledValues(SQL, question.dataset, sql);
+  const rest = typos.length ? details.filter((d) => d !== CHECK_WHERE_VALUES) : details;
+  return { status: 'wrong', message, details: [...typos, ...rest], result };
 }
 
 // Text in 'single quotes' that doesn't appear anywhere in the data is usually a typo
@@ -322,7 +326,7 @@ export function compareResults(expected, actual, orderMatters) {
   if (got.length === 0 && want.length > 0) {
     return [
       `Your query returned no rows, but the answer has ${plural(want.length, 'row')}.`,
-      'Check the values in your WHERE clause. Text has to match exactly, including capitals and spelling.',
+      CHECK_WHERE_VALUES,
       'If you used an INNER JOIN, check the join condition matches the right columns.',
     ];
   }

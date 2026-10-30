@@ -1,8 +1,11 @@
 // The databases players query. Each dataset is plain SQL that builds and fills its tables.
 // A fresh copy is created for every query, so players can't break it (even with DELETE or DROP).
 //
-// Box office figures are approximate worldwide totals in millions of US dollars, rounded,
-// and include re-releases where they're commonly counted. They're here for the game, not as a reference.
+// films and roles are about real movies. Box office figures are approximate worldwide totals in
+// millions of US dollars, rounded, and include re-releases where they're commonly counted. They're here
+// for the game, not as a reference.
+//
+// screens and screenings are made up: one week at The Sequel, the game's fictional cinema.
 //
 // Changing existing rows changes existing answers, so run the validator after any edit.
 
@@ -119,5 +122,69 @@ export const datasets = {
       (27, 'Cate Blanchett', 'Irina Spalko'),
       (28, 'Harrison Ford', 'Indiana Jones'), (28, 'Phoebe Waller-Bridge', 'Helena Shaw'), (28, 'John Rhys-Davies', 'Sallah'),
       (28, 'Mads Mikkelsen', 'Jürgen Voller');
+
+    CREATE TABLE screens (
+      id    INTEGER PRIMARY KEY,
+      name  TEXT NOT NULL,
+      seats INTEGER NOT NULL
+    );
+    INSERT INTO screens VALUES
+      (1, 'Grand',   120),
+      (2, 'Balcony', 80),
+      (3, 'Studio',  50);
+
+    -- One week of showings at The Sequel. Films not listed here weren't shown this week.
+    CREATE TABLE screenings (
+      id           INTEGER PRIMARY KEY,
+      film_id      INTEGER NOT NULL REFERENCES films(id),
+      screen_id    INTEGER NOT NULL REFERENCES screens(id),
+      show_date    TEXT NOT NULL,   -- 'YYYY-MM-DD'
+      show_time    TEXT NOT NULL,   -- 'HH:MM', 24-hour clock
+      tickets_sold INTEGER NOT NULL,
+      ticket_price REAL NOT NULL    -- $9 before 17:00 (matinee), $14 after
+    );
+    INSERT INTO screenings VALUES
+      (1, 12, 1, '2025-06-02', '13:00', 34, 9.00),
+      (2, 11, 1, '2025-06-02', '19:00', 74, 14.00),
+      (3, 14, 2, '2025-06-02', '15:30', 24, 9.00),
+      (4, 20, 2, '2025-06-02', '21:30', 58, 14.00),
+      (5, 2, 3, '2025-06-02', '13:00', 22, 9.00),
+      (6, 4, 3, '2025-06-02', '19:00', 18, 14.00),
+      (7, 24, 1, '2025-06-03', '13:00', 29, 9.00),
+      (8, 9, 1, '2025-06-03', '19:00', 32, 14.00),
+      (9, 2, 2, '2025-06-03', '15:30', 30, 9.00),
+      (10, 21, 2, '2025-06-03', '21:30', 35, 14.00),
+      (11, 15, 3, '2025-06-03', '13:00', 9, 9.00),
+      (12, 12, 3, '2025-06-03', '19:00', 28, 14.00),
+      (13, 4, 1, '2025-06-04', '13:00', 38, 9.00),
+      (14, 2, 1, '2025-06-04', '19:00', 83, 14.00),
+      (15, 3, 2, '2025-06-04', '15:30', 24, 9.00),
+      (16, 15, 2, '2025-06-04', '21:30', 37, 14.00),
+      (17, 20, 3, '2025-06-04', '13:00', 20, 9.00),
+      (18, 1, 3, '2025-06-04', '19:00', 30, 14.00),
+      (19, 3, 1, '2025-06-05', '13:00', 53, 9.00),
+      (20, 9, 1, '2025-06-05', '19:00', 39, 14.00),
+      (21, 17, 2, '2025-06-05', '15:30', 27, 9.00),
+      (22, 20, 2, '2025-06-05', '21:30', 49, 14.00),
+      (23, 4, 3, '2025-06-05', '13:00', 13, 9.00),
+      (24, 12, 3, '2025-06-05', '19:00', 26, 14.00),
+      (25, 7, 1, '2025-06-06', '13:00', 65, 9.00),
+      (26, 12, 1, '2025-06-06', '19:00', 76, 14.00),
+      (27, 15, 2, '2025-06-06', '15:30', 25, 9.00),
+      (28, 9, 2, '2025-06-06', '21:30', 38, 14.00),
+      (29, 4, 3, '2025-06-06', '13:00', 12, 9.00),
+      (30, 11, 3, '2025-06-06', '19:00', 29, 14.00),
+      (31, 7, 1, '2025-06-07', '13:00', 59, 9.00),
+      (32, 2, 1, '2025-06-07', '19:00', 115, 14.00),
+      (33, 4, 2, '2025-06-07', '15:30', 22, 9.00),
+      (34, 20, 2, '2025-06-07', '21:30', 70, 14.00),
+      (35, 12, 3, '2025-06-07', '13:00', 28, 9.00),
+      (36, 10, 3, '2025-06-07', '19:00', 39, 14.00),
+      (37, 14, 1, '2025-06-08', '13:00', 51, 9.00),
+      (38, 4, 1, '2025-06-08', '19:00', 57, 14.00),
+      (39, 12, 2, '2025-06-08', '15:30', 24, 9.00),
+      (40, 7, 2, '2025-06-08', '21:30', 76, 14.00),
+      (41, 17, 3, '2025-06-08', '13:00', 24, 9.00),
+      (42, 8, 3, '2025-06-08', '19:00', 29, 14.00);
   `,
 };
