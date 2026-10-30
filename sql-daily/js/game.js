@@ -43,6 +43,9 @@ function totalScore() {
   return base + (perfect ? PERFECT_BONUS : 0);
 }
 
+// Days before LAUNCH_DATE have no puzzle number yet, so they're labelled as a preview.
+const puzzleLabel = () => (puzzleNumber(date) >= 1 ? `#${puzzleNumber(date)}` : 'Preview');
+
 const formatTime = (seconds) => {
   const s = Math.ceil(seconds);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -64,7 +67,7 @@ async function start() {
   day = loadDay(date, pickFeature(date, features), features);
   feature = features.find((f) => f.id === day.featureId);
   saveDay(day);
-  $('puzzle-label').textContent = `#${puzzleNumber(date)} · ${formatDate(date)}`;
+  $('puzzle-label').textContent = `${puzzleLabel()} · ${formatDate(date)}`;
   $('loading').hidden = true;
 
   const active = TIER_ORDER.find((tier) => day.tiers[tier].status === 'active');
@@ -417,7 +420,7 @@ function renderSummary() {
 }
 
 function shareText() {
-  const lines = [`🎬 SQL: The Sequel #${puzzleNumber(date)}`, `${feature.theme}: ${totalScore()}/1000`];
+  const lines = [`🎬 SQL: The Sequel ${puzzleLabel()}`, `${feature.theme}: ${totalScore()}/1000`];
   for (const tier of TIER_ORDER) {
     const t = day.tiers[tier];
     const label = TIERS[tier].part.padEnd(8);
