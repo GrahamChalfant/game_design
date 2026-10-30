@@ -8,9 +8,9 @@ import { Trees } from './trees.js';
 
 export const WORLD_SIZE = 140; // meters across; the playable area is a square centred on 0,0
 const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into the haze
-const CONIFER_COUNT = 260;
-const BROADLEAF_COUNT = 45;
-const ROCK_COUNT = 40;
+const CONIFER_COUNT = 300;
+const BROADLEAF_COUNT = 25;
+const ROCK_COUNT = 260;
 const CRASH_CLEARING = 14; // keep this radius around the crash site (at 0, 0) free of trees
 // The player starts about 20 m south of the wreck: just out of view, so you have to find it.
 const SPAWN = { x: 0.5, z: 14 };
@@ -29,7 +29,7 @@ export function buildWorld(scene, seed) {
   const isFree = (x, z, spacing) =>
     Math.hypot(x, z) > CRASH_CLEARING &&
     Math.hypot(x - SPAWN.x, z - SPAWN.z) > SPAWN_CLEARING &&
-    !terrain.nearLake(x, z, 2) &&
+    !terrain.nearWater(x, z, 2) &&
     obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + spacing);
 
   const place = (x, z, radius, scale) => {
@@ -41,7 +41,7 @@ export function buildWorld(scene, seed) {
 
   const trees = new Trees(scene);
 
-  // Tall conifers grow together in forests...
+  // Dark spruce grow together in forests...
   const conifers = scatter(random, CONIFER_COUNT, (x, z) => {
     if (terrain.forest(x, z) < random.range(-0.15, 0.45) || !isFree(x, z, 1.4)) return null;
     return place(x, z, 0.5, random.range(0.8, 1.3));
@@ -55,10 +55,14 @@ export function buildWorld(scene, seed) {
   });
   trees.add('broadleaf', placeholders.broadleaf(), broadleaves);
 
+  // Boulders lie in clusters on rocky ground (and the odd one out in the grass). They're
+  // bigger up the valley walls, and each is squashed or stretched a little differently.
   const rocks = scatter(random, ROCK_COUNT, (x, z) => {
-    if (!isFree(x, z, 1)) return null;
-    const { y, rotation, scale } = place(x, z, 0.55, random.range(0.6, 1.8));
-    return transform(x, y, z, rotation, scale);
+    if (terrain.groundAt(x, z).kind !== 'rock' && random.next() > 0.08) return null;
+    if (!isFree(x, z, 0.3)) return null;
+    const big = Math.max(Math.abs(x), Math.abs(z)) > 45 ? 1.6 : 1;
+    const { y, rotation, scale } = place(x, z, 0.55, random.range(0.5, 1.9) * big);
+    return transform(x, y, z, rotation, scale, [random.range(0.8, 1.5), random.range(0.6, 1.1), random.range(0.8, 1.3)]);
   });
   scene.add(instancedModel('rock', placeholders.rock(), rocks));
 
@@ -90,10 +94,11 @@ function scatter(random, count, place) {
   return transforms;
 }
 
-function transform(x, y, z, rotation, scale) {
+// `stretch` optionally squashes or stretches it along each axis: [x, y, z].
+function transform(x, y, z, rotation, scale, stretch = [1, 1, 1]) {
   return new THREE.Matrix4().compose(
     new THREE.Vector3(x, y, z),
     new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotation),
-    new THREE.Vector3(scale, scale, scale),
+    new THREE.Vector3(scale * stretch[0], scale * stretch[1], scale * stretch[2]),
   );
 }

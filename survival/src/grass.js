@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // Thousands of individual grass blades that sway in the wind, drawn as one InstancedMesh.
-export function createGrass(random, terrain, area, count = 120000) {
+export function createGrass(random, terrain, area, count = 100000) {
   const geometry = new THREE.PlaneGeometry(0.12, 1, 1, 4).translate(0, 0.5, 0);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i++) {
@@ -34,7 +34,7 @@ export function createGrass(random, terrain, area, count = 120000) {
       .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nnormal = normalize(vNormal);')
       .replace(
         '#include <color_fragment>',
-        '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.75, 1.1, vBladeHeight);',
+        '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.8, 1.0, vBladeHeight);',
       );
   };
 
@@ -55,8 +55,8 @@ export function createGrass(random, terrain, area, count = 120000) {
     const z = random.range(-half, half);
     const ground = terrain.groundAt(x, z);
     if (ground.kind !== 'grass') continue;
-    color.copy(ground.color).offsetHSL(random.range(-0.015, 0.015), 0.03, random.range(-0.01, 0.06));
-    const height = random.range(0.35, 0.85);
+    color.copy(ground.color).offsetHSL(random.range(-0.015, 0.015), 0, random.range(-0.03, 0.03));
+    const height = random.range(0.3, 0.7);
     spot.set(x, terrain.heightAt(x, z), z);
     rotation.setFromAxisAngle(up, random.range(0, Math.PI * 2));
     scale.set(random.range(0.8, 1.3), height, 1);

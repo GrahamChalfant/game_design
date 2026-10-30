@@ -1,27 +1,59 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // Simple stand-ins, used until Blender models exist in public/models/.
 const material = (color, roughness = 0.9) => new THREE.MeshStandardMaterial({ color, roughness });
 
 const BARK = material(0x5a4030);
 
-// Tall, slender conifer, about 9 m tall, base at the origin.
+// Dark spruce, about 9 m tall, base at the origin. The branch tiers have ragged, drooping
+// edges and are darker inside and lighter at the tips, all in one mesh.
 export function conifer() {
-  const tree = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.3, 2.4, 10), BARK);
-  trunk.position.y = 1.2;
-  tree.add(trunk);
+  const parts = [];
+  const trunk = new THREE.CylinderGeometry(0.12, 0.26, 2.4, 8).translate(0, 1.2, 0);
+  paint(trunk, () => new THREE.Color(0x4a3426));
+  parts.push(trunk);
 
-  const needles = material(0x2e5e38);
-  for (let i = 0; i < 6; i++) {
-    const t = i / 5;
-    const radius = 1.9 - t * 1.4;
-    const height = 2.6 - t * 0.9;
-    const tier = new THREE.Mesh(new THREE.ConeGeometry(radius, height, 16, 1), needles);
-    tier.position.y = 1.6 + i * 1.15 + height / 2;
-    tree.add(tier);
+  const inner = new THREE.Color(0x1f3a2a);
+  const tip = new THREE.Color(0x46684a);
+  const TIERS = 8;
+  for (let i = 0; i < TIERS; i++) {
+    const t = i / (TIERS - 1);
+    const radius = 1.7 - t * 1.35;
+    const height = 1.9 - t * 0.7;
+    const base = 1.3 + i * 0.95;
+    const tier = new THREE.ConeGeometry(radius, height, 11, 2).translate(0, base + height / 2, 0);
+    const position = tier.attributes.position;
+    for (let v = 0; v < position.count; v++) {
+      const x = position.getX(v);
+      const z = position.getZ(v);
+      const out = Math.hypot(x, z) / radius; // 0 at the trunk, 1 at the edge
+      if (out < 0.5) continue;
+      // Ragged branch tips that droop.
+      const angle = Math.atan2(z, x);
+      const ragged = 1 + 0.22 * Math.sin(angle * 5 + i * 1.7) + 0.1 * Math.sin(angle * 11 + i);
+      position.setX(v, x * ragged);
+      position.setZ(v, z * ragged);
+      position.setY(v, position.getY(v) - (ragged - 0.8) * 0.35 * out);
+    }
+    tier.computeVertexNormals();
+    paint(tier, (x, y, z) => inner.clone().lerp(tip, Math.min(1, Math.hypot(x, z) / radius) * (0.7 + 0.3 * t)));
+    parts.push(tier);
   }
+  const tree = new THREE.Mesh(mergeGeometries(parts), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }));
+  tree.castShadow = true;
   return tree;
+}
+
+// Gives every vertex of `geometry` the colour returned by colorAt(x, y, z).
+function paint(geometry, colorAt) {
+  const position = geometry.attributes.position;
+  const colors = [];
+  for (let i = 0; i < position.count; i++) {
+    const c = colorAt(position.getX(i), position.getY(i), position.getZ(i));
+    colors.push(c.r, c.g, c.b);
+  }
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 }
 
 // Round, leafy tree standing in the fields, about 6 m tall, base at the origin.
@@ -31,7 +63,7 @@ export function broadleaf() {
   trunk.position.y = 1.5;
   tree.add(trunk);
 
-  const leaves = [material(0x5d8c2f), material(0x76a03a), material(0x4a7a2a)];
+  const leaves = [material(0x627d3a), material(0x768f45), material(0x52692f)];
   const blobs = [
     [0, 4.2, 0, 1.9],
     [1.2, 3.6, 0.4, 1.3],
@@ -296,22 +328,35 @@ export function axe() {
   return group;
 }
 
-// Rounded boulder about 1 m across, base at the origin.
+// Angular boulder about 1 m across, base at the origin: grey stone with pale lichen on top.
 export function rock() {
-  const geometry = new THREE.IcosahedronGeometry(0.6, 3);
+  const geometry = new THREE.IcosahedronGeometry(0.6, 1);
   const position = geometry.attributes.position;
   const point = new THREE.Vector3();
   for (let i = 0; i < position.count; i++) {
     point.fromBufferAttribute(position, i);
     // Lumpy, but the same every time (no randomness), so all copies share one shape.
-    const bump = 1 + 0.12 * Math.sin(point.x * 7) * Math.cos(point.z * 6) + 0.06 * Math.sin(point.y * 11);
+    const bump = 1 + 0.16 * Math.sin(point.x * 7 + 1) * Math.cos(point.z * 6) + 0.08 * Math.sin(point.y * 11);
     point.multiplyScalar(bump);
-    position.setXYZ(i, point.x, point.y * 0.65, point.z * 0.85);
+    position.setXYZ(i, point.x, Math.max(point.y * 0.7, -0.25), point.z * 0.85);
   }
-  geometry.computeVertexNormals();
-  const stone = new THREE.Mesh(geometry, material(0x8b8a84, 0.95));
-  stone.position.y = 0.2;
-  return stone;
+  const faceted = geometry.toNonIndexed();
+  faceted.computeVertexNormals();
+  const stone = new THREE.Color(0x76766f);
+  const dark = new THREE.Color(0x58585a);
+  const lichen = new THREE.Color(0x949266);
+  const normal = faceted.attributes.normal;
+  const p = faceted.attributes.position;
+  const colors = [];
+  for (let i = 0; i < p.count; i++) {
+    const c = stone.clone().lerp(dark, 0.5 + 0.5 * Math.sin(p.getX(i) * 9 + p.getZ(i) * 5));
+    if (normal.getY(i) > 0.6) c.lerp(lichen, 0.4);
+    colors.push(c.r, c.g, c.b);
+  }
+  faceted.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const mesh = new THREE.Mesh(faceted, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true }));
+  mesh.position.y = 0.15;
+  return mesh;
 }
 
 // Rabbit, about 0.55 m long (bigger than life, for visibility), feet at the origin, facing +z.

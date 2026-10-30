@@ -17,8 +17,9 @@ const KEYFRAMES = [
   { hour: 4, ...NIGHT },
   { hour: 5, light: [0xff9a6a, 1.2], sky: 0x8a7aaa, ground: 0x3a3a30, ambient: 1.1, haze: 0x7b6a88, fogFar: 75 },
   { hour: 6.5, light: [0xffb27a, 4.2], sky: 0xd8c8e0, ground: 0x7a8048, ambient: 1.8, haze: 0xf0cdb0, fogFar: 95 },
-  { hour: 9, light: [0xfff0d8, 3.0], sky: 0xdbe8ff, ground: 0x8a9a5a, ambient: 1.7, haze: 0xe6e2d0, fogFar: 110 },
-  { hour: 16.5, light: [0xffe2b0, 3.0], sky: 0xdbe8ff, ground: 0x8a9a5a, ambient: 1.7, haze: 0xe9dcb8, fogFar: 100 },
+  // Daytime: soft, cool, open daylight with a bluish haze.
+  { hour: 9, light: [0xfff6ea, 3.3], sky: 0xdde8f4, ground: 0x8a9a5a, ambient: 1.7, haze: 0xc4d0dc, fogFar: 160 },
+  { hour: 16.5, light: [0xffeed6, 3.2], sky: 0xdde8f4, ground: 0x8a9a5a, ambient: 1.7, haze: 0xcfd4d6, fogFar: 150 },
   { hour: 18.5, light: [0xffb070, 4.2], sky: 0xe8c8b8, ground: 0x8a8048, ambient: 1.8, haze: 0xf4c090, fogFar: 95 },
   { hour: 19.5, light: [0xff8050, 3.0], sky: 0xb88aa0, ground: 0x5a4a38, ambient: 1.4, haze: 0xc87a7a, fogFar: 85 },
   { hour: 20, light: [0xff6a48, 1.2], sky: 0x6a5a8a, ground: 0x2e2e28, ambient: 0.9, haze: 0x4a3a60, fogFar: 75 },
