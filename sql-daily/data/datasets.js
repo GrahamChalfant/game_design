@@ -9,6 +9,18 @@
 //
 // Changing existing rows changes existing answers, so run the validator after any edit.
 
+// Short notes shown next to columns in the table diagram under the editor.
+export const columnNotes = {
+  movies: {
+    'films.part': '1 = first',
+    'films.runtime': 'minutes',
+    'films.gross': '$ millions',
+    'screenings.show_date': "'YYYY-MM-DD'",
+    'screenings.show_time': "'HH:MM'",
+    'screenings.ticket_price': '$',
+  },
+};
+
 export const datasets = {
   movies: `
     CREATE TABLE films (

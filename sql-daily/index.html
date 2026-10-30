@@ -56,7 +56,8 @@
           <p id="q-eyebrow" class="eyebrow"></p>
           <h2 id="q-title" class="q-title"></h2>
           <p id="q-prompt" class="prompt"></p>
-          <p class="columns">Columns: <span id="q-columns"></span></p>
+          <p class="needs"><span class="needs-label">Return</span> <span id="q-columns"></span></p>
+          <p id="q-filters" class="needs"></p>
           <ul id="hints" class="hints"></ul>
           <div id="feedback" class="feedback" hidden></div>
           <div id="results" class="results"></div>
@@ -96,19 +97,36 @@
           <span id="timer-text" class="timer-text">0</span>
         </div>
         <div class="console-main">
-          <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off"
-            placeholder="SELECT …" aria-label="Your SQL query"></textarea>
+          <!-- The textarea's text is see-through; the color-coded copy in the <pre> behind it is what you see. -->
+          <div class="editor-wrap">
+            <pre id="editor-colors" class="editor-layer" aria-hidden="true"></pre>
+            <textarea id="editor" class="editor-layer" spellcheck="false" autocapitalize="off" autocomplete="off"
+              placeholder="SELECT …" aria-label="Your SQL query"></textarea>
+          </div>
           <div class="console-row">
             <span id="boost-text" class="boost-text"></span>
             <span class="spacer"></span>
             <button id="hint-btn" class="text-btn">Hint</button>
             <button id="giveup-btn" class="text-btn danger">Give up</button>
           </div>
-          <div id="schema" class="schema"></div>
         </div>
         <div class="console-actions">
           <button id="run-btn" title="Ctrl + Enter">Run</button>
           <button id="submit-btn" class="primary" title="Ctrl + Shift + Enter">Submit</button>
+        </div>
+
+        <!-- The same four tables for every question. What this question needs is highlighted;
+             lines join each foreign key to the column it points at. -->
+        <div class="diagram">
+          <div class="diagram-head">
+            <span class="tiny">Tables</span>
+            <span class="legend"><mark class="hl-table">table</mark> <mark class="hl-column">column</mark> <mark class="hl-filter">filter</mark> needed for this question · click a table name to preview it</span>
+          </div>
+          <div class="diagram-body">
+            <svg id="diagram-links" class="diagram-links" aria-hidden="true"></svg>
+            <div id="diagram-tables" class="diagram-tables"></div>
+          </div>
+          <p id="diagram-joins" class="joins"></p>
         </div>
       </div>
     </main>
@@ -130,7 +148,7 @@
         <li>Answer with more than a third of the time left to earn the <b>boost</b>.</li>
         <li><b>Run</b> as often as you like to see your output. <b>Submit</b> when you're ready. Wrong answers and hints are free.</li>
         <li>The game runs SQLite: use <code>LIMIT</code> (not <code>TOP</code>) and <code>strftime()</code> for dates.</li>
-        <li>Click a table name under the editor to preview its rows on the screen.</li>
+        <li>The tables are drawn under the editor, with lines showing how they join. What each question needs is highlighted. Click a table name to preview its rows on the screen.</li>
       </ul>
       <form method="dialog"><button class="primary">Got it</button></form>
     </dialog>
@@ -140,7 +158,7 @@
       if (location.protocol === 'file:') {
         document.getElementById('loading').innerHTML =
           '<b>This page needs to be opened through a web server.</b><br>' +
-          'In a terminal, go to the sql-daily folder and run <code>python3 -m http.server 8001</code>, ' +
+          'In a terminal, go to the sql-daily folder and run <code>python3 serve.py</code>, ' +
           'then open <a href="http://localhost:8001">http://localhost:8001</a>.';
       }
     </script>

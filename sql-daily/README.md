@@ -14,11 +14,16 @@ Everyone gets the same feature on the same day. Day 1 is *The Lord of the Rings*
 From inside the `sql-daily` folder, run:
 
 ```bash
-python3 -m http.server 8001
+python3 serve.py
 ```
 
 Then open http://localhost:8001. Press **Ctrl+C** in the terminal to stop the server.
 (Port 8001 keeps it out of the way of the survival game on 8000.)
+
+`serve.py` is a tiny web server that tells your browser not to cache the game's files. The
+usual `python3 -m http.server` works too, but after you pull changes the browser can mix old
+cached files with new ones, which shows up as a broken, unstyled page. If that happens, do a
+hard refresh: **Cmd+Shift+R** on a Mac, **Ctrl+Shift+R** on Windows or Linux.
 
 You can't just double-click `index.html`, because browsers block this kind of page when it's
 opened as a local file. If you try, the page tells you what to do instead.
@@ -74,6 +79,12 @@ All of these numbers live in `js/config.js`.
   - `screens` and `screenings`: a made-up week at *The Sequel*, the game's own cinema, with
     show dates, show times, tickets sold and prices. This gives medium and hard questions
     dates, joins and gaps to work with.
+- **The table diagram.** Every question uses the same four tables. They're drawn under the
+  editor with their column types, short notes (`gross` is in $ millions, `part` 1 = first film),
+  primary and foreign keys, and lines between the join keys.
+- **Highlights.** The game reads each question's solution to work out which tables, columns and
+  filters it needs (like `franchise = 'The Matrix'`). Those light up in the question text, in a
+  "Filter" line under it, and in the table diagram, including the join lines it uses. This is in `js/needs.js`.
 - **Checking answers.** Your query and the official solution both run against a fresh copy
   of the data. If the results match, you're right, so a CTE or a subquery, or `RANK` or
   `ROW_NUMBER`, all count. Column names don't matter. Row order only matters if the question
@@ -96,6 +107,10 @@ Keep them coffee-sized: short to read, quick to type, with a small answer you ca
 | Medium | 2 min | 2–3 pieces | a join plus aggregation, `HAVING`, a subquery in `WHERE`, `COALESCE`, `strftime()` grouping, `SUM(CASE WHEN …)`, or one basic window function (`ROW_NUMBER`/`RANK`) |
 | Hard | 3 min | 3–4 pieces | `LAG`/`LEAD`, running totals, a CTE that filters a window result (top-N per group), self-joins, `NOT EXISTS`, frame clauses (`ROWS BETWEEN …`), percent of total |
 
+- **Write prompts the highlights can find.** Highlights come from the solution, and light up
+  in the prompt wherever the same words appear. So use the real filter values ("The Matrix",
+  "170") and column names ("title", "tickets sold" for `tickets_sold`) in the prompt text.
+  `npm run validate -- --verbose` lists what each question will highlight.
 - **Hard means hard SQL, not unclear wording.** Always spell out the columns and the sort order.
 - **No tricks on easy.** Save NULL and join gotchas for medium, and warn about them in the prompt.
 - **Watch for tier creep.** `ROW_NUMBER` alone is medium. Filtering on it (top 2 per group) is hard.

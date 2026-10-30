@@ -17,7 +17,6 @@
 //   id         Unique, never changes once players have seen it (used for saved progress).
 //   theme      Shown on the start screen, e.g. 'The Lord of the Rings'.
 //   tagline    One short line under the theme.
-//   dataset    (optional) Which database from data/datasets.js to use. Defaults to 'movies'.
 //   questions  { easy, medium, hard }, each with:
 //     title        Short name shown above the question.
 //     prompt       What to do. Say exactly which columns to return, and the order if it matters.
@@ -506,7 +505,7 @@ export const questions = features.flatMap((feature) =>
   TIER_ORDER.filter((tier) => feature.questions?.[tier]).map((tier) => ({
     id: `${feature.id}/${tier}`,
     tier,
-    dataset: feature.dataset ?? 'movies',
+    dataset: 'movies', // every question uses the same four tables
     feature: feature.id,
     ...feature.questions[tier],
   })),

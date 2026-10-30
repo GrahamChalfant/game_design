@@ -2,7 +2,9 @@
 
 import { features, questions } from '../data/features.js';
 import { TIERS, TIER_ORDER, PERFECT_BONUS, COUNTDOWN_SECONDS, BOOST_FRACTION, boostFor } from './config.js';
-import { runQuery, checkAnswer, describeSchema } from './checker.js';
+import { runQuery, checkAnswer, describeTables } from './checker.js';
+import { analyzeSolution, highlightPrompt } from './needs.js';
+import { highlightSql, attachHighlighter } from './highlight.js';
 import {
   todayString, isDateString, puzzleNumber, pickFeature, secondsUntilTomorrow,
   loadDay, saveDay, forgetDay, loadHistory, recordScore, stats,
@@ -25,6 +27,7 @@ let SQL;
 let day;
 let feature;
 let shownView = null; // which view is on screen, so the tick only redraws when it changes
+let redrawColors = () => {}; // repaints the editor's color-coding after its text is set from code
 
 const questionFor = (tier) => questions.find((q) => q.id === `${day.featureId}/${tier}`);
 const isDone = (t) => t.status === 'solved' || t.status === 'failed';
@@ -93,6 +96,7 @@ function wireUpControls() {
   $('help-btn').addEventListener('click', () => $('help').showModal());
 
   const editor = $('editor');
+  redrawColors = attachHighlighter(editor, $('editor-colors'));
   editor.addEventListener('input', () => {
     const tier = activeTier();
     if (!tier) return;
@@ -106,6 +110,7 @@ function wireUpControls() {
     } else if (e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();
       editor.setRangeText('  ', editor.selectionStart, editor.selectionEnd, 'end');
+      editor.dispatchEvent(new Event('input')); // setRangeText doesn't fire one, so save and recolor
     }
   });
 }
@@ -253,9 +258,15 @@ function renderQuestion(tier) {
   const t = day.tiers[tier];
   $('q-eyebrow').textContent = `${TIERS[tier].part} · ${TIERS[tier].label} · ${TIERS[tier].points} pts`;
   $('q-title').textContent = q.title;
-  $('q-prompt').textContent = q.prompt;
+  const tables = describeTables(SQL, q.dataset);
+  const needs = analyzeSolution(q.solution, tables);
+  $('q-prompt').innerHTML = highlightPrompt(q.prompt, needs);
   $('q-columns').innerHTML = q.columns.map((c) => `<code>${escapeHtml(c)}</code>`).join(' ');
-  renderSchema(q.dataset);
+  $('q-filters').hidden = needs.filters.length === 0;
+  $('q-filters').innerHTML =
+    '<span class="needs-label">Filter</span> ' +
+    needs.filters.map((f) => `<code class="hl-filter">${escapeHtml(f.text)}</code>`).join(' ');
+  renderDiagram(q.dataset, tables, needs);
   renderHints(tier);
   showFeedback(null);
   showResults(null);
@@ -266,6 +277,7 @@ function renderQuestion(tier) {
 
   const editor = $('editor');
   editor.value = t.sql;
+  redrawColors();
   editor.focus();
   renderTimer(tier);
 }
@@ -298,23 +310,76 @@ function renderHints(tier) {
   $('hint-btn').disabled = t.hintsShown >= hints.length;
 }
 
-let schemaShown = null;
-function renderSchema(dataset) {
-  if (schemaShown === dataset) return;
-  schemaShown = dataset;
-  const container = $('schema');
+// The table diagram under the editor: a card per table, highlighted for this question.
+// Cards are laid out so every join is between neighbours: roles → films ← screenings → screens.
+const TABLE_ORDER = ['roles', 'films', 'screenings', 'screens'];
+
+function renderDiagram(dataset, tables, needs) {
+  const ordered = [...tables].sort((a, b) => rank(a.name) - rank(b.name));
+  const filtered = new Set(needs.filters.map((f) => f.column).filter(Boolean));
+  const container = $('diagram-tables');
   container.innerHTML = '';
-  for (const [table, columns] of Object.entries(describeSchema(SQL, dataset))) {
-    const chip = document.createElement('button');
-    chip.className = 'table-chip';
-    chip.title = `Preview ${table} on the screen`;
-    chip.innerHTML = `<b>${escapeHtml(table)}</b>(${columns.map(escapeHtml).join(', ')})`;
-    chip.addEventListener('click', () => {
-      showResults(runQuery(SQL, dataset, `SELECT * FROM ${table} LIMIT 5`), `Preview: ${table}, first 5 rows`);
+  for (const table of ordered) {
+    const card = document.createElement('div');
+    card.className = `db-table${needs.tables.has(table.name) ? ' needed' : ''}`;
+    card.innerHTML =
+      `<button class="db-table-name" title="Preview ${escapeHtml(table.name)} on the screen">${escapeHtml(table.name)}</button>` +
+      '<ul>' +
+      table.columns.map((c) => {
+        const id = `${table.name}.${c.name}`;
+        const cls = ['db-col', needs.columns.has(id) && 'needed', filtered.has(id) && 'filtered'].filter(Boolean).join(' ');
+        const key = c.pk ? '<span class="key pk" title="Primary key">PK</span>' : c.references ? `<span class="key fk" title="Joins to ${c.references}">FK</span>` : '<span class="key"></span>';
+        const meta = c.note ?? ({ integer: 'int', real: 'num' }[c.type] ?? c.type);
+        return `<li class="${cls}" data-col="${id}"${c.references ? ` data-ref="${c.references}"` : ''}>${key}<span class="col-name">${escapeHtml(c.name)}</span><span class="col-meta">${escapeHtml(meta)}</span></li>`;
+      }).join('') +
+      '</ul>';
+    card.querySelector('button').addEventListener('click', () => {
+      showResults(runQuery(SQL, dataset, `SELECT * FROM ${table.name} LIMIT 5`), `Preview: ${table.name}, first 5 rows`);
     });
-    container.append(chip);
+    container.append(card);
   }
+  $('diagram-joins').innerHTML =
+    '<span class="needs-label">Join keys</span> ' +
+    tables.flatMap((t) => t.columns.filter((c) => c.references).map((c) => {
+      const used = needs.columns.has(`${t.name}.${c.name}`) && needs.columns.has(c.references);
+      return `<code class="${used ? 'hl-join' : ''}">${t.name}.${c.name} = ${c.references}</code>`;
+    })).join(' ');
+  requestAnimationFrame(drawLinks);
 }
+
+const rank = (name) => (TABLE_ORDER.includes(name) ? TABLE_ORDER.indexOf(name) : TABLE_ORDER.length);
+
+// Draws a curved line from each foreign key row to the row it points at. Only drawn when the two
+// cards sit side by side; on narrow screens the "Join keys" line under the cards does the job.
+function drawLinks() {
+  const svg = $('diagram-links');
+  const box = svg.getBoundingClientRect();
+  if (!box.width) return;
+  let paths = '';
+  for (const from of document.querySelectorAll('#diagram-tables li[data-ref]')) {
+    const to = document.querySelector(`#diagram-tables li[data-col="${from.dataset.ref}"]`);
+    if (!to) continue;
+    const a = from.getBoundingClientRect();
+    const b = to.getBoundingClientRect();
+    const fromCard = from.closest('.db-table').getBoundingClientRect();
+    const toCard = to.closest('.db-table').getBoundingClientRect();
+    if (Math.abs(fromCard.top - toCard.top) > 4) continue; // not side by side
+    const leftToRight = fromCard.left < toCard.left;
+    const x1 = (leftToRight ? a.right : a.left) - box.left;
+    const x2 = (leftToRight ? b.left : b.right) - box.left;
+    const y1 = a.top + a.height / 2 - box.top;
+    const y2 = b.top + b.height / 2 - box.top;
+    const bend = (x2 - x1) / 2;
+    const used = from.classList.contains('needed') && to.classList.contains('needed');
+    paths +=
+      `<path d="M${x1},${y1} C${x1 + bend},${y1} ${x2 - bend},${y2} ${x2},${y2}" class="link${used ? ' used' : ''}"/>` +
+      `<circle cx="${x1}" cy="${y1}" r="3" class="link-end${used ? ' used' : ''}"/>` +
+      `<circle cx="${x2}" cy="${y2}" r="3" class="link-end${used ? ' used' : ''}"/>`;
+  }
+  svg.innerHTML = paths;
+}
+window.addEventListener('resize', () => requestAnimationFrame(drawLinks));
+document.fonts?.ready.then(() => requestAnimationFrame(drawLinks));
 
 function renderReveal(tier) {
   const t = day.tiers[tier];
@@ -331,7 +396,7 @@ function renderReveal(tier) {
     $('reveal-title').textContent = t.reason === 'timeout' ? 'Time\'s up!' : 'Cut!';
     $('reveal-points').innerHTML = '<span class="bad">+0</span>';
   }
-  $('solution-sql').textContent = dedent(q.solution);
+  $('solution-sql').innerHTML = highlightSql(dedent(q.solution));
   $('next-btn').textContent = next ? `Roll ${TIERS[next].part}` : 'Roll the credits';
   $('next-btn').focus();
 }
