@@ -6,6 +6,8 @@ lingering snow, built with [Three.js](https://threejs.org/). The goal is to see 
 Planned features (hunger and thirst, chopping wood, campfires, traps and cooking) are tracked
 in the [issues](https://github.com/GrahamChalfant/game_design/issues).
 
+> This repo also contains **SQL: The Sequel**, a daily movie-themed SQL puzzle game. See [`sql-daily/README.md`](sql-daily/README.md).
+
 ## Getting started
 
 There are two ways to run the game. Both run the same game.
