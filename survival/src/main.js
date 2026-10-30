@@ -12,6 +12,7 @@ import { Player } from './player.js';
 import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
 import { Traps } from './traps.js';
+import { buildWreck, START_ITEMS } from './wreck.js';
 import { GAME_MINUTES_PER_SECOND, Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
 
@@ -58,7 +59,9 @@ scene.add(sun, sun.target);
 // --- Game objects ---
 const input = new Input(renderer.domElement);
 const world = buildWorld(scene, SEED);
-const player = new Player(scene, world.spawn, WORLD_SIZE);
+const wreck = buildWreck(scene, world);
+// Start just south of the crashed plane, facing it.
+const player = new Player(scene, world.spawn, WORLD_SIZE, Math.PI);
 const snow = new Snowfall(scene);
 const daylight = new Daylight(scene, sun, ambient, snow);
 const survival = new Survival();
@@ -68,6 +71,11 @@ const animals = new Animals(scene, world, SEED + 2);
 animals.spawnAll(player.position);
 const traps = new Traps(scene, world, animals);
 const pickups = new Pickups(scene, world);
+// The axe and backpack lie around the wreckage at the start of every game.
+const placeStartItems = () => {
+  for (const { item, x, z } of START_ITEMS) pickups.drop(item, 1, x, z);
+};
+placeStartItems();
 const hud = new Hud({
   onRestart: () => {
     survival.reset();
@@ -76,8 +84,10 @@ const hud = new Hud({
     campfires.reset();
     traps.reset();
     pickups.reset();
+    placeStartItems();
     player.reset();
     animals.reset(player.position);
+    if (hud.backpackOpen) hud.toggleBackpack(); // you lose the backpack until you find it again
     hud.hideGameOver();
   },
   // With the backpack open, clicking a slot moves its items between the backpack and
@@ -133,7 +143,10 @@ renderer.setAnimationLoop(() => {
     return;
   }
   if (input.wasPressed('KeyC')) hud.toggleCrafting();
-  if (input.wasPressed('Tab') || input.wasPressed('KeyI')) hud.toggleBackpack();
+  if (input.wasPressed('Tab') || input.wasPressed('KeyI')) {
+    if (inventory.hasBackpack) hud.toggleBackpack();
+    else hud.toast("You don't have a backpack yet. Look around the plane.");
+  }
 
   const actions = updateActions(dt);
   survival.update(dt, actions, TIME_SPEED);
@@ -147,6 +160,7 @@ renderer.setAnimationLoop(() => {
   animals.update(dt, player.position, player.sneaking);
   traps.update();
   pickups.update(clock.elapsedTime);
+  wreck.update(dt);
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);

@@ -10,9 +10,10 @@ const SWIM_DEPTH = 1.25; // once the water is this deep, the player swims with t
 const TURN_SPEED = 12;
 
 export class Player {
-  constructor(scene, spawn, worldSize) {
+  constructor(scene, spawn, worldSize, spawnFacing = 0) {
     this.position = spawn.clone();
-    this.facing = 0;
+    this.spawnFacing = spawnFacing;
+    this.facing = spawnFacing;
     this.walkTime = 0;
     this.limit = worldSize / 2 - 1;
     this.spawn = spawn.clone();
@@ -127,7 +128,7 @@ export class Player {
   reset() {
     this.alive = true;
     this.position.copy(this.spawn);
-    this.facing = 0;
+    this.facing = this.spawnFacing;
     this.body.rotation.x = 0;
   }
 

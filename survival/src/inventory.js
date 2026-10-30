@@ -8,6 +8,8 @@ export const ITEMS = {
   campfire: { name: 'Campfire', icon: '🔥', stack: 3 },
   rawMeat: { name: 'Raw meat', icon: '🥩', stack: 10 },
   cookedMeat: { name: 'Cooked meat', icon: '🍖', stack: 10 },
+  // Not kept in a slot: picking it up unlocks the backpack's slots.
+  backpack: { name: 'Backpack', icon: '🎒', stack: 1 },
 };
 
 export const HOTBAR_SIZE = 6;
@@ -21,7 +23,13 @@ export class Inventory {
   reset() {
     this.slots = Array.from({ length: HOTBAR_SIZE + BACKPACK_SIZE }, () => null); // { item, count } or null
     this.selected = 0;
-    this.add('axe', 1);
+    // You start with nothing: the axe and backpack are found at the crash site.
+    this.hasBackpack = false;
+  }
+
+  // Slots you can currently put things in: just the hotbar until you find the backpack.
+  get usableSlots() {
+    return this.hasBackpack ? this.slots.length : HOTBAR_SIZE;
   }
 
   // The item in the selected slot ('axe', 'wood', ...), or null.
@@ -82,14 +90,14 @@ export class Inventory {
   // Adds items, filling existing stacks first. Returns how many didn't fit.
   add(item, count) {
     const { stack } = ITEMS[item];
-    for (const slot of this.slots) {
+    for (const slot of this.slots.slice(0, this.usableSlots)) {
       if (count === 0) break;
       if (slot?.item !== item) continue;
       const added = Math.min(count, stack - slot.count);
       slot.count += added;
       count -= added;
     }
-    for (let i = 0; i < this.slots.length && count > 0; i++) {
+    for (let i = 0; i < this.usableSlots && count > 0; i++) {
       if (this.slots[i]) continue;
       const added = Math.min(count, stack);
       this.slots[i] = { item, count: added };

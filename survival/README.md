@@ -60,6 +60,10 @@ automatically whenever you save a file.
 
 The game starts paused on a menu listing the controls. Press Esc at any time to see it again.
 
+You wake up next to your crashed bush plane with nothing in your hands. Your axe and
+backpack were thrown clear in the crash: look around the wreckage (they have floating
+icons) and press E to pick them up. The backpack gives you 12 extra slots.
+
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
 you start losing health. Drink from the lake to stay hydrated. While you're well fed and
 watered, your health slowly recovers. One in-game day lasts 10 real minutes.
@@ -69,10 +73,10 @@ Nights are dark, so keep a campfire going if you want to see what you're doing.
 To change the colours and light at each time of day, edit the table at the top of
 `src/daylight.js`.
 
-You start with an axe. Face a tree, take out the axe and hold Space to chop it down
+Once you have the axe, face a tree, take it out and hold Space to chop it down
 for wood. Hard work makes you hungry faster.
 
-Your hotbar has 6 slots and your backpack (Tab) has 12 more. If something doesn't fit,
+Your hotbar has 6 slots, and the backpack (Tab, once you've found it) has 12 more. If something doesn't fit,
 it's left on the ground with a floating icon above it; walk over and press E to pick it up.
 
 To make a campfire, press C and craft one (5 wood), then select it and press Space to
@@ -113,6 +117,7 @@ src/campfires.js      Building campfires, fuel, flames and firelight
 src/animals.js        Rabbits and deer: wandering, grazing and running from the player
 src/traps.js          Snare traps that catch rabbits
 src/pickups.js        Items lying on the ground
+src/wreck.js          The crashed plane at the start, and where the starting items lie
 src/crafting.js       Crafting recipes (add new ones here)
 src/actions.js        What the player is doing each frame: chopping, building, cooking, eating…
 src/inventory.js      Items and the hotbar
@@ -145,6 +150,9 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `rock.glb` | Boulder | ~1 m across |
 | `rabbit.glb` | Rabbit (the stand-in is drawn a bit bigger than life, to be easy to spot) | ~0.55 m long |
 | `deer.glb` | Deer | ~1.6 m tall at the head |
+| `plane.glb` | The crashed bush plane, nose pointing toward you in Blender's **Front** view (model it already crashed) | ~8 m long |
+| `backpack.glb` | Backpack lying in the grass | ~0.5 m tall |
+| `axe-ground.glb` | Axe lying on the ground | ~0.75 m long |
 | `logs.glb` | Pile of logs lying on the ground | ~0.7 m long |
 | `trap.glb` | Snare trap | ~0.7 m across |
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |

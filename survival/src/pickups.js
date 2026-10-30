@@ -4,6 +4,13 @@ import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 
 const MERGE_DISTANCE = 1; // dropping next to a pile of the same item adds to it
+// What some items look like lying on the ground: [stand-in, Blender model name].
+// Items not listed here just show their floating icon.
+const GROUND_MODELS = {
+  wood: [placeholders.logPile, 'logs'],
+  axe: [placeholders.axeOnGround, 'axe-ground'],
+  backpack: [placeholders.backpack, 'backpack'],
+};
 
 // Items lying on the ground (e.g. logs that didn't fit in your inventory),
 // each shown with a floating icon so they're easy to spot.
@@ -28,15 +35,16 @@ export class Pickups {
 
     const object = new THREE.Group();
     object.position.set(x, this.world.terrain.heightAt(x, z), z);
-    if (item === 'wood') {
-      const logs = new THREE.Group();
-      logs.add(placeholders.logPile());
-      loadModel('logs').then((model) => {
+    if (GROUND_MODELS[item]) {
+      const [placeholder, modelName] = GROUND_MODELS[item];
+      const shown = new THREE.Group();
+      shown.add(placeholder());
+      loadModel(modelName).then((model) => {
         if (!model) return;
-        logs.clear();
-        logs.add(model);
+        shown.clear();
+        shown.add(model);
       });
-      object.add(logs);
+      object.add(shown);
     }
     const icon = iconSprite(ITEMS[item].icon);
     object.add(icon);
@@ -64,11 +72,13 @@ export class Pickups {
   pickUp(pile, inventory) {
     const taken = pile.count - inventory.add(pile.item, pile.count);
     pile.count -= taken;
-    if (pile.count === 0) {
-      this.scene.remove(pile.object);
-      this.piles.splice(this.piles.indexOf(pile), 1);
-    }
+    if (pile.count === 0) this.remove(pile);
     return taken;
+  }
+
+  remove(pile) {
+    this.scene.remove(pile.object);
+    this.piles.splice(this.piles.indexOf(pile), 1);
   }
 
   update(time) {

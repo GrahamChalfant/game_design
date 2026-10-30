@@ -11,7 +11,7 @@ const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into 
 const CONIFER_COUNT = 260;
 const BROADLEAF_COUNT = 45;
 const ROCK_COUNT = 40;
-const SPAWN_CLEARING = 7; // keep this radius around the start free of trees
+const SPAWN_CLEARING = 14; // keep this radius around the start (and the crash site) free of trees
 
 // Builds the map from a seed: the same seed always gives the same world.
 export function buildWorld(scene, seed) {
