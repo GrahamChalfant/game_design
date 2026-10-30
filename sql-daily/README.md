@@ -28,9 +28,9 @@ Testing shortcuts (add these to the address):
 
 | | Correct | Speed bonus | Timer |
 | --- | --- | --- | --- |
-| Q1 Easy | 100 | up to +50 | 3:00 |
-| Q2 Medium | 200 | up to +100 | 5:00 |
-| Q3 Hard | 300 | up to +150 | 8:00 |
+| Q1 Easy | 100 | up to +50 | 1:00 |
+| Q2 Medium | 200 | up to +100 | 1:00 |
+| Q3 Hard | 300 | up to +150 | 1:00 |
 | All three correct | +100 | | |
 | **Perfect day** | **600** | **+300** | **+100 = 1,000** |
 

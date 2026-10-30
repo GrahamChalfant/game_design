@@ -30,10 +30,6 @@
         <button id="start-btn" class="primary big">Start the timer</button>
       </section>
 
-      <section id="locked-card" class="panel center" hidden>
-        <p id="locked-text"></p>
-      </section>
-
       <section id="question" hidden>
         <div class="q-head">
           <div>
@@ -95,9 +91,9 @@
 
       <details class="panel how">
         <summary>How to play</summary>
-        <p>Every day there are three SQL questions: easy, medium and hard. Answer them in order.</p>
+        <p>Every day there are three SQL questions: easy, medium and hard. They come one at a time: easy, then medium, then hard.</p>
         <ul>
-          <li>Each question has its own timer, which starts when you click <b>Start</b>. If it runs out, the question is over.</li>
+          <li>You get one minute per question. The clock starts when you click <b>Start</b>, and the next question starts as soon as you move on. When time runs out, the question is over.</li>
           <li><b>Run</b> your query as often as you like to see its output. When you think it's right, <b>Submit</b> it. Wrong submissions don't cost points.</li>
           <li>The game runs SQLite, so use <code>LIMIT</code> (not <code>TOP</code>) and <code>strftime()</code> for dates.</li>
         </ul>

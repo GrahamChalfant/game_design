@@ -28,10 +28,7 @@ const questionFor = (tier) => questions.find((q) => q.id === day.tiers[tier].id)
 const isDone = (t) => t.status === 'solved' || t.status === 'failed';
 const allDone = () => TIER_ORDER.every((tier) => isDone(day.tiers[tier]));
 
-function isLocked(tier) {
-  const index = TIER_ORDER.indexOf(tier);
-  return index > 0 && !isDone(day.tiers[TIER_ORDER[index - 1]]);
-}
+const nextTier = () => TIER_ORDER.find((tier) => !isDone(day.tiers[tier]));
 
 function secondsLeft(tier) {
   const t = day.tiers[tier];
@@ -69,7 +66,7 @@ async function start() {
   $('loading').hidden = true;
 
   const active = TIER_ORDER.find((tier) => day.tiers[tier].status === 'active');
-  viewing = active ?? (allDone() ? 'summary' : TIER_ORDER.find((tier) => !isDone(day.tiers[tier])));
+  viewing = active ?? nextTier() ?? 'summary';
 
   wireUpControls();
   render();
@@ -82,9 +79,13 @@ function wireUpControls() {
   $('submit-btn').addEventListener('click', submit);
   $('hint-btn').addEventListener('click', showHint);
   $('giveup-btn').addEventListener('click', giveUp);
+  // Questions come one after another: finishing one leads straight into the next.
   $('next-btn').addEventListener('click', () => {
-    const next = TIER_ORDER.find((tier) => !isDone(day.tiers[tier]));
-    show(next ?? 'summary');
+    const next = nextTier();
+    if (!next) return show('summary');
+    viewing = next;
+    startQuestion();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
   $('share-btn').addEventListener('click', share);
 
@@ -205,47 +206,32 @@ function render() {
   const isTier = Boolean(TIERS[viewing]);
   const t = isTier ? day.tiers[viewing] : null;
   $('summary').hidden = viewing !== 'summary';
-  $('locked-card').hidden = !(isTier && isLocked(viewing));
-  $('start-card').hidden = !(isTier && !isLocked(viewing) && t.status === 'ready');
+  $('start-card').hidden = !(isTier && t.status === 'ready');
   $('question').hidden = !(isTier && (t.status === 'active' || isDone(t)));
 
   if (viewing === 'summary') return renderSummary();
-  if (isLocked(viewing)) {
-    const previous = TIERS[TIER_ORDER[TIER_ORDER.indexOf(viewing) - 1]].label.toLowerCase();
-    $('locked-text').textContent = `Finish the ${previous} question first.`;
-    return;
-  }
   if (t.status === 'ready') return renderStartCard();
   renderQuestion();
 }
 
+// A progress strip, not navigation: players can only work on the current question.
 function renderSteps() {
   const nav = $('steps');
   nav.innerHTML = '';
-  const steps = [...TIER_ORDER];
-  if (allDone()) steps.push('summary');
-  for (const step of steps) {
-    const button = document.createElement('button');
-    button.className = 'step';
-    if (step === viewing) button.classList.add('current');
-    let name;
+  for (const tier of TIER_ORDER) {
+    const t = day.tiers[tier];
+    const step = document.createElement('div');
+    step.className = `step ${t.status}`;
+    if (tier === viewing) step.classList.add('current');
     let status;
-    if (step === 'summary') {
-      name = 'Results';
-      status = `${totalScore()} / 1000`;
-    } else {
-      const t = day.tiers[step];
-      name = `${TIERS[step].label} · ${TIERS[step].points}`;
-      button.classList.add(t.status);
-      if (t.status === 'solved') status = `✓ +${t.points + t.bonus}`;
-      else if (t.status === 'failed') status = t.reason === 'timeout' ? '✗ Out of time' : '✗ Gave up';
-      else if (t.status === 'active') status = '● In progress';
-      else status = isLocked(step) ? 'Locked' : 'Ready';
-      button.disabled = isLocked(step);
-    }
-    button.innerHTML = `<span class="step-name">${name}</span><span class="step-status">${status}</span>`;
-    button.addEventListener('click', () => show(step));
-    nav.append(button);
+    if (t.status === 'solved') status = `✓ +${t.points + t.bonus}`;
+    else if (t.status === 'failed') status = t.reason === 'timeout' ? '✗ Out of time' : '✗ Gave up';
+    else if (t.status === 'active') status = '● Now';
+    else status = 'Up next';
+    step.innerHTML =
+      `<span class="step-name">${TIERS[tier].label} · ${TIERS[tier].points}</span>` +
+      `<span class="step-status">${status}</span>`;
+    nav.append(step);
   }
 }
 
@@ -286,7 +272,10 @@ function renderQuestion() {
     return;
   }
   $('solution-sql').textContent = dedent(q.solution);
-  $('next-btn').textContent = allDone() ? 'See your results' : 'Next question →';
+  const next = nextTier();
+  $('next-btn').textContent = next
+    ? `Start the ${TIERS[next].label.toLowerCase()} question (${formatTime(TIERS[next].seconds)}) →`
+    : 'See your results';
   if (t.status === 'solved') {
     showFeedback('correct', `Correct! +${t.points} points, +${t.bonus} speed bonus.`, [
       `Solved with ${formatTime(t.secondsLeft)} left, in ${t.attempts} ${t.attempts === 1 ? 'try' : 'tries'}.`,
@@ -308,7 +297,7 @@ function renderTimer() {
   const left = secondsLeft(tier);
   $('timer-text').textContent = formatTime(left);
   $('timer-fill').style.width = `${(left / TIERS[tier].seconds) * 100}%`;
-  $('timer').classList.toggle('low', t.status === 'active' && left <= 30);
+  $('timer').classList.toggle('low', t.status === 'active' && left <= 10);
   $('bonus-text').textContent =
     t.status === 'active' ? `speed bonus +${speedBonus(tier, left)}` : t.status === 'solved' ? 'finished' : '';
 }

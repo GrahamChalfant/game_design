@@ -7,9 +7,9 @@
 //                                   1,000
 
 export const TIERS = {
-  easy: { label: 'Easy', points: 100, maxSpeedBonus: 50, seconds: 3 * 60 },
-  medium: { label: 'Medium', points: 200, maxSpeedBonus: 100, seconds: 5 * 60 },
-  hard: { label: 'Hard', points: 300, maxSpeedBonus: 150, seconds: 8 * 60 },
+  easy: { label: 'Easy', points: 100, maxSpeedBonus: 50, seconds: 60 },
+  medium: { label: 'Medium', points: 200, maxSpeedBonus: 100, seconds: 60 },
+  hard: { label: 'Hard', points: 300, maxSpeedBonus: 150, seconds: 60 },
 };
 
 export const TIER_ORDER = ['easy', 'medium', 'hard'];
