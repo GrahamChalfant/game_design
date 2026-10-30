@@ -10,6 +10,8 @@ const FALL_LIMIT = -20;
 // Box3 counts touching as overlapping, so keep the collision box a hair above the feet
 // or standing on the ground would block every horizontal move.
 const SKIN = 0.01;
+// Vite serves public/ at the site root; a plain web server serves it at /public/.
+const MODEL_URLS = ['models/player.glb', 'public/models/player.glb'];
 
 export class Player {
   constructor(scene, spawn) {
@@ -35,11 +37,12 @@ export class Player {
     this.object.add(body, nose);
     scene.add(this.object);
 
-    this.loadModel('/models/player.glb', body, nose);
+    this.loadModel(MODEL_URLS, body, nose);
   }
 
   // Swap the capsule for a Blender model if one has been exported to public/models/.
-  loadModel(url, ...placeholders) {
+  loadModel([url, ...fallbacks], ...placeholders) {
+    if (!url) return; // No model yet: keep the capsule.
     new GLTFLoader().load(
       url,
       (gltf) => {
@@ -48,7 +51,7 @@ export class Player {
         this.object.add(gltf.scene);
       },
       undefined,
-      () => {}, // No model yet: keep the capsule.
+      () => this.loadModel(fallbacks, ...placeholders),
     );
   }
 

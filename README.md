@@ -5,7 +5,28 @@ Run around, jump between platforms and collect every coin.
 
 ## Getting started
 
-You need [Node.js](https://nodejs.org/) (version 20 or newer).
+There are two ways to run the game. Both run the same game.
+
+### Option A: No install needed (Python)
+
+This uses Python, which is already on most Macs, and downloads Three.js from a CDN.
+You don't need Node.js or npm.
+
+From inside the project folder, run:
+
+```bash
+python3 -m http.server 8000
+```
+
+Then open http://localhost:8000. After you edit a file, refresh the browser to see the change.
+To stop the server, press **Ctrl+C** in the terminal.
+
+> You can't just double-click `index.html`. Browsers block this kind of code when it's
+> opened as a local file, so it has to be served by a web server like the one above.
+
+### Option B: With Node.js and npm
+
+You need [Node.js](https://nodejs.org/) 20.19 or newer.
 
 ```bash
 npm install
@@ -44,7 +65,14 @@ public/models/      3D models exported from Blender (.glb)
 
 If you save a model as `public/models/player.glb`, it automatically replaces the blue capsule.
 
+## Updating Three.js
+
+The Three.js version is listed in two places. If you change one, change both:
+`"three"` in `package.json` (Option B) and the import map in `index.html` (Option A).
+
 ## Sharing the game
+
+You need Option B (npm) for this:
 
 ```bash
 npm run build

@@ -4,7 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Game Design</title>
-    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="src/style.css" />
+    <!--
+      Lets the game run without npm: the browser downloads Three.js from a CDN.
+      When running with npm/Vite, Vite uses the installed copy instead.
+      Keep this version in sync with "three" in package.json.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="hud">
@@ -12,6 +25,6 @@
       <div id="help">WASD / arrows to move · Space to jump · drag mouse to look</div>
     </div>
     <div id="message" hidden></div>
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="src/main.js"></script>
   </body>
 </html>
