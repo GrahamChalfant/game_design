@@ -59,6 +59,50 @@ export function stump() {
   return group;
 }
 
+// Fire pit: a ring of stones around a few crossed logs, base at the origin.
+export function campfire() {
+  const group = new THREE.Group();
+  const stone = material(0x7d7a74, 0.95);
+  for (let i = 0; i < 9; i++) {
+    const angle = (i / 9) * Math.PI * 2;
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.16, 1), stone);
+    rock.position.set(Math.cos(angle) * 0.55, 0.08, Math.sin(angle) * 0.55);
+    rock.scale.set(1, 0.7, 1);
+    group.add(rock);
+  }
+  for (let i = 0; i < 4; i++) {
+    // Each log gets its own material so it can be darkened when the fire burns out.
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.75, 8), material(0x6b4a32));
+    log.userData.burns = true;
+    // Tip the log over, then turn it to face a different way from the others.
+    log.rotation.order = 'YXZ';
+    log.rotation.set(Math.PI / 2 - 0.35, (i / 4) * Math.PI * 2, 0);
+    log.position.y = 0.16;
+    group.add(log);
+  }
+  group.traverse((child) => (child.castShadow = child.receiveShadow = true));
+  return group;
+}
+
+// Flickering flames. They glow by themselves (not lit by the sun), base at the origin.
+export function flames() {
+  const group = new THREE.Group();
+  const layers = [
+    [0.32, 0.9, 0xff6a1f, 0.85],
+    [0.22, 0.75, 0xffa53a, 0.9],
+    [0.12, 0.55, 0xffe08a, 0.95],
+  ];
+  for (const [radius, height, color, opacity] of layers) {
+    const geometry = new THREE.ConeGeometry(radius, height, 12, 1, true).translate(0, height / 2, 0);
+    const flame = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }),
+    );
+    group.add(flame);
+  }
+  return group;
+}
+
 // Axe held in the player's hand. The origin is where the hand grips the handle.
 export function axe() {
   const group = new THREE.Group();

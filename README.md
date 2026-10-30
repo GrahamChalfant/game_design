@@ -47,6 +47,7 @@ automatically whenever you save a file.
 | 1–6, or click a slot | Pick an item from the hotbar |
 | Space or left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
 | E (hold, at the water's edge or in the lake) | Drink |
+| E (next to a campfire) | Add a log to the fire |
 | Mouse wheel / trackpad scroll | Zoom in and out |
 
 ### How to play
@@ -57,6 +58,10 @@ watered, your health slowly recovers. One in-game day lasts 10 real minutes.
 
 You start with an axe. Face a tree, take out the axe and hold Space to chop it down
 for wood. Hard work makes you hungry faster.
+
+With wood in your hand, press Space on open ground to build a campfire (5 wood).
+A fire burns for 2 in-game hours; stand next to it and press E to add a log
+(1 more hour each). A fire that's gone out can be relit the same way.
 
 To tune the difficulty, edit the numbers at the top of `src/survival.js`.
 
@@ -75,6 +80,7 @@ src/snow.js           Light snowfall
 src/player.js         Player movement, swimming and collisions
 src/trees.js          Choppable trees: chopping progress, falling and stumps
 src/seeThrough.js     Makes trees see-through where they'd hide the player
+src/campfires.js      Building campfires, fuel, flames and firelight
 src/inventory.js      Items and the hotbar
 src/survival.js       Hunger, thirst, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
@@ -103,6 +109,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `pine.glb` | Tall conifer that grows in the forests | ~9 m tall |
 | `broadleaf.glb` | Round, leafy tree found alone in the fields | ~6 m tall |
 | `rock.glb` | Boulder | ~1 m across |
+| `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
 | `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |
 

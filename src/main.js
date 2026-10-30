@@ -1,11 +1,12 @@
 import * as THREE from 'three';
+import { Campfires, formatFuel, WOOD_TO_BUILD } from './campfires.js';
 import { Hud } from './hud.js';
 import { Input } from './input.js';
 import { HOTBAR_SIZE, ITEMS, Inventory } from './inventory.js';
 import { Player } from './player.js';
 import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
-import { Survival } from './survival.js';
+import { GAME_MINUTES_PER_SECOND, Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
 
 // Change this number for a different map. Later, a daily challenge can use the date.
@@ -54,18 +55,21 @@ const player = new Player(scene, world.spawn, WORLD_SIZE);
 const snow = new Snowfall(scene);
 const survival = new Survival();
 const inventory = new Inventory();
+const campfires = new Campfires(scene, world);
 const hud = new Hud({
   onRestart: () => {
     survival.reset();
     inventory.reset();
     world.trees.reset();
+    campfires.reset();
     player.reset();
     hud.hideGameOver();
   },
   onSelectSlot: (i) => inventory.select(i),
 });
 
-// Works out what the player is doing this frame (drinking, chopping) and what to tell them.
+// Works out what the player is doing this frame (drinking, chopping, tending a fire)
+// and what to tell them.
 function updateActions(dt) {
   if (!survival.alive) return { prompt: null };
   for (let i = 0; i < HOTBAR_SIZE; i++) {
@@ -80,11 +84,37 @@ function updateActions(dt) {
   let prompt = null;
   let progress = null;
 
-  if (tree && held !== 'axe') {
+  const fire = campfires.near(player.position.x, player.position.z, 1.2);
+
+  if (fire) {
+    // Tending a fire: E adds a log.
+    const wood = inventory.count('wood');
+    if (input.wasPressed('KeyE') && wood > 0 && campfires.addWood(fire)) {
+      inventory.remove('wood', 1);
+      hud.toast('-1 Wood');
+    }
+    const status = fire.fuel > 0 ? `Campfire: ${formatFuel(fire.fuel)} left` : 'The fire is out';
+    const action = wood > 0 ? (fire.fuel > 0 ? 'E to add wood' : 'E to relight (1 wood)') : 'no wood to add';
+    prompt = `${status} · ${action}`;
+  } else if (tree && held !== 'axe') {
     prompt = `Press ${inventory.slotOf('axe') + 1} to take out your axe`;
   } else if (tree) {
     prompt = chopping ? 'Chopping…' : 'Hold Space or click to chop';
     progress = world.trees.progress(tree);
+  } else if (held === 'wood') {
+    // Building: use wood on open ground to make a campfire.
+    const spot = player.ahead(1.6);
+    if (inventory.count('wood') < WOOD_TO_BUILD) {
+      prompt = `You need ${WOOD_TO_BUILD} wood to build a campfire`;
+    } else if (!campfires.canBuildAt(spot.x, spot.z)) {
+      prompt = 'No room for a campfire here';
+    } else if (input.startedUsingTool()) {
+      inventory.remove('wood', WOOD_TO_BUILD);
+      campfires.build(spot.x, spot.z);
+      hud.toast(`-${WOOD_TO_BUILD} Wood`);
+    } else {
+      prompt = `Space or click to build a campfire (${WOOD_TO_BUILD} wood)`;
+    }
   }
   if (chopping && world.trees.chop(tree, dt, player.position.x, player.position.z)) {
     const leftOver = inventory.add('wood', tree.wood);
@@ -127,6 +157,7 @@ renderer.setAnimationLoop(() => {
 
   const actions = updateActions(dt);
   survival.update(dt, actions, TIME_SPEED);
+  campfires.update(survival.alive ? dt * GAME_MINUTES_PER_SECOND * TIME_SPEED : 0, clock.elapsedTime);
   if (!survival.alive && player.alive) player.die();
   hud.update(survival, inventory, actions);
 
