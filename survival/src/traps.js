@@ -74,7 +74,7 @@ export class Traps {
     return caught;
   }
 
-  pickUp(trap) {
+  remove(trap) {
     this.scene.remove(trap.object);
     this.all.splice(this.all.indexOf(trap), 1);
   }

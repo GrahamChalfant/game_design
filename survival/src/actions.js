@@ -92,13 +92,16 @@ export function createActions({ input, inventory, player, world, campfires, trap
       if (trap.caught) {
         prompt = `A ${trap.caught} is caught! · E to take it`;
         if (pressedE) {
+          // Taking the catch out breaks the trap: you'll need to craft another.
           traps.collect(trap);
+          traps.remove(trap);
           give('rawMeat', MEAT_PER_RABBIT, trap.x, trap.z);
+          hud.toast('The trap broke');
         }
       } else {
         prompt = 'Trap is set · E to pick it up';
         if (pressedE) {
-          traps.pickUp(trap);
+          traps.remove(trap);
           give('trap', 1);
         }
       }
