@@ -20,12 +20,18 @@ export function loadModel(name, folders = MODEL_FOLDERS) {
 
 // Draws many copies of a model cheaply: one InstancedMesh per mesh in the model.
 // `transforms` holds one Matrix4 (position/rotation/scale) per copy.
-export function createInstances(template, transforms) {
+// `changeMaterial`, if given, swaps each material for a modified one.
+export function createInstances(template, transforms, changeMaterial) {
   const group = new THREE.Group();
   template.updateMatrixWorld(true);
   template.traverse((child) => {
     if (!child.isMesh) return;
-    const instances = new THREE.InstancedMesh(child.geometry, child.material, transforms.length);
+    const material = changeMaterial
+      ? Array.isArray(child.material)
+        ? child.material.map(changeMaterial)
+        : changeMaterial(child.material)
+      : child.material;
+    const instances = new THREE.InstancedMesh(child.geometry, material, transforms.length);
     const matrix = new THREE.Matrix4();
     transforms.forEach((transform, i) => {
       instances.setMatrixAt(i, matrix.multiplyMatrices(transform, child.matrixWorld));
@@ -42,13 +48,13 @@ export function createInstances(template, transforms) {
 
 // Shows `placeholder` copies right away, then swaps in the Blender model once it loads.
 // Call `holder.setInstance(i, matrix)` to move, rotate or hide (scale 0) one copy.
-export function instancedModel(name, placeholder, transforms) {
+export function instancedModel(name, placeholder, transforms, changeMaterial) {
   const holder = new THREE.Group();
-  holder.add(createInstances(placeholder, transforms));
+  holder.add(createInstances(placeholder, transforms, changeMaterial));
   loadModel(name).then((model) => {
     if (!model) return;
     holder.clear();
-    holder.add(createInstances(model, transforms));
+    holder.add(createInstances(model, transforms, changeMaterial));
   });
 
   const matrix = new THREE.Matrix4();

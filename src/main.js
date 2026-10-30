@@ -3,6 +3,7 @@ import { Hud } from './hud.js';
 import { Input } from './input.js';
 import { HOTBAR_SIZE, ITEMS, Inventory } from './inventory.js';
 import { Player } from './player.js';
+import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
 import { Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
@@ -110,6 +111,9 @@ function updateCamera(dt) {
     cameraTarget.z + Math.cos(CAMERA_ANGLE) * zoom,
   );
   camera.lookAt(cameraTarget);
+
+  // Keep the player visible through any trees in the way.
+  updateSeeThrough(camera, renderer, player.position.clone().setY(player.position.y + 1));
 
   // Keep the sun's shadow area centred on the player.
   sun.position.copy(cameraTarget).add(SUN_OFFSET);
