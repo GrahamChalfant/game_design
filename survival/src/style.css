@@ -16,6 +16,8 @@ canvas {
   position: fixed;
   top: 16px;
   left: 16px;
+  /* Leave room for the clock in the top-right corner; long help text wraps. */
+  max-width: calc(100vw - 230px);
   padding: 6px 12px;
   border-radius: 6px;
   color: #fff;
