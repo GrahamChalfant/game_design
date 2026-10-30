@@ -5,4 +5,4 @@ Put 3D models exported from Blender here as `.glb` files
 
 The game looks for these names and uses them in place of its stand-in shapes:
 `player.glb`, `pine.glb`, `broadleaf.glb`, `rock.glb`.
-See "Adding models from Blender" in the main README for sizes and orientation.
+See "Adding models from Blender" in `survival/README.md` for sizes and orientation.
