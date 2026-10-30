@@ -6,7 +6,8 @@ import { Campfires } from './campfires.js';
 import { craft } from './crafting.js';
 import { Hud } from './hud.js';
 import { Input } from './input.js';
-import { ITEMS, Inventory } from './inventory.js';
+import { HOTBAR_SIZE, ITEMS, Inventory } from './inventory.js';
+import { Pickups } from './pickups.js';
 import { Player } from './player.js';
 import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
@@ -66,6 +67,7 @@ const campfires = new Campfires(scene, world);
 const animals = new Animals(scene, world, SEED + 2);
 animals.spawnAll(player.position);
 const traps = new Traps(scene, world, animals);
+const pickups = new Pickups(scene, world);
 const hud = new Hud({
   onRestart: () => {
     survival.reset();
@@ -73,17 +75,26 @@ const hud = new Hud({
     world.trees.reset();
     campfires.reset();
     traps.reset();
+    pickups.reset();
     player.reset();
     animals.reset(player.position);
     hud.hideGameOver();
   },
-  onSelectSlot: (i) => inventory.select(i),
+  // With the backpack open, clicking a slot moves its items between the backpack and
+  // the hotbar; otherwise clicking a hotbar slot selects it.
+  onSlotClick: (i) => {
+    if (hud.backpackOpen) {
+      if (!inventory.move(i)) hud.toast('No room');
+    } else if (i < HOTBAR_SIZE) {
+      inventory.select(i);
+    }
+  },
   onCraft: (recipe) => {
     if (craft(inventory, recipe)) hud.toast(`+${recipe.count} ${ITEMS[recipe.item].name}`);
     else hud.toast('No room in your inventory');
   },
 });
-const updateActions = createActions({ input, inventory, player, world, campfires, traps, survival, hud });
+const updateActions = createActions({ input, inventory, player, world, campfires, traps, pickups, survival, hud });
 
 // --- Top-down camera that follows the player ---
 let zoom = 20; // distance from the player
@@ -119,9 +130,11 @@ renderer.setAnimationLoop(() => {
   player.update(dt, input, world);
   updateCamera(dt);
   world.update(dt, clock.elapsedTime);
-  animals.update(dt, player.position);
+  animals.update(dt, player.position, player.sneaking);
   traps.update();
+  pickups.update(clock.elapsedTime);
   if (input.wasPressed('KeyC')) hud.toggleCrafting();
+  if (input.wasPressed('Tab') || input.wasPressed('KeyI')) hud.toggleBackpack();
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);

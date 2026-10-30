@@ -1,6 +1,12 @@
 // Things the player can make from what they're carrying. Add new recipes here.
 export const RECIPES = [
   {
+    item: 'campfire',
+    count: 1,
+    cost: { wood: 5 },
+    description: 'Place it on open ground. Burns for 2 hours; add wood with E',
+  },
+  {
     item: 'trap',
     count: 1,
     cost: { wood: 3 },

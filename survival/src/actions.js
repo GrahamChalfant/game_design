@@ -1,4 +1,4 @@
-import { WOOD_TO_BUILD, formatFuel } from './campfires.js';
+import { formatFuel } from './campfires.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 
 const COOK_TIME = 3; // seconds of holding Space at a fire to cook one piece of meat
@@ -11,15 +11,19 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, campfires, traps, survival, hud }) {
+export function createActions({ input, inventory, player, world, campfires, traps, pickups, survival, hud }) {
   let cooking = 0;
 
-  // Tries to add items; says so if they don't all fit. Returns true if everything fit.
-  const give = (item, count) => {
+  // Adds items to the inventory. Anything that doesn't fit is dropped on the ground at
+  // (dropX, dropZ), or at the player's feet.
+  const give = (item, count, dropX = player.position.x, dropZ = player.position.z) => {
     const leftOver = inventory.add(item, count);
     if (count - leftOver > 0) hud.toast(`+${count - leftOver} ${ITEMS[item].name}`);
-    if (leftOver > 0) hud.toast('Inventory full');
-    return leftOver === 0;
+    if (leftOver > 0) {
+      // If that spot is in the lake, drop it at the player's feet instead.
+      if (!pickups.drop(item, leftOver, dropX, dropZ)) pickups.drop(item, leftOver, player.position.x, player.position.z);
+      hud.toast(`Inventory full: ${leftOver} ${ITEMS[item].name.toLowerCase()} left on the ground`);
+    }
   };
 
   const eat = (food) => {
@@ -41,6 +45,7 @@ export function createActions({ input, inventory, player, world, campfires, trap
     const drinking = canDrink && input.isDown('KeyE');
     const fire = campfires.near(x, z, 1.2);
     const trap = traps.near(x, z, 1.3);
+    const pile = pickups.near(x, z, 1.3);
     const tree = player.treeInReach(world);
     const chopping = Boolean(tree && held === 'axe' && input.usingTool());
     let prompt = null;
@@ -67,44 +72,54 @@ export function createActions({ input, inventory, player, world, campfires, trap
         if (cooking >= COOK_TIME) {
           cooking = 0;
           inventory.remove('rawMeat', 1);
-          if (!give('cookedMeat', 1)) inventory.add('rawMeat', 1);
+          give('cookedMeat', 1);
         }
       } else if (held === 'rawMeat') {
         prompt = `${status} · light it to cook`;
       }
     }
 
-    if (!fire && trap) {
+    if (!fire && pile) {
+      // Something on the ground: E picks up as much as fits.
+      const { name } = ITEMS[pile.item];
+      prompt = `${name} ×${pile.count} on the ground · E to pick up`;
+      if (pressedE) {
+        const taken = pickups.pickUp(pile, inventory);
+        hud.toast(taken > 0 ? `+${taken} ${name}` : 'Inventory full');
+      }
+    } else if (!fire && trap) {
       // At a trap: E takes the catch out, or picks the empty trap back up.
       if (trap.caught) {
         prompt = `A ${trap.caught} is caught! · E to take it`;
-        if (pressedE && inventory.spaceFor('rawMeat') < MEAT_PER_RABBIT) hud.toast('Inventory full');
-        else if (pressedE) {
-          give('rawMeat', MEAT_PER_RABBIT);
+        if (pressedE) {
+          // Taking the catch out breaks the trap: you'll need to craft another.
           traps.collect(trap);
+          traps.remove(trap);
+          give('rawMeat', MEAT_PER_RABBIT, trap.x, trap.z);
+          hud.toast('The trap broke');
         }
       } else {
         prompt = 'Trap is set · E to pick it up';
-        if (pressedE && give('trap', 1)) traps.pickUp(trap);
+        if (pressedE) {
+          traps.remove(trap);
+          give('trap', 1);
+        }
       }
     } else if (!fire && tree && held !== 'axe') {
       prompt = `Press ${inventory.slotOf('axe') + 1} to take out your axe`;
     } else if (!fire && tree) {
       prompt = chopping ? 'Chopping…' : 'Hold Space or click to chop';
       progress = world.trees.progress(tree);
-    } else if (!fire && held === 'wood') {
-      // Building: use wood on open ground to make a campfire.
+    } else if (!fire && held === 'campfire') {
+      // A crafted campfire: place it on open ground in front of you.
       const spot = player.ahead(1.6);
-      if (inventory.count('wood') < WOOD_TO_BUILD) {
-        prompt = `You need ${WOOD_TO_BUILD} wood to build a campfire`;
-      } else if (!campfires.canBuildAt(spot.x, spot.z)) {
+      if (!campfires.canBuildAt(spot.x, spot.z)) {
         prompt = 'No room for a campfire here';
       } else if (input.startedUsingTool()) {
-        inventory.remove('wood', WOOD_TO_BUILD);
+        inventory.remove('campfire', 1);
         campfires.build(spot.x, spot.z);
-        hud.toast(`-${WOOD_TO_BUILD} Wood`);
       } else {
-        prompt = `Space or click to build a campfire (${WOOD_TO_BUILD} wood)`;
+        prompt = 'Space or click to place the campfire';
       }
     } else if (!fire && held === 'trap') {
       const spot = player.ahead(1.2);
@@ -126,7 +141,11 @@ export function createActions({ input, inventory, player, world, campfires, trap
     }
 
     if (!cookingNow) cooking = 0;
-    if (chopping && world.trees.chop(tree, dt, x, z)) give('wood', tree.wood);
+    if (chopping && world.trees.chop(tree, dt, x, z)) {
+      // Wood that doesn't fit lands where the tree fell, a little beyond the stump.
+      const away = Math.atan2(tree.spot.x - x, tree.spot.z - z);
+      give('wood', tree.wood, tree.spot.x + Math.sin(away) * 1.6, tree.spot.z + Math.cos(away) * 1.6);
+    }
     if (canDrink) prompt = drinking ? 'Drinking…' : 'Hold E to drink';
 
     player.setAction(held, chopping);

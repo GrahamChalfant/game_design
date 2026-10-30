@@ -44,11 +44,14 @@ automatically whenever you save a file.
 | Key | Action |
 | --- | --- |
 | W A S D / arrow keys | Walk |
+| Shift (hold) | Sneak: move slowly so animals don't notice you as soon |
 | 1–6, or click a slot | Pick an item from the hotbar |
 | Space or left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
 | E (hold, at the water's edge or in the lake) | Drink |
 | E (next to a campfire) | Add a log to the fire |
 | E (at a trap) | Take the catch, or pick up an empty trap |
+| E (next to something on the ground) | Pick it up |
+| Tab or I | Open or close the backpack (click an item to move it to or from the hotbar) |
 | C | Open or close the crafting panel |
 | Mouse wheel / trackpad scroll | Zoom in and out |
 
@@ -66,17 +69,22 @@ To change the colours and light at each time of day, edit the table at the top o
 You start with an axe. Face a tree, take out the axe and hold Space to chop it down
 for wood. Hard work makes you hungry faster.
 
-With wood in your hand, press Space on open ground to build a campfire (5 wood).
-A fire burns for 2 in-game hours; stand next to it and press E to add a log
+Your hotbar has 6 slots and your backpack (Tab) has 12 more. If something doesn't fit,
+it's left on the ground with a floating icon above it; walk over and press E to pick it up.
+
+To make a campfire, press C and craft one (5 wood), then select it and press Space to
+place it on open ground. A fire burns for 2 in-game hours; stand next to it and press E to add a log
 (1 more hour each). A fire that's gone out can be relit the same way.
 
 Rabbits and deer roam the map, but there aren't many of them. They graze and wander
 until you get too close, then bolt. Both run faster than you, and deer spook from much
-farther away, so you won't catch them by chasing.
+farther away, so you won't catch them by chasing. Hold Shift to sneak: animals only
+notice you at half the usual distance.
 
 To catch rabbits, press C and craft a trap (3 wood), then select it and press Space to
 set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
-close while you're nearby. When one is caught, press E at the trap for 2 raw meat.
+close while you're nearby. When one is caught, press E at the trap for 2 raw meat. This breaks the trap, so you'll
+need to craft another.
 Hold raw meat at a burning fire and hold Space to cook it, then press Space away from
 the fire to eat. Eating meat raw works in a pinch, but it makes you sick.
 
@@ -101,6 +109,7 @@ src/seeThrough.js     Makes trees see-through where they'd hide the player
 src/campfires.js      Building campfires, fuel, flames and firelight
 src/animals.js        Rabbits and deer: wandering, grazing and running from the player
 src/traps.js          Snare traps that catch rabbits
+src/pickups.js        Items lying on the ground
 src/crafting.js       Crafting recipes (add new ones here)
 src/actions.js        What the player is doing each frame: chopping, building, cooking, eating…
 src/inventory.js      Items and the hotbar
@@ -133,6 +142,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `rock.glb` | Boulder | ~1 m across |
 | `rabbit.glb` | Rabbit (the stand-in is drawn a bit bigger than life, to be easy to spot) | ~0.55 m long |
 | `deer.glb` | Deer | ~1.6 m tall at the head |
+| `logs.glb` | Pile of logs lying on the ground | ~0.7 m long |
 | `trap.glb` | Snare trap | ~0.7 m across |
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |

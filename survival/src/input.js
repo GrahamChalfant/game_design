@@ -8,7 +8,7 @@ export class Input {
     this.mouseDown = false;
 
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space') e.preventDefault();
+      if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
       if (!e.repeat) this.pressed.add(e.code);
       this.keys.add(e.code);
     });
