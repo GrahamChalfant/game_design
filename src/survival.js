@@ -2,7 +2,7 @@
 // difficulty are here at the top.
 
 // One in-game day lasts 10 real minutes at normal speed.
-const GAME_MINUTES_PER_SECOND = 2.4;
+export const GAME_MINUTES_PER_SECOND = 2.4;
 const START_HOUR = 8; // the first day starts at 8 in the morning
 
 // Drain rates, in points (out of 100) per in-game hour.

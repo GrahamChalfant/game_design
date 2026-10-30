@@ -18,7 +18,9 @@ export class Input {
       this.mouseDown = false;
     });
     element.addEventListener('pointerdown', (e) => {
-      if (e.button === 0) this.mouseDown = true;
+      if (e.button !== 0) return;
+      this.mouseDown = true;
+      this.pressed.add('MouseLeft');
     });
     window.addEventListener('pointerup', () => (this.mouseDown = false));
     element.addEventListener(
@@ -43,6 +45,11 @@ export class Input {
   // Holding Space or the left mouse button uses whatever is in your hand.
   usingTool() {
     return this.mouseDown || this.isDown('Space');
+  }
+
+  // True only on the frame Space or the left mouse button went down.
+  startedUsingTool() {
+    return this.wasPressed('MouseLeft') || this.wasPressed('Space');
   }
 
   // Movement on the ground: x is east (right on screen), z is south (down on screen). Range -1..1.

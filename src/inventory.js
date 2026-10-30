@@ -35,6 +35,21 @@ export class Inventory {
     return this.slots.reduce((total, slot) => total + (slot?.item === item ? slot.count : 0), 0);
   }
 
+  // Takes `count` items out, emptying slots that run out. Returns false (and takes nothing)
+  // if there aren't enough.
+  remove(item, count) {
+    if (this.count(item) < count) return false;
+    for (let i = this.slots.length - 1; i >= 0 && count > 0; i--) {
+      const slot = this.slots[i];
+      if (slot?.item !== item) continue;
+      const taken = Math.min(count, slot.count);
+      slot.count -= taken;
+      count -= taken;
+      if (slot.count === 0) this.slots[i] = null;
+    }
+    return true;
+  }
+
   // Adds items, filling existing stacks first. Returns how many didn't fit.
   add(item, count) {
     const { stack } = ITEMS[item];

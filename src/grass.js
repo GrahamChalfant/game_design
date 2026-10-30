@@ -48,6 +48,7 @@ export function createGrass(random, terrain, area, count = 120000) {
   const spot = new THREE.Vector3();
   const color = new THREE.Color();
   const half = area / 2;
+  const roots = []; // x, z of every blade, for clearing grass later
   let placed = 0;
   for (let tries = 0; placed < count && tries < count * 6; tries++) {
     const x = random.range(-half, half);
@@ -61,14 +62,35 @@ export function createGrass(random, terrain, area, count = 120000) {
     scale.set(random.range(0.8, 1.3), height, 1);
     mesh.setMatrixAt(placed, matrix.compose(spot, rotation, scale));
     mesh.setColorAt(placed, color);
+    roots.push(x, z);
     placed++;
   }
   mesh.count = placed;
+
+  const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
+  const cleared = new Map(); // blade index -> its original matrix
 
   return {
     mesh,
     update(time) {
       uniforms.uTime.value = time;
+    },
+    // Removes the grass within `radius` of (x, z), e.g. under a campfire.
+    clear(x, z, radius) {
+      for (let i = 0; i < placed; i++) {
+        if (cleared.has(i) || Math.hypot(roots[i * 2] - x, roots[i * 2 + 1] - z) > radius) continue;
+        const original = new THREE.Matrix4();
+        mesh.getMatrixAt(i, original);
+        cleared.set(i, original);
+        mesh.setMatrixAt(i, hidden);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    },
+    // Grows back all cleared grass, for a new game.
+    restore() {
+      for (const [i, original] of cleared) mesh.setMatrixAt(i, original);
+      cleared.clear();
+      mesh.instanceMatrix.needsUpdate = true;
     },
   };
 }
