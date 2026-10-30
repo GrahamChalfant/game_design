@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Animals } from './animals.js';
 import { Campfires, formatFuel, WOOD_TO_BUILD } from './campfires.js';
 import { Hud } from './hud.js';
 import { Input } from './input.js';
@@ -56,6 +57,8 @@ const snow = new Snowfall(scene);
 const survival = new Survival();
 const inventory = new Inventory();
 const campfires = new Campfires(scene, world);
+const animals = new Animals(scene, world, SEED + 2);
+animals.spawnAll(player.position);
 const hud = new Hud({
   onRestart: () => {
     survival.reset();
@@ -63,6 +66,7 @@ const hud = new Hud({
     world.trees.reset();
     campfires.reset();
     player.reset();
+    animals.reset(player.position);
     hud.hideGameOver();
   },
   onSelectSlot: (i) => inventory.select(i),
@@ -164,6 +168,7 @@ renderer.setAnimationLoop(() => {
   player.update(dt, input, world);
   updateCamera(dt);
   world.update(dt, clock.elapsedTime);
+  animals.update(dt, player.position);
   snow.update(dt, clock.elapsedTime, cameraTarget);
 
   input.endFrame();
