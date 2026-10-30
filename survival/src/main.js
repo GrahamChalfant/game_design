@@ -7,6 +7,7 @@ import { craft } from './crafting.js';
 import { Hud } from './hud.js';
 import { Input } from './input.js';
 import { HOTBAR_SIZE, ITEMS, Inventory } from './inventory.js';
+import { Pickups } from './pickups.js';
 import { Player } from './player.js';
 import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
@@ -66,6 +67,7 @@ const campfires = new Campfires(scene, world);
 const animals = new Animals(scene, world, SEED + 2);
 animals.spawnAll(player.position);
 const traps = new Traps(scene, world, animals);
+const pickups = new Pickups(scene, world);
 const hud = new Hud({
   onRestart: () => {
     survival.reset();
@@ -73,6 +75,7 @@ const hud = new Hud({
     world.trees.reset();
     campfires.reset();
     traps.reset();
+    pickups.reset();
     player.reset();
     animals.reset(player.position);
     hud.hideGameOver();
@@ -91,7 +94,7 @@ const hud = new Hud({
     else hud.toast('No room in your inventory');
   },
 });
-const updateActions = createActions({ input, inventory, player, world, campfires, traps, survival, hud });
+const updateActions = createActions({ input, inventory, player, world, campfires, traps, pickups, survival, hud });
 
 // --- Top-down camera that follows the player ---
 let zoom = 20; // distance from the player
@@ -129,6 +132,7 @@ renderer.setAnimationLoop(() => {
   world.update(dt, clock.elapsedTime);
   animals.update(dt, player.position, player.sneaking);
   traps.update();
+  pickups.update(clock.elapsedTime);
   if (input.wasPressed('KeyC')) hud.toggleCrafting();
   if (input.wasPressed('Tab') || input.wasPressed('KeyI')) hud.toggleBackpack();
   snow.update(dt, clock.elapsedTime, cameraTarget);

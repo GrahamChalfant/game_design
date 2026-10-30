@@ -59,6 +59,28 @@ export function stump() {
   return group;
 }
 
+// A small pile of cut logs lying on the ground, base at the origin.
+export function logPile() {
+  const group = new THREE.Group();
+  const wood = material(0x7a5438);
+  const cut = material(0xd9b98a);
+  for (const [x, y, z] of [[-0.14, 0.09, 0], [0.14, 0.09, 0], [0, 0.24, 0]]) {
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.7, 10), wood);
+    log.rotation.x = Math.PI / 2;
+    log.position.set(x, y, z);
+    // Light-coloured cut ends.
+    for (const end of [-0.351, 0.351]) {
+      const face = new THREE.Mesh(new THREE.CircleGeometry(0.085, 10), cut);
+      face.position.set(x, y, z + end);
+      face.rotation.y = end > 0 ? 0 : Math.PI;
+      group.add(face);
+    }
+    group.add(log);
+  }
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
 // Snare trap: a small wooden frame with a wire loop, base at the origin.
 export function trap() {
   const group = new THREE.Group();

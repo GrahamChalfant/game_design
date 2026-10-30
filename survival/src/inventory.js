@@ -78,12 +78,6 @@ export class Inventory {
     return moving.count === 0;
   }
 
-  // How many more of `item` would fit.
-  spaceFor(item) {
-    const { stack } = ITEMS[item];
-    return this.slots.reduce((space, slot) => space + (!slot ? stack : slot.item === item ? stack - slot.count : 0), 0);
-  }
-
   // Adds items, filling existing stacks first. Returns how many didn't fit.
   add(item, count) {
     const { stack } = ITEMS[item];
