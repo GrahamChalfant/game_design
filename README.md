@@ -74,6 +74,7 @@ src/grass.js          Swaying grass blades
 src/snow.js           Light snowfall
 src/player.js         Player movement, swimming and collisions
 src/trees.js          Choppable trees: chopping progress, falling and stumps
+src/seeThrough.js     Makes trees see-through where they'd hide the player
 src/inventory.js      Items and the hotbar
 src/survival.js       Hunger, thirst, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen

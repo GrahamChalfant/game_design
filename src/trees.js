@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { HIDDEN, instancedModel } from './models.js';
 import * as placeholders from './placeholders.js';
+import { seeThroughMaterial } from './seeThrough.js';
 
 // How much wood each kind of tree gives, and how long it takes to chop (seconds of holding).
 const KINDS = {
@@ -21,7 +22,8 @@ export class Trees {
   // `spots` are { x, y, z, rotation, scale, obstacle }, one per tree of this kind.
   add(kind, placeholder, spots) {
     const transforms = spots.map((spot) => treeMatrix(spot, 0, null));
-    const trees = instancedModel(kind, placeholder, transforms);
+    // Trees get a see-through hole wherever they'd hide the player.
+    const trees = instancedModel(kind, placeholder, transforms, seeThroughMaterial);
     const stumps = instancedModel('stump', placeholders.stump(), spots.map(() => HIDDEN.clone()));
     this.scene.add(trees, stumps);
 
