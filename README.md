@@ -58,6 +58,11 @@ Survive as long as you can. Hunger and thirst drop over time. When either one ru
 you start losing health. Drink from the lake to stay hydrated. While you're well fed and
 watered, your health slowly recovers. One in-game day lasts 10 real minutes.
 
+Days are long, like a northern summer: the sun rises around 05:00 and sets around 20:00.
+Nights are dark, so keep a campfire going if you want to see what you're doing.
+To change the colours and light at each time of day, edit the table at the top of
+`src/daylight.js`.
+
 You start with an axe. Face a tree, take out the axe and hold Space to chop it down
 for wood. Hard work makes you hungry faster.
 
@@ -85,6 +90,7 @@ Time then passes 20 times faster.
 ```
 index.html            Page shell and HUD
 src/main.js           Renderer, lighting, camera and the main game loop
+src/daylight.js       Day and night: the sun and moon, light colours, sky and fog
 src/world.js          Builds the map from a seed: places trees, rocks and grass
 src/terrain.js        Hills, the lake, and the colours painted on the ground
 src/grass.js          Swaying grass blades

@@ -1,5 +1,6 @@
 import { canCraft, RECIPES } from './crafting.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
+import { isNight } from './daylight.js';
 import { formatDuration } from './survival.js';
 
 const LOW = 25; // bars flash below this
@@ -74,7 +75,8 @@ export class Hud {
     }
 
     const { day, hour, minute } = survival.clock;
-    this.clock.textContent = `Day ${day} · ${pad(hour)}:${pad(minute)}`;
+    const icon = isNight(survival.hourOfDay) ? '🌙' : '☀️';
+    this.clock.textContent = `${icon} Day ${day} · ${pad(hour)}:${pad(minute)}`;
 
     this.prompt.hidden = !prompt;
     if (prompt) this.prompt.textContent = prompt;
