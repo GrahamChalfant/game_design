@@ -221,12 +221,37 @@ pre {
 .timer.low .timer-text { color: #ff7b84; }
 
 .console-main { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-textarea#editor {
-  width: 100%; min-height: 104px; resize: vertical; padding: 12px 14px; font-size: 0.95rem; line-height: 1.5;
-  background: #0b090d; color: var(--text); border: 1px solid var(--teal); border-radius: 8px; tab-size: 2;
-  caret-color: var(--gold);
+.editor-wrap { position: relative; background: #0b090d; border: 1px solid var(--teal); border-radius: 8px; }
+.editor-wrap:focus-within { outline: 2px solid rgba(82, 199, 192, 0.5); outline-offset: 1px; }
+/* The two layers must line up exactly, so they share every text and box setting. */
+.editor-layer {
+  margin: 0; padding: 14px 16px; border: 0; font: 1rem/1.6 var(--mono); tab-size: 2; letter-spacing: normal;
+  white-space: pre-wrap; overflow-wrap: break-word; word-break: normal;
 }
-textarea#editor:focus { outline: 2px solid rgba(82, 199, 192, 0.5); outline-offset: 1px; }
+#editor-colors { position: absolute; inset: 0; overflow: hidden; color: var(--text); background: none; pointer-events: none; }
+textarea#editor {
+  position: relative; display: block; width: 100%; min-height: 220px; resize: vertical; overflow: auto;
+  background: transparent; color: transparent; caret-color: var(--gold); outline: none;
+}
+textarea#editor::placeholder { color: #5d5466; }
+textarea#editor::selection { background: rgba(82, 199, 192, 0.3); color: transparent; }
+
+/* SQL colors: on the dark editor… */
+.sql-keyword { color: #e8b64c; font-weight: 600; }
+.sql-function { color: #52c7c0; }
+.sql-string { color: #ff9e7a; }
+.sql-number { color: #c3a6ff; }
+.sql-comment { color: #7d7387; font-style: italic; }
+.sql-op { color: #a39aa8; }
+.sql-ident { color: var(--text); }
+/* …and on the light screen (solutions). */
+.screen .sql-keyword { color: #8a1c2c; }
+.screen .sql-function { color: #0f766e; }
+.screen .sql-string { color: #b45309; }
+.screen .sql-number { color: #6d28d9; }
+.screen .sql-comment { color: #7a7280; }
+.screen .sql-op { color: #6b6470; }
+.screen .sql-ident { color: var(--screen-ink); }
 .console-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .spacer { flex: 1; }
 .boost-text { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
@@ -282,6 +307,7 @@ button.big { font: 1.5rem/1 var(--marquee); letter-spacing: 0.12em; padding: 12p
   .console { grid-template-columns: auto 1fr; }
   .console-main { grid-column: 1 / -1; grid-row: 2; }
   .console-actions { flex-direction: row; justify-self: end; }
+  textarea#editor { min-height: 170px; }
   .leader { width: 170px; height: 170px; }
   #countdown-num { font-size: 6rem; }
 }

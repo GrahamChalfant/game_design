@@ -96,8 +96,12 @@
           <span id="timer-text" class="timer-text">0</span>
         </div>
         <div class="console-main">
-          <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off"
-            placeholder="SELECT …" aria-label="Your SQL query"></textarea>
+          <!-- The textarea's text is see-through; the color-coded copy in the <pre> behind it is what you see. -->
+          <div class="editor-wrap">
+            <pre id="editor-colors" class="editor-layer" aria-hidden="true"></pre>
+            <textarea id="editor" class="editor-layer" spellcheck="false" autocapitalize="off" autocomplete="off"
+              placeholder="SELECT …" aria-label="Your SQL query"></textarea>
+          </div>
           <div class="console-row">
             <span id="boost-text" class="boost-text"></span>
             <span class="spacer"></span>

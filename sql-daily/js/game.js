@@ -3,6 +3,7 @@
 import { features, questions } from '../data/features.js';
 import { TIERS, TIER_ORDER, PERFECT_BONUS, COUNTDOWN_SECONDS, BOOST_FRACTION, boostFor } from './config.js';
 import { runQuery, checkAnswer, describeSchema } from './checker.js';
+import { highlightSql, attachHighlighter } from './highlight.js';
 import {
   todayString, isDateString, puzzleNumber, pickFeature, secondsUntilTomorrow,
   loadDay, saveDay, forgetDay, loadHistory, recordScore, stats,
@@ -25,6 +26,7 @@ let SQL;
 let day;
 let feature;
 let shownView = null; // which view is on screen, so the tick only redraws when it changes
+let redrawColors = () => {}; // repaints the editor's color-coding after its text is set from code
 
 const questionFor = (tier) => questions.find((q) => q.id === `${day.featureId}/${tier}`);
 const isDone = (t) => t.status === 'solved' || t.status === 'failed';
@@ -93,6 +95,7 @@ function wireUpControls() {
   $('help-btn').addEventListener('click', () => $('help').showModal());
 
   const editor = $('editor');
+  redrawColors = attachHighlighter(editor, $('editor-colors'));
   editor.addEventListener('input', () => {
     const tier = activeTier();
     if (!tier) return;
@@ -106,6 +109,7 @@ function wireUpControls() {
     } else if (e.key === 'Tab' && !e.shiftKey) {
       e.preventDefault();
       editor.setRangeText('  ', editor.selectionStart, editor.selectionEnd, 'end');
+      editor.dispatchEvent(new Event('input')); // setRangeText doesn't fire one, so save and recolor
     }
   });
 }
@@ -266,6 +270,7 @@ function renderQuestion(tier) {
 
   const editor = $('editor');
   editor.value = t.sql;
+  redrawColors();
   editor.focus();
   renderTimer(tier);
 }
@@ -331,7 +336,7 @@ function renderReveal(tier) {
     $('reveal-title').textContent = t.reason === 'timeout' ? 'Time\'s up!' : 'Cut!';
     $('reveal-points').innerHTML = '<span class="bad">+0</span>';
   }
-  $('solution-sql').textContent = dedent(q.solution);
+  $('solution-sql').innerHTML = highlightSql(dedent(q.solution));
   $('next-btn').textContent = next ? `Roll ${TIERS[next].part}` : 'Roll the credits';
   $('next-btn').focus();
 }
