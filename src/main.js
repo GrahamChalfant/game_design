@@ -1,20 +1,28 @@
 import * as THREE from 'three';
 import { Input } from './input.js';
-import { buildLevel } from './level.js';
 import { Player } from './player.js';
+import { Snowfall } from './snow.js';
+import { buildWorld, WORLD_SIZE } from './world.js';
+
+// Change this number for a different map. Later, a daily challenge can use the date.
+const SEED = 20261030;
 
 // --- Renderer, scene, camera ---
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
 document.body.appendChild(renderer.domElement);
 
+const HAZE = 0xe9dcb8; // warm, golden-hour haze on the horizon
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87b8e8);
-scene.fog = new THREE.Fog(0x87b8e8, 30, 80);
+scene.background = new THREE.Color(HAZE);
+scene.fog = new THREE.Fog(HAZE, 40, 100);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 300);
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -22,73 +30,53 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// --- Lighting ---
-scene.add(new THREE.HemisphereLight(0xffffff, 0x445533, 1.2));
-const sun = new THREE.DirectionalLight(0xffffff, 2);
-sun.position.set(10, 20, 10);
+// --- Lighting: a low, golden late-afternoon sun ---
+scene.add(new THREE.HemisphereLight(0xdbe8ff, 0x8a9a5a, 1.7));
+const sun = new THREE.DirectionalLight(0xffe2b0, 3.0);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(4096, 4096);
 sun.shadow.bias = -0.0005;
-sun.shadow.normalBias = 0.02;
-Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20 });
-scene.add(sun);
+sun.shadow.normalBias = 0.03;
+Object.assign(sun.shadow.camera, { left: -35, right: 35, top: 35, bottom: -35, near: 1, far: 120 });
+scene.add(sun, sun.target);
+const SUN_OFFSET = new THREE.Vector3(-35, 45, -8);
 
 // --- Game objects ---
 const input = new Input(renderer.domElement);
-const level = buildLevel(scene);
-const player = new Player(scene, level.spawn);
+const world = buildWorld(scene, SEED);
+const player = new Player(scene, world.spawn, WORLD_SIZE);
+const snow = new Snowfall(scene);
 
-const scoreEl = document.getElementById('score');
-const messageEl = document.getElementById('message');
-let collected = 0;
-let won = false;
-const updateScore = () => (scoreEl.textContent = `Coins: ${collected} / ${level.coins.length}`);
-updateScore();
+// --- Top-down camera that follows the player ---
+let zoom = 20; // distance from the player
+const CAMERA_ANGLE = THREE.MathUtils.degToRad(55); // 90 = straight down
+const cameraTarget = player.position.clone();
 
-// --- Third-person camera ---
-let cameraYaw = 0;
-let cameraPitch = 0.35;
-const CAMERA_DISTANCE = 8;
+function updateCamera(dt) {
+  zoom = THREE.MathUtils.clamp(zoom + input.scroll * 0.02, 8, 40);
+  cameraTarget.lerp(player.position, Math.min(1, dt * 6));
+  camera.position.set(
+    cameraTarget.x,
+    cameraTarget.y + Math.sin(CAMERA_ANGLE) * zoom,
+    cameraTarget.z + Math.cos(CAMERA_ANGLE) * zoom,
+  );
+  camera.lookAt(cameraTarget);
 
-function updateCamera() {
-  cameraYaw -= input.dragX * 0.005;
-  cameraPitch = THREE.MathUtils.clamp(cameraPitch + input.dragY * 0.005, 0.05, 1.2);
-  const target = player.position.clone().add(new THREE.Vector3(0, 1.5, 0));
-  const offset = new THREE.Vector3(
-    Math.sin(cameraYaw) * Math.cos(cameraPitch),
-    Math.sin(cameraPitch),
-    Math.cos(cameraYaw) * Math.cos(cameraPitch),
-  ).multiplyScalar(CAMERA_DISTANCE);
-  camera.position.copy(target).add(offset);
-  camera.lookAt(target);
+  // Keep the sun's shadow area centred on the player.
+  sun.position.copy(cameraTarget).add(SUN_OFFSET);
+  sun.target.position.copy(cameraTarget);
 }
 
 // --- Main loop ---
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05); // avoid huge jumps after a tab switch
-  const time = clock.elapsedTime;
 
-  player.update(dt, input, cameraYaw, level.platforms);
+  player.update(dt, input, world);
+  updateCamera(dt);
+  world.update(clock.elapsedTime);
+  snow.update(dt, clock.elapsedTime, cameraTarget);
 
-  for (const coin of level.coins) {
-    if (!coin.visible) continue;
-    coin.rotation.y = time * 2;
-    const center = player.position.clone().add(new THREE.Vector3(0, 0.9, 0));
-    if (center.distanceTo(coin.position) < 1) {
-      coin.visible = false;
-      collected++;
-      updateScore();
-    }
-  }
-
-  if (!won && collected === level.coins.length) {
-    won = true;
-    messageEl.textContent = 'You collected every coin!';
-    messageEl.hidden = false;
-  }
-
-  updateCamera();
   input.endFrame();
   renderer.render(scene, camera);
 });

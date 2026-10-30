@@ -1,118 +1,67 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadModel } from './models.js';
+import * as placeholders from './placeholders.js';
 
 const RADIUS = 0.4;
-const HEIGHT = 1.8;
-const SPEED = 6;
-const JUMP_SPEED = 10;
-const GRAVITY = 25;
-const FALL_LIMIT = -20;
-// Box3 counts touching as overlapping, so keep the collision box a hair above the feet
-// or standing on the ground would block every horizontal move.
-const SKIN = 0.01;
-// Vite serves public/ at the site root; a plain web server serves it at /public/.
-const MODEL_URLS = ['models/player.glb', 'public/models/player.glb'];
+const WALK_SPEED = 5;
+const TURN_SPEED = 12;
 
 export class Player {
-  constructor(scene, spawn) {
-    this.spawn = spawn.clone();
-    this.position = spawn.clone(); // feet position
-    this.velocityY = 0;
-    this.grounded = false;
+  constructor(scene, spawn, worldSize) {
+    this.position = spawn.clone();
     this.facing = 0;
+    this.walkTime = 0;
+    this.limit = worldSize / 2 - 1;
 
     this.object = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(RADIUS, HEIGHT - RADIUS * 2, 8, 16),
-      new THREE.MeshStandardMaterial({ color: 0x3d7bd9 }),
-    );
-    body.position.y = HEIGHT / 2;
-    body.castShadow = true;
-    // A small "nose" so you can see which way the player faces.
-    const nose = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.2, 0.3),
-      new THREE.MeshStandardMaterial({ color: 0xffffff }),
-    );
-    nose.position.set(0, HEIGHT * 0.75, RADIUS);
-    this.object.add(body, nose);
+    this.body = placeholders.survivor();
+    this.object.add(this.body);
     scene.add(this.object);
 
-    this.loadModel(MODEL_URLS, body, nose);
+    loadModel('player').then((model) => {
+      if (!model) return;
+      model.traverse((child) => (child.castShadow = true));
+      this.object.remove(this.body);
+      this.body = model;
+      this.object.add(model);
+    });
   }
 
-  // Swap the capsule for a Blender model if one has been exported to public/models/.
-  loadModel([url, ...fallbacks], ...placeholders) {
-    if (!url) return; // No model yet: keep the capsule.
-    new GLTFLoader().load(
-      url,
-      (gltf) => {
-        gltf.scene.traverse((child) => (child.castShadow = true));
-        for (const mesh of placeholders) this.object.remove(mesh);
-        this.object.add(gltf.scene);
-      },
-      undefined,
-      () => this.loadModel(fallbacks, ...placeholders),
-    );
-  }
-
-  update(dt, input, cameraYaw, platforms) {
-    // Move relative to where the camera is looking.
+  update(dt, input, world) {
     const { x, z } = input.moveAxis();
-    const move = new THREE.Vector3(x, 0, -z);
-    if (move.lengthSq() > 0) {
-      move.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
-      this.facing = Math.atan2(move.x, move.z);
+    const moving = x !== 0 || z !== 0;
+
+    if (moving) {
+      const step = new THREE.Vector2(x, z).normalize().multiplyScalar(WALK_SPEED * dt);
+      // Move one axis at a time so the player slides along trees and the shore.
+      this.tryMove(step.x, 0, world);
+      this.tryMove(0, step.y, world);
+
+      // Turn smoothly toward the direction of travel.
+      const target = Math.atan2(x, z);
+      const diff = Math.atan2(Math.sin(target - this.facing), Math.cos(target - this.facing));
+      this.facing += diff * Math.min(1, TURN_SPEED * dt);
+      this.walkTime += dt;
     }
 
-    if (input.jumpPressed && this.grounded) {
-      this.velocityY = JUMP_SPEED;
-      this.grounded = false;
-    }
-    this.velocityY -= GRAVITY * dt;
-
-    // Resolve one axis at a time so the player slides along walls.
-    this.moveAxis('x', move.x * SPEED * dt, platforms);
-    this.moveAxis('z', move.z * SPEED * dt, platforms);
-    this.grounded = false;
-    this.moveAxis('y', this.velocityY * dt, platforms);
-
-    if (this.position.y < FALL_LIMIT) this.respawn();
-
+    this.position.y = world.terrain.heightAt(this.position.x, this.position.z);
     this.object.position.copy(this.position);
     this.object.rotation.y = this.facing;
+    // A little bounce while walking.
+    this.body.position.y = moving ? Math.abs(Math.sin(this.walkTime * 10)) * 0.08 : 0;
   }
 
-  moveAxis(axis, amount, platforms) {
-    if (amount === 0) return;
-    this.position[axis] += amount;
-    const box = this.bounds();
-    for (const platform of platforms) {
-      if (!box.intersectsBox(platform)) continue;
-      if (axis === 'y') {
-        if (amount < 0) {
-          this.position.y = platform.max.y;
-          this.grounded = true;
-        } else {
-          this.position.y = platform.min.y - HEIGHT;
-        }
-        this.velocityY = 0;
-      } else {
-        this.position[axis] -= amount;
-      }
-      return;
+  tryMove(dx, dz, world) {
+    const x = THREE.MathUtils.clamp(this.position.x + dx, -this.limit, this.limit);
+    const z = THREE.MathUtils.clamp(this.position.z + dz, -this.limit, this.limit);
+    // Look one body-width ahead so the player stops at the water's edge.
+    const ahead = Math.sign(dx) * RADIUS;
+    const aheadZ = Math.sign(dz) * RADIUS;
+    if (world.terrain.isWater(x + ahead, z + aheadZ)) return;
+    for (const o of world.obstacles) {
+      if (Math.hypot(o.x - x, o.z - z) < o.radius + RADIUS) return;
     }
-  }
-
-  bounds() {
-    const p = this.position;
-    return new THREE.Box3(
-      new THREE.Vector3(p.x - RADIUS, p.y + SKIN, p.z - RADIUS),
-      new THREE.Vector3(p.x + RADIUS, p.y + HEIGHT, p.z + RADIUS),
-    );
-  }
-
-  respawn() {
-    this.position.copy(this.spawn);
-    this.velocityY = 0;
+    this.position.x = x;
+    this.position.z = z;
   }
 }
