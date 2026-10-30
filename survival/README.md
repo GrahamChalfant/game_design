@@ -164,6 +164,10 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `pine.glb` | Tall conifer that grows in the forests | ~9 m tall |
 | `broadleaf.glb` | Round, leafy tree found alone in the fields | ~6 m tall |
 | `rock.glb` | Boulder | ~1 m across |
+| `rock-small.glb` | Small stone | ~0.6 m across |
+| `rock-flat.glb` | Low, flat slab | ~1.9 m long, ~0.3 m tall |
+| `rock-tall.glb` | Standing stone | ~0.8 m across, ~1.2 m tall |
+| `rock-large.glb` | Large boulder | ~2 m across, ~1.3 m tall |
 | `rabbit.glb` | Rabbit (the stand-in is drawn a bit bigger than life, to be easy to spot) | ~0.55 m long |
 | `deer.glb` | Deer | ~1.6 m tall at the head |
 | `plane.glb` | The crashed bush plane, nose pointing toward you in Blender's **Front** view (model it already crashed) | ~8 m long |
