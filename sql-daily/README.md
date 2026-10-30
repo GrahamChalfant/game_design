@@ -14,10 +14,10 @@ Everyone gets the same feature on the same day. Day 1 is *The Lord of the Rings*
 From inside the `sql-daily` folder, run:
 
 ```bash
-python3 -m http.server 8000
+python3 -m http.server 8001
 ```
 
-Then open http://localhost:8000. Press **Ctrl+C** in the terminal to stop the server.
+Then open http://localhost:8001. Press **Ctrl+C** in the terminal to stop the server.
 
 You can't just double-click `index.html`, because browsers block this kind of page when it's
 opened as a local file. If you try, the page tells you what to do instead.
@@ -124,7 +124,7 @@ you exactly what's wrong: a solution with a typo, a missing field, a feature wit
 question, a `reject` query that accidentally passes, and so on.
 
 Without installing anything: start the server as above and open
-http://localhost:8000/validate.html.
+http://localhost:8001/validate.html.
 
 Or, with Node.js:
 
