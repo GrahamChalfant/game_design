@@ -16,6 +16,8 @@ const KINDS = {
     wanderRange: 6,
     idleTime: [2, 6], // seconds spent grazing between wanders
     turnSpeed: 10,
+    lureRange: 18, // notices traps this far away...
+    lureChance: 0.35, // ...and heads for one this often when it decides where to go
     placeholder: placeholders.rabbit,
   },
   deer: {
@@ -31,6 +33,7 @@ const KINDS = {
     placeholder: placeholders.deer,
   },
 };
+const SNEAK_FACTOR = 0.5; // sneaking players are noticed at half the usual distance
 const SPAWN_DISTANCE = 25; // new animals appear at least this far from the player
 const RESPAWN_TIME = 60; // seconds before a caught animal is replaced
 
@@ -43,6 +46,8 @@ export class Animals {
     this.all = [];
     this.respawns = [];
     this.models = {};
+    // Things that draw animals in (set by Traps): a function returning [{ x, z }].
+    this.lures = () => [];
     for (const kind of Object.keys(KINDS)) {
       loadModel(kind).then((model) => {
         if (!model) return;
@@ -100,8 +105,8 @@ export class Animals {
     this.respawns.push({ kind: animal.kind, timer: RESPAWN_TIME });
   }
 
-  update(dt, playerPosition) {
-    for (const animal of this.all) this.updateAnimal(animal, dt, playerPosition);
+  update(dt, playerPosition, sneaking) {
+    for (const animal of this.all) this.updateAnimal(animal, dt, playerPosition, sneaking);
 
     for (const respawn of this.respawns) respawn.timer -= dt;
     for (const respawn of this.respawns.filter((r) => r.timer <= 0)) {
@@ -110,12 +115,13 @@ export class Animals {
     }
   }
 
-  updateAnimal(animal, dt, playerPosition) {
+  updateAnimal(animal, dt, playerPosition, sneaking) {
     const { config, position } = animal;
     const playerDistance = Math.hypot(position.x - playerPosition.x, position.z - playerPosition.z);
 
     // Notice the player and bolt; settle down again once well away.
-    if (playerDistance < config.scareDistance) animal.state = 'flee';
+    const scareDistance = config.scareDistance * (sneaking ? SNEAK_FACTOR : 1);
+    if (playerDistance < scareDistance) animal.state = 'flee';
     if (animal.state === 'flee' && playerDistance > config.calmDistance) this.rest(animal);
 
     let direction = null;
@@ -165,6 +171,16 @@ export class Animals {
 
   wander(animal) {
     const { position, config } = animal;
+    if (config.lureRange && this.random.next() < config.lureChance) {
+      const lure = this.lures().find(
+        (l) => Math.hypot(l.x - position.x, l.z - position.z) < config.lureRange,
+      );
+      if (lure) {
+        animal.state = 'wander';
+        animal.target = { x: lure.x, z: lure.z };
+        return;
+      }
+    }
     for (let tries = 0; tries < 10; tries++) {
       const angle = this.random.range(0, Math.PI * 2);
       const distance = this.random.range(config.wanderRange * 0.3, config.wanderRange);

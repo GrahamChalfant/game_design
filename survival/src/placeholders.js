@@ -59,6 +59,49 @@ export function stump() {
   return group;
 }
 
+// A small pile of cut logs lying on the ground, base at the origin.
+export function logPile() {
+  const group = new THREE.Group();
+  const wood = material(0x7a5438);
+  const cut = material(0xd9b98a);
+  for (const [x, y, z] of [[-0.14, 0.09, 0], [0.14, 0.09, 0], [0, 0.24, 0]]) {
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.7, 10), wood);
+    log.rotation.x = Math.PI / 2;
+    log.position.set(x, y, z);
+    // Light-coloured cut ends.
+    for (const end of [-0.351, 0.351]) {
+      const face = new THREE.Mesh(new THREE.CircleGeometry(0.085, 10), cut);
+      face.position.set(x, y, z + end);
+      face.rotation.y = end > 0 ? 0 : Math.PI;
+      group.add(face);
+    }
+    group.add(log);
+  }
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
+// Snare trap: a small wooden frame with a wire loop, base at the origin.
+export function trap() {
+  const group = new THREE.Group();
+  const wood = material(0x8a6a45);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.5), wood);
+  base.position.y = 0.025;
+  for (const x of [-0.3, 0.3]) {
+    const stake = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.4, 6), wood);
+    stake.position.set(x, 0.2, 0);
+    group.add(stake);
+  }
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.65, 6), wood);
+  bar.rotation.z = Math.PI / 2;
+  bar.position.y = 0.38;
+  const loop = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.008, 6, 20), material(0xb8bcc0, 0.4));
+  loop.position.y = 0.2;
+  group.add(base, bar, loop);
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
 // Fire pit: a ring of stones around a few crossed logs, base at the origin.
 export function campfire() {
   const group = new THREE.Group();

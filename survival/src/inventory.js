@@ -1,11 +1,17 @@
-// What the player is carrying: a hotbar of slots, each holding one kind of item.
+// What the player is carrying: a hotbar of slots, plus a backpack with more slots.
+// Each slot holds a stack of one kind of item. Slots 0–5 are the hotbar; the rest are the backpack.
 
 export const ITEMS = {
   axe: { name: 'Axe', icon: '🪓', stack: 1 },
   wood: { name: 'Wood', icon: '🪵', stack: 50 },
+  trap: { name: 'Trap', icon: '🪤', stack: 5 },
+  campfire: { name: 'Campfire', icon: '🔥', stack: 3 },
+  rawMeat: { name: 'Raw meat', icon: '🥩', stack: 10 },
+  cookedMeat: { name: 'Cooked meat', icon: '🍖', stack: 10 },
 };
 
 export const HOTBAR_SIZE = 6;
+export const BACKPACK_SIZE = 12;
 
 export class Inventory {
   constructor() {
@@ -13,7 +19,7 @@ export class Inventory {
   }
 
   reset() {
-    this.slots = Array.from({ length: HOTBAR_SIZE }, () => null); // each is { item, count } or null
+    this.slots = Array.from({ length: HOTBAR_SIZE + BACKPACK_SIZE }, () => null); // { item, count } or null
     this.selected = 0;
     this.add('axe', 1);
   }
@@ -48,6 +54,29 @@ export class Inventory {
       if (slot.count === 0) this.slots[i] = null;
     }
     return true;
+  }
+
+  // Moves the stack in slot `index` between the hotbar and the backpack, topping up
+  // matching stacks first. Returns false if not all of it fit.
+  move(index) {
+    const moving = this.slots[index];
+    if (!moving) return true;
+    const [from, to] = index < HOTBAR_SIZE ? [HOTBAR_SIZE, this.slots.length] : [0, HOTBAR_SIZE];
+    const { stack } = ITEMS[moving.item];
+    for (let i = from; i < to && moving.count > 0; i++) {
+      const slot = this.slots[i];
+      if (slot?.item !== moving.item) continue;
+      const added = Math.min(moving.count, stack - slot.count);
+      slot.count += added;
+      moving.count -= added;
+    }
+    for (let i = from; i < to && moving.count > 0; i++) {
+      if (this.slots[i]) continue;
+      this.slots[i] = { ...moving };
+      moving.count = 0;
+    }
+    if (moving.count === 0) this.slots[index] = null;
+    return moving.count === 0;
   }
 
   // Adds items, filling existing stacks first. Returns how many didn't fit.

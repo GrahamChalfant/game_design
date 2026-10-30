@@ -16,6 +16,8 @@ canvas {
   position: fixed;
   top: 16px;
   left: 16px;
+  /* Leave room for the clock in the top-right corner; long help text wraps. */
+  max-width: calc(100vw - 230px);
   padding: 6px 12px;
   border-radius: 6px;
   color: #fff;
@@ -271,4 +273,140 @@ canvas {
     opacity: 0;
     transform: translate(-50%, -60px);
   }
+}
+
+/* --- Crafting panel (press C) --- */
+
+#crafting {
+  position: fixed;
+  top: 64px;
+  right: 16px;
+  width: min(320px, calc(100vw - 32px));
+  padding: 12px;
+  border-radius: 10px;
+  color: #fff;
+  background: rgb(20 30 40 / 0.85);
+}
+
+#crafting[hidden] {
+  display: none;
+}
+
+#crafting .header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+#crafting h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+#crafting .close {
+  border: 0;
+  color: #fff;
+  background: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.recipe {
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 2px solid rgb(255 255 255 / 0.15);
+  border-radius: 8px;
+  color: #fff;
+  background: rgb(255 255 255 / 0.08);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recipe:hover:not(:disabled) {
+  border-color: #e8d9a8;
+}
+
+.recipe:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.recipe .icon {
+  font-size: 26px;
+}
+
+.recipe strong,
+.recipe small {
+  display: block;
+}
+
+.recipe small {
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.recipe .cost {
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+/* --- Backpack (press Tab or I) --- */
+
+#backpack {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  padding: 12px;
+  border-radius: 10px;
+  color: #fff;
+  background: rgb(20 30 40 / 0.85);
+  transform: translateX(-50%);
+}
+
+#backpack[hidden] {
+  display: none;
+}
+
+#backpack .header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#backpack h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+#backpack .close {
+  border: 0;
+  color: #fff;
+  background: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#backpack .tip {
+  margin: 4px 0 10px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+#backpack .grid {
+  display: grid;
+  grid-template-columns: repeat(6, auto);
+  gap: 6px;
+}
+
+/* While the backpack is open, the prompt would sit on top of it. */
+.backpack-open #action {
+  display: none;
 }
