@@ -1,4 +1,4 @@
-import { WOOD_TO_BUILD, formatFuel } from './campfires.js';
+import { formatFuel } from './campfires.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 
 const COOK_TIME = 3; // seconds of holding Space at a fire to cook one piece of meat
@@ -110,19 +110,16 @@ export function createActions({ input, inventory, player, world, campfires, trap
     } else if (!fire && tree) {
       prompt = chopping ? 'Chopping…' : 'Hold Space or click to chop';
       progress = world.trees.progress(tree);
-    } else if (!fire && held === 'wood') {
-      // Building: use wood on open ground to make a campfire.
+    } else if (!fire && held === 'campfire') {
+      // A crafted campfire: place it on open ground in front of you.
       const spot = player.ahead(1.6);
-      if (inventory.count('wood') < WOOD_TO_BUILD) {
-        prompt = `You need ${WOOD_TO_BUILD} wood to build a campfire`;
-      } else if (!campfires.canBuildAt(spot.x, spot.z)) {
+      if (!campfires.canBuildAt(spot.x, spot.z)) {
         prompt = 'No room for a campfire here';
       } else if (input.startedUsingTool()) {
-        inventory.remove('wood', WOOD_TO_BUILD);
+        inventory.remove('campfire', 1);
         campfires.build(spot.x, spot.z);
-        hud.toast(`-${WOOD_TO_BUILD} Wood`);
       } else {
-        prompt = `Space or click to build a campfire (${WOOD_TO_BUILD} wood)`;
+        prompt = 'Space or click to place the campfire';
       }
     } else if (!fire && held === 'trap') {
       const spot = player.ahead(1.2);

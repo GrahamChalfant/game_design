@@ -3,7 +3,6 @@ import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 
 // Fuel is measured in in-game minutes of burning.
-export const WOOD_TO_BUILD = 5;
 const START_FUEL = 120; // a new fire burns for 2 in-game hours...
 const FUEL_PER_WOOD = 60; // ...and each extra log adds 1 hour
 const MAX_FUEL = 8 * 60;

@@ -5,6 +5,7 @@ export const ITEMS = {
   axe: { name: 'Axe', icon: '🪓', stack: 1 },
   wood: { name: 'Wood', icon: '🪵', stack: 50 },
   trap: { name: 'Trap', icon: '🪤', stack: 5 },
+  campfire: { name: 'Campfire', icon: '🔥', stack: 3 },
   rawMeat: { name: 'Raw meat', icon: '🥩', stack: 10 },
   cookedMeat: { name: 'Cooked meat', icon: '🍖', stack: 10 },
 };
