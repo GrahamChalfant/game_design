@@ -14,6 +14,8 @@ export class Player {
     this.facing = 0;
     this.walkTime = 0;
     this.limit = worldSize / 2 - 1;
+    this.spawn = spawn.clone();
+    this.alive = true;
 
     this.object = new THREE.Group();
     this.body = placeholders.survivor();
@@ -30,6 +32,12 @@ export class Player {
   }
 
   update(dt, input, world) {
+    if (!this.alive) {
+      // Slowly topple over.
+      this.body.rotation.x += (-Math.PI / 2 - this.body.rotation.x) * Math.min(1, dt * 3);
+      return;
+    }
+
     const { x, z } = input.moveAxis();
     const moving = x !== 0 || z !== 0;
     const depth = world.terrain.waterDepth(this.position.x, this.position.z);
@@ -61,6 +69,28 @@ export class Player {
       // A little bounce while walking.
       this.body.position.y = moving ? Math.abs(Math.sin(this.walkTime * 10)) * 0.08 : 0;
     }
+  }
+
+  // True when standing in, or facing, water close enough to drink.
+  canDrink(world) {
+    const reach = 1.2;
+    const aheadX = this.position.x + Math.sin(this.facing) * reach;
+    const aheadZ = this.position.z + Math.cos(this.facing) * reach;
+    return (
+      world.terrain.waterDepth(this.position.x, this.position.z) > 0.02 ||
+      world.terrain.waterDepth(aheadX, aheadZ) > 0.02
+    );
+  }
+
+  die() {
+    this.alive = false;
+  }
+
+  reset() {
+    this.alive = true;
+    this.position.copy(this.spawn);
+    this.facing = 0;
+    this.body.rotation.x = 0;
   }
 
   tryMove(dx, dz, world) {

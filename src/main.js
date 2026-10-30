@@ -1,11 +1,15 @@
 import * as THREE from 'three';
+import { Hud } from './hud.js';
 import { Input } from './input.js';
 import { Player } from './player.js';
 import { Snowfall } from './snow.js';
+import { Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
 
 // Change this number for a different map. Later, a daily challenge can use the date.
 const SEED = 20261030;
+// Add ?speed=20 to the URL to make time pass 20x faster (handy for testing hunger and thirst).
+const TIME_SPEED = Number(new URLSearchParams(location.search).get('speed')) || 1;
 
 // --- Renderer, scene, camera ---
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -46,6 +50,14 @@ const input = new Input(renderer.domElement);
 const world = buildWorld(scene, SEED);
 const player = new Player(scene, world.spawn, WORLD_SIZE);
 const snow = new Snowfall(scene);
+const survival = new Survival();
+const hud = new Hud({
+  onRestart: () => {
+    survival.reset();
+    player.reset();
+    hud.hideGameOver();
+  },
+});
 
 // --- Top-down camera that follows the player ---
 let zoom = 20; // distance from the player
@@ -71,6 +83,12 @@ function updateCamera(dt) {
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05); // avoid huge jumps after a tab switch
+
+  const canDrink = survival.alive && player.canDrink(world);
+  const drinking = canDrink && input.isDown('KeyE');
+  survival.update(dt, { drinking }, TIME_SPEED);
+  if (!survival.alive && player.alive) player.die();
+  hud.update(survival, { prompt: canDrink && (drinking ? 'Drinking…' : 'Hold E to drink') });
 
   player.update(dt, input, world);
   updateCamera(dt);

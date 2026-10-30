@@ -5,6 +5,7 @@ body {
   overflow: hidden;
   background: #c8d6e2;
   font-family: system-ui, sans-serif;
+  user-select: none;
 }
 
 canvas {
@@ -25,4 +26,122 @@ canvas {
 #help {
   font-size: 14px;
   opacity: 0.9;
+}
+
+/* --- Survival HUD --- */
+
+#clock {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  color: #fff;
+  background: rgb(20 30 40 / 0.55);
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+#stats {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  display: grid;
+  gap: 8px;
+  width: min(260px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border-radius: 8px;
+  color: #fff;
+  background: rgb(20 30 40 / 0.55);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.stat {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 0.2);
+}
+
+.fill {
+  height: 100%;
+  transition: width 0.2s linear;
+}
+
+#stat-health .fill { background: #e05a47; }
+#stat-hunger .fill { background: #e0a547; }
+#stat-thirst .fill { background: #4fa8d8; }
+
+.bar.low {
+  animation: flash 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes flash {
+  to { background: rgb(224 90 71 / 0.6); }
+}
+
+#prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 22%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 6px;
+  color: #fff;
+  background: rgb(20 30 40 / 0.65);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+#prompt[hidden],
+#game-over[hidden] {
+  display: none;
+}
+
+#game-over {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(10 15 20 / 0.55);
+}
+
+#game-over .panel {
+  padding: 28px 36px;
+  border-radius: 12px;
+  color: #fff;
+  background: rgb(20 30 40 / 0.85);
+  text-align: center;
+}
+
+#game-over h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+#game-over p {
+  margin: 0 0 20px;
+  font-size: 18px;
+}
+
+#game-over button {
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 6px;
+  color: #1d2a33;
+  background: #e8d9a8;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
 }

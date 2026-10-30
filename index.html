@@ -21,7 +21,21 @@
   </head>
   <body>
     <div id="hud">
-      <div id="help">WASD / arrows to move · scroll to zoom</div>
+      <div id="help">WASD / arrows to move · E to drink · scroll to zoom</div>
+    </div>
+    <div id="clock"></div>
+    <div id="stats">
+      <div class="stat" id="stat-health"><span>Health</span><div class="bar"><div class="fill"></div></div></div>
+      <div class="stat" id="stat-hunger"><span>Hunger</span><div class="bar"><div class="fill"></div></div></div>
+      <div class="stat" id="stat-thirst"><span>Thirst</span><div class="bar"><div class="fill"></div></div></div>
+    </div>
+    <div id="prompt" hidden></div>
+    <div id="game-over" hidden>
+      <div class="panel">
+        <h1>You didn't make it</h1>
+        <p id="survived"></p>
+        <button id="restart">Try again</button>
+      </div>
     </div>
     <script type="module" src="src/main.js"></script>
   </body>
