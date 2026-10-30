@@ -133,6 +133,88 @@ export function rock() {
   return stone;
 }
 
+// Rabbit, about 0.55 m long (bigger than life, for visibility), feet at the origin, facing +z.
+export function rabbit() {
+  const fur = material(0x8a7a66);
+  const rabbit = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), fur);
+  body.scale.set(1, 0.95, 1.35);
+  body.position.y = 0.16;
+  const head = new THREE.Group();
+  head.position.set(0, 0.28, 0.17);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), fur);
+  const ear = new THREE.CapsuleGeometry(0.025, 0.14, 4, 8);
+  for (const side of [-1, 1]) {
+    const e = new THREE.Mesh(ear, fur);
+    e.position.set(side * 0.04, 0.12, -0.02);
+    e.rotation.set(-0.25, 0, side * 0.15);
+    head.add(e);
+  }
+  head.add(skull);
+  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), material(0xf2efe8));
+  tail.position.set(0, 0.17, -0.21);
+  rabbit.add(body, head, tail);
+  // A bit bigger than life, so rabbits are easy to spot from above.
+  rabbit.scale.setScalar(1.4);
+  rabbit.userData.head = head;
+  rabbit.traverse((child) => (child.castShadow = true));
+  return rabbit;
+}
+
+// Deer, about 1.6 m tall at the head, feet at the origin, facing +z.
+export function deer() {
+  const coat = material(0x8b5a3c);
+  const pale = material(0xe8dcc8);
+  const deer = new THREE.Group();
+
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.75, 8, 16), coat);
+  body.rotation.x = Math.PI / 2;
+  body.position.y = 0.95;
+  const belly = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.6, 6, 12), pale);
+  belly.rotation.x = Math.PI / 2;
+  belly.position.y = 0.86;
+
+  const legs = [];
+  for (const [x, z] of [[-0.14, 0.4], [0.14, 0.4], [-0.14, -0.4], [0.14, -0.4]]) {
+    // Each leg hangs from a hip pivot so it can swing.
+    const hip = new THREE.Group();
+    hip.position.set(x, 0.85, z);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.85, 8), coat);
+    leg.position.y = -0.425;
+    hip.add(leg);
+    legs.push(hip);
+    deer.add(hip);
+  }
+
+  // Neck and head pivot at the shoulders so the deer can lower its head to graze.
+  const head = new THREE.Group();
+  head.position.set(0, 1.1, 0.5);
+  const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 6, 12), coat);
+  neck.position.set(0, 0.2, 0.1);
+  neck.rotation.x = 0.5;
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), coat);
+  skull.scale.set(0.9, 0.9, 1.5);
+  skull.position.set(0, 0.45, 0.25);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), material(0x2a2420));
+  nose.position.set(0, 0.42, 0.44);
+  const earGeometry = new THREE.ConeGeometry(0.05, 0.16, 8);
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(earGeometry, coat);
+    ear.position.set(side * 0.1, 0.58, 0.15);
+    ear.rotation.z = -side * 0.7;
+    head.add(ear);
+  }
+  head.add(neck, skull, nose);
+
+  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), pale);
+  tail.position.set(0, 1.05, -0.62);
+  deer.add(body, belly, head, tail);
+  deer.userData.legs = legs;
+  deer.userData.head = head;
+  deer.traverse((child) => (child.castShadow = true));
+  return deer;
+}
+
 // About 1.8 m tall, feet at the origin, facing +z.
 export function survivor() {
   const person = new THREE.Group();

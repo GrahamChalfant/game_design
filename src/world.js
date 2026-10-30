@@ -66,6 +66,7 @@ export function buildWorld(scene, seed) {
     obstacles,
     trees,
     grass,
+    size: WORLD_SIZE,
     spawn: new THREE.Vector3(0, terrain.heightAt(0, 0), 0),
     update(dt, time) {
       grass.update(time);

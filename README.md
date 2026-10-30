@@ -63,6 +63,10 @@ With wood in your hand, press Space on open ground to build a campfire (5 wood).
 A fire burns for 2 in-game hours; stand next to it and press E to add a log
 (1 more hour each). A fire that's gone out can be relit the same way.
 
+Rabbits and deer roam the map, but there aren't many of them. They graze and wander
+until you get too close, then bolt. Both run faster than you, and deer spook from much
+farther away, so you won't catch them by chasing.
+
 To tune the difficulty, edit the numbers at the top of `src/survival.js`.
 
 To test faster, add `?speed=20` to the address (for example http://localhost:8000/?speed=20).
@@ -81,6 +85,7 @@ src/player.js         Player movement, swimming and collisions
 src/trees.js          Choppable trees: chopping progress, falling and stumps
 src/seeThrough.js     Makes trees see-through where they'd hide the player
 src/campfires.js      Building campfires, fuel, flames and firelight
+src/animals.js        Rabbits and deer: wandering, grazing and running from the player
 src/inventory.js      Items and the hotbar
 src/survival.js       Hunger, thirst, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
@@ -109,6 +114,8 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `pine.glb` | Tall conifer that grows in the forests | ~9 m tall |
 | `broadleaf.glb` | Round, leafy tree found alone in the fields | ~6 m tall |
 | `rock.glb` | Boulder | ~1 m across |
+| `rabbit.glb` | Rabbit (the stand-in is drawn a bit bigger than life, to be easy to spot) | ~0.55 m long |
+| `deer.glb` | Deer | ~1.6 m tall at the head |
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
 | `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |
