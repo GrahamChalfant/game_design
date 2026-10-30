@@ -82,6 +82,7 @@ export function validateBank(SQL, bank = questions, featureList = features) {
         if (q.orderMatters && hasTiedSortKeys(result)) {
           warn('Some rows look identical in the sort order, so a correct query could return them in a different order.');
         }
+        for (const text of tierWarnings(q, result)) warn(text);
         info(`Solution returns ${result.rows.length} row(s): ${result.columns.join(', ')}`);
 
         for (const sql of q.tests?.accept ?? []) {
@@ -110,6 +111,43 @@ export function validateBank(SQL, bank = questions, featureList = features) {
   }
 
   return { errors, warnings, report };
+}
+
+// Morning-coffee sizing: rough limits so each question stays quick to read, type and check.
+const SIZE_LIMITS = {
+  easy: { chars: 140, words: 25, rows: 8 },
+  medium: { chars: 220, words: 32, rows: 10 },
+  hard: { chars: 260, words: 38, rows: 10 },
+};
+
+// Warnings when a question looks like it belongs in a different tier, or is too big to be quick.
+function tierWarnings(q, result) {
+  const sql = q.solution.replace(/\s+/g, ' ').trim();
+  const has = (re) => re.test(sql);
+  const windows = (sql.match(/\bover\s*\(/gi) ?? []).length;
+  const subqueries = (sql.match(/\(\s*select\b/gi) ?? []).length;
+  const warnings = [];
+  const limits = SIZE_LIMITS[q.tier];
+
+  if (q.tier === 'easy') {
+    if (has(/\bjoin\b/i)) warnings.push('Easy questions should use one table, but the solution has a JOIN. Move it to medium?');
+    if (windows || has(/\bwith\b/i) || subqueries) warnings.push('Easy questions shouldn\'t need window functions, CTEs or subqueries. Move it up a tier?');
+  }
+  if (q.tier === 'medium') {
+    if (has(/\b(lag|lead)\s*\(/i) || has(/\brows between\b/i)) warnings.push('LAG/LEAD and frame clauses belong in hard.');
+    if (windows > 1 || (windows && (has(/\bwith\b/i) || subqueries))) {
+      warnings.push('Filtering or combining window functions (e.g. top-N per group) is 3+ pieces and belongs in hard.');
+    }
+  }
+  if (sql.length > limits.chars) {
+    warnings.push(`The solution is ${sql.length} characters. Aim for under ${limits.chars} for ${q.tier}, so it's quick to type.`);
+  }
+  const words = q.prompt.split(/\s+/).length;
+  if (words > limits.words) warnings.push(`The prompt is ${words} words. Aim for under ${limits.words}, so it's quick to read.`);
+  if (result.rows.length > limits.rows) {
+    warnings.push(`The answer has ${result.rows.length} rows. Aim for ${limits.rows} or fewer, so players can check it at a glance.`);
+  }
+  return warnings;
 }
 
 // If the solution's ORDER BY doesn't separate some rows, re-sorting them by a different

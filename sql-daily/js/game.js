@@ -1,7 +1,7 @@
-// The game screen: timers, the editor, running and submitting queries, and the results summary.
+// The game screen. A day goes: start screen → (3-2-1 countdown → question → reveal) × 3 → end credits.
 
 import { features, questions } from '../data/features.js';
-import { TIERS, TIER_ORDER, PERFECT_BONUS, speedBonus } from './config.js';
+import { TIERS, TIER_ORDER, PERFECT_BONUS, COUNTDOWN_SECONDS, BOOST_FRACTION, boostFor } from './config.js';
 import { runQuery, checkAnswer, describeSchema } from './checker.js';
 import {
   todayString, isDateString, puzzleNumber, pickFeature, secondsUntilTomorrow,
@@ -10,6 +10,7 @@ import {
 
 const $ = (id) => document.getElementById(id);
 const MAX_SHOWN_ROWS = 100;
+const VIEWS = ['loading', 'view-start', 'view-countdown', 'view-question', 'view-reveal', 'view-credits'];
 
 // ?date=2026-11-05 plays another day (handy for testing). ?reset clears that day's progress.
 const params = new URLSearchParams(location.search);
@@ -23,33 +24,40 @@ if (params.has('reset')) {
 let SQL;
 let day;
 let feature;
-let viewing = 'easy'; // a tier, or 'summary'
+let shownView = null; // which view is on screen, so the tick only redraws when it changes
 
 const questionFor = (tier) => questions.find((q) => q.id === `${day.featureId}/${tier}`);
 const isDone = (t) => t.status === 'solved' || t.status === 'failed';
 const allDone = () => TIER_ORDER.every((tier) => isDone(day.tiers[tier]));
-
 const nextTier = () => TIER_ORDER.find((tier) => !isDone(day.tiers[tier]));
-
-function secondsLeft(tier) {
-  const t = day.tiers[tier];
-  if (t.status !== 'active') return t.secondsLeft ?? TIERS[tier].seconds;
-  return Math.max(0, TIERS[tier].seconds - (Date.now() - t.startedAt) / 1000);
-}
-
-function totalScore() {
-  const base = TIER_ORDER.reduce((sum, tier) => sum + day.tiers[tier].points + day.tiers[tier].bonus, 0);
-  const perfect = TIER_ORDER.every((tier) => day.tiers[tier].status === 'solved');
-  return base + (perfect ? PERFECT_BONUS : 0);
-}
+const activeTier = () => TIER_ORDER.find((tier) => day.tiers[tier].status === 'active');
+const counting = (tier) => Date.now() < day.tiers[tier].startedAt;
 
 // Days before LAUNCH_DATE have no puzzle number yet, so they're labelled as a preview.
 const puzzleLabel = () => (puzzleNumber(date) >= 1 ? `#${puzzleNumber(date)}` : 'Preview');
 
-const formatTime = (seconds) => {
-  const s = Math.ceil(seconds);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-};
+// startedAt is when the clock starts: COUNTDOWN_SECONDS after the player clicked.
+// Storing it that way means a refresh mid-countdown or mid-question picks up exactly where it was.
+function secondsLeft(tier) {
+  const t = day.tiers[tier];
+  if (t.status !== 'active') return t.secondsLeft ?? TIERS[tier].seconds;
+  const elapsed = Math.max(0, (Date.now() - t.startedAt) / 1000);
+  return Math.max(0, TIERS[tier].seconds - elapsed);
+}
+
+function totalScore() {
+  const base = TIER_ORDER.reduce((sum, tier) => sum + day.tiers[tier].points + day.tiers[tier].bonus, 0);
+  return base + (TIER_ORDER.every((tier) => day.tiers[tier].status === 'solved') ? PERFECT_BONUS : 0);
+}
+
+// Which view belongs on screen right now. Everything else is drawn from this.
+function currentView() {
+  const active = activeTier();
+  if (active) return counting(active) ? `countdown:${active}` : `question:${active}`;
+  if (allDone() && day.creditsRolled) return 'credits';
+  const lastDone = [...TIER_ORDER].reverse().find((tier) => isDone(day.tiers[tier]));
+  return lastDone ? `reveal:${lastDone}` : 'start';
+}
 
 // ---------------------------------------------------------------- start up
 
@@ -68,36 +76,27 @@ async function start() {
   feature = features.find((f) => f.id === day.featureId);
   saveDay(day);
   $('puzzle-label').textContent = `${puzzleLabel()} · ${formatDate(date)}`;
-  $('loading').hidden = true;
-
-  const active = TIER_ORDER.find((tier) => day.tiers[tier].status === 'active');
-  viewing = active ?? nextTier() ?? 'summary';
 
   wireUpControls();
-  render();
-  setInterval(tick, 250);
+  tick();
+  setInterval(tick, 100);
 }
 
 function wireUpControls() {
-  $('start-btn').addEventListener('click', startQuestion);
+  $('begin-btn').addEventListener('click', rollNext);
+  $('next-btn').addEventListener('click', rollNext);
   $('run-btn').addEventListener('click', run);
   $('submit-btn').addEventListener('click', submit);
   $('hint-btn').addEventListener('click', showHint);
   $('giveup-btn').addEventListener('click', giveUp);
-  // Questions come one after another: finishing one leads straight into the next.
-  $('next-btn').addEventListener('click', () => {
-    const next = nextTier();
-    if (!next) return show('summary');
-    viewing = next;
-    startQuestion();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
   $('share-btn').addEventListener('click', share);
+  $('help-btn').addEventListener('click', () => $('help').showModal());
 
   const editor = $('editor');
   editor.addEventListener('input', () => {
-    if (day.tiers[viewing]?.status !== 'active') return;
-    day.tiers[viewing].sql = editor.value;
+    const tier = activeTier();
+    if (!tier) return;
+    day.tiers[tier].sql = editor.value;
     saveDay(day);
   });
   editor.addEventListener('keydown', (e) => {
@@ -113,19 +112,23 @@ function wireUpControls() {
 
 // ---------------------------------------------------------------- actions
 
-function startQuestion() {
-  const t = day.tiers[viewing];
-  t.status = 'active';
-  t.startedAt = Date.now();
+// The one button on every between-screen: start the next part (after a countdown), or roll the credits.
+function rollNext() {
+  const tier = nextTier();
+  if (!tier) {
+    day.creditsRolled = true;
+  } else {
+    day.tiers[tier].status = 'active';
+    day.tiers[tier].startedAt = Date.now() + COUNTDOWN_SECONDS * 1000;
+  }
   saveDay(day);
-  render();
-  $('editor').focus();
+  tick();
 }
 
 function run() {
-  const t = day.tiers[viewing];
-  if (t.status !== 'active') return;
-  const result = runQuery(SQL, questionFor(viewing).dataset, $('editor').value);
+  const tier = activeTier();
+  if (!tier || counting(tier)) return;
+  const result = runQuery(SQL, questionFor(tier).dataset, $('editor').value);
   if (result.ok) {
     showFeedback(null);
     showResults(result, 'Your output');
@@ -136,43 +139,43 @@ function run() {
 }
 
 function submit() {
-  const tier = viewing;
+  const tier = activeTier();
+  if (!tier || counting(tier)) return;
   const t = day.tiers[tier];
-  if (t.status !== 'active') return;
   const remaining = secondsLeft(tier);
   const check = checkAnswer(SQL, questionFor(tier), $('editor').value);
   t.attempts++;
   t.sql = $('editor').value;
 
+  if (check.status === 'correct') {
+    t.points = TIERS[tier].points;
+    t.bonus = boostFor(tier, remaining);
+    finish(tier, 'solved', remaining);
+    return;
+  }
+  saveDay(day);
   if (check.status === 'error') {
-    saveDay(day);
     showError(check);
     showResults(null);
-    return;
-  }
-  if (check.status === 'wrong') {
-    saveDay(day);
+  } else {
     showFeedback('wrong', 'Not quite.', [check.message], check.details);
     showResults(check.result, 'Your output');
-    return;
   }
-  t.points = TIERS[tier].points;
-  t.bonus = speedBonus(tier, remaining);
-  finish(tier, 'solved', remaining);
-  showResults(check.result, 'Your output');
 }
 
 function showHint() {
-  const t = day.tiers[viewing];
-  const hints = questionFor(viewing).hints;
-  if (t.hintsShown < hints.length) t.hintsShown++;
+  const tier = activeTier();
+  if (!tier) return;
+  const t = day.tiers[tier];
+  if (t.hintsShown < questionFor(tier).hints.length) t.hintsShown++;
   saveDay(day);
-  renderHints();
+  renderHints(tier);
 }
 
 function giveUp() {
-  if (!confirm('Give up on this question? You\'ll see the solution and score 0 for it.')) return;
-  finish(viewing, 'failed', secondsLeft(viewing), 'gave-up');
+  const tier = activeTier();
+  if (!tier || !confirm('Give up on this part? You\'ll see the solution and score 0 for it.')) return;
+  finish(tier, 'failed', secondsLeft(tier), 'gave-up');
 }
 
 function finish(tier, status, remaining, reason) {
@@ -182,160 +185,182 @@ function finish(tier, status, remaining, reason) {
   t.reason = reason;
   if (allDone()) recordScore(date, totalScore());
   saveDay(day);
-  render();
+  tick();
 }
+
+// ---------------------------------------------------------------- the loop
 
 function tick() {
-  for (const tier of TIER_ORDER) {
-    if (day.tiers[tier].status === 'active' && secondsLeft(tier) <= 0) {
-      viewing = tier;
-      finish(tier, 'failed', 0, 'timeout');
-    }
+  const active = activeTier();
+  if (active && !counting(active) && secondsLeft(active) <= 0) {
+    finish(active, 'failed', 0, 'timeout');
+    return;
   }
-  if (TIERS[viewing]) renderTimer();
-  if (viewing === 'summary') $('countdown').textContent = formatClock(secondsUntilTomorrow());
-}
 
-function show(view) {
-  viewing = view;
-  render();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const view = currentView();
+  if (view !== shownView) {
+    shownView = view;
+    render(view);
+  }
+  const [name, tier] = view.split(':');
+  if (name === 'countdown') renderCountdown(tier);
+  if (name === 'question') renderTimer(tier);
+  if (name === 'credits') $('countdown').textContent = formatClock(secondsUntilTomorrow());
 }
 
 // ---------------------------------------------------------------- rendering
 
-function render() {
-  renderSteps();
-  $('steps').hidden = !allDone() && viewing === TIER_ORDER[0] && day.tiers[viewing].status === 'ready';
+function render(view) {
+  const [name, tier] = view.split(':');
+  for (const id of VIEWS) $(id).hidden = id !== `view-${name}`;
+  $('console').hidden = name !== 'question';
+  renderHud(name === 'question' || name === 'countdown' ? tier : null);
+
+  if (name === 'start') renderStart();
+  if (name === 'countdown') $('countdown-label').textContent = `${TIERS[tier].part} · ${TIERS[tier].label}`;
+  if (name === 'question') renderQuestion(tier);
+  if (name === 'reveal') renderReveal(tier);
+  if (name === 'credits') renderCredits();
+}
+
+// Krillion-style: three small squares and "Part 1 of 3". Nothing to click.
+function renderHud(currentTier) {
   $('total-score').textContent = totalScore();
-
-  const isTier = Boolean(TIERS[viewing]);
-  const t = isTier ? day.tiers[viewing] : null;
-  $('summary').hidden = viewing !== 'summary';
-  $('start-card').hidden = !(isTier && t.status === 'ready');
-  $('question').hidden = !(isTier && (t.status === 'active' || isDone(t)));
-
-  if (viewing === 'summary') return renderSummary();
-  if (t.status === 'ready') return renderStartCard();
-  renderQuestion();
-}
-
-// A progress strip, not navigation: players can only work on the current question.
-function renderSteps() {
-  const nav = $('steps');
-  nav.innerHTML = '';
-  for (const tier of TIER_ORDER) {
+  $('dots').innerHTML = TIER_ORDER.map((tier) => {
     const t = day.tiers[tier];
-    const step = document.createElement('div');
-    step.className = `step ${t.status}`;
-    if (tier === viewing) step.classList.add('current');
-    let status;
-    if (t.status === 'solved') status = `✓ +${t.points + t.bonus}`;
-    else if (t.status === 'failed') status = t.reason === 'timeout' ? '✗ Out of time' : '✗ Gave up';
-    else if (t.status === 'active') status = '● Now';
-    else status = 'Up next';
-    step.innerHTML =
-      `<span class="step-name">${TIERS[tier].part} · ${TIERS[tier].points}</span>` +
-      `<span class="step-status">${status}</span>`;
-    nav.append(step);
-  }
+    return `<span class="dot ${isDone(t) ? t.status : tier === currentTier ? 'current' : ''}"></span>`;
+  }).join('');
+  const number = currentTier ? TIER_ORDER.indexOf(currentTier) + 1 : null;
+  $('progress-text').textContent = number ? `Part ${number} of 3` : allDone() ? 'That\'s a wrap' : '';
 }
 
-// One screen, one button. The first time it's "Begin"; if the player left between questions, "Continue".
-function renderStartCard() {
-  const first = viewing === TIER_ORDER[0];
+function renderStart() {
   $('start-theme').textContent = feature.theme;
   $('start-tagline').textContent = feature.tagline;
-  $('start-btn').textContent = first ? 'Begin' : `Continue with ${TIERS[viewing].part}`;
+  $('begin-btn').focus();
 }
 
-function renderQuestion() {
-  const q = questionFor(viewing);
-  const t = day.tiers[viewing];
-  const active = t.status === 'active';
+// Film-leader style: a big number with a hand sweeping round once per second.
+function renderCountdown(tier) {
+  const secondsToGo = (day.tiers[tier].startedAt - Date.now()) / 1000;
+  $('countdown-num').textContent = Math.max(1, Math.ceil(secondsToGo));
+  const sweep = 360 * (1 - (secondsToGo % 1));
+  document.querySelector('.leader-sweep').style.setProperty('--sweep', `${sweep}deg`);
+}
 
-  $('q-tier').textContent = `${TIERS[viewing].part} · ${TIERS[viewing].label} · ${TIERS[viewing].points} pts`;
-  $('q-tier').className = `badge ${viewing}`;
+function renderQuestion(tier) {
+  const q = questionFor(tier);
+  const t = day.tiers[tier];
+  $('q-eyebrow').textContent = `${TIERS[tier].part} · ${TIERS[tier].label} · ${TIERS[tier].points} pts`;
   $('q-title').textContent = q.title;
   $('q-prompt').textContent = q.prompt;
   $('q-columns').innerHTML = q.columns.map((c) => `<code>${escapeHtml(c)}</code>`).join(' ');
   renderSchema(q.dataset);
+  renderHints(tier);
+  showFeedback(null);
+  showResults(null);
+
+  // Mark where the boost runs out on the ring. The ring is drawn from 3 o'clock and the whole
+  // SVG is turned -90°, so this tick (drawn at 12 o'clock) needs an extra quarter turn.
+  $('boost-tick').setAttribute('transform', `rotate(${90 + 360 * BOOST_FRACTION} 32 32)`);
 
   const editor = $('editor');
   editor.value = t.sql;
-  editor.readOnly = !active;
-  for (const id of ['run-btn', 'submit-btn', 'hint-btn', 'giveup-btn']) $(id).disabled = !active;
-  renderHints();
-  renderTimer();
-
-  $('solution').hidden = active;
-  $('next-row').hidden = active;
-  showResults(null);
-  if (active) {
-    showFeedback(null);
-    return;
-  }
-  $('solution-sql').textContent = dedent(q.solution);
-  const next = nextTier();
-  $('next-btn').textContent = next
-    ? `Roll ${TIERS[next].part} →`
-    : 'Roll the credits';
-  if (t.status === 'solved') {
-    showFeedback('correct', `Correct! +${t.points} points, +${t.bonus} speed bonus.`, [
-      `Solved with ${formatTime(t.secondsLeft)} left, in ${t.attempts} ${t.attempts === 1 ? 'try' : 'tries'}.`,
-      'Here\'s one way to write it. Yours may be different, and that\'s fine.',
-    ]);
-  } else {
-    showFeedback(
-      'error',
-      t.reason === 'timeout' ? 'Time\'s up!' : 'You gave up on this one.',
-      ['No points for this question. Study the solution below and you\'ll get the next one.'],
-    );
-  }
+  editor.focus();
+  renderTimer(tier);
 }
 
-function renderTimer() {
-  const tier = viewing;
-  const t = day.tiers[tier];
-  if (!t) return;
+function renderTimer(tier) {
+  const total = TIERS[tier].seconds;
   const left = secondsLeft(tier);
-  $('timer-text').textContent = formatTime(left);
-  $('timer-fill').style.width = `${(left / TIERS[tier].seconds) * 100}%`;
-  $('timer').classList.toggle('low', t.status === 'active' && left <= 10);
-  $('bonus-text').textContent =
-    t.status === 'active' ? `speed bonus +${speedBonus(tier, left)}` : t.status === 'solved' ? 'finished' : '';
+  const boost = boostFor(tier, left);
+  const circumference = 2 * Math.PI * 28;
+  const ring = $('ring-fill');
+  ring.style.strokeDasharray = circumference;
+  ring.style.strokeDashoffset = circumference * (1 - left / total);
+  $('timer-text').textContent = left > 60 ? formatTime(left) : Math.ceil(left);
+
+  const timer = document.querySelector('.timer');
+  timer.classList.toggle('boosting', boost > 0);
+  timer.classList.toggle('low', left <= 10);
+  const boostText = $('boost-text');
+  boostText.classList.toggle('on', boost > 0);
+  boostText.textContent = boost > 0
+    ? `Boost +${boost} · ${formatTime(left - total * BOOST_FRACTION)} left`
+    : 'Boost gone · keep going';
 }
 
-function renderHints() {
-  const t = day.tiers[viewing];
-  const hints = questionFor(viewing).hints;
+function renderHints(tier) {
+  const t = day.tiers[tier];
+  const hints = questionFor(tier).hints;
   $('hints').innerHTML = hints.slice(0, t.hintsShown).map((h) => `<li>${escapeHtml(h)}</li>`).join('');
-  $('hint-btn').textContent = t.hintsShown < hints.length ? `Hint (${hints.length - t.hintsShown} left)` : 'No more hints';
-  if (t.hintsShown >= hints.length) $('hint-btn').disabled = true;
+  $('hint-btn').textContent = t.hintsShown < hints.length ? `Hint (${hints.length - t.hintsShown})` : 'No more hints';
+  $('hint-btn').disabled = t.hintsShown >= hints.length;
 }
 
 let schemaShown = null;
 function renderSchema(dataset) {
   if (schemaShown === dataset) return;
   schemaShown = dataset;
-  const schema = describeSchema(SQL, dataset);
   const container = $('schema');
   container.innerHTML = '';
-  for (const [table, columns] of Object.entries(schema)) {
-    const card = document.createElement('div');
-    card.className = 'table-card';
-    card.innerHTML =
-      `<button class="table-name">${escapeHtml(table)}</button>` +
-      `<ul class="table-cols">${columns.map((c) => `<li>${escapeHtml(c)}</li>`).join('')}</ul>`;
-    card.querySelector('button').addEventListener('click', () => {
-      const preview = runQuery(SQL, dataset, `SELECT * FROM ${table} LIMIT 5`);
-      showResults(preview, `Preview: first 5 rows of ${table}`);
+  for (const [table, columns] of Object.entries(describeSchema(SQL, dataset))) {
+    const chip = document.createElement('button');
+    chip.className = 'table-chip';
+    chip.title = `Preview ${table} on the screen`;
+    chip.innerHTML = `<b>${escapeHtml(table)}</b>(${columns.map(escapeHtml).join(', ')})`;
+    chip.addEventListener('click', () => {
+      showResults(runQuery(SQL, dataset, `SELECT * FROM ${table} LIMIT 5`), `Preview: ${table}, first 5 rows`);
     });
-    container.append(card);
+    container.append(chip);
   }
 }
 
-// kind: 'error' | 'wrong' | 'correct' | 'info', or null to hide.
+function renderReveal(tier) {
+  const t = day.tiers[tier];
+  const q = questionFor(tier);
+  const next = nextTier();
+  $('reveal-eyebrow').textContent = `${TIERS[tier].part} · ${q.title}`;
+  if (t.status === 'solved') {
+    $('reveal-title').textContent = 'Correct!';
+    $('reveal-points').innerHTML =
+      `<span class="good">+${t.points}</span>` +
+      (t.bonus ? ` <span class="boost">+${t.bonus} boost</span>` : '') +
+      ` <span class="muted">· ${formatTime(TIERS[tier].seconds - t.secondsLeft)}</span>`;
+  } else {
+    $('reveal-title').textContent = t.reason === 'timeout' ? 'Time\'s up!' : 'Cut!';
+    $('reveal-points').innerHTML = '<span class="bad">+0</span>';
+  }
+  $('solution-sql').textContent = dedent(q.solution);
+  $('next-btn').textContent = next ? `Roll ${TIERS[next].part}` : 'Roll the credits';
+  $('next-btn').focus();
+}
+
+function renderCredits() {
+  const perfect = TIER_ORDER.every((tier) => day.tiers[tier].status === 'solved');
+  $('credits-theme').textContent = feature.theme;
+  $('final-score').textContent = totalScore();
+  const line = (name, value, cls = '') =>
+    `<li class="${cls}"><span class="name">${name}</span><span class="leader-dots"></span><span>${value}</span></li>`;
+  $('credits').innerHTML =
+    TIER_ORDER.map((tier) => {
+      const t = day.tiers[tier];
+      const mark = t.status === 'solved' ? '✓' : '✗';
+      return line(`${mark} ${TIERS[tier].part}: ${escapeHtml(questionFor(tier).title)}`, t.points + t.bonus);
+    }).join('') +
+    line(`${perfect ? '★' : '·'} All three correct`, perfect ? PERFECT_BONUS : 0) +
+    line('Total', totalScore(), 'total');
+  $('share-preview').textContent = shareText();
+
+  const s = stats(loadHistory(), date);
+  $('stats').innerHTML = [['Played', s.played], ['Streak', s.streak], ['Best', s.best], ['Average', s.average]]
+    .map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`)
+    .join('');
+  $('countdown').textContent = formatClock(secondsUntilTomorrow());
+  $('view-credits').classList.add('roll-in');
+}
+
+// kind: 'error' | 'wrong' | 'info', or null to hide.
 function showFeedback(kind, title, paragraphs = [], bullets = [], raw = null) {
   const box = $('feedback');
   if (!kind) {
@@ -364,73 +389,27 @@ function showResults(result, caption = '') {
   const rows = result.rows.slice(0, MAX_SHOWN_ROWS);
   const count = result.rows.length;
   let note = `${count} row${count === 1 ? '' : 's'}`;
-  if (count > MAX_SHOWN_ROWS || result.truncated) note = `showing the first ${rows.length} rows`;
+  if (count > MAX_SHOWN_ROWS || result.truncated) note = `first ${rows.length} rows`;
+  const cell = (v) =>
+    v === null ? '<td class="null">NULL</td>' : `<td${typeof v === 'number' ? ' class="num"' : ''}>${escapeHtml(String(v))}</td>`;
   box.innerHTML =
-    `<div class="results-caption">${escapeHtml(caption)} (${note})</div>` +
+    `<div class="results-caption">${escapeHtml(caption)} · ${note}</div>` +
     '<table class="data"><thead><tr>' +
     result.columns.map((c) => `<th>${escapeHtml(c)}</th>`).join('') +
     '</tr></thead><tbody>' +
-    rows
-      .map(
-        (row) =>
-          '<tr>' +
-          row
-            .map((v) =>
-              v === null
-                ? '<td class="null">NULL</td>'
-                : `<td${typeof v === 'number' ? ' class="num"' : ''}>${escapeHtml(String(v))}</td>`,
-            )
-            .join('') +
-          '</tr>',
-      )
-      .join('') +
+    rows.map((row) => `<tr>${row.map(cell).join('')}</tr>`).join('') +
     '</tbody></table>';
 }
 
-// ---------------------------------------------------------------- summary
+// ---------------------------------------------------------------- sharing
 
-function renderSummary() {
-  const perfect = TIER_ORDER.every((tier) => day.tiers[tier].status === 'solved');
-  $('final-score').textContent = totalScore();
-  $('summary-theme').textContent = feature.theme;
-
-  let rows = '<tr><th>Question</th><th>Points</th><th>Speed</th><th>Time left</th></tr>';
-  for (const tier of TIER_ORDER) {
-    const t = day.tiers[tier];
-    const solved = t.status === 'solved';
-    rows +=
-      `<tr><td>${solved ? '✅' : '❌'} ${TIERS[tier].part}: ${escapeHtml(questionFor(tier).title)}</td>` +
-      `<td>${t.points}</td><td>+${t.bonus}</td><td>${solved ? formatTime(t.secondsLeft) : '–'}</td></tr>`;
-  }
-  rows += `<tr><td>${perfect ? '🏆' : '·'} All three correct</td><td>${perfect ? `+${PERFECT_BONUS}` : '0'}</td><td></td><td></td></tr>`;
-  rows += `<tr><th>Total</th><th>${totalScore()}</th><th></th><th></th></tr>`;
-  $('breakdown').innerHTML = rows;
-  $('share-preview').textContent = shareText();
-
-  const s = stats(loadHistory(), date);
-  $('stats').innerHTML = [
-    ['Played', s.played],
-    ['Streak', s.streak],
-    ['Best', s.best],
-    ['Average', s.average],
-  ]
-    .map(([label, value]) => `<div><strong>${value}</strong><span class="muted">${label}</span></div>`)
-    .join('');
-  $('countdown').textContent = formatClock(secondsUntilTomorrow());
-}
-
+// 🟨 solved with the boost, 🟩 solved, 🟥 missed.
 function shareText() {
-  const lines = [`🎬 SQL: The Sequel ${puzzleLabel()}`, `${feature.theme}: ${totalScore()}/1000`];
-  for (const tier of TIER_ORDER) {
+  const squares = TIER_ORDER.map((tier) => {
     const t = day.tiers[tier];
-    const label = TIERS[tier].part.padEnd(8);
-    lines.push(
-      t.status === 'solved'
-        ? `🟩 ${label} +${t.points + t.bonus}  ⏱ ${formatTime(TIERS[tier].seconds - t.secondsLeft)}`
-        : `🟥 ${label} ${t.reason === 'timeout' ? 'out of time' : 'gave up'}`,
-    );
-  }
-  return lines.join('\n');
+    return t.status !== 'solved' ? '🟥' : t.bonus ? '🟨' : '🟩';
+  }).join('');
+  return [`🎬 SQL: The Sequel ${puzzleLabel()}`, feature.theme, `${squares} ${totalScore()}/1000`].join('\n');
 }
 
 async function share() {
@@ -438,9 +417,9 @@ async function share() {
     await navigator.clipboard.writeText(shareText());
     $('share-btn').textContent = 'Copied!';
   } catch {
-    $('share-btn').textContent = 'Couldn\'t copy. Select the text below instead.';
+    $('share-btn').textContent = 'Select the text below to copy';
   }
-  setTimeout(() => ($('share-btn').textContent = 'Copy results to share'), 2000);
+  setTimeout(() => ($('share-btn').textContent = 'Copy results'), 2000);
 }
 
 // ---------------------------------------------------------------- helpers
@@ -455,8 +434,13 @@ function dedent(sql) {
   return lines.map((l) => l.slice(indent)).join('\n');
 }
 
+function formatTime(seconds) {
+  const s = Math.max(0, Math.ceil(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
 function formatDate(d) {
-  return new Date(d + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 function formatClock(seconds) {
