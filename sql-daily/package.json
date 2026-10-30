@@ -1,0 +1,12 @@
+{
+  "name": "sql-daily",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "validate": "node tools/validate-bank.js"
+  },
+  "devDependencies": {
+    "sql.js": "1.14.1"
+  }
+}

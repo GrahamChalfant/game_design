@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SQL Daily</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <h1>SQL Daily</h1>
+        <span id="puzzle-label" class="muted"></span>
+      </div>
+      <div class="score">
+        <span class="muted">Score</span>
+        <strong id="total-score">0</strong><span class="muted">/ 1000</span>
+      </div>
+    </header>
+
+    <nav id="steps" class="steps" aria-label="Today's questions"></nav>
+
+    <main>
+      <div id="loading" class="panel">Loading the SQL engine…</div>
+
+      <section id="start-card" class="panel center" hidden>
+        <span id="start-tier" class="badge"></span>
+        <h2 id="start-title"></h2>
+        <p id="start-details" class="muted"></p>
+        <button id="start-btn" class="primary big">Start the timer</button>
+      </section>
+
+      <section id="locked-card" class="panel center" hidden>
+        <p id="locked-text"></p>
+      </section>
+
+      <section id="question" hidden>
+        <div class="q-head">
+          <div>
+            <span id="q-tier" class="badge"></span>
+            <h2 id="q-title"></h2>
+          </div>
+          <div id="timer" class="timer">
+            <div class="timer-row">
+              <span id="timer-text" class="timer-text">0:00</span>
+              <span id="bonus-text" class="muted"></span>
+            </div>
+            <div class="timer-bar"><div id="timer-fill"></div></div>
+          </div>
+        </div>
+
+        <p id="q-prompt" class="prompt"></p>
+        <p class="columns muted">Return these columns: <span id="q-columns"></span></p>
+
+        <div class="workspace">
+          <aside class="schema">
+            <h3>Tables</h3>
+            <p class="muted small">Click a table to preview its rows.</p>
+            <div id="schema"></div>
+          </aside>
+
+          <div class="editor-area">
+            <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off"
+              placeholder="SELECT ... FROM ..." aria-label="Your SQL query"></textarea>
+            <div class="actions">
+              <button id="run-btn" title="Ctrl + Enter">Run <kbd>Ctrl ↵</kbd></button>
+              <button id="submit-btn" class="primary" title="Ctrl + Shift + Enter">Submit answer</button>
+              <span class="spacer"></span>
+              <button id="hint-btn" class="ghost">Hint</button>
+              <button id="giveup-btn" class="ghost danger">Give up</button>
+            </div>
+            <ul id="hints" class="hints"></ul>
+            <div id="feedback" class="feedback" hidden></div>
+            <div id="solution" hidden>
+              <h3>Solution</h3>
+              <pre id="solution-sql"></pre>
+            </div>
+            <div id="next-row" hidden><button id="next-btn" class="primary big"></button></div>
+            <div id="results"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="summary" class="panel" hidden>
+        <h2>Today's results</h2>
+        <div class="final-score"><strong id="final-score">0</strong><span class="muted">/ 1000</span></div>
+        <table id="breakdown" class="breakdown"></table>
+        <div class="actions center-row">
+          <button id="share-btn" class="primary">Copy results to share</button>
+        </div>
+        <pre id="share-preview" class="share-preview"></pre>
+        <div id="stats" class="stats"></div>
+        <p class="muted center">Next puzzle in <strong id="countdown"></strong></p>
+      </section>
+
+      <details class="panel how">
+        <summary>How to play</summary>
+        <p>Every day there are three SQL questions: easy, medium and hard. Answer them in order.</p>
+        <ul>
+          <li>Each question has its own timer, which starts when you click <b>Start</b>. If it runs out, the question is over.</li>
+          <li><b>Run</b> your query as often as you like to see its output. When you think it's right, <b>Submit</b> it. Wrong submissions don't cost points.</li>
+          <li>The game runs SQLite, so use <code>LIMIT</code> (not <code>TOP</code>) and <code>strftime()</code> for dates.</li>
+        </ul>
+        <table class="breakdown">
+          <tr><th></th><th>Correct</th><th>Speed bonus</th></tr>
+          <tr><td>Easy</td><td>100</td><td>up to +50</td></tr>
+          <tr><td>Medium</td><td>200</td><td>up to +100</td></tr>
+          <tr><td>Hard</td><td>300</td><td>up to +150</td></tr>
+          <tr><td>All three correct</td><td>+100</td><td></td></tr>
+          <tr><th>Perfect day</th><th colspan="2">1,000</th></tr>
+        </table>
+        <p class="muted small">The speed bonus shrinks as the timer runs down. Hints are free.</p>
+      </details>
+    </main>
+
+    <script>
+      // Browsers won't run this game from a double-clicked file. Say so instead of showing a blank page.
+      if (location.protocol === 'file:') {
+        document.getElementById('loading').innerHTML =
+          '<b>This page needs to be opened through a web server.</b><br>' +
+          'In a terminal, go to the sql-daily folder and run <code>python3 -m http.server 8000</code>, ' +
+          'then open <a href="http://localhost:8000">http://localhost:8000</a>.';
+      }
+    </script>
+    <script src="vendor/sql-wasm.js"></script>
+    <script type="module" src="js/game.js"></script>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Question Bank Check</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .q { margin: 0 0 10px; }
+      .q h3 { font: 600 1rem var(--mono); }
+      .q ul { margin: 4px 0 0; padding-left: 22px; }
+      .error { color: var(--bad); white-space: pre-wrap; }
+      .warning { color: var(--warn); }
+      .info { color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="panel">
+        <h1>Question bank check</h1>
+        <p class="muted">Runs every question in <code>data/questions.js</code> and its tests. Refresh after editing.
+          This is the same check as <code>npm run validate</code>.</p>
+        <h2 id="summary">Checking…</h2>
+      </div>
+      <div class="panel" id="report"></div>
+    </main>
+    <script src="vendor/sql-wasm.js"></script>
+    <script type="module">
+      import { validateBank, countsByTier } from './js/validate.js';
+
+      const escape = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+      const SQL = await initSqlJs({ locateFile: (f) => `vendor/${f}` });
+      const { errors, warnings, report } = validateBank(SQL);
+      const counts = countsByTier();
+
+      document.getElementById('summary').textContent =
+        (errors ? `✖ ${errors} error(s)` : '✔ All questions passed') +
+        (warnings ? `, ${warnings} warning(s)` : '') +
+        ` · ${counts.easy} easy, ${counts.medium} medium, ${counts.hard} hard`;
+
+      document.getElementById('report').innerHTML = report
+        .map(({ id, tier, ok, messages }) => {
+          const mark = !ok ? '✖' : messages.some((m) => m.level === 'warning') ? '!' : '✔';
+          return `<div class="q"><h3>${mark} ${escape(id)} <span class="muted">${tier ?? ''}</span></h3><ul>` +
+            messages.map((m) => `<li class="${m.level}">${escape(m.text)}</li>`).join('') + '</ul></div>';
+        })
+        .join('');
+    </script>
+  </body>
+</html>
