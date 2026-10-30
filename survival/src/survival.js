@@ -12,6 +12,7 @@ const STARVING_DAMAGE_PER_HOUR = 25; // health lost per empty stat: dead about 4
 const HEALING_PER_HOUR = 5; // health regained while well fed and watered
 const WELL_FED = 50; // hunger and thirst both need to be above this to heal
 
+const START_HEALTH = 35; // you start hurt from the crash: use bandages to heal
 const DRINK_PER_SECOND = 30; // thirst regained per real second while drinking
 const WORK_HUNGER = 3; // hard work (like chopping) makes you hungry this many times faster
 
@@ -23,7 +24,7 @@ export class Survival {
   reset() {
     this.hunger = 100;
     this.thirst = 100;
-    this.health = 100;
+    this.health = START_HEALTH;
     this.minutesSurvived = 0;
     this.alive = true;
   }

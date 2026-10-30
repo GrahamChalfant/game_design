@@ -2,10 +2,18 @@ import * as THREE from 'three';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 
-// Where the plane came down, relative to the player's starting point (0, 0).
-// The player starts just south of it, facing the wreck.
+// Where the plane came down: around (0, 0), in a clearing. The player starts about 20 m
+// south of it (see SPAWN in world.js), facing it but just out of view.
 const PLANE = { x: 0.5, z: -6, heading: 0.6 }; // heading: which way the nose points (radians)
 const WING = { x: -5.5, z: -9, heading: 2.2 }; // the wing that broke off
+// Things to search around the crash (hold E). Each can be searched once, and always
+// holds the same supplies.
+const SUITCASES = [
+  { x: 4.2, z: -1.8, heading: 0.3, color: 0x6b4a32, loot: [['bandage', 3], ['rope', 2]], note: 'a first-aid kit' },
+  { x: -3, z: -3.6, heading: 2.4, color: 0x3d5a78, loot: [['rope', 2]] },
+  { x: -1.2, z: -10.6, heading: 1.1, color: 0x7a2f2f, loot: [['rope', 1]] },
+];
+const COCKPIT_LOOT = [['lighter', 1], ['flare', 1]];
 // Where the starting items lie around the wreckage.
 export const START_ITEMS = [
   { item: 'axe', x: -3.6, z: -6.8 },
@@ -37,6 +45,17 @@ export function buildWreck(scene, world) {
 
   // The plane blocks the player: a row of circles along the body, plus the wing.
   const along = new THREE.Vector2(Math.sin(PLANE.heading), Math.cos(PLANE.heading));
+
+  // Searchable spots: the cockpit, and suitcases thrown out in the crash.
+  const containers = [
+    { label: 'the cockpit', x: PLANE.x + along.x * 1.2, z: PLANE.z + along.y * 1.2, loot: COCKPIT_LOOT },
+  ];
+  for (const suitcase of SUITCASES) {
+    const object = placeholders.suitcase(suitcase.color);
+    place(object, suitcase);
+    world.obstacles.push({ x: suitcase.x, z: suitcase.z, radius: 0.4 });
+    containers.push({ ...suitcase, label: 'the suitcase', object });
+  }
   for (let d = -3; d <= 3; d += 1.5) {
     world.obstacles.push({ x: PLANE.x + along.x * d, z: PLANE.z + along.y * d, radius: 1 });
   }
@@ -50,7 +69,36 @@ export function buildWreck(scene, world) {
   enginePosition.y = world.terrain.heightAt(enginePosition.x, enginePosition.z) + 0.8;
   const smoke = new Smoke(scene, enginePosition);
 
-  return { update: (dt) => smoke.update(dt) };
+  const setOpen = (container, open) => {
+    container.searched = open;
+    if (container.object) container.object.userData.lid.rotation.x = open ? -1.9 : 0;
+  };
+
+  return {
+    update: (dt) => smoke.update(dt),
+    // The searchable spot nearest to (x, z), if one is within `reach`.
+    near(x, z, reach) {
+      let best = null;
+      let bestDistance = reach;
+      for (const container of containers) {
+        const distance = Math.hypot(container.x - x, container.z - z);
+        if (distance < bestDistance) {
+          best = container;
+          bestDistance = distance;
+        }
+      }
+      return best;
+    },
+    // Marks it searched (suitcases flip open) and returns what was inside.
+    search(container) {
+      setOpen(container, true);
+      return container.loot;
+    },
+    // Closes everything up again, for a new game.
+    reset() {
+      for (const container of containers) setOpen(container, false);
+    },
+  };
 }
 
 const PUFFS = 40;

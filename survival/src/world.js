@@ -11,7 +11,10 @@ const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into 
 const CONIFER_COUNT = 260;
 const BROADLEAF_COUNT = 45;
 const ROCK_COUNT = 40;
-const SPAWN_CLEARING = 14; // keep this radius around the start (and the crash site) free of trees
+const CRASH_CLEARING = 14; // keep this radius around the crash site (at 0, 0) free of trees
+// The player starts about 20 m south of the wreck: just out of view, so you have to find it.
+const SPAWN = { x: 0.5, z: 14 };
+const SPAWN_CLEARING = 4;
 
 // Builds the map from a seed: the same seed always gives the same world.
 export function buildWorld(scene, seed) {
@@ -24,7 +27,8 @@ export function buildWorld(scene, seed) {
   // Obstacles are circles on the ground the player can't walk into: { x, z, radius }.
   const obstacles = [];
   const isFree = (x, z, spacing) =>
-    Math.hypot(x, z) > SPAWN_CLEARING &&
+    Math.hypot(x, z) > CRASH_CLEARING &&
+    Math.hypot(x - SPAWN.x, z - SPAWN.z) > SPAWN_CLEARING &&
     !terrain.nearLake(x, z, 2) &&
     obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + spacing);
 
@@ -67,7 +71,7 @@ export function buildWorld(scene, seed) {
     trees,
     grass,
     size: WORLD_SIZE,
-    spawn: new THREE.Vector3(0, terrain.heightAt(0, 0), 0),
+    spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),
     update(dt, time) {
       grass.update(time);
       trees.update(dt);
