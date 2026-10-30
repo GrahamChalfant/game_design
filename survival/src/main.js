@@ -60,7 +60,7 @@ scene.add(sun, sun.target);
 const input = new Input(renderer.domElement);
 const world = buildWorld(scene, SEED);
 const wreck = buildWreck(scene, world);
-// Start just south of the crashed plane, facing it.
+// Start south of the crashed plane, facing it (north) but just out of sight of it.
 const player = new Player(scene, world.spawn, WORLD_SIZE, Math.PI);
 const snow = new Snowfall(scene);
 const daylight = new Daylight(scene, sun, ambient, snow);
@@ -85,6 +85,7 @@ const hud = new Hud({
     traps.reset();
     pickups.reset();
     placeStartItems();
+    wreck.reset();
     player.reset();
     animals.reset(player.position);
     if (hud.backpackOpen) hud.toggleBackpack(); // you lose the backpack until you find it again
@@ -104,7 +105,7 @@ const hud = new Hud({
     else hud.toast('No room in your inventory');
   },
 });
-const updateActions = createActions({ input, inventory, player, world, campfires, traps, pickups, survival, hud });
+const updateActions = createActions({ input, inventory, player, world, wreck, campfires, traps, pickups, survival, hud });
 
 // --- Top-down camera that follows the player ---
 let zoom = 20; // distance from the player

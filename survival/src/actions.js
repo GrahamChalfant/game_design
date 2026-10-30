@@ -2,6 +2,8 @@ import { formatFuel } from './campfires.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 
 const COOK_TIME = 3; // seconds of holding Space at a fire to cook one piece of meat
+const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase or the cockpit
+const BANDAGE_HEALING = 30;
 const MEAT_PER_RABBIT = 2;
 // What eating each food does to hunger and health.
 const FOOD = {
@@ -11,8 +13,9 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, campfires, traps, pickups, survival, hud }) {
+export function createActions({ input, inventory, player, world, wreck, campfires, traps, pickups, survival, hud }) {
   let cooking = 0;
+  let searching = 0;
 
   // Adds items to the inventory. Anything that doesn't fit is dropped on the ground at
   // (dropX, dropZ), or at the player's feet.
@@ -46,6 +49,8 @@ export function createActions({ input, inventory, player, world, campfires, trap
     const fire = campfires.near(x, z, 1.2);
     const trap = traps.near(x, z, 1.3);
     const pile = pickups.near(x, z, 1.3);
+    const container = wreck.near(x, z, 1.8);
+    let searchingNow = false;
     const tree = player.treeInReach(world);
     const chopping = Boolean(tree && held === 'axe' && input.usingTool());
     let prompt = null;
@@ -53,15 +58,31 @@ export function createActions({ input, inventory, player, world, campfires, trap
     let cookingNow = false;
 
     if (fire) {
-      // Tending a fire: E adds a log. Raw meat in hand: hold Space to cook it.
+      // Tending a fire: E lights it (with a lighter) or adds a log.
+      // Raw meat in hand: hold Space to cook it.
       const wood = inventory.count('wood');
-      if (pressedE && wood > 0 && campfires.addWood(fire)) {
+      const hasLighter = inventory.count('lighter') > 0;
+      const needsLighting = !campfires.isBurning(fire) && fire.fuel > 0;
+      if (pressedE && needsLighting && hasLighter) {
+        campfires.light(fire);
+        hud.toast('The fire catches');
+      } else if (pressedE && !needsLighting && wood > 0 && campfires.addWood(fire)) {
         inventory.remove('wood', 1);
         hud.toast('-1 Wood');
       }
-      const burning = fire.fuel > 0;
-      const status = burning ? `Campfire: ${formatFuel(fire.fuel)} left` : 'The fire is out';
-      const tend = wood > 0 ? (burning ? 'E to add wood' : 'E to relight (1 wood)') : 'no wood to add';
+      const burning = campfires.isBurning(fire);
+      let status;
+      let tend;
+      if (burning) {
+        status = `Campfire: ${formatFuel(fire.fuel)} left`;
+        tend = wood > 0 ? 'E to add wood' : 'no wood to add';
+      } else if (fire.fuel > 0) {
+        status = 'Campfire: not lit';
+        tend = hasLighter ? 'E to light it' : 'you need a lighter to light it';
+      } else {
+        status = 'The fire is out';
+        tend = wood > 0 ? 'E to add wood' : 'it needs wood';
+      }
       prompt = `${status} · ${tend}`;
 
       if (held === 'rawMeat' && burning) {
@@ -92,6 +113,17 @@ export function createActions({ input, inventory, player, world, campfires, trap
       } else if (pressedE) {
         const taken = pickups.pickUp(pile, inventory);
         hud.toast(taken > 0 ? `+${taken} ${name}` : 'Inventory full');
+      }
+    } else if (!fire && container && !container.searched) {
+      // Hold E to search a suitcase or the cockpit; everything inside is yours.
+      searchingNow = input.isDown('KeyE');
+      searching = searchingNow ? searching + dt : 0;
+      progress = searching / SEARCH_TIME;
+      prompt = searchingNow ? 'Searching…' : `Hold E to search ${container.label}`;
+      if (searching >= SEARCH_TIME) {
+        searching = 0;
+        if (container.note) hud.toast(`You found ${container.note}`);
+        for (const [item, count] of wreck.search(container)) give(item, count, container.x, container.z);
       }
     } else if (!fire && trap) {
       // At a trap: E takes the catch out, or picks the empty trap back up.
@@ -141,6 +173,23 @@ export function createActions({ input, inventory, player, world, campfires, trap
       } else {
         prompt = 'Space or click to set the trap';
       }
+    } else if (!fire && held === 'bandage') {
+      if (survival.health >= 100) {
+        prompt = "You're not hurt";
+      } else {
+        prompt = `Space or click to use a bandage (+${BANDAGE_HEALING} health)`;
+        if (input.startedUsingTool()) {
+          inventory.remove('bandage', 1);
+          survival.eat(0, BANDAGE_HEALING);
+          hud.toast('You patch yourself up');
+        }
+      }
+    } else if (!fire && held === 'lighter') {
+      prompt = 'Keep it on you to light campfires (E next to one)';
+    } else if (!fire && held === 'flare') {
+      prompt = 'Save the flare to signal a rescue plane';
+    } else if (!fire && held === 'rope') {
+      prompt = 'Rope is used to craft traps (C)';
     } else if (!fire && held === 'cookedMeat') {
       prompt = 'Space or click to eat';
       if (input.startedUsingTool()) eat('cookedMeat');
@@ -150,6 +199,7 @@ export function createActions({ input, inventory, player, world, campfires, trap
     }
 
     if (!cookingNow) cooking = 0;
+    if (!searchingNow) searching = 0;
     if (chopping && world.trees.chop(tree, dt, x, z)) {
       // Wood that doesn't fit lands where the tree fell, a little beyond the stump.
       const away = Math.atan2(tree.spot.x - x, tree.spot.z - z);

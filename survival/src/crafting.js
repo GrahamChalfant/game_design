@@ -4,13 +4,13 @@ export const RECIPES = [
     item: 'campfire',
     count: 1,
     cost: { wood: 5 },
-    description: 'Place it on open ground. Burns for 2 hours; add wood with E',
+    description: 'Place it on open ground, then light it with a lighter (E)',
   },
   {
     item: 'trap',
     count: 1,
-    cost: { wood: 3 },
-    description: 'Set it on the ground to catch rabbits',
+    cost: { wood: 3, rope: 1 },
+    description: 'Set it on the ground to catch rabbits. Breaks after one catch',
   },
 ];
 

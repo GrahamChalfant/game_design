@@ -137,6 +137,28 @@ export function brokenWing() {
   return group;
 }
 
+// A suitcase lying flat on the ground, about 0.7 m long. Its lid (userData.lid) hinges
+// open along the back edge.
+export function suitcase(color) {
+  const leather = material(color);
+  const trim = material(0x2a2420);
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.48), leather);
+  base.position.y = 0.06;
+  const lid = new THREE.Group();
+  lid.position.set(0, 0.12, -0.24); // the hinge
+  const top = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.48), leather);
+  top.position.set(0, 0.05, 0.24);
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.015, 6, 12, Math.PI), trim);
+  handle.position.set(0, 0.05, 0.49);
+  handle.rotation.x = Math.PI / 2;
+  lid.add(top, handle);
+  group.add(base, lid);
+  group.userData.lid = lid;
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
 // A torn scrap of the plane lying in the grass.
 export function debris() {
   const scrap = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.6), PAINT);

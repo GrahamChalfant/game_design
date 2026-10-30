@@ -60,9 +60,20 @@ automatically whenever you save a file.
 
 The game starts paused on a menu listing the controls. Press Esc at any time to see it again.
 
-You wake up next to your crashed bush plane with nothing in your hands. Your axe and
-backpack were thrown clear in the crash: look around the wreckage (they have floating
-icons) and press E to pick them up. The backpack gives you 12 extra slots.
+You start hurt (35 health) and empty-handed, a short walk south of your crashed bush
+plane. It's just out of sight, so head north to find it. Your axe and backpack were thrown
+clear in the crash: look around the wreckage (they have floating icons) and press E to
+pick them up. The backpack gives you 12 extra slots.
+
+Hold E next to the cockpit or a suitcase to search it. Each one can be searched once:
+
+| Where | What's inside |
+| --- | --- |
+| Cockpit | Lighter, flare |
+| Suitcases | A first-aid kit (3 bandages), and 5 rope between them |
+
+Select a bandage and press Space to heal 30 health. Keep the lighter: you need it to
+light fires. Save the flare for signalling a rescue (coming later).
 
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
 you start losing health. Drink from the lake to stay hydrated. While you're well fed and
@@ -80,15 +91,16 @@ Your hotbar has 6 slots, and the backpack (Tab, once you've found it) has 12 mor
 it's left on the ground with a floating icon above it; walk over and press E to pick it up.
 
 To make a campfire, press C and craft one (5 wood), then select it and press Space to
-place it on open ground. A fire burns for 2 in-game hours; stand next to it and press E to add a log
-(1 more hour each). A fire that's gone out can be relit the same way.
+place it on open ground. Stand next to it and press E to light it (you need the lighter).
+A fire burns for 2 in-game hours; stand next to it and press E to add a log
+(1 more hour each). A fire that's gone out needs more wood (E) and lighting again.
 
 Rabbits and deer roam the map, but there aren't many of them. They graze and wander
 until you get too close, then bolt. Both run faster than you, and deer spook from much
 farther away, so you won't catch them by chasing. Hold Shift to sneak: animals only
 notice you at half the usual distance.
 
-To catch rabbits, press C and craft a trap (3 wood), then select it and press Space to
+To catch rabbits, press C and craft a trap (3 wood and 1 rope), then select it and press Space to
 set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
 close while you're nearby. When one is caught, press E at the trap for 2 raw meat. This breaks the trap, so you'll
 need to craft another.

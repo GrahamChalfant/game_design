@@ -3,7 +3,7 @@ import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 
 // Fuel is measured in in-game minutes of burning.
-const START_FUEL = 120; // a new fire burns for 2 in-game hours...
+const START_FUEL = 120; // a new fire has wood for 2 in-game hours (it needs lighting first)...
 const FUEL_PER_WOOD = 60; // ...and each extra log adds 1 hour
 const MAX_FUEL = 8 * 60;
 const RADIUS = 0.7; // the player can't walk through a fire
@@ -47,7 +47,7 @@ export class Campfires {
     this.world.grass.clear(x, z, RADIUS + 0.5);
     const obstacle = { x, z, radius: RADIUS };
     this.world.obstacles.push(obstacle);
-    const fire = { x, z, fuel: START_FUEL, object, pit, flames, light, obstacle, flicker: Math.random() * 100 };
+    const fire = { x, z, fuel: START_FUEL, lit: false, object, pit, flames, light, obstacle, flicker: Math.random() * 100 };
     this.fires.push(fire);
     return fire;
   }
@@ -66,6 +66,15 @@ export class Campfires {
     return best;
   }
 
+  isBurning(fire) {
+    return fire.lit && fire.fuel > 0;
+  }
+
+  // Lighting needs wood in the fire (and a lighter, which the caller checks).
+  light(fire) {
+    if (fire.fuel > 0) fire.lit = true;
+  }
+
   // Adds one log. Returns false if the fire is already as big as it gets.
   addWood(fire) {
     if (fire.fuel > MAX_FUEL - FUEL_PER_WOOD) return false;
@@ -76,8 +85,10 @@ export class Campfires {
   // `gameMinutes` is how much in-game time passed this frame; `time` is for animation.
   update(gameMinutes, time) {
     for (const fire of this.fires) {
-      fire.fuel = Math.max(0, fire.fuel - gameMinutes);
-      const burning = fire.fuel > 0;
+      if (fire.lit) fire.fuel = Math.max(0, fire.fuel - gameMinutes);
+      // Once the wood runs out the fire goes out, and needs lighting again.
+      if (fire.fuel === 0) fire.lit = false;
+      const burning = this.isBurning(fire);
       // Fires shrink in their last half hour before going out.
       const strength = Math.min(1, fire.fuel / 30);
       const t = time * 9 + fire.flicker;
