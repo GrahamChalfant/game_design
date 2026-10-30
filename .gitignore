@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+# Blender autosave/backup files
+*.blend1
+*.blend2

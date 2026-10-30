@@ -1,0 +1,9 @@
+# Treat binary assets as binary so git doesn't try to diff/merge them.
+*.glb binary
+*.gltf -diff
+*.blend binary
+*.png binary
+*.jpg binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
