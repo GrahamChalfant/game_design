@@ -26,9 +26,7 @@ const PAINTERLY = !new URLSearchParams(location.search).has('classic');
 
 // --- Renderer, scene, camera ---
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-// The painterly filter softens the picture anyway, so it draws at normal resolution
-// (not double, on high-res screens), which also keeps it fast.
-renderer.setPixelRatio(PAINTERLY ? 1 : Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;

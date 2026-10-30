@@ -12,7 +12,7 @@ const KuwaharaShader = {
   vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
   fragmentShader: `
     uniform sampler2D tDiffuse; uniform vec2 resolution; varying vec2 vUv;
-    const int R = 3;
+    const int R = 2; // brush size in pixels: bigger is more painted but blurrier and slower
     void main() {
       vec2 px = 1.0 / resolution;
       vec3 m0 = vec3(0.0), m1 = vec3(0.0), m2 = vec3(0.0), m3 = vec3(0.0);
