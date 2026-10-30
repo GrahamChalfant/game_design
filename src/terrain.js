@@ -34,7 +34,7 @@ export function createTerrain(random, noise, size) {
     rimLow = Math.min(rimLow, hills(lakeCenter.x + Math.cos(angle) * r, lakeCenter.y + Math.sin(angle) * r));
   }
   const waterLevel = rimLow - 0.25;
-  const lakeBed = waterLevel - 1.5;
+  const lakeBed = waterLevel - 3; // deep enough to swim in the middle
 
   const heightAt = (x, z) => {
     const h = hills(x, z);
@@ -43,7 +43,8 @@ export function createTerrain(random, noise, size) {
     return lakeBed + (h - lakeBed) * smoothstep(d, 0.7, 1.35);
   };
 
-  const isWater = (x, z) => lakeDistance(x, z) < 1.5 && heightAt(x, z) < waterLevel + 0.05;
+  // How deep the water is at (x, z): 0 on dry land.
+  const waterDepth = (x, z) => (lakeDistance(x, z) < 1.5 ? Math.max(0, waterLevel - heightAt(x, z)) : 0);
   // Rough "is this within `margin` meters of the lake" check, for placing things.
   const nearLake = (x, z, margin) => (lakeDistance(x, z) - 1.35) * lakeRadius < margin;
 
@@ -80,7 +81,8 @@ export function createTerrain(random, noise, size) {
 
   return {
     heightAt,
-    isWater,
+    waterLevel,
+    waterDepth,
     nearLake,
     forest,
     groundAt,
