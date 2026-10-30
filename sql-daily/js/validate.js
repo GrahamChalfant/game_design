@@ -6,7 +6,8 @@
 import { features, questions } from '../data/features.js';
 import { datasets } from '../data/datasets.js';
 import { TIERS } from './config.js';
-import { runQuery, checkAnswer } from './checker.js';
+import { runQuery, checkAnswer, describeTables } from './checker.js';
+import { analyzeSolution } from './needs.js';
 
 const REQUIRED = ['id', 'tier', 'dataset', 'title', 'prompt', 'columns', 'solution', 'hints'];
 
@@ -84,6 +85,9 @@ export function validateBank(SQL, bank = questions, featureList = features) {
         }
         for (const text of tierWarnings(q, result)) warn(text);
         info(`Solution returns ${result.rows.length} row(s): ${result.columns.join(', ')}`);
+        const needs = analyzeSolution(q.solution, describeTables(SQL, q.dataset));
+        info(`Highlighted for players: tables ${[...needs.tables].join(', ')}; columns ${[...needs.columns].join(', ')}` +
+          (needs.filters.length ? `; filters ${needs.filters.map((f) => f.text).join(', ')}` : ''));
 
         for (const sql of q.tests?.accept ?? []) {
           const check = checkAnswer(SQL, q, sql);

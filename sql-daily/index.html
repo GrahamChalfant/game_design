@@ -56,7 +56,8 @@
           <p id="q-eyebrow" class="eyebrow"></p>
           <h2 id="q-title" class="q-title"></h2>
           <p id="q-prompt" class="prompt"></p>
-          <p class="columns">Columns: <span id="q-columns"></span></p>
+          <p class="needs"><span class="needs-label">Return</span> <span id="q-columns"></span></p>
+          <p id="q-filters" class="needs"></p>
           <ul id="hints" class="hints"></ul>
           <div id="feedback" class="feedback" hidden></div>
           <div id="results" class="results"></div>
@@ -108,11 +109,24 @@
             <button id="hint-btn" class="text-btn">Hint</button>
             <button id="giveup-btn" class="text-btn danger">Give up</button>
           </div>
-          <div id="schema" class="schema"></div>
         </div>
         <div class="console-actions">
           <button id="run-btn" title="Ctrl + Enter">Run</button>
           <button id="submit-btn" class="primary" title="Ctrl + Shift + Enter">Submit</button>
+        </div>
+
+        <!-- The same four tables for every question. What this question needs is highlighted;
+             lines join each foreign key to the column it points at. -->
+        <div class="diagram">
+          <div class="diagram-head">
+            <span class="tiny">Tables</span>
+            <span class="legend"><mark class="hl-table">table</mark> <mark class="hl-column">column</mark> <mark class="hl-filter">filter</mark> needed for this question · click a table name to preview it</span>
+          </div>
+          <div class="diagram-body">
+            <svg id="diagram-links" class="diagram-links" aria-hidden="true"></svg>
+            <div id="diagram-tables" class="diagram-tables"></div>
+          </div>
+          <p id="diagram-joins" class="joins"></p>
         </div>
       </div>
     </main>
@@ -134,7 +148,7 @@
         <li>Answer with more than a third of the time left to earn the <b>boost</b>.</li>
         <li><b>Run</b> as often as you like to see your output. <b>Submit</b> when you're ready. Wrong answers and hints are free.</li>
         <li>The game runs SQLite: use <code>LIMIT</code> (not <code>TOP</code>) and <code>strftime()</code> for dates.</li>
-        <li>Click a table name under the editor to preview its rows on the screen.</li>
+        <li>The tables are drawn under the editor, with lines showing how they join. What each question needs is highlighted. Click a table name to preview its rows on the screen.</li>
       </ul>
       <form method="dialog"><button class="primary">Got it</button></form>
     </dialog>

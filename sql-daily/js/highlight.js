@@ -23,8 +23,10 @@ const TOKENS = [
 
 const escapeHtml = (text) => text.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 
-export function highlightSql(sql) {
-  let html = '';
+// Splits SQL into tokens: [{ type, text }], where type is keyword, function, ident, string, number,
+// comment, op or space.
+export function tokenize(sql) {
+  const tokens = [];
   let i = 0;
   while (i < sql.length) {
     for (const [type, pattern] of TOKENS) {
@@ -32,19 +34,25 @@ export function highlightSql(sql) {
       const match = pattern.exec(sql);
       if (!match) continue;
       const text = match[0];
-      let cls = type;
+      let kind = type === 'other' ? 'space' : type;
       if (type === 'word') {
         // A word is a keyword (SELECT), a function (COUNT followed by a bracket) or a name (title).
-        if (KEYWORDS.has(text.toLowerCase())) cls = 'keyword';
-        else if (/^\s*\(/.test(sql.slice(i + text.length))) cls = 'function';
-        else cls = 'ident';
+        if (KEYWORDS.has(text.toLowerCase())) kind = 'keyword';
+        else if (/^\s*\(/.test(sql.slice(i + text.length))) kind = 'function';
+        else kind = 'ident';
       }
-      html += cls === 'space' || cls === 'other' ? escapeHtml(text) : `<span class="sql-${cls}">${escapeHtml(text)}</span>`;
+      tokens.push({ type: kind, text });
       i += text.length;
       break;
     }
   }
-  return html;
+  return tokens;
+}
+
+export function highlightSql(sql) {
+  return tokenize(sql)
+    .map(({ type, text }) => (type === 'space' ? escapeHtml(text) : `<span class="sql-${type}">${escapeHtml(text)}</span>`))
+    .join('');
 }
 
 // Draws `textarea`'s text, color-coded, in `layer` (a <pre> placed exactly behind it), and keeps the

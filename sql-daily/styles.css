@@ -131,8 +131,15 @@ code { background: rgba(127, 127, 127, 0.18); padding: 1px 5px; border-radius: 4
 .tagline { margin: 0; font-size: 1.15rem; font-style: italic; }
 .q-title { font: 2rem/1.05 var(--marquee); letter-spacing: 0.03em; margin-top: 4px; }
 .prompt { font-size: 1.12rem; margin: 10px 0 6px; max-width: 62ch; }
-.columns { margin: 0; font-size: 0.85rem; color: var(--screen-muted); }
-.columns code { background: var(--code-bg); color: var(--screen-ink); margin-right: 4px; }
+/* What the question needs: highlighted in the prompt, listed under it, and lit up in the table diagram. */
+.needs { margin: 4px 0 0; font-size: 0.85rem; color: var(--screen-muted); }
+.needs code { background: var(--code-bg); color: var(--screen-ink); margin-right: 4px; }
+.needs-label { display: inline-block; min-width: 52px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+mark { color: inherit; border-radius: 3px; padding: 0 2px; }
+mark.hl-table { background: rgba(82, 199, 192, 0.25); box-shadow: inset 0 -2px 0 #2a9d96; }
+mark.hl-column { background: rgba(232, 182, 76, 0.28); box-shadow: inset 0 -2px 0 #c9962f; }
+mark.hl-filter, code.hl-filter { background: rgba(255, 140, 105, 0.28); box-shadow: inset 0 -2px 0 #e0734f; }
+.screen code.hl-filter { background: #fbd9cc; }
 
 .hints { margin: 10px 0 0; padding-left: 20px; font-style: italic; color: #4a4350; }
 
@@ -257,10 +264,40 @@ textarea#editor::selection { background: rgba(82, 199, 192, 0.3); color: transpa
 .boost-text { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .boost-text.on { color: var(--gold); }
 
-.schema { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 0.75rem/1.4 var(--mono); color: var(--muted); }
-.table-chip { background: none; border: 0; padding: 0; font: inherit; color: var(--muted); text-align: left; cursor: pointer; }
-.table-chip b { color: var(--teal); font-weight: 600; }
-.table-chip:hover b { text-decoration: underline; }
+/* Table diagram: one card per table, side by side, with join lines drawn between them. */
+.diagram { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 12px; }
+.diagram-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.legend { font-size: 0.75rem; color: var(--muted); }
+.legend mark { font-size: 0.72rem; }
+.diagram-body { position: relative; }
+.diagram-links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 1; }
+.link { fill: none; stroke: #4a3f55; stroke-width: 1.5; }
+.link.used { stroke: var(--gold); stroke-width: 2; }
+.link-end { fill: #4a3f55; }
+.link-end.used { fill: var(--gold); }
+.diagram-tables { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 34px; align-items: start; }
+.db-table { background: #0e0b11; border: 1px solid #3a3043; border-radius: 8px; overflow: hidden; opacity: 0.75; }
+.db-table.needed { opacity: 1; border-color: var(--teal); box-shadow: 0 0 0 1px rgba(82, 199, 192, 0.35), 0 0 14px rgba(82, 199, 192, 0.15); }
+.db-table-name {
+  display: block; width: 100%; text-align: left; border: 0; border-radius: 0; padding: 6px 10px;
+  background: #241d2b; color: var(--text); font: 600 0.85rem var(--mono); letter-spacing: 0; text-transform: none;
+}
+.db-table.needed .db-table-name { background: rgba(82, 199, 192, 0.2); color: #9fe6e1; }
+.db-table-name:hover { text-decoration: underline; }
+.db-table ul { list-style: none; margin: 0; padding: 4px 0; }
+.db-col { display: grid; grid-template-columns: 24px auto minmax(0, 1fr); gap: 6px; align-items: baseline; padding: 2px 10px 2px 6px; font: 0.76rem/1.5 var(--mono); color: var(--muted); }
+.db-col .col-name { color: #cfc7d6; white-space: nowrap; }
+.db-col .col-meta { font-size: 0.68rem; color: #7d7387; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+.db-col.needed { background: rgba(232, 182, 76, 0.14); }
+.db-col.needed .col-name { color: var(--gold); font-weight: 600; }
+.db-col.filtered { background: rgba(255, 140, 105, 0.18); }
+.db-col.filtered .col-name { color: #ff9e7a; }
+.key { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.04em; border-radius: 3px; text-align: center; }
+.key.pk { background: #5b4a1c; color: #f3d48a; }
+.key.fk { background: #1d4744; color: #8ee0da; }
+.joins { margin: 10px 0 0; font-size: 0.75rem; color: var(--muted); }
+.joins code { background: #241d2b; color: #cfc7d6; margin-right: 6px; }
+.joins code.hl-join { background: rgba(232, 182, 76, 0.2); color: var(--gold); }
 
 .console-actions { display: flex; flex-direction: column; gap: 8px; }
 .console-actions button { min-width: 112px; }
@@ -307,6 +344,8 @@ button.big { font: 1.5rem/1 var(--marquee); letter-spacing: 0.12em; padding: 12p
   .console { grid-template-columns: auto 1fr; }
   .console-main { grid-column: 1 / -1; grid-row: 2; }
   .console-actions { flex-direction: row; justify-self: end; }
+  .diagram-tables { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .diagram-links { display: none; }
   textarea#editor { min-height: 170px; }
   .leader { width: 170px; height: 170px; }
   #countdown-num { font-size: 6rem; }

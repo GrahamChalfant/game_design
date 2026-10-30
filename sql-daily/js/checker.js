@@ -3,7 +3,7 @@
 //
 // Every function takes `SQL`, the sql.js library object returned by initSqlJs().
 
-import { datasets } from '../data/datasets.js';
+import { datasets, columnNotes } from '../data/datasets.js';
 
 const MAX_ROWS = 1000;
 const CHECK_WHERE_VALUES = 'Check the values in your WHERE clause. Text has to match exactly, including capitals and spelling.';
@@ -22,6 +22,30 @@ export function describeSchema(SQL, datasetName) {
   const db = openDatabase(SQL, datasetName);
   try {
     return schemaOf(db);
+  } finally {
+    db.close();
+  }
+}
+
+// Everything the table diagram needs: each table's columns (with type, primary key and note)
+// and the foreign keys that join the tables together.
+//   [{ name, columns: [{ name, type, pk, note, references: 'films.id' | null }] }]
+export function describeTables(SQL, datasetName) {
+  const db = openDatabase(SQL, datasetName);
+  const notes = columnNotes[datasetName] ?? {};
+  try {
+    return Object.keys(schemaOf(db)).map((table) => {
+      const fks = db.exec(`PRAGMA foreign_key_list(${table})`)[0]?.values ?? [];
+      const references = Object.fromEntries(fks.map((fk) => [fk[3], `${fk[2]}.${fk[4]}`]));
+      const columns = db.exec(`PRAGMA table_info(${table})`)[0].values.map(([, name, type, , , pk]) => ({
+        name,
+        type: type.toLowerCase(),
+        pk: pk > 0,
+        note: notes[`${table}.${name}`] ?? null,
+        references: references[name] ?? null,
+      }));
+      return { name: table, columns };
+    });
   } finally {
     db.close();
   }
