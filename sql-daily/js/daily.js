@@ -21,16 +21,11 @@ export function dayIndex(date) {
 
 export const puzzleNumber = (date) => dayIndex(date) + 1;
 
-// One question per tier. Each tier cycles through its questions in the order they appear
-// in data/questions.js, so the same date always gets the same questions.
-export function pickQuestions(date, bank) {
+// Today's feature. Features play in the order they appear in data/features.js, one per day,
+// starting from LAUNCH_DATE, then repeat. The same date always gets the same feature.
+export function pickFeature(date, features) {
   const day = dayIndex(date);
-  const picks = {};
-  for (const tier of TIER_ORDER) {
-    const pool = bank.filter((q) => q.tier === tier);
-    picks[tier] = pool[((day % pool.length) + pool.length) % pool.length];
-  }
-  return picks;
+  return features[((day % features.length) + features.length) % features.length];
 }
 
 export function secondsUntilTomorrow(now = new Date()) {
@@ -62,17 +57,14 @@ export function forgetDay(date) {
   } catch {}
 }
 
-// A day's progress. If the player already started this day with different questions
-// (because the bank changed since), they keep the ones they started with.
-export function loadDay(date, picks, bank) {
+// A day's progress. If the player already started this day with a different feature
+// (because the list changed since), they keep the one they started with.
+export function loadDay(date, feature, features) {
   const saved = read(date);
-  const day = { date, tiers: {} };
+  if (saved?.featureId && features.some((f) => f.id === saved.featureId)) return saved;
+  const day = { date, featureId: feature.id, tiers: {} };
   for (const tier of TIER_ORDER) {
-    const previous = saved?.tiers?.[tier];
-    const stillExists = previous && bank.some((q) => q.id === previous.id);
-    day.tiers[tier] = stillExists
-      ? previous
-      : { id: picks[tier].id, status: 'ready', startedAt: null, secondsLeft: null, points: 0, bonus: 0, attempts: 0, hintsShown: 0, sql: '' };
+    day.tiers[tier] = { status: 'ready', startedAt: null, secondsLeft: null, points: 0, bonus: 0, attempts: 0, hintsShown: 0, sql: '' };
   }
   return day;
 }

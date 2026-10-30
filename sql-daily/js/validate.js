@@ -1,20 +1,40 @@
-// Checks the question bank for mistakes. Used by `npm run validate` and by validate.html.
+// Checks the daily features and their questions for mistakes. Used by `npm run validate` and by validate.html.
 //
 // Returns { errors, warnings, report } where report is a list of
-// { id, ok, messages: [{ level: 'error' | 'warning' | 'info', text }] }, one per question.
+// { id, ok, messages: [{ level: 'error' | 'warning' | 'info', text }] }, one per feature and per question.
 
-import { questions } from '../data/questions.js';
+import { features, questions } from '../data/features.js';
 import { datasets } from '../data/datasets.js';
 import { TIERS } from './config.js';
 import { runQuery, checkAnswer } from './checker.js';
 
 const REQUIRED = ['id', 'tier', 'dataset', 'title', 'prompt', 'columns', 'solution', 'hints'];
 
-export function validateBank(SQL, bank = questions) {
+export function validateBank(SQL, bank = questions, featureList = features) {
   const report = [];
   const seenIds = new Set();
   let errors = 0;
   let warnings = 0;
+
+  const seenFeatures = new Set();
+  for (const [index, f] of featureList.entries()) {
+    const messages = [];
+    const id = f.id ?? `(feature #${index + 1}, no id)`;
+    for (const field of ['id', 'theme', 'tagline']) {
+      if (!f[field]) messages.push({ level: 'error', text: `Feature is missing "${field}".` });
+    }
+    if (seenFeatures.has(f.id)) messages.push({ level: 'error', text: `The feature id "${f.id}" is used more than once.` });
+    seenFeatures.add(f.id);
+    for (const tier of Object.keys(TIERS)) {
+      if (!f.questions?.[tier]) messages.push({ level: 'error', text: `Feature has no ${tier} question. Every day needs all three.` });
+    }
+    for (const key of Object.keys(f.questions ?? {})) {
+      if (!TIERS[key]) messages.push({ level: 'error', text: `questions.${key} isn't a tier. Use: ${Object.keys(TIERS).join(', ')}.` });
+    }
+    const ok = messages.length === 0;
+    errors += messages.length;
+    report.push({ id: `Feature: ${f.theme ?? id}`, ok, messages });
+  }
 
   for (const [index, q] of bank.entries()) {
     const messages = [];
@@ -89,14 +109,6 @@ export function validateBank(SQL, bank = questions) {
     report.push({ id, tier: q.tier, ok, messages });
   }
 
-  for (const tier of Object.keys(TIERS)) {
-    const count = bank.filter((q) => q.tier === tier).length;
-    if (count === 0) {
-      errors++;
-      report.push({ id: `(tier ${tier})`, ok: false, messages: [{ level: 'error', text: `There are no ${tier} questions. Every tier needs at least one.` }] });
-    }
-  }
-
   return { errors, warnings, report };
 }
 
@@ -110,6 +122,4 @@ function hasTiedSortKeys(result) {
 
 const indent = (sql) => sql.trim().split('\n').map((l) => '    ' + l.trim()).join('\n');
 
-export function countsByTier(bank = questions) {
-  return Object.fromEntries(Object.keys(TIERS).map((t) => [t, bank.filter((q) => q.tier === t).length]));
-}
+export const featureCount = () => features.length;

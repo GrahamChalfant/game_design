@@ -1,10 +1,10 @@
 // The game screen: timers, the editor, running and submitting queries, and the results summary.
 
-import { questions } from '../data/questions.js';
+import { features, questions } from '../data/features.js';
 import { TIERS, TIER_ORDER, PERFECT_BONUS, speedBonus } from './config.js';
 import { runQuery, checkAnswer, describeSchema } from './checker.js';
 import {
-  todayString, isDateString, puzzleNumber, pickQuestions, secondsUntilTomorrow,
+  todayString, isDateString, puzzleNumber, pickFeature, secondsUntilTomorrow,
   loadDay, saveDay, forgetDay, loadHistory, recordScore, stats,
 } from './daily.js';
 
@@ -22,9 +22,10 @@ if (params.has('reset')) {
 
 let SQL;
 let day;
+let feature;
 let viewing = 'easy'; // a tier, or 'summary'
 
-const questionFor = (tier) => questions.find((q) => q.id === day.tiers[tier].id);
+const questionFor = (tier) => questions.find((q) => q.id === `${day.featureId}/${tier}`);
 const isDone = (t) => t.status === 'solved' || t.status === 'failed';
 const allDone = () => TIER_ORDER.every((tier) => isDone(day.tiers[tier]));
 
@@ -60,7 +61,8 @@ async function start() {
     return;
   }
 
-  day = loadDay(date, pickQuestions(date, questions), questions);
+  day = loadDay(date, pickFeature(date, features), features);
+  feature = features.find((f) => f.id === day.featureId);
   saveDay(day);
   $('puzzle-label').textContent = `#${puzzleNumber(date)} · ${formatDate(date)}`;
   $('loading').hidden = true;
@@ -201,6 +203,7 @@ function show(view) {
 
 function render() {
   renderSteps();
+  $('steps').hidden = !allDone() && viewing === TIER_ORDER[0] && day.tiers[viewing].status === 'ready';
   $('total-score').textContent = totalScore();
 
   const isTier = Boolean(TIERS[viewing]);
@@ -229,20 +232,18 @@ function renderSteps() {
     else if (t.status === 'active') status = '● Now';
     else status = 'Up next';
     step.innerHTML =
-      `<span class="step-name">${TIERS[tier].label} · ${TIERS[tier].points}</span>` +
+      `<span class="step-name">${TIERS[tier].part} · ${TIERS[tier].points}</span>` +
       `<span class="step-status">${status}</span>`;
     nav.append(step);
   }
 }
 
+// One screen, one button. The first time it's "Begin"; if the player left between questions, "Continue".
 function renderStartCard() {
-  const { label, points, maxSpeedBonus, seconds } = TIERS[viewing];
-  $('start-tier').textContent = label;
-  $('start-tier').className = `badge ${viewing}`;
-  $('start-title').textContent = `Question ${TIER_ORDER.indexOf(viewing) + 1}: ${points} points`;
-  $('start-details').textContent =
-    `You'll have ${formatTime(seconds)} on the clock. Answer fast for up to +${maxSpeedBonus} bonus points. ` +
-    'The question appears when you start the timer.';
+  const first = viewing === TIER_ORDER[0];
+  $('start-theme').textContent = feature.theme;
+  $('start-tagline').textContent = feature.tagline;
+  $('start-btn').textContent = first ? 'Begin' : `Continue with ${TIERS[viewing].part}`;
 }
 
 function renderQuestion() {
@@ -250,7 +251,7 @@ function renderQuestion() {
   const t = day.tiers[viewing];
   const active = t.status === 'active';
 
-  $('q-tier').textContent = `${TIERS[viewing].label} · ${TIERS[viewing].points} pts`;
+  $('q-tier').textContent = `${TIERS[viewing].part} · ${TIERS[viewing].label} · ${TIERS[viewing].points} pts`;
   $('q-tier').className = `badge ${viewing}`;
   $('q-title').textContent = q.title;
   $('q-prompt').textContent = q.prompt;
@@ -274,8 +275,8 @@ function renderQuestion() {
   $('solution-sql').textContent = dedent(q.solution);
   const next = nextTier();
   $('next-btn').textContent = next
-    ? `Start the ${TIERS[next].label.toLowerCase()} question (${formatTime(TIERS[next].seconds)}) →`
-    : 'See your results';
+    ? `Roll ${TIERS[next].part} →`
+    : 'Roll the credits';
   if (t.status === 'solved') {
     showFeedback('correct', `Correct! +${t.points} points, +${t.bonus} speed bonus.`, [
       `Solved with ${formatTime(t.secondsLeft)} left, in ${t.attempts} ${t.attempts === 1 ? 'try' : 'tries'}.`,
@@ -388,13 +389,14 @@ function showResults(result, caption = '') {
 function renderSummary() {
   const perfect = TIER_ORDER.every((tier) => day.tiers[tier].status === 'solved');
   $('final-score').textContent = totalScore();
+  $('summary-theme').textContent = feature.theme;
 
   let rows = '<tr><th>Question</th><th>Points</th><th>Speed</th><th>Time left</th></tr>';
   for (const tier of TIER_ORDER) {
     const t = day.tiers[tier];
     const solved = t.status === 'solved';
     rows +=
-      `<tr><td>${solved ? '✅' : '❌'} ${TIERS[tier].label}: ${escapeHtml(questionFor(tier).title)}</td>` +
+      `<tr><td>${solved ? '✅' : '❌'} ${TIERS[tier].part}: ${escapeHtml(questionFor(tier).title)}</td>` +
       `<td>${t.points}</td><td>+${t.bonus}</td><td>${solved ? formatTime(t.secondsLeft) : '–'}</td></tr>`;
   }
   rows += `<tr><td>${perfect ? '🏆' : '·'} All three correct</td><td>${perfect ? `+${PERFECT_BONUS}` : '0'}</td><td></td><td></td></tr>`;
@@ -415,10 +417,10 @@ function renderSummary() {
 }
 
 function shareText() {
-  const lines = [`SQL Daily #${puzzleNumber(date)}: ${totalScore()}/1000`];
+  const lines = [`🎬 SQL: The Sequel #${puzzleNumber(date)}`, `${feature.theme}: ${totalScore()}/1000`];
   for (const tier of TIER_ORDER) {
     const t = day.tiers[tier];
-    const label = TIERS[tier].label.padEnd(6);
+    const label = TIERS[tier].part.padEnd(8);
     lines.push(
       t.status === 'solved'
         ? `🟩 ${label} +${t.points + t.bonus}  ⏱ ${formatTime(TIERS[tier].seconds - t.secondsLeft)}`

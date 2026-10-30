@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SQL Daily</title>
+    <title>SQL: The Sequel</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="top">
       <div class="brand">
-        <h1>SQL Daily</h1>
+        <h1>SQL: The Sequel</h1>
         <span id="puzzle-label" class="muted"></span>
       </div>
       <div class="score">
@@ -23,11 +23,12 @@
     <main>
       <div id="loading" class="panel">Loading the SQL engine…</div>
 
-      <section id="start-card" class="panel center" hidden>
-        <span id="start-tier" class="badge"></span>
-        <h2 id="start-title"></h2>
-        <p id="start-details" class="muted"></p>
-        <button id="start-btn" class="primary big">Start the timer</button>
+      <section id="start-card" class="panel center start" hidden>
+        <p class="eyebrow">Today's feature</p>
+        <h2 id="start-theme" class="feature-title"></h2>
+        <p id="start-tagline" class="tagline"></p>
+        <p class="muted">Three questions · one minute each</p>
+        <button id="start-btn" class="primary big">Begin</button>
       </section>
 
       <section id="question" hidden>
@@ -78,7 +79,8 @@
       </section>
 
       <section id="summary" class="panel" hidden>
-        <h2>Today's results</h2>
+        <p class="eyebrow center">End credits</p>
+        <h2 id="summary-theme" class="center"></h2>
         <div class="final-score"><strong id="final-score">0</strong><span class="muted">/ 1000</span></div>
         <table id="breakdown" class="breakdown"></table>
         <div class="actions center-row">
@@ -86,22 +88,22 @@
         </div>
         <pre id="share-preview" class="share-preview"></pre>
         <div id="stats" class="stats"></div>
-        <p class="muted center">Next puzzle in <strong id="countdown"></strong></p>
+        <p class="muted center">Next feature in <strong id="countdown"></strong></p>
       </section>
 
       <details class="panel how">
         <summary>How to play</summary>
-        <p>Every day there are three SQL questions: easy, medium and hard. They come one at a time: easy, then medium, then hard.</p>
+        <p>Every day is a new feature: a movie-themed trilogy of SQL questions. Part I is easy, Part II is medium and Part III is hard. They come one at a time.</p>
         <ul>
-          <li>You get one minute per question. The clock starts when you click <b>Start</b>, and the next question starts as soon as you move on. When time runs out, the question is over.</li>
+          <li>You get one minute per question. The clock starts when you click <b>Begin</b>, and each next part starts as soon as you move on. When time runs out, the question is over.</li>
           <li><b>Run</b> your query as often as you like to see its output. When you think it's right, <b>Submit</b> it. Wrong submissions don't cost points.</li>
           <li>The game runs SQLite, so use <code>LIMIT</code> (not <code>TOP</code>) and <code>strftime()</code> for dates.</li>
         </ul>
         <table class="breakdown">
           <tr><th></th><th>Correct</th><th>Speed bonus</th></tr>
-          <tr><td>Easy</td><td>100</td><td>up to +50</td></tr>
-          <tr><td>Medium</td><td>200</td><td>up to +100</td></tr>
-          <tr><td>Hard</td><td>300</td><td>up to +150</td></tr>
+          <tr><td>Part I (easy)</td><td>100</td><td>up to +50</td></tr>
+          <tr><td>Part II (medium)</td><td>200</td><td>up to +100</td></tr>
+          <tr><td>Part III (hard)</td><td>300</td><td>up to +150</td></tr>
           <tr><td>All three correct</td><td>+100</td><td></td></tr>
           <tr><th>Perfect day</th><th colspan="2">1,000</th></tr>
         </table>

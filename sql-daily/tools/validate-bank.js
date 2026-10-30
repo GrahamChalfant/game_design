@@ -1,8 +1,8 @@
-// Checks every question in data/questions.js. Run with: npm run validate
+// Checks every feature and question in data/features.js. Run with: npm run validate
 // Exits with an error code if anything is wrong, so it can also run in CI.
 
 import initSqlJs from 'sql.js';
-import { validateBank, countsByTier } from '../js/validate.js';
+import { validateBank, featureCount } from '../js/validate.js';
 
 const SQL = await initSqlJs();
 const { errors, warnings, report } = validateBank(SQL);
@@ -24,9 +24,7 @@ for (const { id, tier, ok, messages } of report) {
   }
 }
 
-const counts = countsByTier();
-console.log(`\nQuestions: ${Object.entries(counts).map(([t, n]) => `${n} ${t}`).join(', ')}`);
-console.log(`Days before the easy/medium/hard questions start repeating: ${Math.min(...Object.values(counts))}`);
+console.log(`\n${featureCount()} daily features. Days before they start repeating: ${featureCount()}`);
 
 if (errors > 0) {
   console.log(red(`\n${errors} error(s), ${warnings} warning(s). Fix the errors above before publishing.`));

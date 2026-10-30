@@ -266,7 +266,41 @@ export function checkAnswer(SQL, question, sql) {
   const problems = compareResults(expected, result, question.orderMatters);
   if (problems.length === 0) return { status: 'correct', result };
   const [message, ...details] = problems;
-  return { status: 'wrong', message, details, result };
+  return { status: 'wrong', message, details: [...misspelledValues(SQL, question.dataset, sql), ...details], result };
+}
+
+// Text in 'single quotes' that doesn't appear anywhere in the data is usually a typo
+// ('Cate Blanchet') or the wrong capitalization ('middle-earth'). Point it out, with a suggestion.
+export function misspelledValues(SQL, datasetName, sql) {
+  const literals = [...sql.matchAll(/'((?:[^']|'')*)'/g)].map((m) => m[1].replace(/''/g, "'"));
+  const candidates = literals.filter((text) => text.trim() && !/[%_]/.test(text) && isNaN(Number(text)));
+  if (candidates.length === 0) return [];
+
+  const values = new Set();
+  const db = openDatabase(SQL, datasetName);
+  try {
+    for (const [table, columns] of Object.entries(schemaOf(db))) {
+      for (const column of columns) {
+        const rows = db.exec(`SELECT DISTINCT "${column}" FROM "${table}" WHERE typeof("${column}") = 'text'`);
+        for (const [value] of rows[0]?.values ?? []) values.add(value);
+      }
+    }
+  } finally {
+    db.close();
+  }
+
+  const tips = [];
+  for (const text of new Set(candidates)) {
+    if (values.has(text)) continue;
+    const sameIgnoringCase = [...values].find((v) => v.toLowerCase() === text.toLowerCase());
+    const guess = sameIgnoringCase ?? closest(text, [...values]);
+    tips.push(
+      guess
+        ? `'${text}' doesn't appear anywhere in the data. Did you mean '${guess}'? Text has to match exactly, including capitals.`
+        : `'${text}' doesn't appear anywhere in the data. Preview the tables to check the exact spelling.`,
+    );
+  }
+  return tips;
 }
 
 // Returns a list of human-readable problems. Empty means the results match.
@@ -288,7 +322,7 @@ export function compareResults(expected, actual, orderMatters) {
   if (got.length === 0 && want.length > 0) {
     return [
       `Your query returned no rows, but the answer has ${plural(want.length, 'row')}.`,
-      'Check the values in your WHERE clause. Text comparisons are case-sensitive (\'Seattle\' is not \'seattle\').',
+      'Check the values in your WHERE clause. Text has to match exactly, including capitals and spelling.',
       'If you used an INNER JOIN, check the join condition matches the right columns.',
     ];
   }

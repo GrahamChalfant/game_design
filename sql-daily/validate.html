@@ -18,7 +18,7 @@
     <main>
       <div class="panel">
         <h1>Question bank check</h1>
-        <p class="muted">Runs every question in <code>data/questions.js</code> and its tests. Refresh after editing.
+        <p class="muted">Runs every question in <code>data/features.js</code> and its tests. Refresh after editing.
           This is the same check as <code>npm run validate</code>.</p>
         <h2 id="summary">Checking…</h2>
       </div>
@@ -26,17 +26,16 @@
     </main>
     <script src="vendor/sql-wasm.js"></script>
     <script type="module">
-      import { validateBank, countsByTier } from './js/validate.js';
+      import { validateBank, featureCount } from './js/validate.js';
 
       const escape = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
       const SQL = await initSqlJs({ locateFile: (f) => `vendor/${f}` });
       const { errors, warnings, report } = validateBank(SQL);
-      const counts = countsByTier();
-
+      
       document.getElementById('summary').textContent =
         (errors ? `✖ ${errors} error(s)` : '✔ All questions passed') +
         (warnings ? `, ${warnings} warning(s)` : '') +
-        ` · ${counts.easy} easy, ${counts.medium} medium, ${counts.hard} hard`;
+        ` · ${featureCount()} daily features`;
 
       document.getElementById('report').innerHTML = report
         .map(({ id, tier, ok, messages }) => {
