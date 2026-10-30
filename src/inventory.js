@@ -3,6 +3,9 @@
 export const ITEMS = {
   axe: { name: 'Axe', icon: '🪓', stack: 1 },
   wood: { name: 'Wood', icon: '🪵', stack: 50 },
+  trap: { name: 'Trap', icon: '🪤', stack: 5 },
+  rawMeat: { name: 'Raw meat', icon: '🥩', stack: 10 },
+  cookedMeat: { name: 'Cooked meat', icon: '🍖', stack: 10 },
 };
 
 export const HOTBAR_SIZE = 6;
@@ -48,6 +51,12 @@ export class Inventory {
       if (slot.count === 0) this.slots[i] = null;
     }
     return true;
+  }
+
+  // How many more of `item` would fit.
+  spaceFor(item) {
+    const { stack } = ITEMS[item];
+    return this.slots.reduce((space, slot) => space + (!slot ? stack : slot.item === item ? stack - slot.count : 0), 0);
   }
 
   // Adds items, filling existing stacks first. Returns how many didn't fit.

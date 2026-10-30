@@ -49,6 +49,13 @@ export class Survival {
     if (this.health === 0) this.alive = false;
   }
 
+  // Eating: changes hunger and health (health can go down, e.g. from raw meat).
+  eat(hunger, health) {
+    this.hunger = clamp(this.hunger + hunger);
+    this.health = clamp(this.health + health);
+    if (this.health === 0) this.alive = false;
+  }
+
   // The in-game day (starting at 1) and time of day, e.g. { day: 2, hour: 14, minute: 5 }.
   get clock() {
     const total = START_HOUR * 60 + this.minutesSurvived;
