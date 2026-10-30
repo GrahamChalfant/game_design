@@ -1,7 +1,10 @@
-# Game Design
+# Northern Survival
 
-A small 3D platformer built with [Three.js](https://threejs.org/) and [Vite](https://vite.dev/).
-Run around, jump between platforms and collect every coin.
+A top-down survival game set in a northern landscape of golden meadows, pine forests and
+lingering snow, built with [Three.js](https://threejs.org/). The goal is to see how long you can survive.
+
+Planned features (hunger and thirst, chopping wood, campfires, traps and cooking) are tracked
+in the [issues](https://github.com/GrahamChalfant/game_design/issues).
 
 ## Getting started
 
@@ -40,30 +43,44 @@ automatically whenever you save a file.
 
 | Key | Action |
 | --- | --- |
-| W A S D / arrow keys | Move |
-| Space | Jump |
-| Click and drag | Rotate the camera |
+| W A S D / arrow keys | Walk |
+| Mouse wheel / trackpad scroll | Zoom in and out |
 
 ## Project layout
 
 ```
-index.html          Page shell and HUD (score, messages)
-src/main.js         Renderer, lights, camera and the main game loop
-src/player.js       Player movement, jumping, gravity and collisions
-src/level.js        Platforms and coin positions (edit these to change the level)
-src/input.js        Keyboard and mouse handling
-src/style.css       HUD styling
-public/models/      3D models exported from Blender (.glb)
+index.html            Page shell and HUD
+src/main.js           Renderer, lighting, camera and the main game loop
+src/world.js          Builds the map from a seed: places trees, rocks and grass
+src/terrain.js        Hills, the lake, and the colours painted on the ground
+src/grass.js          Swaying grass blades
+src/snow.js           Light snowfall
+src/player.js         Player movement and collisions
+src/input.js          Keyboard and mouse handling
+src/models.js         Loads Blender models and draws many copies efficiently
+src/placeholders.js   Simple stand-in shapes used until Blender models exist
+src/random.js         Seeded random numbers and noise (same seed = same map)
+public/models/        3D models exported from Blender (.glb)
 ```
+
+To get a different map, change `SEED` in `src/main.js`.
 
 ## Adding models from Blender
 
-1. Model your object in Blender, with 1 Blender unit = 1 meter.
-2. Go to **File → Export → glTF 2.0**, and choose the **glTF Binary (.glb)** format.
-3. Save the file into `public/models/`.
-4. Load it in code with `GLTFLoader`. For an example, see `loadModel()` in `src/player.js`.
+The game uses simple stand-in shapes until you make real models. To replace one:
 
-If you save a model as `public/models/player.glb`, it automatically replaces the blue capsule.
+1. Model it in Blender, with 1 Blender unit = 1 meter and the model's base at the origin.
+2. Go to **File → Export → glTF 2.0**, and choose the **glTF Binary (.glb)** format.
+3. Save it into `public/models/` with the matching name below.
+
+The next time you load the game, your model replaces the stand-in automatically.
+
+| File | What it is | Size |
+| --- | --- | --- |
+| `player.glb` | The survivor. Should face you in Blender's **Front** view. | ~1.8 m tall |
+| `pine.glb` | Tall conifer that grows in the forests | ~9 m tall |
+| `broadleaf.glb` | Round, leafy tree found alone in the fields | ~6 m tall |
+| `rock.glb` | Boulder | ~1 m across |
 
 ## Updating Three.js
 

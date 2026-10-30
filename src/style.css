@@ -3,7 +3,7 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #87b8e8;
+  background: #c8d6e2;
   font-family: system-ui, sans-serif;
 }
 
@@ -15,36 +15,14 @@ canvas {
   position: fixed;
   top: 16px;
   left: 16px;
+  padding: 6px 12px;
+  border-radius: 6px;
   color: #fff;
-  text-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+  background: rgb(20 30 40 / 0.55);
   pointer-events: none;
-}
-
-#score {
-  font-size: 24px;
-  font-weight: 700;
 }
 
 #help {
-  margin-top: 4px;
   font-size: 14px;
-  opacity: 0.85;
-}
-
-#message {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 48px;
-  font-weight: 800;
-  text-align: center;
-  text-shadow: 0 2px 8px rgb(0 0 0 / 0.6);
-  background: rgb(0 0 0 / 0.25);
-  pointer-events: none;
-}
-
-#message[hidden] {
-  display: none;
+  opacity: 0.9;
 }
