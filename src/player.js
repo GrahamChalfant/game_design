@@ -22,6 +22,17 @@ export class Player {
     this.object.add(this.body);
     scene.add(this.object);
 
+    // The axe, shown in the player's right hand while it's selected.
+    this.axe = placeholders.axe();
+    this.axe.position.set(0.42, 0.85, 0.05);
+    this.axe.visible = false;
+    this.object.add(this.axe);
+    loadModel('axe').then((model) => {
+      if (!model) return;
+      this.axe.clear();
+      this.axe.add(model);
+    });
+
     loadModel('player').then((model) => {
       if (!model) return;
       model.traverse((child) => (child.castShadow = true));
@@ -31,7 +42,17 @@ export class Player {
     });
   }
 
+  // What the player holds ('axe', 'wood', null) and whether they're chopping.
+  setAction(heldItem, chopping) {
+    this.axe.visible = heldItem === 'axe';
+    this.chopping = chopping;
+  }
+
   update(dt, input, world) {
+    // Swing the axe while chopping; otherwise rest it on the shoulder.
+    this.chopTime = this.chopping ? (this.chopTime ?? 0) + dt : 0;
+    this.axe.rotation.x = this.chopping ? 0.5 + Math.sin(this.chopTime * 9) * 1.1 : 0.35;
+
     if (!this.alive) {
       // Slowly topple over.
       this.body.rotation.x += (-Math.PI / 2 - this.body.rotation.x) * Math.min(1, dt * 3);
@@ -71,15 +92,26 @@ export class Player {
     }
   }
 
+  // A point on the ground `distance` meters in front of the player.
+  ahead(distance) {
+    return {
+      x: this.position.x + Math.sin(this.facing) * distance,
+      z: this.position.z + Math.cos(this.facing) * distance,
+    };
+  }
+
   // True when standing in, or facing, water close enough to drink.
   canDrink(world) {
-    const reach = 1.2;
-    const aheadX = this.position.x + Math.sin(this.facing) * reach;
-    const aheadZ = this.position.z + Math.cos(this.facing) * reach;
+    const { x, z } = this.ahead(1.2);
     return (
-      world.terrain.waterDepth(this.position.x, this.position.z) > 0.02 ||
-      world.terrain.waterDepth(aheadX, aheadZ) > 0.02
+      world.terrain.waterDepth(this.position.x, this.position.z) > 0.02 || world.terrain.waterDepth(x, z) > 0.02
     );
+  }
+
+  // The standing tree in front of the player, close enough to chop, if any.
+  treeInReach(world) {
+    const { x, z } = this.ahead(0.9);
+    return world.trees.findTarget(x, z, 0.6);
   }
 
   die() {

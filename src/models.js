@@ -32,12 +32,16 @@ export function createInstances(template, transforms) {
     });
     instances.castShadow = true;
     instances.receiveShadow = true;
+    // Copies are spread across the whole map and can move, so don't let three.js skip drawing them.
+    instances.frustumCulled = false;
+    instances.userData.local = child.matrixWorld.clone();
     group.add(instances);
   });
   return group;
 }
 
 // Shows `placeholder` copies right away, then swaps in the Blender model once it loads.
+// Call `holder.setInstance(i, matrix)` to move, rotate or hide (scale 0) one copy.
 export function instancedModel(name, placeholder, transforms) {
   const holder = new THREE.Group();
   holder.add(createInstances(placeholder, transforms));
@@ -46,5 +50,18 @@ export function instancedModel(name, placeholder, transforms) {
     holder.clear();
     holder.add(createInstances(model, transforms));
   });
+
+  const matrix = new THREE.Matrix4();
+  holder.setInstance = (i, transform) => {
+    transforms[i] = transform.clone();
+    holder.traverse((child) => {
+      if (!child.isInstancedMesh) return;
+      child.setMatrixAt(i, matrix.multiplyMatrices(transform, child.userData.local));
+      child.instanceMatrix.needsUpdate = true;
+    });
+  };
   return holder;
 }
+
+// A transform that hides a copy.
+export const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
