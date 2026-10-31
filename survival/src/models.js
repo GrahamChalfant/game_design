@@ -11,7 +11,10 @@ export function loadModel(name, folders = MODEL_FOLDERS) {
   return new Promise((resolve) => {
     loader.load(
       folders[0] + name + '.glb',
-      (gltf) => resolve(gltf.scene),
+      (gltf) => {
+        gltf.scene.animations = gltf.animations;
+        resolve(gltf.scene);
+      },
       undefined,
       () => resolve(loadModel(name, folders.slice(1))),
     );

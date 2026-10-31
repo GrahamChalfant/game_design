@@ -207,7 +207,7 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     }
     if (canDrink) prompt = drinking ? 'Drinking…' : 'Hold E to drink';
 
-    player.setAction(held, chopping);
+    player.setAction(held, chopping, drinking, inventory.hasBackpack);
     return { drinking, working: chopping, prompt, progress };
   };
 }
