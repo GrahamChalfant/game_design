@@ -162,6 +162,10 @@ The next time you load the game, your model replaces the stand-in automatically.
 | --- | --- | --- |
 | `player.glb` | The survivor. Should face you in Blender's **Front** view. | ~1.8 m tall |
 | `pine.glb` | Tall conifer that grows in the forests | ~9 m tall |
+| `pine-small.glb` | Young pine | ~3.5 m tall |
+| `pine-skinny.glb` | Narrow pine | ~10 m tall, ~2 m across |
+| `pine-tall.glb` | Big old pine | ~14 m tall |
+| `pine-wide.glb` | Short, full pine | ~6.5 m tall, ~5 m across |
 | `broadleaf.glb` | Round, leafy tree found alone in the fields | ~6 m tall |
 | `rock.glb` | Boulder | ~1 m across |
 | `rock-small.glb` | Small stone | ~0.6 m across |
