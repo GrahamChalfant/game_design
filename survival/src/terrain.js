@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createCrashTrail } from './crashTrail.js';
 
 const { smoothstep, clamp } = THREE.MathUtils;
 
@@ -15,6 +16,8 @@ const SNOW = new THREE.Color(0xeef2f4);
 const MUD = new THREE.Color(0x7a6a50);
 const GRAVEL = new THREE.Color(0x9a948a);
 const WATER_BED = new THREE.Color(0x3c5c55);
+const TORN_SOIL = new THREE.Color(0xb8a285);
+const DARK_SOIL = new THREE.Color(0x9c8973);
 
 const VALLEY_FLOOR = 42; // the ground starts rising into the valley walls this far from the middle
 const VALLEY_EDGE = 100; // ...and reaches its full height here
@@ -64,8 +67,10 @@ export function createTerrain(random, noise, size) {
 
   const river = createRiver(random, noise, lakeCenter, radiusAt, lakeDistance, waterLevel, lakeHeightAt, size);
 
+  const crashTrail = createCrashTrail(noise);
+
   const heightAt = (x, z) => {
-    const h = lakeHeightAt(x, z);
+    const h = lakeHeightAt(x, z) + crashTrail.at(x, z).height;
     const r = river.nearest(x, z);
     return r ? Math.min(h, river.carve(r)) : h;
   };
@@ -112,6 +117,13 @@ export function createTerrain(random, noise, size) {
       color.lerp(SNOW, Math.min(1, (snow - 0.86) / 0.03));
       kind = 'snow';
     }
+    // Bare soil torn up by the crash, with dark streaks running along the skid.
+    const scar = crashTrail.at(x, z);
+    if (scar.dirt > 0) {
+      tint.copy(TORN_SOIL).lerp(DARK_SOIL, smoothstep(scar.streak, -0.2, 0.35));
+      color.lerp(tint, scar.dirt);
+      if (scar.dirt > 0.4) kind = 'dirt';
+    }
     // Muddy lake shore, gravelly river banks, and the beds under the water.
     if (lakeDistance(x, z) < 1.6 || river.nearest(x, z)) {
       const h = heightAt(x, z);
@@ -131,6 +143,7 @@ export function createTerrain(random, noise, size) {
     waterDepth,
     nearWater,
     forest,
+    crashTrail,
     groundAt,
     ground: createGroundMesh(size, heightAt, groundAt, noise),
     water: createWaterMesh(lakeCenter, radiusAt, waterLevel, river),

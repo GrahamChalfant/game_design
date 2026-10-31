@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { loadModel } from './models.js';
+import { CRASH as PLANE, trailPoint } from './crashTrail.js';
+import { instancedModel, loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 
 // Where the plane came down: around (0, 0), in a clearing. The player starts about 20 m
 // south of it (see SPAWN in world.js), facing it but just out of view.
-const PLANE = { x: 0.5, z: -6, heading: 0.6 }; // heading: which way the nose points (radians)
 const WING = { x: -5.5, z: -9, heading: 2.2 }; // the wing that broke off
 // Things to search around the crash (hold E). Each can be searched once, and always
 // holds the same supplies.
@@ -14,6 +14,7 @@ const SUITCASES = [
   { x: -1.2, z: -10.6, heading: 1.1, color: 0x7a2f2f, loot: [['rope', 1]] },
 ];
 const COCKPIT_LOOT = [['lighter', 1], ['flare', 1]];
+const CLODS = 46;
 // Where the starting items lie around the wreckage.
 export const START_ITEMS = [
   { item: 'axe', x: -3.6, z: -6.8 },
@@ -29,19 +30,45 @@ export function buildWreck(scene, world) {
     scene.add(object);
   };
 
-  const plane = new THREE.Group();
-  plane.add(placeholders.crashedPlane());
-  loadModel('plane').then((model) => {
-    if (!model) return;
-    model.traverse((child) => (child.castShadow = child.receiveShadow = true));
-    plane.clear();
-    plane.add(model);
-  });
-  place(plane, PLANE);
-  place(placeholders.brokenWing(), WING);
+  // Shows the stand-in right away, then swaps in the Blender model once it loads.
+  const withModel = (name, placeholder) => {
+    const holder = new THREE.Group();
+    holder.add(placeholder);
+    loadModel(name).then((model) => {
+      if (!model) return;
+      model.traverse((child) => (child.castShadow = child.receiveShadow = true));
+      holder.clear();
+      holder.add(model);
+    });
+    return holder;
+  };
+
+  place(withModel('plane', placeholders.crashedPlane()), PLANE);
+  place(withModel('plane-wing', placeholders.brokenWing()), WING);
   for (const [x, z, heading] of [[3.5, -8.5, 0.4], [-1.8, -2.4, 2.1], [4.6, -5, 1.2]]) {
     place(placeholders.debris(), { x, z, heading });
   }
+
+  // Scraps and a landing wheel shed along the skid: [meters behind the plane, meters off the trail].
+  for (const [back, side] of [[9, 2.8], [15, -3.1], [21, 3.4], [25, -2.6], [34, 2.2]]) {
+    place(placeholders.debris(), { ...trailPoint(back, side), heading: back });
+  }
+  place(placeholders.landingWheel(), { ...trailPoint(29, 3.4), heading: 1.1 });
+
+  // Clods of soil thrown out along both sides of the skid.
+  const clods = [];
+  for (let i = 0; i < CLODS; i++) {
+    const back = (i / CLODS) * 36;
+    const side = (i % 2 ? 1 : -1) * (2 + Math.abs(Math.sin(i * 12.9)) * 1.8);
+    const { x, z } = trailPoint(back, side);
+    const size = 0.5 + Math.abs(Math.sin(i * 7.3)) * 1.2;
+    clods.push(new THREE.Matrix4().compose(
+      new THREE.Vector3(x, world.terrain.heightAt(x, z), z),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(i, i * 2.4, i * 1.3)),
+      new THREE.Vector3(size, size * 0.7, size),
+    ));
+  }
+  scene.add(instancedModel('clod', placeholders.clod(), clods));
 
   // The plane blocks the player: a row of circles along the body, plus the wing.
   const along = new THREE.Vector2(Math.sin(PLANE.heading), Math.cos(PLANE.heading));

@@ -200,6 +200,33 @@ export function debris() {
   return scrap;
 }
 
+// A landing wheel torn off in the crash, lying on its side with a bent strut.
+export function landingWheel() {
+  const group = new THREE.Group();
+  const tyre = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.18, 10), material(0x2a2826));
+  tyre.position.y = 0.12;
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.2, 8), METAL);
+  hub.position.y = 0.13;
+  const strut = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.9), PAINT);
+  strut.position.set(0.1, 0.24, 0.42);
+  strut.rotation.y = 0.2;
+  group.add(tyre, hub, strut);
+  group.rotation.z = 0.12;
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
+// A lump of soil thrown up in the crash, about 0.3 m across.
+export function clod() {
+  const lump = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(0.16, 0).toNonIndexed(),
+    new THREE.MeshStandardMaterial({ color: 0x5a4330, roughness: 1, flatShading: true }),
+  );
+  lump.geometry.computeVertexNormals();
+  lump.position.y = 0.06;
+  return lump;
+}
+
 // The axe lying flat on the ground.
 export function axeOnGround() {
   const tool = axe();
