@@ -14,6 +14,11 @@ export const RECIPES = [
   },
 ];
 
+// A recipe shows up once the player has found everything it's made from.
+export function isKnown(inventory, recipe) {
+  return Object.keys(recipe.cost).every((item) => inventory.found.has(item));
+}
+
 export function canCraft(inventory, recipe) {
   return Object.entries(recipe.cost).every(([item, count]) => inventory.count(item) >= count);
 }

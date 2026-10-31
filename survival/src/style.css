@@ -46,48 +46,57 @@ canvas {
 
 #stats {
   position: fixed;
-  left: 16px;
+  right: 16px;
   bottom: 16px;
-  display: grid;
-  gap: 8px;
-  width: min(260px, calc(100vw - 32px));
-  padding: 12px 14px;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
   border-radius: 8px;
-  color: #fff;
-  background: rgb(20 30 40 / 0.55);
-  font-size: 13px;
+  background: rgb(0 0 0 / 0.5);
   pointer-events: none;
 }
 
+/* Each stat is a white icon that drains from the top, like a gauge. */
 .stat {
-  display: grid;
-  grid-template-columns: 56px 1fr;
-  align-items: center;
-  gap: 10px;
+  position: relative;
+  width: 34px;
+  height: 34px;
+  color: #fff;
 }
 
-.bar {
-  height: 10px;
-  overflow: hidden;
-  border-radius: 5px;
-  background: rgb(255 255 255 / 0.2);
+.stat svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.stat .empty {
+  opacity: 0.22;
+}
+
+.stat .level {
+  transition: clip-path 0.2s linear;
+}
+
+/* Black and white until a stat is getting low. */
+.stat.warning {
+  color: #e8c547;
+}
+
+.stat.danger {
+  color: #e0442f;
+  animation: pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  to { transform: scale(1.14); }
 }
 
 .fill {
   height: 100%;
   transition: width 0.2s linear;
-}
-
-#stat-health .fill { background: #e05a47; }
-#stat-hunger .fill { background: #e0a547; }
-#stat-thirst .fill { background: #4fa8d8; }
-
-.bar.low {
-  animation: flash 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes flash {
-  to { background: rgb(224 90 71 / 0.6); }
 }
 
 #action {
@@ -196,6 +205,7 @@ canvas {
   border-radius: 8px;
   background: rgb(255 255 255 / 0.08);
   cursor: pointer;
+  touch-action: none;
 }
 
 .slot.selected {
@@ -247,6 +257,7 @@ canvas {
   position: fixed;
   left: 50%;
   bottom: 30%;
+  z-index: 6; /* above the inventory */
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -274,33 +285,105 @@ canvas {
   }
 }
 
-/* --- Crafting panel (press C) --- */
+/* --- Character, inventory and crafting (press Tab, I or C) --- */
 
-#crafting {
+#inventory {
   position: fixed;
-  top: 64px;
-  right: 16px;
-  width: min(320px, calc(100vw - 32px));
-  padding: 12px;
+  top: 50%;
+  left: 50%;
+  z-index: 5; /* above the stats and the prompt */
+  display: grid;
+  grid-template-columns: 200px auto 240px;
+  gap: 18px;
+  padding: 14px;
   border-radius: 10px;
   color: #fff;
-  background: rgb(20 30 40 / 0.85);
+  background: rgb(20 30 40 / 0.9);
+  transform: translate(-50%, -50%);
 }
 
-#crafting[hidden] {
+#inventory[hidden] {
   display: none;
+}
+
+#inventory h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+#inventory h3 {
+  margin: 10px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+#inventory .tip {
+  margin: 10px 0 0;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+#character-view {
+  display: block;
+  width: 200px;
+  height: 250px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.06);
+}
+
+.equipment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.equip {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  padding: 6px 0;
+  border: 2px solid rgb(255 255 255 / 0.15);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.equip .icon {
+  min-height: 28px;
+  font-size: 24px;
+  line-height: 28px;
+}
+
+.equip small {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+/* The hotbar moves into the menu while it's open. */
+#stash-hotbar #hotbar {
+  position: static;
+  padding: 0;
+  background: none;
+  transform: none;
+}
+
+#backpack[hidden],
+#no-backpack[hidden],
+#drag-item[hidden] {
+  display: none;
+}
+
+#backpack .grid {
+  display: grid;
+  grid-template-columns: repeat(6, auto);
+  gap: 6px;
 }
 
 #crafting .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-#crafting h2 {
-  margin: 0;
-  font-size: 16px;
 }
 
 #crafting .close {
@@ -311,13 +394,18 @@ canvas {
   cursor: pointer;
 }
 
+.recipes {
+  display: grid;
+  gap: 6px;
+}
+
 .recipe {
   display: grid;
-  grid-template-columns: 36px 1fr auto;
+  grid-template-columns: 32px 1fr;
   align-items: center;
-  gap: 10px;
+  gap: 2px 8px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 8px;
   border: 2px solid rgb(255 255 255 / 0.15);
   border-radius: 8px;
   color: #fff;
@@ -325,6 +413,10 @@ canvas {
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.recipe[hidden] {
+  display: none;
 }
 
 .recipe:hover:not(:disabled) {
@@ -337,7 +429,7 @@ canvas {
 }
 
 .recipe .icon {
-  font-size: 26px;
+  font-size: 24px;
 }
 
 .recipe strong,
@@ -352,62 +444,63 @@ canvas {
 }
 
 .recipe .cost {
+  grid-column: 2;
   font-size: 12px;
-  white-space: nowrap;
-  opacity: 0.85;
+  color: #e8d9a8;
 }
 
-/* --- Backpack (press Tab or I) --- */
-
-#backpack {
+/* The item following the mouse while it's dragged. */
+#drag-item {
   position: fixed;
-  left: 50%;
-  bottom: 96px;
-  padding: 12px;
-  border-radius: 10px;
-  color: #fff;
-  background: rgb(20 30 40 / 0.85);
-  transform: translateX(-50%);
-}
-
-#backpack[hidden] {
-  display: none;
-}
-
-#backpack .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-#backpack h2 {
-  margin: 0;
-  font-size: 16px;
-}
-
-#backpack .close {
-  border: 0;
-  color: #fff;
-  background: none;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-#backpack .tip {
-  margin: 4px 0 10px;
-  font-size: 12px;
-  opacity: 0.75;
-}
-
-#backpack .grid {
+  z-index: 20;
   display: grid;
-  grid-template-columns: repeat(6, auto);
-  gap: 6px;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  pointer-events: none;
 }
 
-/* While the backpack is open, the prompt would sit on top of it. */
-.backpack-open #action {
+#drag-item .icon {
+  font-size: 30px;
+}
+
+#drag-item .count {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+}
+
+.slot.dragging .icon,
+.slot.dragging .count {
+  opacity: 0.25;
+}
+
+/* While the menu is open, the prompt would sit on top of it. */
+.inventory-open #action {
   display: none;
+}
+
+/* On narrower screens, shrink the menu to fit. */
+@media (max-width: 900px) {
+  #inventory {
+    grid-template-columns: 170px auto 200px;
+    gap: 12px;
+  }
+
+  #inventory .slot {
+    width: 42px;
+    height: 42px;
+  }
+
+  #character-view {
+    width: 170px;
+    height: 212px;
+  }
 }
 
 /* --- Pause menu with the controls (Esc) --- */

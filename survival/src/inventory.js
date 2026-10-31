@@ -29,6 +29,7 @@ export class Inventory {
     this.selected = 0;
     // You start with nothing: the axe and backpack are found at the crash site.
     this.hasBackpack = false;
+    this.found = new Set(); // every item picked up this game, even if it's since been used
   }
 
   // Slots you can currently put things in: just the hotbar until you find the backpack.
@@ -68,31 +69,26 @@ export class Inventory {
     return true;
   }
 
-  // Moves the stack in slot `index` between the hotbar and the backpack, topping up
-  // matching stacks first. Returns false if not all of it fit.
-  move(index) {
-    const moving = this.slots[index];
-    if (!moving) return true;
-    const [from, to] = index < HOTBAR_SIZE ? [HOTBAR_SIZE, this.slots.length] : [0, HOTBAR_SIZE];
-    const { stack } = ITEMS[moving.item];
-    for (let i = from; i < to && moving.count > 0; i++) {
-      const slot = this.slots[i];
-      if (slot?.item !== moving.item) continue;
-      const added = Math.min(moving.count, stack - slot.count);
-      slot.count += added;
+  // Moves the stack in slot `from` onto slot `to`: it tops up a matching stack, swaps with a
+  // different item, or fills an empty slot.
+  transfer(from, to) {
+    const moving = this.slots[from];
+    const target = this.slots[to];
+    if (!moving || from === to) return;
+    if (target?.item === moving.item) {
+      const added = Math.min(moving.count, ITEMS[moving.item].stack - target.count);
+      target.count += added;
       moving.count -= added;
+      if (moving.count === 0) this.slots[from] = null;
+    } else {
+      this.slots[to] = moving;
+      this.slots[from] = target;
     }
-    for (let i = from; i < to && moving.count > 0; i++) {
-      if (this.slots[i]) continue;
-      this.slots[i] = { ...moving };
-      moving.count = 0;
-    }
-    if (moving.count === 0) this.slots[index] = null;
-    return moving.count === 0;
   }
 
   // Adds items, filling existing stacks first. Returns how many didn't fit.
   add(item, count) {
+    this.found.add(item);
     const { stack } = ITEMS[item];
     for (const slot of this.slots.slice(0, this.usableSlots)) {
       if (count === 0) break;
