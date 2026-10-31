@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createCrashTrail } from './crashTrail.js';
+import { createWater } from './water.js';
 
 const { smoothstep, clamp } = THREE.MathUtils;
 
@@ -146,7 +147,7 @@ export function createTerrain(random, noise, size) {
     crashTrail,
     groundAt,
     ground: createGroundMesh(size, heightAt, groundAt, noise),
-    water: createWaterMesh(lakeCenter, radiusAt, waterLevel, river),
+    water: createWater(lakeCenter, radiusAt, waterLevel, river),
     riverPoints: river.points, // the river's path, from the lake outwards
   };
 }
@@ -258,57 +259,4 @@ function createGroundMesh(size, heightAt, groundAt, noise) {
   const ground = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
   ground.receiveShadow = true;
   return ground;
-}
-
-const WATER = {
-  color: 0x4a7d9c,
-  roughness: 0.08,
-  metalness: 0.1,
-  transparent: true,
-  opacity: 0.85,
-  side: THREE.DoubleSide,
-};
-
-// The lake (a flat sheet a bit bigger than it; the shore hides the edges) and a ribbon
-// of water following the river down its channel.
-function createWaterMesh(center, radiusAt, level, river) {
-  const shape = new THREE.Shape();
-  for (let i = 0; i <= 96; i++) {
-    const angle = (i / 96) * Math.PI * 2;
-    const r = radiusAt(angle) * 1.4;
-    if (i === 0) shape.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
-    else shape.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
-  }
-  const lake = new THREE.Mesh(new THREE.ShapeGeometry(shape, 4), new THREE.MeshStandardMaterial(WATER));
-  // Shapes are drawn on the x/y plane; tip it over so the shape's y becomes the world's z.
-  lake.rotation.x = Math.PI / 2;
-  lake.position.set(center.x, level, center.y);
-  lake.receiveShadow = true;
-
-  const { points } = river;
-  const vertices = [];
-  const indices = [];
-  points.forEach((p, i) => {
-    const next = points[Math.min(i + 1, points.length - 1)];
-    const prev = points[Math.max(i - 1, 0)];
-    const angle = Math.atan2(next.z - prev.z, next.x - prev.x);
-    const w = p.halfWidth + 0.5;
-    const sx = -Math.sin(angle) * w;
-    const sz = Math.cos(angle) * w;
-    vertices.push(p.x + sx, p.level, p.z + sz, p.x - sx, p.level, p.z - sz);
-    if (i > 0) {
-      const a = (i - 1) * 2;
-      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-    }
-  });
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  const stream = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial(WATER));
-  stream.receiveShadow = true;
-
-  const water = new THREE.Group();
-  water.add(lake, stream);
-  return water;
 }

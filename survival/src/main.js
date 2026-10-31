@@ -163,7 +163,7 @@ renderer.setAnimationLoop(() => {
 
   player.update(dt, input, world);
   updateCamera(dt);
-  world.update(dt, clock.elapsedTime);
+  world.update(dt, clock.elapsedTime, player.position);
   animals.update(dt, player.position, player.sneaking);
   traps.update();
   pickups.update(clock.elapsedTime);

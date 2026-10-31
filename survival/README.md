@@ -124,6 +124,7 @@ src/daylight.js       Day and night: the sun and moon, light colours, sky and fo
 src/world.js          Builds the map from a seed: places trees, rocks and grass
 src/terrain.js        The valley: hills, rocky walls, the lake, the river and the ground colours
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
+src/water.js          The lake and the flowing river, and ripples around the player
 src/grass.js          Swaying grass tufts
 src/snow.js           Light snowfall
 src/player.js         Player movement, swimming and collisions
