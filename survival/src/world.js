@@ -44,6 +44,7 @@ export function buildWorld(scene, seed) {
     Math.hypot(x, z) > CRASH_CLEARING &&
     Math.hypot(x - SPAWN.x, z - SPAWN.z) > SPAWN_CLEARING &&
     !terrain.nearWater(x, z, 2) &&
+    !terrain.crashTrail.near(x, z, 2) &&
     obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + spacing);
 
   const place = (x, z, radius, scale) => {

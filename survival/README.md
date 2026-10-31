@@ -134,6 +134,7 @@ src/animals.js        Rabbits and deer: wandering, grazing and running from the 
 src/traps.js          Snare traps that catch rabbits
 src/pickups.js        Items lying on the ground
 src/wreck.js          The crashed plane at the start, and where the starting items lie
+src/crashTrail.js     The skid marks behind the plane: where they run and how they cut the ground
 src/crafting.js       Crafting recipes (add new ones here)
 src/actions.js        What the player is doing each frame: chopping, building, cooking, eating…
 src/inventory.js      Items and the hotbar
@@ -177,6 +178,8 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `rabbit.glb` | Rabbit (the stand-in is drawn a bit bigger than life, to be easy to spot) | ~0.55 m long |
 | `deer.glb` | Deer | ~1.6 m tall at the head |
 | `plane.glb` | The crashed bush plane, nose pointing toward you in Blender's **Front** view (model it already crashed) | ~8 m long |
+| `clod.glb` | Lump of soil thrown up along the crash trail | ~0.3 m across |
+| `plane-wing.glb` | The wing that broke off the plane, lying on the ground | ~5.5 m long |
 | `backpack.glb` | Backpack lying in the grass | ~0.5 m tall |
 | `axe-ground.glb` | Axe lying on the ground | ~0.75 m long |
 | `logs.glb` | Pile of logs lying on the ground | ~0.7 m long |
