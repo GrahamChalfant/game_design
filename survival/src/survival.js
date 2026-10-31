@@ -1,4 +1,6 @@
-// Hunger, thirst, health and the survival clock. All the numbers to tune the
+import { isNight } from './daylight.js';
+
+// Hunger, thirst, temperature, health and the survival clock. All the numbers to tune the
 // difficulty are here at the top.
 
 // One in-game day lasts 10 real minutes at normal speed.
@@ -16,6 +18,11 @@ const START_HEALTH = 35; // you start hurt from the crash: use bandages to heal
 const DRINK_PER_SECOND = 30; // thirst regained per real second while drinking
 const WORK_HUNGER = 3; // hard work (like chopping) makes you hungry this many times faster
 
+// Temperature (100 is warm, 0 is freezing) drifts toward what your surroundings would make it.
+const WARMTH = { day: 80, night: -30, fire: 100, water: -60 };
+const WARMING_PER_HOUR = { air: 0.25, fire: 2, water: 1.5 }; // how quickly it drifts there
+const FREEZING_DAMAGE_PER_HOUR = 10; // health lost while temperature is at 0
+
 export class Survival {
   constructor() {
     this.reset();
@@ -24,13 +31,14 @@ export class Survival {
   reset() {
     this.hunger = 100;
     this.thirst = 100;
+    this.temperature = WARMTH.day;
     this.health = START_HEALTH;
     this.minutesSurvived = 0;
     this.alive = true;
   }
 
   // `speed` makes time pass faster for testing (see README).
-  update(dt, { drinking, working }, speed = 1) {
+  update(dt, { drinking, working, warming, wet }, speed = 1) {
     if (!this.alive) return;
     const minutes = dt * GAME_MINUTES_PER_SECOND * speed;
     const hours = minutes / 60;
@@ -40,12 +48,22 @@ export class Survival {
     this.thirst = clamp(this.thirst - THIRST_PER_HOUR * hours);
     if (drinking) this.thirst = clamp(this.thirst + DRINK_PER_SECOND * dt * speed);
 
+    const air = isNight(this.hourOfDay) ? WARMTH.night : WARMTH.day;
+    const [goal, rate] = warming
+      ? [WARMTH.fire, WARMING_PER_HOUR.fire]
+      : wet
+        ? [WARMTH.water, WARMING_PER_HOUR.water]
+        : [air, WARMING_PER_HOUR.air];
+    this.temperature = clamp(this.temperature + (goal - this.temperature) * Math.min(1, rate * hours));
+
     const emptyStats = (this.hunger === 0 ? 1 : 0) + (this.thirst === 0 ? 1 : 0);
     if (emptyStats > 0) {
       this.health = clamp(this.health - STARVING_DAMAGE_PER_HOUR * emptyStats * hours);
     } else if (this.hunger > WELL_FED && this.thirst > WELL_FED) {
       this.health = clamp(this.health + HEALING_PER_HOUR * hours);
     }
+
+    if (this.temperature === 0) this.health = clamp(this.health - FREEZING_DAMAGE_PER_HOUR * hours);
 
     if (this.health === 0) this.alive = false;
   }

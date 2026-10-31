@@ -51,10 +51,9 @@ automatically whenever you save a file.
 | E (next to a campfire) | Add a log to the fire |
 | E (at a trap) | Take the catch, or pick up an empty trap |
 | E (next to something on the ground) | Pick it up |
-| Tab or I | Open or close the backpack (click an item to move it to or from the hotbar) |
-| C | Open or close the crafting panel |
+| Tab, I or C | Open or close your character, inventory and crafting (drag items to move them, or off the menu to drop them) |
 | Mouse wheel / trackpad scroll | Zoom in and out |
-| Esc | Pause and show the controls (also closes the backpack or crafting panel) |
+| Esc | Pause and show the controls (also closes the inventory) |
 
 ### How to play
 
@@ -75,6 +74,10 @@ Hold E next to the cockpit or a suitcase to search it. Each one can be searched 
 Select a bandage and press Space to heal 30 health. Keep the lighter: you need it to
 light fires. Save the flare for signalling a rescue (coming later).
 
+Your stats are the icons at the bottom right. They're white, turn yellow when low, and red when
+you're about to run out. Temperature falls at night and in the water, and rises near a burning
+fire. If it reaches zero, you start losing health.
+
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
 you start losing health. Drink from the lake to stay hydrated. While you're well fed and
 watered, your health slowly recovers. One in-game day lasts 10 real minutes.
@@ -90,7 +93,9 @@ for wood. Hard work makes you hungry faster.
 Your hotbar has 6 slots, and the backpack (Tab, once you've found it) has 12 more. If something doesn't fit,
 it's left on the ground with a floating icon above it; walk over and press E to pick it up.
 
-To make a campfire, press C and craft one (5 wood), then select it and press Space to
+Recipes appear in the crafting list once you've picked up what they're made from.
+
+To make a campfire, press Tab and craft one (5 wood), then select it and press Space to
 place it on open ground. Stand next to it and press E to light it (you need the lighter).
 A fire burns for 2 in-game hours; stand next to it and press E to add a log
 (1 more hour each). A fire that's gone out needs more wood (E) and lighting again.
@@ -100,7 +105,7 @@ until you get too close, then bolt. Both run faster than you, and deer spook fro
 farther away, so you won't catch them by chasing. Hold Shift to sneak: animals only
 notice you at half the usual distance.
 
-To catch rabbits, press C and craft a trap (3 wood and 1 rope), then select it and press Space to
+To catch rabbits, press Tab and craft a trap (3 wood and 1 rope), then select it and press Space to
 set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
 close while you're nearby. When one is caught, press E at the trap for 2 raw meat. This breaks the trap, so you'll
 need to craft another.
@@ -137,9 +142,10 @@ src/pickups.js        Items lying on the ground
 src/wreck.js          The crashed plane at the start, and where the starting items lie
 src/crashTrail.js     The skid marks behind the plane: where they run and how they cut the ground
 src/crafting.js       Crafting recipes (add new ones here)
+src/characterView.js  The close-up of your character in the inventory
 src/actions.js        What the player is doing each frame: chopping, building, cooking, eating…
 src/inventory.js      Items and the hotbar
-src/survival.js       Hunger, thirst, health and the survival clock
+src/survival.js       Hunger, thirst, temperature, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
 src/input.js          Keyboard and mouse handling
 src/models.js         Loads Blender models and draws many copies efficiently

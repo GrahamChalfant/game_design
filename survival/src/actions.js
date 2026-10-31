@@ -3,6 +3,8 @@ import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 
 const COOK_TIME = 3; // seconds of holding Space at a fire to cook one piece of meat
 const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase or the cockpit
+const WARMTH_REACH = 3; // how close to a burning fire warms you up, in meters
+const WET_DEPTH = 0.3; // water this deep (in meters) chills you
 const BANDAGE_HEALING = 30;
 const MEAT_PER_RABBIT = 2;
 // What eating each food does to hunger and health.
@@ -208,6 +210,9 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     if (canDrink) prompt = drinking ? 'Drinking…' : 'Hold E to drink';
 
     player.setAction(held, chopping, drinking, inventory.hasBackpack);
-    return { drinking, working: chopping, prompt, progress };
+    const warmFire = campfires.near(x, z, WARMTH_REACH);
+    const warming = Boolean(warmFire && campfires.isBurning(warmFire));
+    const wet = world.terrain.waterDepth(x, z) > WET_DEPTH;
+    return { drinking, working: chopping, warming, wet, prompt, progress };
   };
 }

@@ -4,6 +4,7 @@ import { Daylight } from './daylight.js';
 import { createPainterlyRenderer } from './painterly.js';
 import { Animals } from './animals.js';
 import { Campfires } from './campfires.js';
+import { CharacterView } from './characterView.js';
 import { craft } from './crafting.js';
 import { Hud } from './hud.js';
 import { Input } from './input.js';
@@ -91,16 +92,21 @@ const hud = new Hud({
     wreck.reset();
     player.reset();
     animals.reset(player.position);
-    if (hud.backpackOpen) hud.toggleBackpack(); // you lose the backpack until you find it again
+    if (hud.inventoryOpen) hud.toggleInventory();
     hud.hideGameOver();
   },
-  // With the backpack open, clicking a slot moves its items between the backpack and
-  // the hotbar; otherwise clicking a hotbar slot selects it.
   onSlotClick: (i) => {
-    if (hud.backpackOpen) {
-      if (!inventory.move(i)) hud.toast('No room');
-    } else if (i < HOTBAR_SIZE) {
-      inventory.select(i);
+    if (i < HOTBAR_SIZE) inventory.select(i);
+  },
+  onSlotDrop: (from, to) => inventory.transfer(from, to),
+  // Dragged off the menu: drop it in front of the player, or at their feet if that's water.
+  onDropItem: (i) => {
+    const { item, count } = inventory.slots[i];
+    const { x, z } = player.ahead(1.2);
+    if (pickups.drop(item, count, x, z) || pickups.drop(item, count, player.position.x, player.position.z)) {
+      inventory.slots[i] = null;
+    } else {
+      hud.toast("You can't drop that in the water");
     }
   },
   onCraft: (recipe) => {
@@ -108,6 +114,7 @@ const hud = new Hud({
     else hud.toast('No room in your inventory');
   },
 });
+const characterView = new CharacterView(document.getElementById('character-view'));
 const updateActions = createActions({ input, inventory, player, world, wreck, campfires, traps, pickups, survival, hud });
 
 // --- Top-down camera that follows the player ---
@@ -149,11 +156,8 @@ renderer.setAnimationLoop(() => {
     draw();
     return;
   }
-  if (input.wasPressed('KeyC')) hud.toggleCrafting();
-  if (input.wasPressed('Tab') || input.wasPressed('KeyI')) {
-    if (inventory.hasBackpack) hud.toggleBackpack();
-    else hud.toast("You don't have a backpack yet. Look around the plane.");
-  }
+  if (input.wasPressed('Tab') || input.wasPressed('KeyI') || input.wasPressed('KeyC')) hud.toggleInventory();
+  if (hud.inventoryOpen) characterView.update(dt, inventory.hasBackpack);
 
   const actions = updateActions(dt);
   survival.update(dt, actions, TIME_SPEED);
