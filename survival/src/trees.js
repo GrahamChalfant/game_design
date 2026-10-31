@@ -3,10 +3,15 @@ import { HIDDEN, instancedModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { seeThroughMaterial } from './seeThrough.js';
 
-// How much wood each kind of tree gives, and how long it takes to chop (seconds of holding).
+// How much wood each kind of tree gives, how long it takes to chop (seconds of holding),
+// and how big its stump is (1 is the size of stump.glb).
 const KINDS = {
-  pine: { wood: 4, chopTime: 2.5 },
-  broadleaf: { wood: 3, chopTime: 2 },
+  pine: { wood: 4, chopTime: 2.5, stump: 1 },
+  'pine-small': { wood: 2, chopTime: 1.5, stump: 0.5 },
+  'pine-skinny': { wood: 3, chopTime: 2, stump: 0.7 },
+  'pine-tall': { wood: 6, chopTime: 3.5, stump: 1.4 },
+  'pine-wide': { wood: 5, chopTime: 3, stump: 1.2 },
+  broadleaf: { wood: 3, chopTime: 2, stump: 1 },
 };
 const STUMP_RADIUS = 0.35;
 const FALL_TIME = 1.3; // seconds to topple over
@@ -59,8 +64,8 @@ export class Trees {
     // Fall away from the player.
     const away = new THREE.Vector3(tree.spot.x - fromX, 0, tree.spot.z - fromZ).normalize();
     tree.fallAxis = new THREE.Vector3(0, 1, 0).cross(away).normalize();
-    tree.spot.obstacle.radius = STUMP_RADIUS * tree.spot.scale;
-    tree.stumps.setInstance(tree.index, treeMatrix(tree.spot, 0, null));
+    tree.spot.obstacle.radius = STUMP_RADIUS * tree.spot.scale * tree.stump;
+    tree.stumps.setInstance(tree.index, treeMatrix(tree.spot, 0, null, tree.stump));
     return true;
   }
 
