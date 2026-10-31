@@ -91,8 +91,8 @@ function waterMaterial(flows) {
           float age = uTime - uRipples[i].y;
           if (age < 0.0 || age > RIPPLE_LIFE) continue;
           float away = distance(vWaterPosition.xz, uRipples[i].xz);
-          float ring = 1.0 - smoothstep(0.03, 0.12 + age * 0.05, abs(away - 0.25 - age * RIPPLE_SPEED));
-          light = max(light, ring * (1.0 - age / RIPPLE_LIFE) * 0.7);
+          float ring = 1.0 - smoothstep(0.0, 0.3 + age * 0.2, abs(away - 0.25 - age * RIPPLE_SPEED));
+          sheen = max(sheen, ring * (1.0 - age / RIPPLE_LIFE) * 0.6);
         }
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.38, 0.5), sheen);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.75, 0.9, 0.95), light);`,
