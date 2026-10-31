@@ -8,6 +8,7 @@ const SNEAK_SPEED = 2.2;
 const SWIM_SPEED = 2.2;
 const SWIM_DEPTH = 1.25; // once the water is this deep, the player swims with their head above water
 const TURN_SPEED = 12;
+const FADE_TIME = 0.15; // seconds to blend from one animation to the next
 
 export class Player {
   constructor(scene, spawn, worldSize, spawnFacing = 0) {
@@ -37,27 +38,69 @@ export class Player {
 
     loadModel('player').then((model) => {
       if (!model) return;
-      model.traverse((child) => (child.castShadow = true));
+      model.traverse((child) => {
+        child.castShadow = true;
+        // Its animations move it beyond where three.js thinks it is, so always draw it.
+        child.frustumCulled = false;
+      });
       this.object.remove(this.body);
       this.body = model;
       this.object.add(model);
+
+      // The axe goes in the right hand, with its handle pointing forward.
+      model.getObjectByName('hand_R').add(this.axe);
+      this.axe.position.set(0, 0.03, 0.02);
+      this.axe.rotation.set(Math.PI / 2, 0, 0);
+
+      this.mixer = new THREE.AnimationMixer(model);
+      this.clips = Object.fromEntries(model.animations.map((clip) => [clip.name, this.mixer.clipAction(clip)]));
+      this.clips.die.setLoop(THREE.LoopOnce);
+      this.clips.die.clampWhenFinished = true;
+      this.play('idle');
     });
   }
 
-  // What the player holds ('axe', 'wood', null) and whether they're chopping.
-  setAction(heldItem, chopping) {
-    this.axe.visible = heldItem === 'axe';
+  // Blends into the named animation, playing it at `speed` times its normal rate.
+  play(name, speed = 1) {
+    const clip = this.clips[name];
+    clip.timeScale = speed;
+    if (this.playing === clip) return;
+    clip.reset().play();
+    if (this.playing) clip.crossFadeFrom(this.playing, FADE_TIME);
+    this.playing = clip;
+  }
+
+  // What the player holds ('axe', 'wood', null), whether they're chopping or drinking,
+  // and whether they've found the backpack yet.
+  setAction(heldItem, chopping, drinking, hasBackpack) {
+    this.axe.visible = heldItem === 'axe' && !this.swimming && !drinking; // put away when the hands are busy
+    this.body.getObjectByName('player-pack').visible = hasBackpack;
     this.chopping = chopping;
+    this.drinking = drinking;
+  }
+
+  // Picks the animation for what the player is doing now.
+  animate(dt, moving, speed) {
+    if (!this.alive) this.play('die');
+    else if (this.swimming) this.play('swim');
+    else if (this.drinking) this.play('drink');
+    else if (this.chopping) this.play('chop');
+    else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? SNEAK_SPEED : WALK_SPEED));
+    else this.play(this.sneaking ? 'crouch' : 'idle');
+    this.mixer.update(dt);
   }
 
   update(dt, input, world) {
-    // Swing the axe while chopping; otherwise rest it on the shoulder.
-    this.chopTime = this.chopping ? (this.chopTime ?? 0) + dt : 0;
-    this.axe.rotation.x = this.chopping ? 0.5 + Math.sin(this.chopTime * 9) * 1.1 : 0.35;
+    if (!this.mixer) {
+      // Swing the axe while chopping; otherwise rest it on the shoulder.
+      this.chopTime = this.chopping ? (this.chopTime ?? 0) + dt : 0;
+      this.axe.rotation.x = this.chopping ? 0.5 + Math.sin(this.chopTime * 9) * 1.1 : 0.35;
+    }
 
     if (!this.alive) {
+      if (this.mixer) this.animate(dt);
       // Slowly topple over.
-      this.body.rotation.x += (-Math.PI / 2 - this.body.rotation.x) * Math.min(1, dt * 3);
+      else this.body.rotation.x += (-Math.PI / 2 - this.body.rotation.x) * Math.min(1, dt * 3);
       return;
     }
 
@@ -88,6 +131,10 @@ export class Player {
     this.position.y = Math.max(ground, world.terrain.waterLevel - SWIM_DEPTH);
     this.object.position.copy(this.position);
     this.object.rotation.y = this.facing;
+    if (this.mixer) {
+      this.animate(dt, moving, speed);
+      return;
+    }
     const crouch = this.sneaking ? 0.75 : 1;
     this.body.scale.y += (crouch - this.body.scale.y) * Math.min(1, dt * 10);
     if (this.swimming) {

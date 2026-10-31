@@ -162,7 +162,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 
 | File | What it is | Size |
 | --- | --- | --- |
-| `player.glb` | The survivor. Should face you in Blender's **Front** view. | ~1.8 m tall |
+| `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink` and `die`. | ~1.8 m tall |
 | `pine.glb` | Tall conifer that grows in the forests | ~9 m tall |
 | `pine-small.glb` | Young pine | ~3.5 m tall |
 | `pine-skinny.glb` | Narrow pine | ~10 m tall, ~2 m across |

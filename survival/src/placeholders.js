@@ -479,6 +479,7 @@ export function survivor() {
   hood.position.y = 1.47;
   const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.55, 0.25), material(0x6b5a3a));
   backpack.position.set(0, 0.95, -0.35);
+  backpack.name = 'player-pack'; // shown once the player has found the backpack
   person.add(coat, head, hood, backpack);
   person.traverse((child) => (child.castShadow = true));
   return person;
