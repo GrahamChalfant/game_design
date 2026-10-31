@@ -94,7 +94,7 @@ export function buildWorld(scene, seed) {
   }
 
   const grass = createGrass(random, terrain, WORLD_SIZE + 10);
-  scene.add(grass.mesh);
+  scene.add(grass.group);
 
   return {
     terrain,

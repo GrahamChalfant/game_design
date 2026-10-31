@@ -124,7 +124,7 @@ src/daylight.js       Day and night: the sun and moon, light colours, sky and fo
 src/world.js          Builds the map from a seed: places trees, rocks and grass
 src/terrain.js        The valley: hills, rocky walls, the lake, the river and the ground colours
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
-src/grass.js          Swaying grass blades
+src/grass.js          Swaying grass tufts
 src/snow.js           Light snowfall
 src/player.js         Player movement, swimming and collisions
 src/trees.js          Choppable trees: chopping progress, falling and stumps
@@ -167,6 +167,8 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `pine-tall.glb` | Big old pine | ~14 m tall |
 | `pine-wide.glb` | Short, full pine | ~6.5 m tall, ~5 m across |
 | `broadleaf.glb` | Round, leafy tree found alone in the fields | ~6 m tall |
+| `grass-tuft.glb` | Tuft of grass. Keep every tuft low on triangles: thousands are drawn. Colours come from the ground, so paint tufts in shades of grey. | ~0.9 m across, 1 m tall (the game scales all tufts down) |
+| `grass-short.glb`, `grass-clump.glb`, `grass-sparse.glb`, `grass-wide.glb`, `grass-wisp.glb`, `grass-tall.glb`, `grass-seed.glb`, `grass-fern.glb` | Other tufts: low patch, thick bunch, scattered blades, broad sedge, thin arcs, reeds, seed heads and fern. To add one, put its name in `TUFT_MIX` in `src/grass.js`. | 0.5–1.7 m tall |
 | `rock.glb` | Boulder | ~1 m across |
 | `rock-small.glb` | Small stone | ~0.6 m across |
 | `rock-flat.glb` | Low, flat slab | ~1.9 m long, ~0.3 m tall |

@@ -1,20 +1,35 @@
 import * as THREE from 'three';
+import { loadModel } from './models.js';
 
-// Thousands of individual grass blades that sway in the wind, drawn as one InstancedMesh.
-export function createGrass(random, terrain, area, count = 100000) {
-  const geometry = new THREE.PlaneGeometry(0.12, 1, 1, 4).translate(0, 0.5, 0);
+const FOREST_THINNING = 0.75; // the share of tufts left out where trees grow
+const TUFT_BRIGHTNESS = 1.5;
+// Each tuft picks a model from this list at random, so repeating a name makes it more common.
+const TUFT_MIX = [
+  'grass-tuft', 'grass-tuft', 'grass-short', 'grass-short', 'grass-short', 'grass-clump', 'grass-clump',
+  'grass-sparse', 'grass-sparse', 'grass-wide', 'grass-wisp', 'grass-tall', 'grass-seed', 'grass-fern',
+];
+
+// Light the tufts as if they were the ground, so they blend into it instead of looking dark.
+function faceUp(geometry) {
+  const normals = geometry.attributes.normal;
+  for (let i = 0; i < normals.count; i++) normals.setXYZ(i, 0, 1, 0);
+}
+
+// Thousands of chunky grass tufts that sway in the wind, drawn with one InstancedMesh per
+// tuft model. Each tuft is a single blade until its model loads.
+export function createGrass(random, terrain, area, count = 14000) {
+  const geometry = new THREE.PlaneGeometry(0.2, 1, 1, 4).translate(0, 0.5, 0);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i++) {
     const y = position.getY(i);
     position.setX(i, position.getX(i) * (1 - y)); // taper to a point
     position.setZ(i, y * y * 0.18); // slight bend
   }
-  // Light the blades as if they were the ground, so they blend into it instead of looking dark.
-  const normals = geometry.attributes.normal;
-  for (let i = 0; i < normals.count; i++) normals.setXYZ(i, 0, 1, 0);
+  geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(position.count * 3).fill(1), 3));
+  faceUp(geometry);
 
   const uniforms = { uTime: { value: 0 } };
-  const material = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.95 });
+  const material = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.95, vertexColors: true });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = uniforms.uTime;
     shader.vertexShader = shader.vertexShader
@@ -34,63 +49,78 @@ export function createGrass(random, terrain, area, count = 100000) {
       .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nnormal = normalize(vNormal);')
       .replace(
         '#include <color_fragment>',
-        '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.8, 1.0, vBladeHeight);',
+        '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.8, 1.0, min(vBladeHeight, 1.0));',
       );
   };
 
-  const mesh = new THREE.InstancedMesh(geometry, material, count);
-  mesh.receiveShadow = true;
-
-  const matrix = new THREE.Matrix4();
-  const rotation = new THREE.Quaternion();
-  const up = new THREE.Vector3(0, 1, 0);
-  const scale = new THREE.Vector3();
-  const spot = new THREE.Vector3();
-  const color = new THREE.Color();
+  // Work out where every tuft goes, then build one InstancedMesh per model.
+  const spots = Object.fromEntries(TUFT_MIX.map((name) => [name, []]));
   const half = area / 2;
-  const roots = []; // x, z of every blade, for clearing grass later
   let placed = 0;
   for (let tries = 0; placed < count && tries < count * 6; tries++) {
     const x = random.range(-half, half);
     const z = random.range(-half, half);
     const ground = terrain.groundAt(x, z);
     if (ground.kind !== 'grass') continue;
-    color.copy(ground.color).offsetHSL(random.range(-0.015, 0.015), 0, random.range(-0.03, 0.03));
-    const height = random.range(0.3, 0.7);
-    spot.set(x, terrain.heightAt(x, z), z);
-    rotation.setFromAxisAngle(up, random.range(0, Math.PI * 2));
-    scale.set(random.range(0.8, 1.3), height, 1);
-    mesh.setMatrixAt(placed, matrix.compose(spot, rotation, scale));
-    mesh.setColorAt(placed, color);
-    roots.push(x, z);
+    if (terrain.forest(x, z) > 0.1 && random.next() < FOREST_THINNING) continue;
+    // The same colour the ground is drawn in, a little brighter so tufts stand out from it.
+    const { r, g, b } = ground.color;
+    const color = new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
+    color.multiplyScalar(TUFT_BRIGHTNESS * random.range(0.85, 1.15));
+    color.offsetHSL(random.range(-0.015, 0.015), 0, 0);
+    const width = random.range(0.8, 1.3);
+    const scale = new THREE.Vector3(width, random.range(0.3, 0.7), width);
+    const rotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random.range(0, Math.PI * 2));
+    const matrix = new THREE.Matrix4().compose(new THREE.Vector3(x, terrain.heightAt(x, z), z), rotation, scale);
+    spots[random.pick(TUFT_MIX)].push({ x, z, matrix, color });
     placed++;
   }
-  mesh.count = placed;
+
+  const group = new THREE.Group();
+  const kinds = Object.entries(spots).map(([name, tufts]) => {
+    const mesh = new THREE.InstancedMesh(geometry, material, tufts.length);
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = false;
+    tufts.forEach((tuft, i) => {
+      mesh.setMatrixAt(i, tuft.matrix);
+      mesh.setColorAt(i, tuft.color);
+    });
+    group.add(mesh);
+    loadModel(name).then((model) => {
+      model?.traverse((child) => {
+        if (!child.isMesh) return;
+        faceUp(child.geometry);
+        mesh.geometry = child.geometry;
+      });
+    });
+    return { mesh, tufts, cleared: new Set() };
+  });
 
   const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
-  const cleared = new Map(); // blade index -> its original matrix
 
   return {
-    mesh,
+    group,
     update(time) {
       uniforms.uTime.value = time;
     },
     // Removes the grass within `radius` of (x, z), e.g. under a campfire.
     clear(x, z, radius) {
-      for (let i = 0; i < placed; i++) {
-        if (cleared.has(i) || Math.hypot(roots[i * 2] - x, roots[i * 2 + 1] - z) > radius) continue;
-        const original = new THREE.Matrix4();
-        mesh.getMatrixAt(i, original);
-        cleared.set(i, original);
-        mesh.setMatrixAt(i, hidden);
+      for (const { mesh, tufts, cleared } of kinds) {
+        tufts.forEach((tuft, i) => {
+          if (cleared.has(i) || Math.hypot(tuft.x - x, tuft.z - z) > radius) return;
+          cleared.add(i);
+          mesh.setMatrixAt(i, hidden);
+        });
+        mesh.instanceMatrix.needsUpdate = true;
       }
-      mesh.instanceMatrix.needsUpdate = true;
     },
     // Grows back all cleared grass, for a new game.
     restore() {
-      for (const [i, original] of cleared) mesh.setMatrixAt(i, original);
-      cleared.clear();
-      mesh.instanceMatrix.needsUpdate = true;
+      for (const { mesh, tufts, cleared } of kinds) {
+        for (const i of cleared) mesh.setMatrixAt(i, tufts[i].matrix);
+        cleared.clear();
+        mesh.instanceMatrix.needsUpdate = true;
+      }
     },
   };
 }

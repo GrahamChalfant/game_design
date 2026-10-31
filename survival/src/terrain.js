@@ -19,6 +19,7 @@ const WATER_BED = new THREE.Color(0x3c5c55);
 const VALLEY_FLOOR = 42; // the ground starts rising into the valley walls this far from the middle
 const VALLEY_EDGE = 100; // ...and reaches its full height here
 const WALL_HEIGHT = 26;
+const GROUND_CELLS = 440; // grid squares along each side of the ground: fewer gives bigger facets
 
 // The valley: rolling ground rising into rocky walls at the edges, a lake, and a river
 // running out of it. Everything is worked out from (x, z) so other code can ask "what's here?".
@@ -131,7 +132,7 @@ export function createTerrain(random, noise, size) {
     nearWater,
     forest,
     groundAt,
-    ground: createGroundMesh(size, heightAt, groundAt),
+    ground: createGroundMesh(size, heightAt, groundAt, noise),
     water: createWaterMesh(lakeCenter, radiusAt, waterLevel, river),
     riverPoints: river.points, // the river's path, from the lake outwards
   };
@@ -217,36 +218,31 @@ function createRiver(random, noise, lakeCenter, radiusAt, lakeDistance, lakeLeve
   return { points, nearest, carve };
 }
 
-// The ground: a detailed hilly mesh with a high-resolution painted texture.
-function createGroundMesh(size, heightAt, groundAt) {
-  const geometry = new THREE.PlaneGeometry(size, size, 320, 320).rotateX(-Math.PI / 2);
-  const position = geometry.attributes.position;
-  for (let i = 0; i < position.count; i++) {
-    position.setY(i, heightAt(position.getX(i), position.getZ(i)));
+// The ground: a faceted hilly mesh where every triangle is one flat colour.
+function createGroundMesh(size, heightAt, groundAt, noise) {
+  const grid = new THREE.PlaneGeometry(size, size, GROUND_CELLS, GROUND_CELLS).rotateX(-Math.PI / 2);
+  const corners = grid.attributes.position;
+  for (let i = 0; i < corners.count; i++) {
+    corners.setY(i, heightAt(corners.getX(i), corners.getZ(i)));
   }
+  // Triangles that don't share corners get hard edges between them.
+  const geometry = grid.toNonIndexed();
   geometry.computeVertexNormals();
 
-  const pixels = 1536;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = pixels;
-  const ctx = canvas.getContext('2d');
-  const image = ctx.createImageData(pixels, pixels);
-  for (let py = 0; py < pixels; py++) {
-    for (let px = 0; px < pixels; px++) {
-      const { color } = groundAt((px / pixels - 0.5) * size, (py / pixels - 0.5) * size);
-      const i = (py * pixels + px) * 4;
-      image.data[i] = color.r * 255;
-      image.data[i + 1] = color.g * 255;
-      image.data[i + 2] = color.b * 255;
-      image.data[i + 3] = 255;
-    }
+  const position = geometry.attributes.position;
+  const colors = new Float32Array(position.count * 3);
+  const shade = new THREE.Color();
+  for (let i = 0; i < position.count; i += 3) {
+    const x = (position.getX(i) + position.getX(i + 1) + position.getX(i + 2)) / 3;
+    const z = (position.getZ(i) + position.getZ(i + 1) + position.getZ(i + 2)) / 3;
+    const { color } = groundAt(x, z);
+    const speckle = noise(x * 1.3, z * 1.3) * 0.08 + noise(x * 7.3, z * 7.3) * 0.1;
+    shade.setRGB(color.r, color.g, color.b, THREE.SRGBColorSpace).multiplyScalar(1 + speckle);
+    for (let corner = 0; corner < 3; corner++) shade.toArray(colors, (i + corner) * 3);
   }
-  ctx.putImageData(image, 0, 0);
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 8;
-  const ground = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ map: texture, roughness: 1 }));
+  const ground = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
   ground.receiveShadow = true;
   return ground;
 }
