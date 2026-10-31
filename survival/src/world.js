@@ -11,6 +11,16 @@ const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into 
 const CONIFER_COUNT = 300;
 const BROADLEAF_COUNT = 25;
 const ROCK_COUNT = 260;
+// Each rock shape: its collision radius and how much it can be scaled.
+const ROCK_SHAPES = {
+  rock: { radius: 0.55, scale: [0.5, 1.6] },
+  'rock-small': { radius: 0.25, scale: [0.7, 1.6] },
+  'rock-flat': { radius: 0.7, scale: [0.7, 1.4] },
+  'rock-tall': { radius: 0.35, scale: [0.7, 1.4] },
+  'rock-large': { radius: 0.95, scale: [0.8, 1.4] },
+};
+// Rocks take their shape from this list in turn, so small ones are common and large ones rare.
+const ROCK_MIX = ['rock', 'rock-small', 'rock-flat', 'rock-small', 'rock', 'rock-tall', 'rock-small', 'rock-large'];
 const CRASH_CLEARING = 14; // keep this radius around the crash site (at 0, 0) free of trees
 // The player starts about 20 m south of the wreck: just out of view, so you have to find it.
 const SPAWN = { x: 0.5, z: 14 };
@@ -57,14 +67,22 @@ export function buildWorld(scene, seed) {
 
   // Boulders lie in clusters on rocky ground (and the odd one out in the grass). They're
   // bigger up the valley walls, and each is squashed or stretched a little differently.
-  const rocks = scatter(random, ROCK_COUNT, (x, z) => {
+  const rocks = Object.fromEntries(Object.keys(ROCK_SHAPES).map((name) => [name, []]));
+  let placedRocks = 0;
+  scatter(random, ROCK_COUNT, (x, z) => {
     if (terrain.groundAt(x, z).kind !== 'rock' && random.next() > 0.08) return null;
     if (!isFree(x, z, 0.3)) return null;
+    const name = ROCK_MIX[placedRocks++ % ROCK_MIX.length];
+    const shape = ROCK_SHAPES[name];
     const big = Math.max(Math.abs(x), Math.abs(z)) > 45 ? 1.6 : 1;
-    const { y, rotation, scale } = place(x, z, 0.55, random.range(0.5, 1.9) * big);
-    return transform(x, y, z, rotation, scale, [random.range(0.8, 1.5), random.range(0.6, 1.1), random.range(0.8, 1.3)]);
+    const { y, rotation, scale } = place(x, z, shape.radius, random.range(...shape.scale) * big);
+    const rock = transform(x, y, z, rotation, scale, [random.range(0.8, 1.5), random.range(0.6, 1.1), random.range(0.8, 1.3)]);
+    rocks[name].push(rock);
+    return rock;
   });
-  scene.add(instancedModel('rock', placeholders.rock(), rocks));
+  for (const [name, transforms] of Object.entries(rocks)) {
+    scene.add(instancedModel(name, placeholders.rock(), transforms));
+  }
 
   const grass = createGrass(random, terrain, WORLD_SIZE + 10);
   scene.add(grass.mesh);
