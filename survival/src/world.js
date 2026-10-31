@@ -36,7 +36,7 @@ export function buildWorld(scene, seed) {
   const noise = createNoise(seed + 1);
 
   const terrain = createTerrain(random, noise, GROUND_SIZE);
-  scene.add(terrain.ground, terrain.water);
+  scene.add(terrain.ground, terrain.water.mesh);
 
   // Obstacles are circles on the ground the player can't walk into: { x, z, radius }.
   const obstacles = [];
@@ -104,8 +104,9 @@ export function buildWorld(scene, seed) {
     grass,
     size: WORLD_SIZE,
     spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),
-    update(dt, time) {
+    update(dt, time, player) {
       grass.update(time);
+      terrain.water.update(time, player.x, player.z, terrain.waterDepth(player.x, player.z) > 0.02);
       trees.update(dt);
     },
   };
