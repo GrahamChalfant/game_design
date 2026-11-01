@@ -109,8 +109,8 @@ A fire burns for 2 in-game hours; stand next to it and press E to add a log
 
 Rabbits and deer roam the map, but there aren't many of them. They graze and wander
 until you get too close, then bolt. Both run faster than you, and deer spook from much
-farther away, so you won't catch them by chasing. Press C to crouch: animals only
-notice you at half the usual distance.
+farther away (12 m standing, 5 m crouched), so you won't catch them by chasing. Press C to
+crouch: animals notice you much later.
 
 To catch rabbits, press Tab and craft a trap (3 wood and 1 rope), then select it and click to
 set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
@@ -120,6 +120,12 @@ Hides and intestines can be crafted into rope (intestines give 1 rope, a hide gi
 2 hides and a rope make a water flask. Select the flask and click at the lake or river to fill
 it (3 drinks), then click anywhere to take a drink. Bigger animals give more meat, hide and
 intestines.
+To hunt deer, make a bow. Stones lie in little groups by the rocks and the lake shore (press E
+to pick them up). A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
+(3 wood, 2 bowstrings), and once you hold a bow, arrows (1 wood and 1 stone make 3). Select the
+bow and click to shoot the way you're facing. One hit kills a deer or a rabbit; hold E next to
+it to butcher it (a deer takes 4 s and gives 6 raw meat, 2 hides and 2 intestines). The bow
+breaks after 30 shots and arrows are lost once shot. All the numbers are in `src/hunting.js`.
 Craft a shelter (20 wood, 6 rope, 4 hides), select it and click to build it a few steps
 ahead. Its open front always faces the camera, so you can see inside it. Under its roof you stay warm, like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
@@ -154,6 +160,9 @@ src/campfires.js      Building campfires, fuel, flames and firelight
 src/shelters.js       Shelters: building them, warmth inside, and where you can sleep
 src/animals.js        Rabbits and deer: wandering, grazing and running from the player
 src/traps.js          Snare traps that catch rabbits
+src/hunting.js        Bow hunting numbers and rules (stones, one-shot kills, flee distances, yield)
+src/arrows.js         Arrows in flight
+sim/hunting-sim.mjs   Node check of the hunting rules: node sim/hunting-sim.mjs
 src/pickups.js        Items lying on the ground
 src/wreck.js          The crashed plane at the start, and where the starting items lie
 src/crashTrail.js     The skid marks behind the plane: where they run and how they cut the ground

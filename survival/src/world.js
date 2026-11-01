@@ -5,6 +5,7 @@ import * as placeholders from './placeholders.js';
 import { createNoise, createRandom } from './random.js';
 import { createTerrain } from './terrain.js';
 import { Trees } from './trees.js';
+import { stoneSpots } from './hunting.js';
 
 export const WORLD_SIZE = 140; // meters across; the playable area is a square centred on 0,0
 const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into the haze
@@ -110,6 +111,23 @@ export function buildWorld(scene, seed) {
     scene.add(instancedModel(name, placeholders.rock(), transforms));
   }
 
+  // Loose stones (for arrowheads) lie in small groups by the rocks and the lake shore,
+  // never deep in the forest. They're picked up like any other item (see main.js).
+  const rockObstacles = obstacles.filter((o) => o.top !== undefined);
+  const stones = stoneSpots(
+    random,
+    WORLD_SIZE,
+    (x, z) => {
+      if (terrain.forest(x, z) > 0.2 || terrain.waterDepth(x, z) > 0) return false;
+      const byRocks = rockObstacles.some((o) => Math.hypot(o.x - x, o.z - z) < o.radius + 3);
+      return byRocks || (terrain.nearWater(x, z, 4) && !terrain.nearWater(x, z, 0.5));
+    },
+    (x, z) =>
+      Math.abs(x) < WORLD_SIZE / 2 - 1 && Math.abs(z) < WORLD_SIZE / 2 - 1 &&
+      terrain.waterDepth(x, z) === 0 &&
+      obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + 0.3),
+  );
+
   const grass = createGrass(random, terrain, WORLD_SIZE + 10);
   scene.add(grass.group);
 
@@ -118,6 +136,7 @@ export function buildWorld(scene, seed) {
     obstacles,
     trees,
     grass,
+    stones,
     size: WORLD_SIZE,
     spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),
     update(dt, time, player) {

@@ -3,6 +3,7 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { createRandom } from './random.js';
+import { fleeDistance } from './hunting.js';
 
 // Each kind of animal. Distances in meters, speeds in meters per second
 // (the player walks at 5, so both outrun the player when scared).
@@ -12,7 +13,7 @@ const KINDS = {
     radius: 0.25,
     wanderSpeed: 1.6,
     fleeSpeed: 7,
-    scareDistance: 6, // runs if the player gets this close
+    // Runs when the player gets within FLEE_DISTANCE (hunting.js), standing or crouching...
     calmDistance: 14, // ...and keeps running until this far away
     wanderRange: 6,
     idleTime: [2, 6], // seconds spent grazing between wanders
@@ -26,7 +27,6 @@ const KINDS = {
     radius: 0.6,
     wanderSpeed: 1.2,
     fleeSpeed: 9,
-    scareDistance: 13, // deer are much warier than rabbits
     calmDistance: 28,
     wanderRange: 12,
     idleTime: [3, 9],
@@ -34,7 +34,6 @@ const KINDS = {
     placeholder: placeholders.deer,
   },
 };
-const SNEAK_FACTOR = 0.5; // sneaking players are noticed at half the usual distance
 const SPAWN_DISTANCE = 25; // new animals appear at least this far from the player
 const RESPAWN_TIME = 60; // seconds before a caught animal is replaced
 const FADE_TIME = 0.2; // seconds to blend from one animation to the next
@@ -83,6 +82,8 @@ export class Animals {
       object,
       body,
       position: new THREE.Vector3(spot.x, 0, spot.z),
+      radius: config.radius,
+      dead: false,
       facing: this.random.range(0, Math.PI * 2),
       state: 'idle',
       timer: this.random.range(...config.idleTime),
@@ -129,8 +130,28 @@ export class Animals {
     this.respawns.push({ kind: animal.kind, timer: RESPAWN_TIME });
   }
 
+  // Shot with an arrow: it drops where it stands, to be butchered (see carcassNear).
+  kill(animal) {
+    animal.dead = true;
+    animal.state = 'dead';
+    if (animal.mixer) animal.mixer.stopAllAction();
+    animal.body.rotation.z = Math.PI / 2; // lying on its side
+    animal.body.position.y = animal.config.radius * 0.6;
+  }
+
+  // The nearest shot animal within `reach` of (x, z), or null.
+  carcassNear(x, z, reach) {
+    let best = null;
+    for (const animal of this.all) {
+      if (!animal.dead) continue;
+      const d = Math.hypot(animal.position.x - x, animal.position.z - z);
+      if (d < reach) [best, reach] = [animal, d];
+    }
+    return best;
+  }
+
   update(dt, playerPosition, sneaking) {
-    for (const animal of this.all) this.updateAnimal(animal, dt, playerPosition, sneaking);
+    for (const animal of this.all) if (!animal.dead) this.updateAnimal(animal, dt, playerPosition, sneaking);
 
     for (const respawn of this.respawns) respawn.timer -= dt;
     for (const respawn of this.respawns.filter((r) => r.timer <= 0)) {
@@ -144,7 +165,7 @@ export class Animals {
     const playerDistance = Math.hypot(position.x - playerPosition.x, position.z - playerPosition.z);
 
     // Notice the player and bolt; settle down again once well away.
-    const scareDistance = config.scareDistance * (sneaking ? SNEAK_FACTOR : 1);
+    const scareDistance = fleeDistance(animal.kind, sneaking);
     if (playerDistance < scareDistance) animal.state = 'flee';
     if (animal.state === 'flee' && playerDistance > config.calmDistance) this.rest(animal);
 

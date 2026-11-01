@@ -539,3 +539,41 @@ export function survivor() {
   person.traverse((child) => (child.castShadow = true));
   return person;
 }
+
+// A loose stone you can pick up, about 0.2 m across (stand-in until stone.glb lands).
+export function stone() {
+  const mesh = rock();
+  mesh.scale.setScalar(0.25);
+  mesh.position.y = 0.04;
+  return mesh;
+}
+
+// A simple bow, about 1.2 m tall: a curved stave and a straight string, upright along y,
+// facing +z (stand-in until bow.glb lands).
+export function bow() {
+  const group = new THREE.Group();
+  const stave = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.025, 6, 16, Math.PI * 0.55), material(0x7a5232));
+  // Rotate the arc so it bows forward (+z) and stands upright.
+  stave.rotation.set(0, Math.PI / 2, Math.PI / 2 - Math.PI * 0.275);
+  stave.position.z = -0.55;
+  const string = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 1.15, 4), material(0xe8e0cc));
+  string.position.z = -0.55 + 0.75 * Math.cos(Math.PI * 0.275);
+  group.add(stave, string);
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
+// An arrow about 0.8 m long, pointing along +z (stand-in until arrow.glb lands).
+export function arrow() {
+  const group = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.8, 5), material(0xb48a5a));
+  shaft.rotation.x = Math.PI / 2;
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.1, 5), material(0x6f6f6a, 0.5));
+  head.rotation.x = Math.PI / 2;
+  head.position.z = 0.44;
+  const fletch = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.07, 0.14), material(0xd8d2c4));
+  fletch.position.z = -0.34;
+  group.add(shaft, head, fletch);
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}

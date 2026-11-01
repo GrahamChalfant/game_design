@@ -45,6 +45,13 @@ export class Player {
       this.axe.add(model);
     });
 
+    // The bow (a stand-in until bow.glb lands), shown in the left hand while it's selected.
+    this.bow = placeholders.bow();
+    this.bow.position.set(-0.4, 1.0, 0.25);
+    this.bow.scale.setScalar(0.8);
+    this.bow.visible = false;
+    this.object.add(this.bow);
+
     loadModel('player').then((model) => {
       if (!model) return;
       model.traverse((child) => {
@@ -85,6 +92,7 @@ export class Player {
   // and whether they've found the backpack yet.
   setAction(heldItem, chopping, drinking, hasBackpack) {
     this.axe.visible = heldItem === 'axe' && !this.swimming && !drinking; // put away when the hands are busy
+    this.bow.visible = heldItem === 'bow' && !this.swimming && !drinking;
     this.body.getObjectByName('player-pack').visible = hasBackpack;
     this.chopping = chopping;
     this.drinking = drinking;
