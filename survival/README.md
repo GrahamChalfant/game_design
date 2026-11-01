@@ -120,6 +120,10 @@ Hides and intestines can be crafted into rope (intestines give 1 rope, a hide gi
 2 hides and a rope make a water flask. Select the flask and click at the lake or river to fill
 it (3 drinks), then click anywhere to take a drink. Bigger animals give more meat, hide and
 intestines.
+Craft a shelter (20 wood, 6 rope, 4 hides), select it and click to build it a few steps
+ahead, with its open front facing you. Under its roof you stay warm, like standing at a
+fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
+stats change (campfires keep burning, so they may be out when you wake).
 Hold raw meat at a burning fire and click and hold to cook it, then click away from
 the fire to eat. Eating meat raw works in a pinch, but it makes you sick.
 
@@ -147,6 +151,7 @@ src/player.js         Player movement, swimming and collisions
 src/trees.js          Choppable trees: chopping progress, falling and stumps
 src/seeThrough.js     Makes trees see-through where they'd hide the player
 src/campfires.js      Building campfires, fuel, flames and firelight
+src/shelters.js       Shelters: building them, warmth inside, and where you can sleep
 src/animals.js        Rabbits and deer: wandering, grazing and running from the player
 src/traps.js          Snare traps that catch rabbits
 src/pickups.js        Items lying on the ground

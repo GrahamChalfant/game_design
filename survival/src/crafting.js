@@ -7,6 +7,12 @@ export const RECIPES = [
     description: 'Place it on open ground, then light it with a lighter (E)',
   },
   {
+    item: 'shelter',
+    count: 1,
+    cost: { wood: 20, rope: 6, hide: 4 },
+    description: 'A hide-covered shelter. Keeps you warm, and you can sleep in it at night',
+  },
+  {
     item: 'trap',
     count: 1,
     cost: { wood: 3, rope: 1 },

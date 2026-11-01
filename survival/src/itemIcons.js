@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as placeholders from './placeholders.js';
 
 // Inventory icons: each item is a tiny low-poly model, rendered once into a picture when the
 // game loads, so the icons match the look of the game. Change a model below to change its icon.
@@ -174,6 +175,8 @@ const MODELS = {
     const stitch = mesh(new THREE.BoxGeometry(0.03, 0.75, 0.27), flat(0xd8c49a), [0, 0.45, 0]);
     return group(body, stitch, neck, stopper, cord);
   },
+
+  shelter: () => placeholders.shelter().rotateY(0.5),
 
   // The red coat the player wears (shown in the character panel's Outfit slot).
   outfit: () => {
