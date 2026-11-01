@@ -75,8 +75,8 @@ export function buildWorld(scene, seed) {
   });
   trees.add('broadleaf', placeholders.broadleaf(), broadleaves);
 
-  // Boulders lie in clusters on rocky ground (and the odd one out in the grass). They're
-  // bigger up the valley walls, and each is squashed or stretched a little differently.
+  // Boulders lie in clusters on rocky ground (and the odd one out in the grass), each
+  // squashed or stretched a little differently.
   const rocks = Object.fromEntries(Object.keys(ROCK_SHAPES).map((name) => [name, []]));
   let placedRocks = 0;
   scatter(random, ROCK_COUNT, (x, z) => {
@@ -84,8 +84,7 @@ export function buildWorld(scene, seed) {
     if (!isFree(x, z, 0.3)) return null;
     const name = ROCK_MIX[placedRocks++ % ROCK_MIX.length];
     const shape = ROCK_SHAPES[name];
-    const big = Math.max(Math.abs(x), Math.abs(z)) > 45 ? 1.6 : 1;
-    const { y, rotation, scale } = place(x, z, shape.radius, random.range(...shape.scale) * big);
+    const { y, rotation, scale } = place(x, z, shape.radius, random.range(...shape.scale));
     const rock = transform(x, y, z, rotation, scale, [random.range(0.8, 1.5), random.range(0.6, 1.1), random.range(0.8, 1.3)]);
     rocks[name].push(rock);
     return rock;

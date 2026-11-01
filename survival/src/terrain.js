@@ -12,7 +12,6 @@ const OCHRE = new THREE.Color(0xbfae72);
 const MOSS = new THREE.Color(0x688841);
 const FOREST_FLOOR = new THREE.Color(0x4c6334);
 const STONE = new THREE.Color(0x86877f);
-const SCREE = new THREE.Color(0x9a9890);
 const SNOW = new THREE.Color(0xeef2f4);
 const MUD = new THREE.Color(0x7a6a50);
 const GRAVEL = new THREE.Color(0x9a948a);
@@ -20,13 +19,9 @@ const WATER_BED = new THREE.Color(0x3c5c55);
 const TORN_SOIL = new THREE.Color(0xb8a285);
 const DARK_SOIL = new THREE.Color(0x9c8973);
 
-const VALLEY_FLOOR = 42; // the ground starts rising into the valley walls this far from the middle
-const VALLEY_EDGE = 100; // ...and reaches its full height here
-const WALL_HEIGHT = 26;
 const GROUND_CELLS = 440; // grid squares along each side of the ground: fewer gives bigger facets
 
-// The valley: rolling ground rising into rocky walls at the edges, a lake, and a river
-// running out of it. Everything is worked out from (x, z) so other code can ask "what's here?".
+// The land: gently rolling ground, a lake, and a river running out of it. Everything is worked out from (x, z) so other code can ask "what's here?".
 export function createTerrain(random, noise, size) {
   const lakeCenter = new THREE.Vector2(random.range(18, 32), random.range(-30, -14));
   const lakeRadius = random.range(11, 15);
@@ -39,15 +34,7 @@ export function createTerrain(random, noise, size) {
     return Math.hypot(dx, dz) / radiusAt(Math.atan2(dz, dx));
   };
 
-  // How far up the valley walls (x, z) is, from 0 (valley floor) to 1 (top of the walls).
-  const wall = (x, z) => smoothstep(Math.max(Math.abs(x), Math.abs(z)), VALLEY_FLOOR, VALLEY_EDGE);
-
-  const hills = (x, z) => {
-    const w = wall(x, z);
-    // Rolling ground, plus craggy ridges that get stronger up the walls.
-    const crags = Math.abs(noise(x * 0.06 + 150, z * 0.06)) * 6 * w;
-    return noise(x * 0.02 + 100, z * 0.02) * 4 + noise(x * 0.07 + 200, z * 0.07) * 0.8 + w * w * WALL_HEIGHT + crags;
-  };
+  const hills = (x, z) => noise(x * 0.02 + 100, z * 0.02) * 4 + noise(x * 0.07 + 200, z * 0.07) * 0.8;
 
   // Water sits just below the lowest point of the lake's rim, so it never spills over.
   let rimLow = Infinity;
@@ -97,7 +84,6 @@ export function createTerrain(random, noise, size) {
   const tint = new THREE.Color();
   // What the ground looks like at (x, z). The returned colour is reused: copy it if you keep it.
   const groundAt = (x, z) => {
-    const w = wall(x, z);
     // Broad sage and olive areas, ochre dry patches and dark mossy blotches, like brush strokes.
     color.copy(SAGE).lerp(OLIVE, clamp(noise(x * 0.025 + 300, z * 0.025) + 0.5, 0, 1));
     color.lerp(OCHRE, smoothstep(noise(x * 0.07 + 600, z * 0.07) + noise(x * 0.3, z * 0.3) * 0.25, 0.15, 0.6) * 0.7);
@@ -105,15 +91,15 @@ export function createTerrain(random, noise, size) {
     color.lerp(FOREST_FLOOR, smoothstep(forest(x, z), 0.05, 0.5) * 0.7);
 
     let kind = 'grass';
-    // Grey stone showing through, more of it the higher up the valley walls you go.
-    const rock = noise(x * 0.05 + 900, z * 0.05) + noise(x * 0.4 + 950, z * 0.4) * 0.25 + w * 0.7;
+    // Grey stone showing through.
+    const rock = noise(x * 0.05 + 900, z * 0.05) + noise(x * 0.4 + 950, z * 0.4) * 0.25;
     if (rock > 0.38) {
-      tint.copy(w > 0.4 ? SCREE : STONE).lerp(OCHRE, clamp(noise(x * 0.8, z * 0.8) * 0.3 + 0.1, 0, 0.25));
+      tint.copy(STONE).lerp(OCHRE, clamp(noise(x * 0.8, z * 0.8) * 0.3 + 0.1, 0, 0.25));
       color.lerp(tint, Math.min(1, (rock - 0.38) / 0.05));
       kind = 'rock';
     }
-    // A little lingering snow: the odd patch in the valley, more on the high walls.
-    const snow = noise(x * 0.06 + 400, z * 0.06) + noise(x * 0.4 + 500, z * 0.4) * 0.22 + w * w * 0.35;
+    // A little lingering snow, in the odd patch.
+    const snow = noise(x * 0.06 + 400, z * 0.06) + noise(x * 0.4 + 500, z * 0.4) * 0.22;
     if (snow > 0.86) {
       color.lerp(SNOW, Math.min(1, (snow - 0.86) / 0.03));
       kind = 'snow';

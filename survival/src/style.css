@@ -49,11 +49,10 @@ canvas {
   right: 16px;
   bottom: 16px;
   display: flex;
-  gap: 6px;
-  padding: 8px;
-  border-radius: 8px;
-  background: rgb(0 0 0 / 0.5);
+  gap: 10px;
   pointer-events: none;
+  /* No box behind the icons: a soft shadow keeps them readable on any ground. */
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
 }
 
 /* Each stat is a white icon that drains from the top, like a gauge. */
@@ -73,7 +72,7 @@ canvas {
 }
 
 .stat .empty {
-  opacity: 0.22;
+  opacity: 0.3;
 }
 
 .stat .level {

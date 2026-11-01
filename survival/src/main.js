@@ -156,7 +156,10 @@ renderer.setAnimationLoop(() => {
     draw();
     return;
   }
-  if (input.wasPressed('Tab') || input.wasPressed('KeyI') || input.wasPressed('KeyC')) hud.toggleInventory();
+  if (input.wasPressed('Tab') || input.wasPressed('KeyI') || input.wasPressed('KeyC')) {
+    hud.toggleInventory();
+    if (hud.inventoryOpen) characterView.faceForward();
+  }
   if (hud.inventoryOpen) characterView.update(dt, inventory.hasBackpack);
 
   const actions = updateActions(dt);
