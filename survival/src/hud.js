@@ -31,6 +31,8 @@ export class Hud {
       thirst: document.getElementById('stat-thirst'),
       temperature: document.getElementById('stat-temperature'),
     };
+    this.wet = document.getElementById('cond-wet');
+    this.freezing = document.getElementById('cond-freezing');
     unfocusable(document.getElementById('restart')).addEventListener('click', onRestart);
 
     // The pause menu with the controls. It's open when the game starts.
@@ -154,6 +156,9 @@ export class Hud {
       stat.classList.toggle('warning', value < WARNING && value >= DANGER);
       stat.classList.toggle('danger', value < DANGER);
     }
+
+    this.wet.hidden = !survival.isWet;
+    this.freezing.hidden = !survival.isFreezing;
 
     const { day, hour, minute } = survival.clock;
     const icon = isNight(survival.hourOfDay) ? '🌙' : '☀️';

@@ -251,14 +251,14 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     const shelter = shelters.around(x, z);
     if (shelter && !prompt) {
       const night = isNight(survival.hourOfDay);
-      prompt = night ? "Shelter · you're warm here · E to sleep until morning" : "Shelter · you're warm here";
+      prompt = night ? "Shelter · warmer here · E to sleep until morning" : "Shelter · warmer here";
       if (night && pressedE) onSleep();
     }
 
     player.setAction(held, chopping, drinking, inventory.hasBackpack);
     const warmFire = campfires.near(x, z, WARMTH_REACH);
-    const warming = Boolean(shelter || (warmFire && campfires.isBurning(warmFire)));
+    const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
     const wet = world.terrain.waterDepth(x, z) > WET_DEPTH;
-    return { drinking, working: chopping, warming, wet, prompt, progress };
+    return { drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, prompt, progress };
   };
 }
