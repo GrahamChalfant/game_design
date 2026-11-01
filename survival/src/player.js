@@ -8,6 +8,9 @@ const SNEAK_SPEED = 2.2;
 const SWIM_SPEED = 2.2;
 const SWIM_DEPTH = 1.25; // once the water is this deep, the player swims with their head above water
 const TURN_SPEED = 12;
+const JUMP_SPEED = 5.5; // how fast you leave the ground: about a 0.75 m hop, 0.55 s in the air
+const GRAVITY = 20;
+const JUMP_MAX_DEPTH = 0.3; // too deep in the water to jump beyond this
 const FADE_TIME = 0.15; // seconds to blend from one animation to the next
 
 export class Player {
@@ -16,6 +19,8 @@ export class Player {
     this.spawnFacing = spawnFacing;
     this.facing = spawnFacing;
     this.walkTime = 0;
+    this.jumpHeight = 0; // how far above the ground the player is right now
+    this.jumpSpeed = 0;
     this.limit = worldSize / 2 - 1;
     this.spawn = spawn.clone();
     this.alive = true;
@@ -79,10 +84,16 @@ export class Player {
     this.drinking = drinking;
   }
 
+  // True while in the air from a jump.
+  get airborne() {
+    return this.jumpHeight > 0;
+  }
+
   // Picks the animation for what the player is doing now.
   animate(dt, moving, speed) {
     if (!this.alive) this.play('die');
     else if (this.swimming) this.play('swim');
+    else if (this.airborne) this.play('idle'); // no jump animation yet: hold still in the air
     else if (this.drinking) this.play('drink');
     else if (this.chopping) this.play('chop');
     else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? SNEAK_SPEED : WALK_SPEED));
@@ -127,9 +138,19 @@ export class Player {
       this.walkTime += dt;
     }
 
+    // Space to jump (not while swimming or wading deep). The jump only lifts the body:
+    // `position` stays on the ground, so the camera doesn't bob and collisions still work.
+    if (input.wasPressed('Space') && !this.airborne && depth < JUMP_MAX_DEPTH) this.jumpSpeed = JUMP_SPEED;
+    if (this.jumpSpeed !== 0 || this.airborne) {
+      this.jumpSpeed -= GRAVITY * dt;
+      this.jumpHeight += this.jumpSpeed * dt;
+      if (this.jumpHeight <= 0) this.jumpHeight = this.jumpSpeed = 0; // landed
+    }
+
     const ground = world.terrain.heightAt(this.position.x, this.position.z);
     this.position.y = Math.max(ground, world.terrain.waterLevel - SWIM_DEPTH);
     this.object.position.copy(this.position);
+    this.object.position.y += this.jumpHeight;
     this.object.rotation.y = this.facing;
     if (this.mixer) {
       this.animate(dt, moving, speed);
@@ -176,6 +197,7 @@ export class Player {
     this.alive = true;
     this.position.copy(this.spawn);
     this.facing = this.spawnFacing;
+    this.jumpHeight = this.jumpSpeed = 0;
     this.body.rotation.x = 0;
   }
 
