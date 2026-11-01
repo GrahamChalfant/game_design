@@ -6,23 +6,34 @@ from mathutils import Vector, Matrix
 random.seed(7)
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'public', 'models', 'shelter.glb')
-PREV = '/workspace/shelter_previews'
+# Preview renders go to $SHELTER_PREVIEW_DIR, or ./previews next to this script.
+PREV = os.environ.get('SHELTER_PREVIEW_DIR', os.path.join(HERE, 'previews'))
 bpy.ops.wm.read_factory_settings(use_empty=True)
 sc = bpy.context.scene
 HW, H, D = 1.6, 2.3, 2.8
 mats = {}
+# One vertex-colour material for the whole asset (see STYLE_GUIDE.md); each part is
+# painted a flat palette colour into the 'Col' colour attribute.
 def mat(name, hexc):
-    if name in mats: return mats[name]
-    m = bpy.data.materials.new(name); m.use_nodes = True
-    c = tuple(((hexc >> s) & 255) / 255 for s in (16, 8, 0))
-    c = tuple(x ** 2.2 for x in c)
-    b = m.node_tree.nodes['Principled BSDF']
-    b.inputs['Base Color'].default_value = (*c, 1); b.inputs['Roughness'].default_value = 0.9
-    m.diffuse_color = (*c, 1); mats[name] = m; return m
+    c = tuple((((hexc >> s) & 255) / 255) ** 2.2 for s in (16, 8, 0))
+    return (*c, 1.0)
+_shared = []
+def shared_mat():
+    if _shared: return _shared[0]
+    m = bpy.data.materials.new('shelter'); m.use_nodes = True
+    nt = m.node_tree; b = nt.nodes['Principled BSDF']
+    ca = nt.nodes.new('ShaderNodeVertexColor'); ca.layer_name = 'Col'
+    nt.links.new(ca.outputs['Color'], b.inputs['Base Color'])
+    b.inputs['Roughness'].default_value = 0.9
+    _shared.append(m); return m
+def paint(me, col):
+    a = me.color_attributes.get('Col') or me.color_attributes.new('Col', 'FLOAT_COLOR', 'CORNER')
+    for d in a.data: d.color = col
 def obj(name, bm, m):
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     for p in me.polygons: p.use_smooth = False
-    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(m); return o
+    paint(me, m)
+    o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); me.materials.append(shared_mat()); return o
 def log(name, a, b, r, m, seg=6):
     a, b = Vector(a), Vector(b); d = b - a
     bm = bmesh.new()
@@ -100,7 +111,7 @@ print('TRIANGLES', tris, 'DIMS', tuple(round(d, 2) for d in sh.dimensions))
 bpy.ops.export_scene.gltf(filepath=os.path.abspath(OUT), export_format='GLB', use_selection=True, export_apply=True)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'shelter.blend'))
 # previews (not saved into .blend)
-sc.render.engine = 'BLENDER_EEVEE_NEXT'; sc.render.resolution_x, sc.render.resolution_y = 1280, 900
+sc.render.engine = 'BLENDER_EEVEE_NEXT' if bpy.app.version < (5, 0, 0) else 'BLENDER_EEVEE'; sc.render.resolution_x, sc.render.resolution_y = 1280, 900
 sc.view_settings.view_transform = 'Standard'
 w = bpy.data.worlds.new('w'); sc.world = w; w.use_nodes = True
 w.node_tree.nodes['Background'].inputs[0].default_value = (0.85, 0.66, 0.45, 1)
@@ -114,6 +125,6 @@ def shoot(name, loc, target=(0, 0, 1.0)):
     sc.render.filepath = os.path.join(PREV, name); bpy.ops.render.render(write_still=True)
 shoot('shelter_three_quarter.png', (-5.5, -6.5, 3.2))
 shoot('shelter_side.png', (8.5, 0, 1.3))
-bpy.ops.mesh.primitive_plane_add(size=30); g = bpy.context.active_object; g.data.materials.append(mat('ground', 0x6f7a3c))
+bpy.ops.mesh.primitive_plane_add(size=30); g = bpy.context.active_object; paint(g.data, mat('ground', 0x6f7a3c)); g.data.materials.append(shared_mat())
 sun.rotation_euler = (math.radians(70), 0, math.radians(-60)); sun.data.color = (1, 0.7, 0.45)
 shoot('shelter_in_scene.png', (-3.5, -7.5, 2.0), (0, 0, 0.8))
