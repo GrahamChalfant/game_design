@@ -6,7 +6,12 @@ const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
 const WARMTH_REACH = 3; // how close to a burning fire warms you up, in meters
 const WET_DEPTH = 0.3; // water this deep (in meters) chills you
 const BANDAGE_HEALING = 30;
-const MEAT_PER_RABBIT = 2;
+// What each animal gives when you take it from a trap (or hunt it): bigger animals give more.
+const ANIMAL_DROPS = {
+  rabbit: { rawMeat: 2, hide: 1, gut: 1 },
+  deer: { rawMeat: 6, hide: 3, gut: 2 },
+};
+const FLASK_DRINK = 35; // thirst one drink from the flask restores
 // What eating each food does to hunger and health.
 const FOOD = {
   cookedMeat: { hunger: 35, health: 0, message: 'Delicious' },
@@ -133,9 +138,9 @@ export function createActions({ input, inventory, player, world, wreck, campfire
         prompt = `A ${trap.caught} is caught! · E to take it`;
         if (pressedE) {
           // Taking the catch out breaks the trap: you'll need to craft another.
-          traps.collect(trap);
+          const caught = traps.collect(trap);
           traps.remove(trap);
-          give('rawMeat', MEAT_PER_RABBIT, trap.x, trap.z);
+          for (const [item, count] of Object.entries(ANIMAL_DROPS[caught])) give(item, count, trap.x, trap.z);
           hud.toast('The trap broke');
         }
       } else {
@@ -188,6 +193,26 @@ export function createActions({ input, inventory, player, world, wreck, campfire
       }
     } else if (!fire && held === 'lighter') {
       prompt = 'Keep it on you to light campfires (E next to one)';
+    } else if (!fire && held === 'flask') {
+      // Click at the water's edge (or in it) to fill up; anywhere else to take a drink.
+      const flask = inventory.slots[inventory.selected];
+      const { holds } = ITEMS.flask;
+      if (canDrink && flask.water < holds) {
+        prompt = `Water flask ${flask.water}/${holds} · click to fill it · hold E to drink`;
+        if (input.startedUsingTool()) {
+          flask.water = holds;
+          hud.toast('Flask filled');
+        }
+      } else if (flask.water === 0) {
+        prompt = 'The flask is empty · fill it at the lake or river';
+      } else {
+        prompt = `Water flask ${flask.water}/${holds} · click to drink`;
+        if (input.startedUsingTool()) {
+          flask.water -= 1;
+          survival.drink(FLASK_DRINK);
+          hud.toast('Refreshing');
+        }
+      }
     } else if (!fire && held === 'flare') {
       prompt = 'Save the flare to signal a rescue plane';
     } else if (!fire && held === 'rope') {
@@ -207,7 +232,8 @@ export function createActions({ input, inventory, player, world, wreck, campfire
       const away = Math.atan2(tree.spot.x - x, tree.spot.z - z);
       give('wood', tree.wood, tree.spot.x + Math.sin(away) * 1.6, tree.spot.z + Math.cos(away) * 1.6);
     }
-    if (canDrink) prompt = drinking ? 'Drinking…' : 'Hold E to drink';
+    // (With a flask in hand, the flask's prompt already says how to drink here.)
+    if (canDrink && !(held === 'flask' && !drinking)) prompt = drinking ? 'Drinking…' : 'Hold E to drink';
 
     player.setAction(held, chopping, drinking, inventory.hasBackpack);
     const warmFire = campfires.near(x, z, WARMTH_REACH);

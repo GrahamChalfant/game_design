@@ -67,7 +67,7 @@ export class Hud {
     this.crafting = document.getElementById('crafting');
     const list = this.crafting.querySelector('.recipes');
     this.recipes = RECIPES.map((recipe) => {
-      const { name } = ITEMS[recipe.item];
+      const name = recipe.name ?? ITEMS[recipe.item].name;
       const button = unfocusable(document.createElement('button'));
       button.className = 'recipe';
       button.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(recipe.item)})"></span>
@@ -140,7 +140,9 @@ export class Hud {
       slot.classList.toggle('selected', i === inventory.selected);
       slot.title = contents ? ITEMS[contents.item].name : '';
       showItemIcon(slot.querySelector('.icon'), contents?.item ?? null);
-      slot.querySelector('.count').textContent = contents && contents.count > 1 ? contents.count : '';
+      // A flask shows how many drinks it holds; other stacks show how many there are.
+      const count = !contents ? '' : ITEMS[contents.item].holds ? `${contents.water}/${ITEMS[contents.item].holds}` : contents.count > 1 ? contents.count : '';
+      slot.querySelector('.count').textContent = count;
     });
 
     this.progress.hidden = progress == null;
@@ -218,7 +220,7 @@ export class Hud {
     const card = document.createElement('div');
     card.className = 'unlock';
     card.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(recipe.item)})"></span>
-      <span><small>New recipe</small><strong>${ITEMS[recipe.item].name}</strong><em>Press Tab to craft</em></span>`;
+      <span><small>New recipe</small><strong>${recipe.name ?? ITEMS[recipe.item].name}</strong><em>Press Tab to craft</em></span>`;
     this.unlocks.append(card);
     setTimeout(() => card.remove(), 5000);
   }

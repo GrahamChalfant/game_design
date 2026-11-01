@@ -12,6 +12,26 @@ export const RECIPES = [
     cost: { wood: 3, rope: 1 },
     description: 'Set it on the ground to catch rabbits. Breaks after one catch',
   },
+  {
+    item: 'rope',
+    name: 'Rope (from intestines)',
+    count: 1,
+    cost: { gut: 1 },
+    description: 'Dry and twist intestines into cord',
+  },
+  {
+    item: 'rope',
+    name: 'Rope (from hide)',
+    count: 2,
+    cost: { hide: 1 },
+    description: 'Cut a hide into strips',
+  },
+  {
+    item: 'flask',
+    count: 1,
+    cost: { hide: 2, rope: 1 },
+    description: 'Fill it at the lake or river, then drink from it anywhere (3 drinks)',
+  },
 ];
 
 // A recipe shows up once the player has found everything it's made from.

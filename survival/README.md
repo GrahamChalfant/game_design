@@ -114,8 +114,12 @@ notice you at half the usual distance.
 
 To catch rabbits, press Tab and craft a trap (3 wood and 1 rope), then select it and click to
 set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
-close while you're nearby. When one is caught, press E at the trap for 2 raw meat. This breaks the trap, so you'll
+close while you're nearby. When one is caught, press E at the trap for 2 raw meat, a hide and some intestines. This breaks the trap, so you'll
 need to craft another.
+Hides and intestines can be crafted into rope (intestines give 1 rope, a hide gives 2), and
+2 hides and a rope make a water flask. Select the flask and click at the lake or river to fill
+it (3 drinks), then click anywhere to take a drink. Bigger animals give more meat, hide and
+intestines.
 Hold raw meat at a burning fire and click and hold to cook it, then click away from
 the fire to eat. Eating meat raw works in a pinch, but it makes you sick.
 

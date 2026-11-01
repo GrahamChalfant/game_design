@@ -69,6 +69,10 @@ export class Survival {
   }
 
   // Eating: changes hunger and health (health can go down, e.g. from raw meat).
+  drink(amount) {
+    this.thirst = clamp(this.thirst + amount);
+  }
+
   eat(hunger, health) {
     this.hunger = clamp(this.hunger + hunger);
     this.health = clamp(this.health + health);
