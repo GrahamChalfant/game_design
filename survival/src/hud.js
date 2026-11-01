@@ -1,5 +1,6 @@
 import { canCraft, isKnown, RECIPES } from './crafting.js';
 import { BACKPACK_SIZE, HOTBAR_SIZE, ITEMS } from './inventory.js';
+import { itemIconUrl, showItemIcon } from './itemIcons.js';
 import { isNight } from './daylight.js';
 import { formatDuration } from './survival.js';
 
@@ -42,6 +43,7 @@ export class Hud {
     this.stashHotbar = document.getElementById('stash-hotbar');
     this.noBackpack = document.getElementById('no-backpack');
     this.equippedBackpack = document.querySelector('#equip-backpack .icon');
+    showItemIcon(document.querySelector('#equip-outfit .icon'), 'outfit');
 
     // Hotbar slots (numbered 1–6) at the bottom, then the backpack's slots in the menu.
     this.hotbar = document.getElementById('hotbar');
@@ -65,13 +67,13 @@ export class Hud {
     this.crafting = document.getElementById('crafting');
     const list = this.crafting.querySelector('.recipes');
     this.recipes = RECIPES.map((recipe) => {
-      const { name, icon } = ITEMS[recipe.item];
+      const { name } = ITEMS[recipe.item];
       const cost = Object.entries(recipe.cost)
         .map(([item, count]) => `${count} ${ITEMS[item].name.toLowerCase()}`)
         .join(', ');
       const button = unfocusable(document.createElement('button'));
       button.className = 'recipe';
-      button.innerHTML = `<span class="icon">${icon}</span>
+      button.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(recipe.item)})"></span>
         <span><strong>${name}</strong><small>${recipe.description}</small></span>
         <span class="cost">${cost}</span>`;
       button.addEventListener('click', () => onCraft(recipe));
@@ -114,13 +116,13 @@ export class Hud {
     }
     this.backpack.hidden = !inventory.hasBackpack;
     this.noBackpack.hidden = inventory.hasBackpack;
-    this.equippedBackpack.textContent = inventory.hasBackpack ? ITEMS.backpack.icon : '';
+    showItemIcon(this.equippedBackpack, inventory.hasBackpack ? 'backpack' : null);
 
     this.slots.forEach((slot, i) => {
       const contents = inventory.slots[i];
       slot.classList.toggle('selected', i === inventory.selected);
       slot.title = contents ? ITEMS[contents.item].name : '';
-      slot.querySelector('.icon').textContent = contents ? ITEMS[contents.item].icon : '';
+      showItemIcon(slot.querySelector('.icon'), contents?.item ?? null);
       slot.querySelector('.count').textContent = contents && contents.count > 1 ? contents.count : '';
     });
 
@@ -151,8 +153,8 @@ export class Hud {
   // there; letting go off the menu and hotbar drops it on the ground.
   startDrag(down, slot, index, onSlotDrop, onDropItem) {
     if (down.button !== 0) return;
-    const icon = slot.querySelector('.icon').textContent;
-    if (!icon) return;
+    const item = slot.querySelector('.icon').dataset.item;
+    if (!item) return;
     const ghost = document.getElementById('drag-item');
     let dragging = false;
 
@@ -160,7 +162,7 @@ export class Hud {
       if (!dragging && Math.hypot(e.clientX - down.clientX, e.clientY - down.clientY) < DRAG_START) return;
       if (!dragging) {
         dragging = true;
-        ghost.querySelector('.icon').textContent = icon;
+        showItemIcon(ghost.querySelector('.icon'), item);
         ghost.querySelector('.count').textContent = slot.querySelector('.count').textContent;
         ghost.hidden = false;
         slot.classList.add('dragging');

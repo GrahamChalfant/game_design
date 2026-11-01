@@ -212,9 +212,18 @@ canvas {
   background: rgb(232 217 168 / 0.22);
 }
 
+/* Item icons are pictures (see itemIcons.js), shown as each .icon's background. */
+.slot .icon,
+.equip .icon,
+.recipe .icon,
+#drag-item .icon {
+  display: block;
+  background: center / contain no-repeat;
+}
+
 .slot .icon {
-  font-size: 26px;
-  line-height: 1;
+  width: 42px;
+  height: 42px;
 }
 
 .slot .key,
@@ -349,9 +358,9 @@ canvas {
 }
 
 .equip .icon {
-  min-height: 28px;
-  font-size: 24px;
-  line-height: 28px;
+  width: 30px;
+  height: 30px;
+  margin: 0 auto;
 }
 
 .equip small {
@@ -428,7 +437,8 @@ canvas {
 }
 
 .recipe .icon {
-  font-size: 24px;
+  width: 34px;
+  height: 34px;
 }
 
 .recipe strong,
@@ -461,7 +471,8 @@ canvas {
 }
 
 #drag-item .icon {
-  font-size: 30px;
+  width: 46px;
+  height: 46px;
 }
 
 #drag-item .count {
