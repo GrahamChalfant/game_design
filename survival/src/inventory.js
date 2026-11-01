@@ -11,6 +11,10 @@ export const ITEMS = {
   flare: { name: 'Flare', stack: 3 },
   bandage: { name: 'Bandage', stack: 10 },
   rope: { name: 'Rope', stack: 10 },
+  hide: { name: 'Hide', stack: 10 },
+  gut: { name: 'Intestines', stack: 10 },
+  // Holds up to `holds` drinks of water, kept on its slot as `water`.
+  flask: { name: 'Water flask', stack: 1, holds: 3 },
   rawMeat: { name: 'Raw meat', stack: 10 },
   cookedMeat: { name: 'Cooked meat', stack: 10 },
   // Not kept in a slot: picking it up unlocks the backpack's slots.
@@ -101,7 +105,7 @@ export class Inventory {
     for (let i = 0; i < this.usableSlots && count > 0; i++) {
       if (this.slots[i]) continue;
       const added = Math.min(count, stack);
-      this.slots[i] = { item, count: added };
+      this.slots[i] = ITEMS[item].holds ? { item, count: added, water: 0 } : { item, count: added };
       count -= added;
     }
     return count;

@@ -133,6 +133,48 @@ const MODELS = {
     return group(meat, bone, ...knobs).rotateY(0.9).rotateX(-0.3);
   },
 
+  // A folded, furry rabbit/deer pelt.
+  hide: () => {
+    const fur = flat(0x9a7a58);
+    const skin = flat(0xcfae86);
+    const pelt = new THREE.BoxGeometry(1.2, 0.08, 0.85, 3, 1, 2);
+    const p = pelt.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      // Ragged edges and a slight sag, so it reads as a skin rather than a board.
+      const x = p.getX(i), z = p.getZ(i);
+      p.setY(i, p.getY(i) - (x * x) * 0.12 + Math.sin(x * 7 + z * 5) * 0.02);
+      p.setZ(i, z * (1 + 0.12 * Math.sin(x * 9)));
+    }
+    pelt.computeVertexNormals();
+    const top = mesh(pelt, fur, [0, 0.12, 0]);
+    const under = mesh(new THREE.BoxGeometry(1.1, 0.05, 0.7), skin, [0.05, 0.03, 0.08], [0, 0.15, 0]);
+    const legs = [[-0.62, -0.32], [-0.62, 0.32], [0.62, -0.3], [0.62, 0.3]].map(([x, z]) =>
+      mesh(new THREE.BoxGeometry(0.22, 0.05, 0.14), fur, [x, 0.12, z], [0, x * z > 0 ? 0.5 : -0.5, 0]),
+    );
+    return group(under, top, ...legs);
+  },
+
+  // A coil of intestines, for drying into cord.
+  gut: () => {
+    const pink = flat(0xc98a8a);
+    const loops = [0, 1].map((i) =>
+      mesh(new THREE.TorusGeometry(0.32 - i * 0.1, 0.09, 5, 9), pink, [0.05 * i, 0.09 + i * 0.13, 0], [Math.PI / 2, 0, i]),
+    );
+    const tail = mesh(new THREE.CylinderGeometry(0.08, 0.06, 0.55, 5), flat(0xb87878), [0.45, 0.06, 0.15], [0, 0.4, Math.PI / 2]);
+    return group(...loops, tail);
+  },
+
+  // A leather water flask with a wooden stopper and a carrying cord.
+  flask: () => {
+    const leather = flat(0x7a5236);
+    const body = mesh(new THREE.DodecahedronGeometry(0.42, 0).scale(1, 1.15, 0.6), leather, [0, 0.45, 0]);
+    const neck = mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.2, 6), flat(0x5e3e28), [0, 0.98, 0]);
+    const stopper = mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.14, 6), flat(0xc9a46a), [0, 1.14, 0]);
+    const cord = mesh(new THREE.TorusGeometry(0.42, 0.025, 3, 12, Math.PI * 1.2), flat(0xc7a46a), [0, 0.62, 0], [0, 0, Math.PI * 0.4]);
+    const stitch = mesh(new THREE.BoxGeometry(0.03, 0.75, 0.27), flat(0xd8c49a), [0, 0.45, 0]);
+    return group(body, stitch, neck, stopper, cord);
+  },
+
   // The red coat the player wears (shown in the character panel's Outfit slot).
   outfit: () => {
     const red = flat(0xb5432f);
