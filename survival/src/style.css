@@ -667,3 +667,39 @@ canvas {
   8%, 85% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-12px); }
 }
+
+/* --- Sleeping: fade to black and back --- */
+
+#sleep {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  color: #fff;
+  background: #05080c;
+  text-align: center;
+  pointer-events: none;
+  animation: sleep 3s ease forwards;
+}
+
+#sleep[hidden] {
+  display: none;
+}
+
+#sleep p {
+  margin: 0;
+  font-size: 18px;
+  opacity: 0.8;
+}
+
+#sleep strong {
+  font-size: 26px;
+}
+
+@keyframes sleep {
+  0% { opacity: 0; }
+  25%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}

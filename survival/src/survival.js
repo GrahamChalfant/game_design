@@ -69,6 +69,14 @@ export class Survival {
   }
 
   // Eating: changes hunger and health (health can go down, e.g. from raw meat).
+  // Sleeps until `wakeHour` the next morning. Time passes, but nothing else changes.
+  // Returns how many in-game minutes were slept.
+  sleepUntil(wakeHour) {
+    const minutes = (((wakeHour - this.hourOfDay) % 24) + 24) % 24 * 60;
+    this.minutesSurvived += minutes;
+    return minutes;
+  }
+
   drink(amount) {
     this.thirst = clamp(this.thirst + amount);
   }

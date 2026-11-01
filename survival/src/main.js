@@ -4,6 +4,7 @@ import { Daylight } from './daylight.js';
 import { createPainterlyRenderer } from './painterly.js';
 import { Animals } from './animals.js';
 import { Campfires } from './campfires.js';
+import { Shelters } from './shelters.js';
 import { CharacterView } from './characterView.js';
 import { craft } from './crafting.js';
 import { Hud } from './hud.js';
@@ -71,6 +72,7 @@ const daylight = new Daylight(scene, sun, ambient, snow);
 const survival = new Survival();
 const inventory = new Inventory();
 const campfires = new Campfires(scene, world);
+const shelters = new Shelters(scene, world);
 const animals = new Animals(scene, world, SEED + 2);
 animals.spawnAll(player.position);
 const traps = new Traps(scene, world, animals);
@@ -86,6 +88,7 @@ const hud = new Hud({
     inventory.reset();
     world.trees.reset();
     campfires.reset();
+    shelters.reset();
     traps.reset();
     pickups.reset();
     placeStartItems();
@@ -116,7 +119,16 @@ const hud = new Hud({
   },
 });
 const characterView = new CharacterView(document.getElementById('character-view'));
-const updateActions = createActions({ input, inventory, player, world, wreck, campfires, traps, pickups, survival, hud });
+// Sleeping in a shelter: the screen fades out, and you wake at 06:00 with your stats
+// unchanged. Campfires keep burning through the night, so they may be out by morning.
+const WAKE_HOUR = 6;
+const sleep = () => {
+  const minutes = survival.sleepUntil(WAKE_HOUR);
+  campfires.update(minutes, clock.elapsedTime);
+  const { day } = survival.clock;
+  hud.showSleep(`Day ${day} · 0${WAKE_HOUR}:00`);
+};
+const updateActions = createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, survival, hud, onSleep: sleep });
 
 // --- Top-down camera that follows the player ---
 let zoom = 20; // distance from the player

@@ -231,6 +231,19 @@ export class Hud {
     this.unlocks.replaceChildren();
   }
 
+  // Fades to black and back, showing what time you woke up.
+  showSleep(wakeText) {
+    const sleep = document.getElementById('sleep');
+    sleep.querySelector('strong').textContent = wakeText;
+    sleep.hidden = false;
+    // Restart the fade, in case it's still running.
+    sleep.style.animation = 'none';
+    void sleep.offsetWidth;
+    sleep.style.animation = '';
+    clearTimeout(this.sleepTimer);
+    this.sleepTimer = setTimeout(() => (sleep.hidden = true), 3000);
+  }
+
   hideGameOver() {
     this.gameOver.hidden = true;
   }

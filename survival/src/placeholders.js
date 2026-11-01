@@ -278,6 +278,61 @@ export function logPile() {
   return group;
 }
 
+// A rudimentary A-frame shelter, about 3.2 m wide, 2.3 m tall (taller than the player) and
+// 2.8 m deep, base at the origin, open at the front (+z): crossed poles at each end hold a ridge pole, stitched hides
+// cover both slopes and the back, and there's a bed of spruce boughs inside.
+export function shelter() {
+  const flatMaterial = (color) =>
+    new THREE.MeshStandardMaterial({ color, roughness: 0.9, flatShading: true, side: THREE.DoubleSide });
+  const wood = flatMaterial(0x6b4a32);
+  const group = new THREE.Group();
+  const add = (geometry, mat, [x, y, z], [rx, ry, rz] = [0, 0, 0]) => {
+    const m = new THREE.Mesh(geometry, mat);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    group.add(m);
+    return m;
+  };
+
+  const HALF_WIDTH = 1.6;
+  const HEIGHT = 2.3;
+  const DEPTH = 2.8;
+  const slope = Math.atan2(HEIGHT, HALF_WIDTH);
+  const side = Math.hypot(HALF_WIDTH, HEIGHT);
+
+  // Crossed poles at the front and back, sticking up past the ridge.
+  for (const z of [DEPTH / 2 - 0.1, -DEPTH / 2 + 0.1]) {
+    for (const s of [-1, 1]) {
+      add(new THREE.CylinderGeometry(0.05, 0.07, side + 0.45, 6), wood, [s * (HALF_WIDTH / 2 - 0.1), HEIGHT / 2 + 0.12, z], [0, 0, s * (Math.PI / 2 - slope)]);
+    }
+  }
+  add(new THREE.CylinderGeometry(0.06, 0.06, DEPTH + 0.4, 6), wood, [0, HEIGHT, 0], [Math.PI / 2, 0, 0]);
+
+  // Hides on both slopes: two per side, slightly different shades, with stitched seams.
+  const hides = [0x8a6a4a, 0x9c7a56, 0x7a5c40, 0x94704e];
+  let n = 0;
+  for (const s of [-1, 1]) {
+    for (const z of [-DEPTH / 4, DEPTH / 4]) {
+      add(new THREE.BoxGeometry(side, 0.05, DEPTH / 2 + 0.02), flatMaterial(hides[n++]), [s * HALF_WIDTH / 2, HEIGHT / 2, z], [0, 0, -s * slope]);
+    }
+    add(new THREE.BoxGeometry(side, 0.06, 0.05), flatMaterial(0xd8c49a), [s * HALF_WIDTH / 2, HEIGHT / 2 + 0.01, 0], [0, 0, -s * slope]);
+  }
+  // A hide stretched across the back.
+  const back = new THREE.Shape();
+  back.moveTo(-HALF_WIDTH, 0);
+  back.lineTo(HALF_WIDTH, 0);
+  back.lineTo(0, HEIGHT);
+  back.closePath();
+  add(new THREE.ShapeGeometry(back), flatMaterial(0x7f6044), [0, 0, -DEPTH / 2 + 0.05]);
+
+  // A bed of spruce boughs inside.
+  add(new THREE.BoxGeometry(1.9, 0.12, 2.2), flatMaterial(0x3f5c34), [0, 0.06, -0.2]);
+  add(new THREE.BoxGeometry(1.6, 0.08, 1.8), flatMaterial(0x4d6e3c), [0.05, 0.14, -0.25], [0, 0.06, 0]);
+
+  group.traverse((child) => (child.castShadow = child.receiveShadow = true));
+  return group;
+}
+
 // Snare trap: a small wooden frame with a wire loop, base at the origin.
 export function trap() {
   const group = new THREE.Group();

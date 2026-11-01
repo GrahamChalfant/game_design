@@ -1,4 +1,5 @@
 import { formatFuel } from './campfires.js';
+import { isNight } from './daylight.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 
 const COOK_TIME = 3; // seconds of holding the mouse button at a fire to cook one piece of meat
@@ -20,7 +21,7 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, wreck, campfires, traps, pickups, survival, hud }) {
+export function createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, survival, hud, onSleep }) {
   let cooking = 0;
   let searching = 0;
 
@@ -169,6 +170,17 @@ export function createActions({ input, inventory, player, world, wreck, campfire
       } else {
         prompt = 'Click to place the campfire';
       }
+    } else if (!fire && held === 'shelter') {
+      // A crafted shelter: place it a few steps ahead (its open front always faces the camera).
+      const spot = player.ahead(2.8);
+      if (!shelters.canBuildAt(spot.x, spot.z)) {
+        prompt = 'Not enough open ground for a shelter here';
+      } else if (input.startedUsingTool()) {
+        inventory.remove('shelter', 1);
+        shelters.build(spot.x, spot.z);
+      } else {
+        prompt = 'Click to build the shelter';
+      }
     } else if (!fire && held === 'trap') {
       const spot = player.ahead(1.2);
       if (!traps.canPlaceAt(spot.x, spot.z)) {
@@ -235,9 +247,17 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     // (With a flask in hand, the flask's prompt already says how to drink here.)
     if (canDrink && !(held === 'flask' && !drinking)) prompt = drinking ? 'Drinking…' : 'Hold E to drink';
 
+    // Under a shelter you're warm, and at night E sleeps until morning.
+    const shelter = shelters.around(x, z);
+    if (shelter && !prompt) {
+      const night = isNight(survival.hourOfDay);
+      prompt = night ? "Shelter · you're warm here · E to sleep until morning" : "Shelter · you're warm here";
+      if (night && pressedE) onSleep();
+    }
+
     player.setAction(held, chopping, drinking, inventory.hasBackpack);
     const warmFire = campfires.near(x, z, WARMTH_REACH);
-    const warming = Boolean(warmFire && campfires.isBurning(warmFire));
+    const warming = Boolean(shelter || (warmFire && campfires.isBurning(warmFire)));
     const wet = world.terrain.waterDepth(x, z) > WET_DEPTH;
     return { drinking, working: chopping, warming, wet, prompt, progress };
   };

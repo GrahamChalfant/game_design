@@ -7,6 +7,7 @@ export const ITEMS = {
   wood: { name: 'Wood', stack: 50 },
   trap: { name: 'Trap', stack: 5 },
   campfire: { name: 'Campfire', stack: 3 },
+  shelter: { name: 'Shelter', stack: 1 },
   lighter: { name: 'Lighter', stack: 1 },
   flare: { name: 'Flare', stack: 3 },
   bandage: { name: 'Bandage', stack: 10 },
