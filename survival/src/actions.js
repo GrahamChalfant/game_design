@@ -191,7 +191,7 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     } else if (!fire && held === 'flare') {
       prompt = 'Save the flare to signal a rescue plane';
     } else if (!fire && held === 'rope') {
-      prompt = 'Rope is used to craft traps (C)';
+      prompt = 'Rope is used to craft traps (Tab)';
     } else if (!fire && held === 'cookedMeat') {
       prompt = 'Click to eat';
       if (input.startedUsingTool()) eat('cookedMeat');

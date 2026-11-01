@@ -29,14 +29,15 @@ const FOREST_MIX = [
   'sapling-broadleaf', 'pine', 'tree-dead', 'pine-small-snow', 'pine-wide', 'sapling-pine', 'pine', 'pine-small',
 ];
 const ROCK_COUNT = 260;
-// Each rock shape: its collision radius and how much it can be scaled.
+// Each rock shape: its collision radius, how tall it stands, and how much it can be scaled.
 const ROCK_SHAPES = {
-  rock: { radius: 0.55, scale: [0.5, 1.6] },
-  'rock-small': { radius: 0.25, scale: [0.7, 1.6] },
-  'rock-flat': { radius: 0.7, scale: [0.7, 1.4] },
-  'rock-tall': { radius: 0.35, scale: [0.7, 1.4] },
-  'rock-large': { radius: 0.95, scale: [0.8, 1.4] },
+  rock: { radius: 0.55, height: 0.77, scale: [0.5, 1.6] },
+  'rock-small': { radius: 0.25, height: 0.3, scale: [0.7, 1.6] },
+  'rock-flat': { radius: 0.7, height: 0.29, scale: [0.7, 1.4] },
+  'rock-tall': { radius: 0.35, height: 1.17, scale: [0.7, 1.4] },
+  'rock-large': { radius: 0.95, height: 1.28, scale: [0.8, 1.4] },
 };
+const ROCK_TOP = 0.9; // rocks taper, so the player stands a little below the very top
 // Rocks take their shape from this list in turn, so small ones are common and large ones rare.
 const ROCK_MIX = ['rock', 'rock-small', 'rock-flat', 'rock-small', 'rock', 'rock-tall', 'rock-small', 'rock-large'];
 const CRASH_CLEARING = 14; // keep this radius around the crash site (at 0, 0) free of trees
@@ -98,8 +99,10 @@ export function buildWorld(scene, seed) {
     if (!isFree(x, z, 0.3)) return null;
     const name = ROCK_MIX[placedRocks++ % ROCK_MIX.length];
     const shape = ROCK_SHAPES[name];
-    const { y, rotation, scale } = place(x, z, shape.radius, random.range(...shape.scale));
-    const rock = transform(x, y, z, rotation, scale, [random.range(0.8, 1.5), random.range(0.6, 1.1), random.range(0.8, 1.3)]);
+    const { y, rotation, scale, obstacle } = place(x, z, shape.radius, random.range(...shape.scale));
+    const stretch = [random.range(0.8, 1.5), random.range(0.6, 1.1), random.range(0.8, 1.3)];
+    obstacle.top = y + shape.height * ROCK_TOP * scale * stretch[1]; // the player can jump onto it
+    const rock = transform(x, y, z, rotation, scale, stretch);
     rocks[name].push(rock);
     return rock;
   });

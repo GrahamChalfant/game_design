@@ -156,7 +156,7 @@ renderer.setAnimationLoop(() => {
     draw();
     return;
   }
-  if (input.wasPressed('Tab') || input.wasPressed('KeyI') || input.wasPressed('KeyC')) {
+  if (input.wasPressed('Tab') || input.wasPressed('KeyI')) {
     hud.toggleInventory();
     if (hud.inventoryOpen) characterView.faceForward();
   }

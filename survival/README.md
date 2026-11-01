@@ -44,15 +44,15 @@ automatically whenever you save a file.
 | Key | Action |
 | --- | --- |
 | W A S D / arrow keys | Walk |
-| Shift (hold) | Sneak: move slowly so animals don't notice you as soon |
+| C, or hold Shift | Crouch: move slowly so animals don't notice you as soon. C stays on until you press it again |
 | 1–6, or click a slot | Pick an item from the hotbar |
 | Left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
-| Space | Jump |
+| Space | Jump, including onto rocks and stumps that are low enough |
 | E (hold, at the water's edge or in the lake) | Drink |
 | E (next to a campfire) | Add a log to the fire |
 | E (at a trap) | Take the catch, or pick up an empty trap |
 | E (next to something on the ground) | Pick it up |
-| Tab, I or C | Open or close your character, inventory and crafting (drag items to move them, or off the menu to drop them) |
+| Tab or I | Open or close your character, inventory and crafting (drag items to move them, or off the menu to drop them) |
 | Mouse wheel / trackpad scroll | Zoom in and out |
 | Esc | Pause and show the controls (also closes the inventory) |
 
@@ -105,7 +105,7 @@ A fire burns for 2 in-game hours; stand next to it and press E to add a log
 
 Rabbits and deer roam the map, but there aren't many of them. They graze and wander
 until you get too close, then bolt. Both run faster than you, and deer spook from much
-farther away, so you won't catch them by chasing. Hold Shift to sneak: animals only
+farther away, so you won't catch them by chasing. Press C to crouch: animals only
 notice you at half the usual distance.
 
 To catch rabbits, press Tab and craft a trap (3 wood and 1 rope), then select it and click to
@@ -171,7 +171,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 
 | File | What it is | Size |
 | --- | --- | --- |
-| `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink` and `die`. | ~1.8 m tall |
+| `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink`, `jump` and `die`. | ~1.8 m tall |
 | `pine.glb` | Tall conifer that grows in the forests | ~9 m tall |
 | `pine-small.glb` | Young pine | ~3.5 m tall |
 | `pine-skinny.glb` | Narrow pine | ~10 m tall, ~2 m across |
