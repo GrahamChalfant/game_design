@@ -20,7 +20,7 @@ const WORK_HUNGER = 3; // hard work (like chopping) makes you hungry this many t
 
 // Temperature (0–100). Rates are points per in-game hour (1 game hour ≈ 25 real seconds).
 const START_TEMPERATURE = 60;
-const WATER_CHILL_PER_HOUR = 40; // submerged in water
+const WATER_CHILL_PER_HOUR = 28; // submerged in water
 const NIGHT_CHILL_PER_HOUR = 12; // outdoors at night with no fire or shelter
 const OUTDOOR_WARMING_PER_HOUR = 5; // daytime outdoors drifts toward DAY_TEMPERATURE at this rate
 const DAY_TEMPERATURE = 60; // outdoor warming never goes above this

@@ -9,7 +9,7 @@ const setHour = (s, h) => { s.minutesSurvived = ((h - 8 + 24) % 24) * 60; };
 // 1) lake: full temp -> freezing within ~75 s, then HP drains
 let s = new Survival(); setHour(s, 10); s.temperature = 100; s.health = 100;
 let t = 0; while (s.temperature > FREEZING) { s.update(dt, { wet: true }); t += dt; }
-ok(t <= 75, `1 lake 100->freezing in ${t.toFixed(1)} real s`);
+ok(t >= 70 && t <= 80, `1 lake 100->freezing in ${t.toFixed(1)} real s`);
 const hp = s.health; run(s, { wet: true }, 10); ok(s.health < hp && s.isWet && s.isFreezing, `1 HP drains in water (${hp.toFixed(1)} -> ${s.health.toFixed(1)})`);
 
 // 2) warming rates, caps, wet
