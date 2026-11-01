@@ -64,12 +64,14 @@ plane. It's just out of sight, so head north to find it. Your axe and backpack w
 clear in the crash: look around the wreckage (they have floating icons) and press E to
 pick them up. The backpack gives you 12 extra slots.
 
-Hold E next to the cockpit or a suitcase to search it. Each one can be searched once:
+Suitcases were thrown out of the plane as it crashed: some lie around the wreck, and one lies
+back along the furrow the plane dug as it skidded in. Hold E next to a suitcase to search it.
+Each one can be searched once:
 
 | Where | What's inside |
 | --- | --- |
-| Cockpit | Lighter, flare |
-| Suitcases | A first-aid kit (3 bandages), and 5 rope between them |
+| The suitcase in the skid furrow | Lighter, flare |
+| The suitcases around the wreck | A first-aid kit (3 bandages), and 5 rope between them |
 
 Select a bandage and press Space to heal 30 health. Keep the lighter: you need it to
 light fires. Save the flare for signalling a rescue (coming later).
@@ -127,7 +129,7 @@ index.html            Page shell and HUD
 src/main.js           Renderer, lighting, camera and the main game loop
 src/daylight.js       Day and night: the sun and moon, light colours, sky and fog
 src/world.js          Builds the map from a seed: places trees, rocks and grass
-src/terrain.js        The valley: hills, rocky walls, the lake, the river and the ground colours
+src/terrain.js        The land: gentle hills, the lake, the river and the ground colours
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
 src/water.js          The lake and the flowing river, and ripples around the player
 src/grass.js          Swaying grass tufts
@@ -142,7 +144,7 @@ src/pickups.js        Items lying on the ground
 src/wreck.js          The crashed plane at the start, and where the starting items lie
 src/crashTrail.js     The skid marks behind the plane: where they run and how they cut the ground
 src/crafting.js       Crafting recipes (add new ones here)
-src/characterView.js  The close-up of your character in the inventory
+src/characterView.js  The close-up of your character in the inventory (drag it to turn them)
 src/actions.js        What the player is doing each frame: chopping, building, cooking, eating…
 src/inventory.js      Items and the hotbar
 src/survival.js       Hunger, thirst, temperature, health and the survival clock

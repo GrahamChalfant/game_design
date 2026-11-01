@@ -2,7 +2,7 @@ import { formatFuel } from './campfires.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 
 const COOK_TIME = 3; // seconds of holding Space at a fire to cook one piece of meat
-const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase or the cockpit
+const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
 const WARMTH_REACH = 3; // how close to a burning fire warms you up, in meters
 const WET_DEPTH = 0.3; // water this deep (in meters) chills you
 const BANDAGE_HEALING = 30;
@@ -117,7 +117,7 @@ export function createActions({ input, inventory, player, world, wreck, campfire
         hud.toast(taken > 0 ? `+${taken} ${name}` : 'Inventory full');
       }
     } else if (!fire && container && !container.searched) {
-      // Hold E to search a suitcase or the cockpit; everything inside is yours.
+      // Hold E to search a suitcase; everything inside is yours.
       searchingNow = input.isDown('KeyE');
       searching = searchingNow ? searching + dt : 0;
       progress = searching / SEARCH_TIME;
