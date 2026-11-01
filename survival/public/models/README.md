@@ -16,6 +16,9 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `plane.glb` | Crashed plane wreck | 448 | plane.blend |
 | `plane-wing.glb` | Detached plane wing | 72 | plane.blend |
 | `shelter.glb` | A-frame hide shelter, single vertex-colour material | 1,076 | shelter.py (generates shelter.blend) |
+| `bow.glb` | Self bow, 1.40 m, hide grip, string; origin at grip centre, string toward +Y (archer) | 188 | hunting_props.py |
+| `arrow.glb` | Arrow, 0.70 m, stone head, 3 vanes; origin at the nock, points -Y | 40 | hunting_props.py |
+| `stone.glb` | Fist-sized throwing stone, ~0.095 m; origin at base centre | 28 | hunting_props.py |
 | `pine.glb`, `pine-small.glb`, `pine-skinny.glb`, `pine-tall.glb`, `pine-wide.glb` | Pines | 188–448 | trees.blend |
 | `pine-snow.glb`, `pine-small-snow.glb` | Snowy pines | 1,124 / 548 | trees.blend |
 | `sapling-pine.glb`, `sapling-broadleaf.glb` | Saplings | 144 / 288 | trees.blend |
