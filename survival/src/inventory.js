@@ -1,19 +1,20 @@
 // What the player is carrying: a hotbar of slots, plus a backpack with more slots.
+// Each item's icon is a small 3D model, drawn in itemIcons.js.
 // Each slot holds a stack of one kind of item. Slots 0–5 are the hotbar; the rest are the backpack.
 
 export const ITEMS = {
-  axe: { name: 'Axe', icon: '🪓', stack: 1 },
-  wood: { name: 'Wood', icon: '🪵', stack: 50 },
-  trap: { name: 'Trap', icon: '🪤', stack: 5 },
-  campfire: { name: 'Campfire', icon: '🏕️', stack: 3 },
-  lighter: { name: 'Lighter', icon: '🔥', stack: 1 },
-  flare: { name: 'Flare', icon: '🧨', stack: 3 },
-  bandage: { name: 'Bandage', icon: '🩹', stack: 10 },
-  rope: { name: 'Rope', icon: '🪢', stack: 10 },
-  rawMeat: { name: 'Raw meat', icon: '🥩', stack: 10 },
-  cookedMeat: { name: 'Cooked meat', icon: '🍖', stack: 10 },
+  axe: { name: 'Axe', stack: 1 },
+  wood: { name: 'Wood', stack: 50 },
+  trap: { name: 'Trap', stack: 5 },
+  campfire: { name: 'Campfire', stack: 3 },
+  lighter: { name: 'Lighter', stack: 1 },
+  flare: { name: 'Flare', stack: 3 },
+  bandage: { name: 'Bandage', stack: 10 },
+  rope: { name: 'Rope', stack: 10 },
+  rawMeat: { name: 'Raw meat', stack: 10 },
+  cookedMeat: { name: 'Cooked meat', stack: 10 },
   // Not kept in a slot: picking it up unlocks the backpack's slots.
-  backpack: { name: 'Backpack', icon: '🎒', stack: 1 },
+  backpack: { name: 'Backpack', stack: 1 },
 };
 
 export const HOTBAR_SIZE = 6;

@@ -148,6 +148,7 @@ src/crafting.js       Crafting recipes (add new ones here)
 src/characterView.js  The close-up of your character in the inventory (drag it to turn them)
 src/actions.js        What the player is doing each frame: chopping, building, cooking, eating…
 src/inventory.js      Items and the hotbar
+src/itemIcons.js      Item icons: small low-poly models, rendered into pictures when the game loads
 src/survival.js       Hunger, thirst, temperature, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
 src/input.js          Keyboard and mouse handling

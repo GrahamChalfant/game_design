@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { ITEMS } from './inventory.js';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
+import { itemIconCanvas } from './itemIcons.js';
 
 const MERGE_DISTANCE = 1; // dropping next to a pile of the same item adds to it
 // What some items look like lying on the ground: [stand-in, Blender model name].
@@ -46,7 +46,7 @@ export class Pickups {
       });
       object.add(shown);
     }
-    const icon = iconSprite(ITEMS[item].icon);
+    const icon = iconSprite(item);
     object.add(icon);
     this.scene.add(object);
     this.world.grass.clear(x, z, 0.6);
@@ -92,8 +92,8 @@ export class Pickups {
   }
 }
 
-// A floating picture of the item (its emoji), always facing the camera.
-function iconSprite(emoji) {
+// A floating picture of the item (its inventory icon), always facing the camera.
+function iconSprite(item) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 128;
   const ctx = canvas.getContext('2d');
@@ -101,10 +101,8 @@ function iconSprite(emoji) {
   ctx.beginPath();
   ctx.arc(64, 64, 60, 0, Math.PI * 2);
   ctx.fill();
-  ctx.font = '72px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(emoji, 64, 70);
+  const icon = itemIconCanvas(item);
+  if (icon) ctx.drawImage(icon, 18, 18, 92, 92);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthWrite: false }));
