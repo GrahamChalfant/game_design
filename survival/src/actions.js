@@ -1,7 +1,7 @@
 import { formatFuel } from './campfires.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 
-const COOK_TIME = 3; // seconds of holding Space at a fire to cook one piece of meat
+const COOK_TIME = 3; // seconds of holding the mouse button at a fire to cook one piece of meat
 const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
 const WARMTH_REACH = 3; // how close to a burning fire warms you up, in meters
 const WET_DEPTH = 0.3; // water this deep (in meters) chills you
@@ -54,14 +54,14 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     const container = wreck.near(x, z, 1.8);
     let searchingNow = false;
     const tree = player.treeInReach(world);
-    const chopping = Boolean(tree && held === 'axe' && input.usingTool());
+    const chopping = Boolean(tree && held === 'axe' && input.usingTool() && !player.airborne);
     let prompt = null;
     let progress = null;
     let cookingNow = false;
 
     if (fire) {
       // Tending a fire: E lights it (with a lighter) or adds a log.
-      // Raw meat in hand: hold Space to cook it.
+      // Raw meat in hand: hold the mouse button to cook it.
       const wood = inventory.count('wood');
       const hasLighter = inventory.count('lighter') > 0;
       const needsLighting = !campfires.isBurning(fire) && fire.fuel > 0;
@@ -91,7 +91,7 @@ export function createActions({ input, inventory, player, world, wreck, campfire
         cookingNow = input.usingTool();
         cooking = cookingNow ? cooking + dt : 0;
         progress = cooking / COOK_TIME;
-        prompt = `${cookingNow ? 'Cooking…' : 'Hold Space to cook'} · ${tend}`;
+        prompt = `${cookingNow ? 'Cooking…' : 'Click and hold to cook'} · ${tend}`;
         if (cooking >= COOK_TIME) {
           cooking = 0;
           inventory.remove('rawMeat', 1);
@@ -151,7 +151,7 @@ export function createActions({ input, inventory, player, world, wreck, campfire
       else if (axeSlot >= HOTBAR_SIZE) prompt = 'Move the axe from your backpack to the hotbar to use it';
       else prompt = `Press ${axeSlot + 1} to take out your axe`;
     } else if (!fire && tree) {
-      prompt = chopping ? 'Chopping…' : 'Hold Space or click to chop';
+      prompt = chopping ? 'Chopping…' : 'Click and hold to chop';
       progress = world.trees.progress(tree);
     } else if (!fire && held === 'campfire') {
       // A crafted campfire: place it on open ground in front of you.
@@ -162,7 +162,7 @@ export function createActions({ input, inventory, player, world, wreck, campfire
         inventory.remove('campfire', 1);
         campfires.build(spot.x, spot.z);
       } else {
-        prompt = 'Space or click to place the campfire';
+        prompt = 'Click to place the campfire';
       }
     } else if (!fire && held === 'trap') {
       const spot = player.ahead(1.2);
@@ -173,13 +173,13 @@ export function createActions({ input, inventory, player, world, wreck, campfire
         traps.place(spot.x, spot.z, player.facing);
         hud.toast('Trap set. Rabbits nearby will be drawn to it.');
       } else {
-        prompt = 'Space or click to set the trap';
+        prompt = 'Click to set the trap';
       }
     } else if (!fire && held === 'bandage') {
       if (survival.health >= 100) {
         prompt = "You're not hurt";
       } else {
-        prompt = `Space or click to use a bandage (+${BANDAGE_HEALING} health)`;
+        prompt = `Click to use a bandage (+${BANDAGE_HEALING} health)`;
         if (input.startedUsingTool()) {
           inventory.remove('bandage', 1);
           survival.eat(0, BANDAGE_HEALING);
@@ -193,10 +193,10 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     } else if (!fire && held === 'rope') {
       prompt = 'Rope is used to craft traps (C)';
     } else if (!fire && held === 'cookedMeat') {
-      prompt = 'Space or click to eat';
+      prompt = 'Click to eat';
       if (input.startedUsingTool()) eat('cookedMeat');
     } else if (!fire && held === 'rawMeat') {
-      prompt = 'Cook it at a campfire · Space to eat it raw (risky)';
+      prompt = 'Cook it at a campfire · click to eat it raw (risky)';
       if (input.startedUsingTool()) eat('rawMeat');
     }
 

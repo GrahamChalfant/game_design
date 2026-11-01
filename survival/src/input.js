@@ -42,14 +42,14 @@ export class Input {
     return this.pressed.has(code);
   }
 
-  // Holding Space or the left mouse button uses whatever is in your hand.
+  // Holding the left mouse button uses whatever is in your hand. (Space is jump.)
   usingTool() {
-    return this.mouseDown || this.isDown('Space');
+    return this.mouseDown;
   }
 
-  // True only on the frame Space or the left mouse button went down.
+  // True only on the frame the left mouse button went down.
   startedUsingTool() {
-    return this.wasPressed('MouseLeft') || this.wasPressed('Space');
+    return this.wasPressed('MouseLeft');
   }
 
   // Movement on the ground: x is east (right on screen), z is south (down on screen). Range -1..1.

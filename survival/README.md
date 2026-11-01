@@ -46,7 +46,8 @@ automatically whenever you save a file.
 | W A S D / arrow keys | Walk |
 | Shift (hold) | Sneak: move slowly so animals don't notice you as soon |
 | 1–6, or click a slot | Pick an item from the hotbar |
-| Space or left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
+| Left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
+| Space | Jump |
 | E (hold, at the water's edge or in the lake) | Drink |
 | E (next to a campfire) | Add a log to the fire |
 | E (at a trap) | Take the catch, or pick up an empty trap |
@@ -73,7 +74,7 @@ Each one can be searched once:
 | The suitcase in the skid furrow | Lighter, flare |
 | The suitcases around the wreck | A first-aid kit (3 bandages), and 5 rope between them |
 
-Select a bandage and press Space to heal 30 health. Keep the lighter: you need it to
+Select a bandage and click to heal 30 health. Keep the lighter: you need it to
 light fires. Save the flare for signalling a rescue (coming later).
 
 Your stats are the icons at the bottom right. They're white, turn yellow when low, and red when
@@ -89,7 +90,7 @@ Nights are dark, so keep a campfire going if you want to see what you're doing.
 To change the colours and light at each time of day, edit the table at the top of
 `src/daylight.js`.
 
-Once you have the axe, face a tree, take it out and hold Space to chop it down
+Once you have the axe, face a tree, take it out and click and hold to chop it down
 for wood. Hard work makes you hungry faster.
 
 Your hotbar has 6 slots, and the backpack (Tab, once you've found it) has 12 more. If something doesn't fit,
@@ -97,7 +98,7 @@ it's left on the ground with a floating icon above it; walk over and press E to 
 
 Recipes appear in the crafting list once you've picked up what they're made from.
 
-To make a campfire, press Tab and craft one (5 wood), then select it and press Space to
+To make a campfire, press Tab and craft one (5 wood), then select it and click to
 place it on open ground. Stand next to it and press E to light it (you need the lighter).
 A fire burns for 2 in-game hours; stand next to it and press E to add a log
 (1 more hour each). A fire that's gone out needs more wood (E) and lighting again.
@@ -107,11 +108,11 @@ until you get too close, then bolt. Both run faster than you, and deer spook fro
 farther away, so you won't catch them by chasing. Hold Shift to sneak: animals only
 notice you at half the usual distance.
 
-To catch rabbits, press Tab and craft a trap (3 wood and 1 rope), then select it and press Space to
+To catch rabbits, press Tab and craft a trap (3 wood and 1 rope), then select it and click to
 set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
 close while you're nearby. When one is caught, press E at the trap for 2 raw meat. This breaks the trap, so you'll
 need to craft another.
-Hold raw meat at a burning fire and hold Space to cook it, then press Space away from
+Hold raw meat at a burning fire and click and hold to cook it, then click away from
 the fire to eat. Eating meat raw works in a pinch, but it makes you sick.
 
 To tune the difficulty, edit the numbers at the top of `src/survival.js`.
