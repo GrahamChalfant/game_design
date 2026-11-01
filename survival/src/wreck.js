@@ -32,15 +32,33 @@ export function buildWreck(scene, world) {
   };
 
   // Shows the stand-in right away, then swaps in the Blender model once it loads.
-  const withModel = (name, placeholder) => {
+  const withModel = (name, placeholder, prepare) => {
     const holder = new THREE.Group();
     holder.add(placeholder);
     loadModel(name).then((model) => {
       if (!model) return;
       model.traverse((child) => (child.castShadow = child.receiveShadow = true));
+      prepare?.(model);
       holder.clear();
       holder.add(model);
     });
+    return holder;
+  };
+
+  // Each suitcase shares one model, tinted its own colour, with a lid that hinges open.
+  const withSuitcaseModel = (color) => {
+    const placeholder = placeholders.suitcase(color);
+    const holder = withModel('suitcase', placeholder, (model) => {
+      model.traverse((child) => {
+        if (!child.isMesh) return;
+        child.material = child.material.clone();
+        child.material.color.set(color);
+      });
+      const lid = model.getObjectByName('lid');
+      lid.rotation.copy(holder.userData.lid.rotation);
+      holder.userData.lid = lid;
+    });
+    holder.userData.lid = placeholder.userData.lid;
     return holder;
   };
 
@@ -77,7 +95,7 @@ export function buildWreck(scene, world) {
   // Searchable spots: suitcases thrown out in the crash.
   const containers = [];
   for (const suitcase of SUITCASES) {
-    const object = placeholders.suitcase(suitcase.color);
+    const object = withSuitcaseModel(suitcase.color);
     place(object, suitcase);
     world.obstacles.push({ x: suitcase.x, z: suitcase.z, radius: 0.4 });
     containers.push({ ...suitcase, label: 'the suitcase', object });

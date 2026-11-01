@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { createRandom } from './random.js';
@@ -36,6 +37,8 @@ const KINDS = {
 const SNEAK_FACTOR = 0.5; // sneaking players are noticed at half the usual distance
 const SPAWN_DISTANCE = 25; // new animals appear at least this far from the player
 const RESPAWN_TIME = 60; // seconds before a caught animal is replaced
+const FADE_TIME = 0.2; // seconds to blend from one animation to the next
+const GRAZE_PACE = 0.12; // how quickly an animal switches between looking up and grazing
 
 // Wild animals that graze, wander around, and run away from the player.
 export class Animals {
@@ -93,9 +96,30 @@ export class Animals {
 
   useModel(animal, model) {
     animal.object.remove(animal.body);
-    animal.body = model.clone();
-    animal.body.traverse((child) => (child.castShadow = true));
+    animal.body = cloneSkinned(model);
+    animal.body.traverse((child) => {
+      child.castShadow = true;
+      // Its animations move it beyond where three.js thinks it is, so always draw it.
+      child.frustumCulled = false;
+    });
     animal.object.add(animal.body);
+    animal.mixer = new THREE.AnimationMixer(animal.body);
+    animal.clips = Object.fromEntries(
+      model.animations
+        .filter((clip) => clip.name.startsWith(`${animal.kind}-`))
+        .map((clip) => [clip.name.slice(animal.kind.length + 1), animal.mixer.clipAction(clip)]),
+    );
+    animal.playing = null;
+  }
+
+  // Blends into the named animation, playing it at `speed` times its normal rate.
+  play(animal, name, speed = 1) {
+    const clip = animal.clips[name];
+    clip.timeScale = speed;
+    if (animal.playing === clip) return;
+    clip.reset().play();
+    if (animal.playing) clip.crossFadeFrom(animal.playing, FADE_TIME);
+    animal.playing = clip;
   }
 
   // Takes an animal out of the world (e.g. caught in a trap). A new one appears later.
@@ -203,6 +227,13 @@ export class Animals {
   // Rabbits hop; deer bob their heads while grazing and swing their legs while moving.
   animate(animal, moving, speed, dt) {
     animal.gait += dt * (moving ? speed * 2.2 : 1);
+    if (animal.mixer) {
+      if (!moving) this.play(animal, Math.sin(animal.gait * GRAZE_PACE) > 0 ? 'graze' : 'idle');
+      else if (animal.state === 'flee') this.play(animal, 'run');
+      else this.play(animal, 'walk');
+      animal.mixer.update(dt);
+      return;
+    }
     const legs = animal.body.userData.legs;
     if (animal.kind === 'rabbit') {
       animal.body.position.y = moving ? Math.abs(Math.sin(animal.gait * 1.4)) * 0.22 : 0;
