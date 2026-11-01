@@ -171,13 +171,13 @@ export function createActions({ input, inventory, player, world, wreck, campfire
         prompt = 'Click to place the campfire';
       }
     } else if (!fire && held === 'shelter') {
-      // A crafted shelter: place it a few steps ahead, with its open side facing you.
+      // A crafted shelter: place it a few steps ahead (its open front always faces the camera).
       const spot = player.ahead(2.8);
       if (!shelters.canBuildAt(spot.x, spot.z)) {
         prompt = 'Not enough open ground for a shelter here';
       } else if (input.startedUsingTool()) {
         inventory.remove('shelter', 1);
-        shelters.build(spot.x, spot.z, player.facing + Math.PI);
+        shelters.build(spot.x, spot.z);
       } else {
         prompt = 'Click to build the shelter';
       }

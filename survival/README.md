@@ -121,7 +121,7 @@ Hides and intestines can be crafted into rope (intestines give 1 rope, a hide gi
 it (3 drinks), then click anywhere to take a drink. Bigger animals give more meat, hide and
 intestines.
 Craft a shelter (20 wood, 6 rope, 4 hides), select it and click to build it a few steps
-ahead, with its open front facing you. Under its roof you stay warm, like standing at a
+ahead. Its open front always faces the camera, so you can see inside it. Under its roof you stay warm, like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
 Hold raw meat at a burning fire and click and hold to cook it, then click away from

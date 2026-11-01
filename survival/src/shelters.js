@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
-import { seeThroughMaterial } from './seeThrough.js';
 
 const ROOM = 2.3; // clear ground needed around the middle of a shelter
 
@@ -23,23 +22,17 @@ export class Shelters {
     );
   }
 
-  // Builds a shelter at (x, z) with its open side facing `heading` (radians, like the player's facing).
-  build(x, z, heading) {
+  // Builds a shelter at (x, z). Its open front always faces the camera (south), so you can
+  // see inside it, and yourself when you're in it.
+  build(x, z) {
+    const heading = 0;
     const object = new THREE.Group();
     object.position.set(x, this.world.terrain.heightAt(x, z), z);
     object.rotation.y = heading;
-    // Like trees, a shelter turns see-through where it would hide the player (e.g. inside it).
-    const seeThrough = (model) =>
-      model.traverse((child) => {
-        if (child.isMesh) child.material = seeThroughMaterial(child.material);
-      });
-    const standIn = placeholders.shelter();
-    seeThrough(standIn);
-    object.add(standIn);
+    object.add(placeholders.shelter());
     loadModel('shelter').then((model) => {
       if (!model) return;
       model.traverse((child) => (child.castShadow = child.receiveShadow = true));
-      seeThrough(model);
       object.clear();
       object.add(model);
     });
@@ -52,7 +45,7 @@ export class Shelters {
       z: z - lx * Math.sin(heading) + lz * Math.cos(heading),
     });
     const obstacles = [
-      ...[-1.35, 1.35].flatMap((lx) => [-0.95, 0, 0.95].map((lz) => ({ ...toWorld(lx, lz), radius: 0.4 }))),
+      ...[-1.5, 1.5].flatMap((lx) => [-0.95, 0, 0.95].map((lz) => ({ ...toWorld(lx, lz), radius: 0.4 }))),
       { ...toWorld(0, -1.55), radius: 0.5 },
     ];
     this.world.obstacles.push(...obstacles);
@@ -66,7 +59,7 @@ export class Shelters {
       const dz = z - s.z;
       const lx = dx * Math.cos(s.heading) - dz * Math.sin(s.heading);
       const lz = dx * Math.sin(s.heading) + dz * Math.cos(s.heading);
-      return Math.abs(lx) < 1.05 && lz > -1.3 && lz < 1.4;
+      return Math.abs(lx) < 1.2 && lz > -1.3 && lz < 1.4;
     });
   }
 

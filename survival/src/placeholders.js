@@ -278,8 +278,8 @@ export function logPile() {
   return group;
 }
 
-// A rudimentary A-frame shelter, about 2.9 m wide, 1.8 m tall and 2.8 m deep, base at the
-// origin, open at the front (+z): crossed poles at each end hold a ridge pole, stitched hides
+// A rudimentary A-frame shelter, about 3.2 m wide, 2.3 m tall (taller than the player) and
+// 2.8 m deep, base at the origin, open at the front (+z): crossed poles at each end hold a ridge pole, stitched hides
 // cover both slopes and the back, and there's a bed of spruce boughs inside.
 export function shelter() {
   const flatMaterial = (color) =>
@@ -294,8 +294,8 @@ export function shelter() {
     return m;
   };
 
-  const HALF_WIDTH = 1.45;
-  const HEIGHT = 1.75;
+  const HALF_WIDTH = 1.6;
+  const HEIGHT = 2.3;
   const DEPTH = 2.8;
   const slope = Math.atan2(HEIGHT, HALF_WIDTH);
   const side = Math.hypot(HALF_WIDTH, HEIGHT);
@@ -326,8 +326,8 @@ export function shelter() {
   add(new THREE.ShapeGeometry(back), flatMaterial(0x7f6044), [0, 0, -DEPTH / 2 + 0.05]);
 
   // A bed of spruce boughs inside.
-  add(new THREE.BoxGeometry(1.7, 0.12, 2.2), flatMaterial(0x3f5c34), [0, 0.06, -0.2]);
-  add(new THREE.BoxGeometry(1.4, 0.08, 1.8), flatMaterial(0x4d6e3c), [0.05, 0.14, -0.25], [0, 0.06, 0]);
+  add(new THREE.BoxGeometry(1.9, 0.12, 2.2), flatMaterial(0x3f5c34), [0, 0.06, -0.2]);
+  add(new THREE.BoxGeometry(1.6, 0.08, 1.8), flatMaterial(0x4d6e3c), [0.05, 0.14, -0.25], [0, 0.06, 0]);
 
   group.traverse((child) => (child.castShadow = child.receiveShadow = true));
   return group;
