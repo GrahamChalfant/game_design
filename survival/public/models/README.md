@@ -3,7 +3,26 @@
 Put 3D models exported from Blender here as `.glb` files
 (File → Export → glTF 2.0, format "glTF Binary").
 
-The game looks for these names and uses them in place of its stand-in shapes:
-`player.glb`, `pine.glb`, `pine-small.glb`, `pine-skinny.glb`, `pine-tall.glb`, `pine-wide.glb`,
-`broadleaf.glb`, `grass-tuft.glb` (and the other `grass-*.glb` tufts), `rock.glb`, `rock-small.glb`, `rock-flat.glb`, `rock-tall.glb`, `rock-large.glb`.
+The game looks for these names and uses them in place of its stand-in shapes.
+Triangle counts are for the current exports; sources are in `survival/blender/`.
+
+| File | What it is | Tris | Source |
+| --- | --- | --- | --- |
+| `player.glb` | Survivor (rigged, animated; `hand_R` bone, `player-pack` mesh) | 740 | player.blend |
+| `axe.glb` | Hand axe held by the player (material `tool`) | 56 | player.blend |
+| `deer.glb` | Deer (rigged) | 536 | animals.blend |
+| `rabbit.glb` | Rabbit (rigged) | 272 | animals.blend |
+| `suitcase.glb` | Washed-up suitcase with `lid` | 356 | animals.blend |
+| `plane.glb` | Crashed plane wreck | 448 | plane.blend |
+| `plane-wing.glb` | Detached plane wing | 72 | plane.blend |
+| `shelter.glb` | A-frame hide shelter, single vertex-colour material | 1,076 | shelter.py (generates shelter.blend) |
+| `pine.glb`, `pine-small.glb`, `pine-skinny.glb`, `pine-tall.glb`, `pine-wide.glb` | Pines | 188–448 | trees.blend |
+| `pine-snow.glb`, `pine-small-snow.glb` | Snowy pines | 1,124 / 548 | trees.blend |
+| `sapling-pine.glb`, `sapling-broadleaf.glb` | Saplings | 144 / 288 | trees.blend |
+| `broadleaf.glb` | Field tree | 614 | trees.blend |
+| `tree-dead.glb` | Bare dead tree | 272 | trees.blend |
+| `rock.glb`, `rock-small.glb`, `rock-flat.glb`, `rock-tall.glb`, `rock-large.glb` | Rocks | 44–140 | rock.blend |
+| `grass-tuft.glb`, `grass-short.glb`, `grass-clump.glb`, `grass-sparse.glb`, `grass-wide.glb`, `grass-wisp.glb`, `grass-tall.glb`, `grass-seed.glb`, `grass-fern.glb` | Grass tufts, painted grey (tinted by the ground) | 9–45 | grass.blend |
+
+Style, palette and poly budgets: `survival/blender/STYLE_GUIDE.md`.
 See "Adding models from Blender" in `survival/README.md` for sizes and orientation.
