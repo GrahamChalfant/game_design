@@ -10,10 +10,24 @@ export const WORLD_SIZE = 140; // meters across; the playable area is a square c
 const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into the haze
 const CONIFER_COUNT = 300;
 const BROADLEAF_COUNT = 25;
-// Each pine variety's collision radius.
-const PINE_RADIUS = { pine: 0.5, 'pine-small': 0.3, 'pine-skinny': 0.35, 'pine-tall': 0.65, 'pine-wide': 0.55 };
-// Pines take their variety from this list in turn, so tall and wide ones are the rarest.
-const PINE_MIX = ['pine', 'pine-small', 'pine', 'pine-skinny', 'pine-small', 'pine-tall', 'pine', 'pine-wide'];
+// Each forest tree's collision radius.
+const FOREST_RADIUS = {
+  pine: 0.5,
+  'pine-small': 0.3,
+  'pine-skinny': 0.35,
+  'pine-tall': 0.65,
+  'pine-wide': 0.55,
+  'pine-snow': 0.5,
+  'pine-small-snow': 0.3,
+  'sapling-pine': 0.15,
+  'sapling-broadleaf': 0.15,
+  'tree-dead': 0.4,
+};
+// Forest trees take their kind from this list in turn, so anything listed once is the rarest.
+const FOREST_MIX = [
+  'pine', 'pine-small', 'sapling-pine', 'pine-skinny', 'pine', 'pine-snow', 'pine-small', 'pine-tall',
+  'sapling-broadleaf', 'pine', 'tree-dead', 'pine-small-snow', 'pine-wide', 'sapling-pine', 'pine', 'pine-small',
+];
 const ROCK_COUNT = 260;
 // Each rock shape: its collision radius and how much it can be scaled.
 const ROCK_SHAPES = {
@@ -57,16 +71,16 @@ export function buildWorld(scene, seed) {
   const trees = new Trees(scene);
 
   // Dark spruce grow together in forests...
-  const pines = Object.fromEntries(Object.keys(PINE_RADIUS).map((kind) => [kind, []]));
-  let placedPines = 0;
+  const forest = Object.fromEntries(Object.keys(FOREST_RADIUS).map((kind) => [kind, []]));
+  let placedTrees = 0;
   scatter(random, CONIFER_COUNT, (x, z) => {
     if (terrain.forest(x, z) < random.range(-0.15, 0.45) || !isFree(x, z, 1.4)) return null;
-    const kind = PINE_MIX[placedPines++ % PINE_MIX.length];
-    const pine = place(x, z, PINE_RADIUS[kind], random.range(0.8, 1.3));
-    pines[kind].push(pine);
-    return pine;
+    const kind = FOREST_MIX[placedTrees++ % FOREST_MIX.length];
+    const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
+    forest[kind].push(tree);
+    return tree;
   });
-  for (const [kind, spots] of Object.entries(pines)) trees.add(kind, placeholders.conifer(), spots);
+  for (const [kind, spots] of Object.entries(forest)) trees.add(kind, placeholders.conifer(), spots);
 
   // ...while round leafy trees stand alone or in small groups out in the fields.
   const broadleaves = scatter(random, BROADLEAF_COUNT, (x, z) => {

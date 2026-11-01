@@ -11,8 +11,16 @@ const KINDS = {
   'pine-skinny': { wood: 3, chopTime: 2, stump: 0.7 },
   'pine-tall': { wood: 6, chopTime: 3.5, stump: 1.4 },
   'pine-wide': { wood: 5, chopTime: 3, stump: 1.2 },
+  'pine-snow': { wood: 4, chopTime: 2.5, stump: 1 },
+  'pine-small-snow': { wood: 2, chopTime: 1.5, stump: 0.5 },
+  'sapling-pine': { wood: 1, chopTime: 0.8, stump: 0.25 },
+  'sapling-broadleaf': { wood: 1, chopTime: 0.8, stump: 0.25 },
+  'tree-dead': { wood: 3, chopTime: 2, stump: 0.9 },
   broadleaf: { wood: 3, chopTime: 2, stump: 1 },
 };
+// Each tree is multiplied by one of these, so the forest isn't all one green.
+const TREE_TINTS = [0xffffff, 0xe3f2c0, 0xb9d9c6, 0xf0e29a, 0xbdcc9c, 0xa8c9ae].map((hex) => new THREE.Color(hex));
+const UNTINTED = new Set(['tree-dead']); // bare wood stays its own colour
 const STUMP_RADIUS = 0.35;
 const FALL_TIME = 1.3; // seconds to topple over
 const VANISH_TIME = 0.5; // seconds to shrink away once it's down
@@ -28,7 +36,8 @@ export class Trees {
   add(kind, placeholder, spots) {
     const transforms = spots.map((spot) => treeMatrix(spot, 0, null));
     // Trees get a see-through hole wherever they'd hide the player.
-    const trees = instancedModel(kind, placeholder, transforms, seeThroughMaterial);
+    const tints = UNTINTED.has(kind) ? undefined : spots.map(treeTint);
+    const trees = instancedModel(kind, placeholder, transforms, seeThroughMaterial, tints);
     const stumps = instancedModel('stump', placeholders.stump(), spots.map(() => HIDDEN.clone()));
     this.scene.add(trees, stumps);
 
@@ -98,6 +107,14 @@ export class Trees {
     tree.trees.setInstance(tree.index, treeMatrix(tree.spot, 0, null));
     tree.stumps.setInstance(tree.index, HIDDEN);
   }
+}
+
+// A shade for the tree at this spot: the same spot always gets the same one.
+function treeTint({ x, z }) {
+  const hash = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1;
+  const shade = Math.abs(Math.sin(x * 39.346 + z * 11.135) * 24634.6345) % 1;
+  const tint = TREE_TINTS[Math.floor(hash * TREE_TINTS.length)];
+  return tint.clone().multiplyScalar(0.82 + shade * 0.33);
 }
 
 // Position, tilt (while falling) and size for one tree.
