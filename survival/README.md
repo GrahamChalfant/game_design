@@ -177,6 +177,9 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `pine-skinny.glb` | Narrow pine | ~10 m tall, ~2 m across |
 | `pine-tall.glb` | Big old pine | ~14 m tall |
 | `pine-wide.glb` | Short, full pine | ~6.5 m tall, ~5 m across |
+| `pine-snow.glb`, `pine-small-snow.glb` | Pines with patches of snow | ~9 m and ~3.5 m tall |
+| `sapling-pine.glb`, `sapling-broadleaf.glb` | Saplings | ~1.5 m and ~2 m tall |
+| `tree-dead.glb` | Bare dead tree | ~7.5 m tall |
 | `broadleaf.glb` | Round, leafy tree found alone in the fields | ~6 m tall |
 | `grass-tuft.glb` | Tuft of grass. Keep every tuft low on triangles: thousands are drawn. Colours come from the ground, so paint tufts in shades of grey. | ~0.9 m across, 1 m tall (the game scales all tufts down) |
 | `grass-short.glb`, `grass-clump.glb`, `grass-sparse.glb`, `grass-wide.glb`, `grass-wisp.glb`, `grass-tall.glb`, `grass-seed.glb`, `grass-fern.glb` | Other tufts: low patch, thick bunch, scattered blades, broad sedge, thin arcs, reeds, seed heads and fern. To add one, put its name in `TUFT_MIX` in `src/grass.js`. | 0.5–1.7 m tall |
