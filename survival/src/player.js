@@ -11,6 +11,8 @@ const TURN_SPEED = 12;
 const JUMP_SPEED = 5.5; // how fast you leave the ground: about a 0.75 m hop, 0.55 s in the air
 const GRAVITY = 20;
 const JUMP_MAX_DEPTH = 0.3; // too deep in the water to jump beyond this
+const TOP_MARGIN = 0.1; // feet this close below the top of a rock or stump still clear it
+const TOP_OVERHANG = 0.25; // how far past a rock's edge the player can stand on it
 const FADE_TIME = 0.15; // seconds to blend from one animation to the next
 
 export class Player {
@@ -19,8 +21,10 @@ export class Player {
     this.spawnFacing = spawnFacing;
     this.facing = spawnFacing;
     this.walkTime = 0;
-    this.jumpHeight = 0; // how far above the ground the player is right now
+    this.jumpHeight = 0; // how far above the ground the player's feet are right now
+    this.standingHeight = 0; // how high above the ground the rock or stump underfoot is, if any
     this.jumpSpeed = 0;
+    this.crouched = false;
     this.limit = worldSize / 2 - 1;
     this.spawn = spawn.clone();
     this.alive = true;
@@ -59,8 +63,10 @@ export class Player {
 
       this.mixer = new THREE.AnimationMixer(model);
       this.clips = Object.fromEntries(model.animations.map((clip) => [clip.name, this.mixer.clipAction(clip)]));
-      this.clips.die.setLoop(THREE.LoopOnce);
-      this.clips.die.clampWhenFinished = true;
+      for (const clip of [this.clips.die, this.clips.jump]) {
+        clip.setLoop(THREE.LoopOnce);
+        clip.clampWhenFinished = true;
+      }
       this.play('idle');
     });
   }
@@ -84,16 +90,16 @@ export class Player {
     this.drinking = drinking;
   }
 
-  // True while in the air from a jump.
+  // True while in the air from a jump, or falling off a rock.
   get airborne() {
-    return this.jumpHeight > 0;
+    return this.jumpHeight > this.standingHeight;
   }
 
   // Picks the animation for what the player is doing now.
   animate(dt, moving, speed) {
     if (!this.alive) this.play('die');
     else if (this.swimming) this.play('swim');
-    else if (this.airborne) this.play('idle'); // no jump animation yet: hold still in the air
+    else if (this.airborne) this.play('jump');
     else if (this.drinking) this.play('drink');
     else if (this.chopping) this.play('chop');
     else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? SNEAK_SPEED : WALK_SPEED));
@@ -120,8 +126,10 @@ export class Player {
     const depth = world.terrain.waterDepth(this.position.x, this.position.z);
     this.swimming = depth > SWIM_DEPTH;
     // Wading slows you down the deeper you go; swimming is slower still.
-    // Hold Shift to sneak: slower and crouched, so animals don't notice you as soon.
-    this.sneaking = input.isDown('ShiftLeft', 'ShiftRight') && !this.swimming;
+    // Press C to crouch or stand back up, or hold Shift: slower, and animals don't notice you
+    // as soon.
+    if (input.wasPressed('KeyC')) this.crouched = !this.crouched;
+    this.sneaking = (this.crouched || input.isDown('ShiftLeft', 'ShiftRight')) && !this.swimming;
     const landSpeed = this.sneaking ? SNEAK_SPEED : WALK_SPEED;
     const speed = THREE.MathUtils.lerp(landSpeed, SWIM_SPEED, Math.min(1, depth / SWIM_DEPTH));
 
@@ -138,17 +146,20 @@ export class Player {
       this.walkTime += dt;
     }
 
+    const ground = world.terrain.heightAt(this.position.x, this.position.z);
+    this.position.y = Math.max(ground, world.terrain.waterLevel - SWIM_DEPTH);
+
     // Space to jump (not while swimming or wading deep). The jump only lifts the body:
-    // `position` stays on the ground, so the camera doesn't bob and collisions still work.
+    // `position` stays on the ground, so the camera doesn't bob.
+    this.standingHeight = this.heightUnderfoot(world);
     if (input.wasPressed('Space') && !this.airborne && depth < JUMP_MAX_DEPTH) this.jumpSpeed = JUMP_SPEED;
     if (this.jumpSpeed !== 0 || this.airborne) {
       this.jumpSpeed -= GRAVITY * dt;
       this.jumpHeight += this.jumpSpeed * dt;
-      if (this.jumpHeight <= 0) this.jumpHeight = this.jumpSpeed = 0; // landed
+      if (this.jumpHeight <= this.standingHeight) this.jumpSpeed = 0; // landed
     }
+    if (this.jumpSpeed === 0 && this.jumpHeight <= this.standingHeight) this.jumpHeight = this.standingHeight;
 
-    const ground = world.terrain.heightAt(this.position.x, this.position.z);
-    this.position.y = Math.max(ground, world.terrain.waterLevel - SWIM_DEPTH);
     this.object.position.copy(this.position);
     this.object.position.y += this.jumpHeight;
     this.object.rotation.y = this.facing;
@@ -197,15 +208,32 @@ export class Player {
     this.alive = true;
     this.position.copy(this.spawn);
     this.facing = this.spawnFacing;
-    this.jumpHeight = this.jumpSpeed = 0;
+    this.jumpHeight = this.jumpSpeed = this.standingHeight = 0;
+    this.crouched = false;
     this.body.rotation.x = 0;
+  }
+
+  // How high above the ground the feet can rest here: the top of the highest rock or stump
+  // they've cleared, or 0.
+  heightUnderfoot(world) {
+    const feet = this.position.y + this.jumpHeight;
+    let top = this.position.y;
+    for (const o of world.obstacles) {
+      if (o.top === undefined || o.top > feet + TOP_MARGIN) continue;
+      if (Math.hypot(o.x - this.position.x, o.z - this.position.z) < o.radius + TOP_OVERHANG) top = Math.max(top, o.top);
+    }
+    return top - this.position.y;
   }
 
   tryMove(dx, dz, world) {
     const x = THREE.MathUtils.clamp(this.position.x + dx, -this.limit, this.limit);
     const z = THREE.MathUtils.clamp(this.position.z + dz, -this.limit, this.limit);
+    const feet = this.position.y + this.jumpHeight;
     for (const o of world.obstacles) {
-      if (Math.hypot(o.x - x, o.z - z) < o.radius + RADIUS) return;
+      if (o.top !== undefined && feet >= o.top - TOP_MARGIN) continue; // high enough to pass over it
+      const distance = Math.hypot(o.x - x, o.z - z);
+      // Moving away is always allowed, so landing against something can't trap the player.
+      if (distance < o.radius + RADIUS && distance < Math.hypot(o.x - this.position.x, o.z - this.position.z)) return;
     }
     this.position.x = x;
     this.position.z = z;

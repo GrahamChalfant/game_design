@@ -22,6 +22,7 @@ const KINDS = {
 const TREE_TINTS = [0xffffff, 0xe3f2c0, 0xb9d9c6, 0xf0e29a, 0xbdcc9c, 0xa8c9ae].map((hex) => new THREE.Color(hex));
 const UNTINTED = new Set(['tree-dead']); // bare wood stays its own colour
 const STUMP_RADIUS = 0.35;
+const STUMP_HEIGHT = 0.45;
 const FALL_TIME = 1.3; // seconds to topple over
 const VANISH_TIME = 0.5; // seconds to shrink away once it's down
 
@@ -74,6 +75,7 @@ export class Trees {
     const away = new THREE.Vector3(tree.spot.x - fromX, 0, tree.spot.z - fromZ).normalize();
     tree.fallAxis = new THREE.Vector3(0, 1, 0).cross(away).normalize();
     tree.spot.obstacle.radius = STUMP_RADIUS * tree.spot.scale * tree.stump;
+    tree.spot.obstacle.top = tree.spot.y + STUMP_HEIGHT * tree.spot.scale * tree.stump; // the player can jump onto it
     tree.stumps.setInstance(tree.index, treeMatrix(tree.spot, 0, null, tree.stump));
     return true;
   }
@@ -104,6 +106,7 @@ export class Trees {
     tree.state = 'standing';
     tree.chopped = 0;
     tree.spot.obstacle.radius = tree.radius;
+    tree.spot.obstacle.top = undefined;
     tree.trees.setInstance(tree.index, treeMatrix(tree.spot, 0, null));
     tree.stumps.setInstance(tree.index, HIDDEN);
   }
