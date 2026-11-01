@@ -12,16 +12,53 @@ const HUNGER_PER_HOUR = 2.8; // empty after about 36 in-game hours
 const THIRST_PER_HOUR = 5; // empty after about 20 in-game hours
 const STARVING_DAMAGE_PER_HOUR = 25; // health lost per empty stat: dead about 4 hours later
 const HEALING_PER_HOUR = 5; // health regained while well fed and watered
-const WELL_FED = 50; // hunger and thirst both need to be above this to heal
+const WELL_FED = 25; // hunger and thirst both need to be at least this to heal
 
 const START_HEALTH = 35; // you start hurt from the crash: use bandages to heal
 const DRINK_PER_SECOND = 30; // thirst regained per real second while drinking
 const WORK_HUNGER = 3; // hard work (like chopping) makes you hungry this many times faster
 
-// Temperature (100 is warm, 0 is freezing) drifts toward what your surroundings would make it.
-const WARMTH = { day: 80, night: -30, fire: 100, water: -60 };
-const WARMING_PER_HOUR = { air: 0.25, fire: 2, water: 1.5 }; // how quickly it drifts there
-const FREEZING_DAMAGE_PER_HOUR = 10; // health lost while temperature is at 0
+// Temperature (0–100). Rates are points per in-game hour (1 game hour ≈ 25 real seconds).
+const START_TEMPERATURE = 60;
+const WATER_CHILL_PER_HOUR = 28; // submerged in water
+const NIGHT_CHILL_PER_HOUR = 12; // outdoors at night with no fire or shelter
+const OUTDOOR_WARMING_PER_HOUR = 5; // daytime outdoors drifts toward DAY_TEMPERATURE at this rate
+const DAY_TEMPERATURE = 60; // outdoor warming never goes above this
+const WET_HOURS = 1; // after leaving the water you're Wet this long...
+const WET_WARMING_PER_HOUR = 5; // ...and can only warm this fast
+const SHELTER_WARMING_PER_HOUR = 15;
+const SHELTER_MAX = 85;
+const FIRE_WARMING_PER_HOUR = 35;
+const FIRE_MAX = 100; // a fire is the only way above SHELTER_MAX
+export const FREEZING = 15; // at or below this you're Freezing
+const FREEZING_DAMAGE_PER_HOUR = 10;
+const FROZEN_DAMAGE_PER_HOUR = 25; // at temperature 0
+const COSY = 90; // healing needs this temperature...
+const COSY_HOURS = 1; // ...held for this many in-game hours in a row
+
+// One step of the temperature model. Pure, so it can be simulated outside the game.
+// state: { temperature, wetHours }; env: { submerged, fire, shelter, night }.
+export function stepTemperature(state, { submerged, fire, shelter, night }, hours) {
+  let t = state.temperature;
+  let wetHours = state.wetHours;
+  if (submerged) {
+    t -= WATER_CHILL_PER_HOUR * hours;
+    wetHours = WET_HOURS;
+  } else {
+    let rate, max;
+    if (fire) [rate, max] = [FIRE_WARMING_PER_HOUR, FIRE_MAX];
+    else if (shelter) [rate, max] = [SHELTER_WARMING_PER_HOUR, SHELTER_MAX];
+    else if (night) [rate, max] = [-NIGHT_CHILL_PER_HOUR, 100];
+    else [rate, max] = [OUTDOOR_WARMING_PER_HOUR, DAY_TEMPERATURE];
+    if (wetHours > 0) rate = Math.min(rate, WET_WARMING_PER_HOUR);
+    if (rate > 0) {
+      if (t < max) t = Math.min(max, t + rate * hours); // a source never pushes you past its cap
+      else if (!fire && !shelter) t = Math.max(max, t - OUTDOOR_WARMING_PER_HOUR * hours); // daytime drifts down to 60
+    } else t += rate * hours;
+    wetHours = Math.max(0, wetHours - hours);
+  }
+  return { temperature: clamp(t), wetHours };
+}
 
 export class Survival {
   constructor() {
@@ -31,14 +68,16 @@ export class Survival {
   reset() {
     this.hunger = 100;
     this.thirst = 100;
-    this.temperature = WARMTH.day;
+    this.temperature = START_TEMPERATURE;
+    this.wetHours = 0;
+    this.cosyHours = 0; // continuous hours at COSY or warmer
     this.health = START_HEALTH;
     this.minutesSurvived = 0;
     this.alive = true;
   }
 
   // `speed` makes time pass faster for testing (see README).
-  update(dt, { drinking, working, warming, wet }, speed = 1) {
+  update(dt, { drinking, working, fire, shelter, wet }, speed = 1) {
     if (!this.alive) return;
     const minutes = dt * GAME_MINUTES_PER_SECOND * speed;
     const hours = minutes / 60;
@@ -48,24 +87,30 @@ export class Survival {
     this.thirst = clamp(this.thirst - THIRST_PER_HOUR * hours);
     if (drinking) this.thirst = clamp(this.thirst + DRINK_PER_SECOND * dt * speed);
 
-    const air = isNight(this.hourOfDay) ? WARMTH.night : WARMTH.day;
-    const [goal, rate] = warming
-      ? [WARMTH.fire, WARMING_PER_HOUR.fire]
-      : wet
-        ? [WARMTH.water, WARMING_PER_HOUR.water]
-        : [air, WARMING_PER_HOUR.air];
-    this.temperature = clamp(this.temperature + (goal - this.temperature) * Math.min(1, rate * hours));
+    const next = stepTemperature(this, { submerged: wet, fire, shelter, night: isNight(this.hourOfDay) }, hours);
+    this.temperature = next.temperature;
+    this.wetHours = next.wetHours;
+    this.cosyHours = this.temperature >= COSY ? this.cosyHours + hours : 0;
 
     const emptyStats = (this.hunger === 0 ? 1 : 0) + (this.thirst === 0 ? 1 : 0);
     if (emptyStats > 0) {
       this.health = clamp(this.health - STARVING_DAMAGE_PER_HOUR * emptyStats * hours);
-    } else if (this.hunger > WELL_FED && this.thirst > WELL_FED) {
+    } else if (this.cosyHours >= COSY_HOURS && this.hunger >= WELL_FED && this.thirst >= WELL_FED) {
       this.health = clamp(this.health + HEALING_PER_HOUR * hours);
     }
 
-    if (this.temperature === 0) this.health = clamp(this.health - FREEZING_DAMAGE_PER_HOUR * hours);
+    if (this.temperature === 0) this.health = clamp(this.health - FROZEN_DAMAGE_PER_HOUR * hours);
+    else if (this.temperature <= FREEZING) this.health = clamp(this.health - FREEZING_DAMAGE_PER_HOUR * hours);
 
     if (this.health === 0) this.alive = false;
+  }
+
+  get isWet() {
+    return this.wetHours > 0;
+  }
+
+  get isFreezing() {
+    return this.temperature <= FREEZING;
   }
 
   // Eating: changes hunger and health (health can go down, e.g. from raw meat).

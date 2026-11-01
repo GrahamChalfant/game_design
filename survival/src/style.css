@@ -703,3 +703,28 @@ canvas {
   25%, 70% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* Status conditions under the stats. */
+#conditions {
+  position: fixed;
+  right: 16px;
+  bottom: 60px;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.condition {
+  padding: 3px 8px;
+  border-radius: 10px;
+  font: 600 13px system-ui, sans-serif;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.condition[hidden] {
+  display: none;
+}
+
+.condition.wet { color: #8fd3ff; }
+.condition.freezing { color: #bfe8ff; animation: pulse 0.8s ease-in-out infinite alternate; }
