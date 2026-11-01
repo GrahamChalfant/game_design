@@ -182,8 +182,9 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `rock-flat.glb` | Low, flat slab | ~1.9 m long, ~0.3 m tall |
 | `rock-tall.glb` | Standing stone | ~0.8 m across, ~1.2 m tall |
 | `rock-large.glb` | Large boulder | ~2 m across, ~1.3 m tall |
-| `rabbit.glb` | Rabbit (the stand-in is drawn a bit bigger than life, to be easy to spot) | ~0.55 m long |
-| `deer.glb` | Deer | ~1.6 m tall at the head |
+| `rabbit.glb` | Rabbit, nose toward Blender's **Front** view, with clips called `rabbit-idle`, `rabbit-graze`, `rabbit-walk` and `rabbit-run` | ~0.55 m long |
+| `deer.glb` | Deer, nose toward Blender's **Front** view, with clips called `deer-idle`, `deer-graze`, `deer-walk` and `deer-run` | ~1.7 m tall at the head |
+| `suitcase.glb` | Suitcase in shades of grey (the game tints it), with its lid as a child object called `lid`, origin on the hinge | ~0.7 m wide |
 | `plane.glb` | The crashed bush plane, nose pointing toward you in Blender's **Front** view (model it already crashed) | ~8 m long |
 | `clod.glb` | Lump of soil thrown up along the crash trail | ~0.3 m across |
 | `plane-wing.glb` | The wing that broke off the plane, lying on the ground | ~5.5 m long |
