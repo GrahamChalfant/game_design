@@ -9,11 +9,12 @@ const WING = { x: -5.5, z: -9, heading: 2.2 }; // the wing that broke off
 // Things to search around the crash (hold E). Each can be searched once, and always
 // holds the same supplies.
 const SUITCASES = [
+  // Thrown out as the plane skidded in, lying in the furrow it dug.
+  { ...trailPoint(17, 0.4), heading: 2.2, color: 0x4f5b3a, loot: [['lighter', 1], ['flare', 1]] },
   { x: 4.2, z: -1.8, heading: 0.3, color: 0x6b4a32, loot: [['bandage', 3], ['rope', 2]], note: 'a first-aid kit' },
   { x: -3, z: -3.6, heading: 2.4, color: 0x3d5a78, loot: [['rope', 2]] },
   { x: -1.2, z: -10.6, heading: 1.1, color: 0x7a2f2f, loot: [['rope', 1]] },
 ];
-const COCKPIT_LOOT = [['lighter', 1], ['flare', 1]];
 const CLODS = 46;
 // Where the starting items lie around the wreckage.
 export const START_ITEMS = [
@@ -73,10 +74,8 @@ export function buildWreck(scene, world) {
   // The plane blocks the player: a row of circles along the body, plus the wing.
   const along = new THREE.Vector2(Math.sin(PLANE.heading), Math.cos(PLANE.heading));
 
-  // Searchable spots: the cockpit, and suitcases thrown out in the crash.
-  const containers = [
-    { label: 'the cockpit', x: PLANE.x + along.x * 1.2, z: PLANE.z + along.y * 1.2, loot: COCKPIT_LOOT },
-  ];
+  // Searchable spots: suitcases thrown out in the crash.
+  const containers = [];
   for (const suitcase of SUITCASES) {
     const object = placeholders.suitcase(suitcase.color);
     place(object, suitcase);
