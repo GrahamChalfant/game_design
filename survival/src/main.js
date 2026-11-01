@@ -93,6 +93,7 @@ const hud = new Hud({
     player.reset();
     animals.reset(player.position);
     if (hud.inventoryOpen) hud.toggleInventory();
+    hud.forgetRecipes();
     hud.hideGameOver();
   },
   onSlotClick: (i) => {

@@ -68,18 +68,24 @@ export class Hud {
     const list = this.crafting.querySelector('.recipes');
     this.recipes = RECIPES.map((recipe) => {
       const { name } = ITEMS[recipe.item];
-      const cost = Object.entries(recipe.cost)
-        .map(([item, count]) => `${count} ${ITEMS[item].name.toLowerCase()}`)
-        .join(', ');
       const button = unfocusable(document.createElement('button'));
       button.className = 'recipe';
       button.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(recipe.item)})"></span>
         <span><strong>${name}</strong><small>${recipe.description}</small></span>
-        <span class="cost">${cost}</span>`;
+        <span class="cost"></span>`;
+      // One "have/need ingredient" line per ingredient: red until you have enough, then green.
+      const costs = Object.entries(recipe.cost).map(([item, need]) => {
+        const line = document.createElement('span');
+        button.querySelector('.cost').append(line);
+        return { item, need, line, label: ITEMS[item].name.toLowerCase() };
+      });
       button.addEventListener('click', () => onCraft(recipe));
       list.append(button);
-      return { recipe, button };
+      return { recipe, button, costs };
     });
+    // Recipes the player already knows about, so each new one is announced just once.
+    this.knownRecipes = new Set();
+    this.unlocks = document.getElementById('unlocks');
     unfocusable(this.crafting.querySelector('.close')).addEventListener('click', () => this.toggleInventory());
   }
 
@@ -110,9 +116,20 @@ export class Hud {
   }
 
   update(survival, inventory, { prompt, progress }) {
-    for (const { recipe, button } of this.recipes) {
-      button.hidden = !isKnown(inventory, recipe);
+    for (const { recipe, button, costs } of this.recipes) {
+      const known = isKnown(inventory, recipe);
+      button.hidden = !known;
       button.disabled = !canCraft(inventory, recipe);
+      for (const { item, need, line, label } of costs) {
+        const have = inventory.count(item);
+        const text = `${have}/${need} ${label}`;
+        if (line.textContent !== text) line.textContent = text;
+        line.className = have >= need ? 'enough' : 'missing';
+      }
+      if (known && !this.knownRecipes.has(recipe)) {
+        this.knownRecipes.add(recipe);
+        this.announceRecipe(recipe);
+      }
     }
     this.backpack.hidden = !inventory.hasBackpack;
     this.noBackpack.hidden = inventory.hasBackpack;
@@ -194,6 +211,22 @@ export class Hud {
     toast.textContent = text;
     this.toasts.append(toast);
     setTimeout(() => toast.remove(), 1600);
+  }
+
+  // A card at the top of the screen saying a new recipe can be crafted.
+  announceRecipe(recipe) {
+    const card = document.createElement('div');
+    card.className = 'unlock';
+    card.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(recipe.item)})"></span>
+      <span><small>New recipe</small><strong>${ITEMS[recipe.item].name}</strong><em>Press Tab to craft</em></span>`;
+    this.unlocks.append(card);
+    setTimeout(() => card.remove(), 5000);
+  }
+
+  // Forgets which recipes have been announced, for a new game.
+  forgetRecipes() {
+    this.knownRecipes.clear();
+    this.unlocks.replaceChildren();
   }
 
   hideGameOver() {

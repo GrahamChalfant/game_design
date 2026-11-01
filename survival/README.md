@@ -98,6 +98,10 @@ it's left on the ground with a floating icon above it; walk over and press E to 
 
 Recipes appear in the crafting list once you've picked up what they're made from.
 
+When you first pick up everything a recipe needs, a "New recipe" card pops up at the top
+of the screen. In the crafting list, each ingredient shows how many you have out of how many
+you need (like 2/3 wood): red until you have enough, then green.
+
 To make a campfire, press Tab and craft one (5 wood), then select it and click to
 place it on open ground. Stand next to it and press E to light it (you need the lighter).
 A fire burns for 2 in-game hours; stand next to it and press E to add a log
