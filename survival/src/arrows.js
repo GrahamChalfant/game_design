@@ -1,4 +1,6 @@
+import * as THREE from 'three';
 import * as placeholders from './placeholders.js';
+import { loadModel } from './models.js';
 import { ARROW_RANGE, ARROW_SPEED, arrowHitTest, hitAnimal } from './hunting.js';
 
 const ARROW_HEIGHT = 1.1; // meters above the ground an arrow flies
@@ -12,11 +14,17 @@ export class Arrows {
     this.animals = animals;
     this.flying = [];
     this.onKill = () => {};
+    // arrow.glb points along +z from its nock, like the stand-in, so both turn the same way.
+    this.model = null;
+    loadModel('arrow').then((model) => (this.model = model));
   }
 
   fire(x, z, facing) {
-    const object = placeholders.arrow();
-    object.rotation.y = facing;
+    const object = new THREE.Group();
+    const shaft = this.model ? this.model.clone() : placeholders.arrow();
+    if (this.model) shaft.position.z = -0.35; // centre the shaft on the flight point (origin is at the nock)
+    object.add(shaft);
+    object.rotation.y = facing; // +z turned to the flight direction (sin, cos)
     this.scene.add(object);
     const arrow = { x, z, dx: Math.sin(facing), dz: Math.cos(facing), travelled: 0, object };
     this.place(arrow);

@@ -10,7 +10,7 @@ const GROUND_MODELS = {
   wood: [placeholders.logPile, 'logs'],
   axe: [placeholders.axeOnGround, 'axe-ground'],
   backpack: [placeholders.backpack, 'backpack'],
-  stone: [placeholders.stone, 'rock-small', 0.45], // stand-in until stone.glb lands
+  stone: [placeholders.stone, 'stone', 2.5], // stone.glb is life-size (~10 cm): scaled up to be visible
 };
 
 // Items lying on the ground (e.g. logs that didn't fit in your inventory),
