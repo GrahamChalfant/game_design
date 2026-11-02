@@ -33,13 +33,13 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `grass-tuft.glb`, `grass-short.glb`, `grass-clump.glb`, `grass-sparse.glb`, `grass-wide.glb`, `grass-wisp.glb`, `grass-tall.glb`, `grass-seed.glb`, `grass-fern.glb` | Grass tufts, painted grey (tinted by the ground) | 9–45 | grass.blend |
 | `berry-bush.glb` | Berry bush, rust berry clusters; origin base centre | 258 | food_props.py |
 | `berry.glb` | Berry pickup (3 berries + leaf) | 25 | food_props.py |
-| `knife.glb` | Stone knife, wood handle, slate blade; origin grip centre, blade along +Z Blender / +Y glTF (like axe), edge toward -Y | 76 | food_props.py |
-| `boar.glb` | Boar, static (unrigged), faces -Y, origin at feet | 422 | food_props.py |
+| `knife.glb` | Stone knife, wood handle, slate blade; origin at the guard (top of the handle wrap), blade along +Z Blender / +Y glTF (like axe), edge toward -Y | 76 | food_props.py |
+| `boar.glb` | Boar (reworked: hooves grounded, 3 mane tufts, thicker legs, bigger tusks, 462 tris), static (unrigged), faces -Y, origin at feet | 422 | food_props.py |
 
 **Wanted (placeholders in code until these land):**
 - `berry-bush.glb` — low bush ~0.9 m, origin base centre; berries as a child node named `berries` (hidden when picked).
-- `knife.glb` — stone knife ~0.3 m, origin at the grip, blade along +Y (attached to `hand_R` like the bow).
-- `boar.glb` — boar ~0.8 m at shoulder, facing +Z; optional clips `boar-idle`, `boar-graze`, `boar-walk`, `boar-run` (same naming as deer/rabbit).
+- `knife.glb` — landed; origin at the guard, blade +Y, on `hand_R` (code nudges it 1 cm so the fist holds the handle).
+- `boar.glb` — landed (reworked). Was: boar ~0.8 m at shoulder, facing +Z; optional clips `boar-idle`, `boar-graze`, `boar-walk`, `boar-run` (same naming as deer/rabbit).
 
 Style, palette and poly budgets: `survival/blender/STYLE_GUIDE.md`.
 See "Adding models from Blender" in `survival/README.md` for sizes and orientation.

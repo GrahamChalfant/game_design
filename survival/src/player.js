@@ -13,6 +13,7 @@ const GRAVITY = 20;
 const JUMP_MAX_DEPTH = 0.3; // too deep in the water to jump beyond this
 const TOP_MARGIN = 0.1; // feet this close below the top of a rock or stump still clear it
 const TOP_OVERHANG = 0.25; // how far past a rock's edge the player can stand on it
+const KNIFE_GRIP_OFFSET = 0.01; // nudge so the middle of knife.glb's handle (1 cm below its origin) sits in the fist
 const STAB_TIME = 0.25; // seconds a knife jab lasts
 const FADE_TIME = 0.15; // seconds to blend from one animation to the next
 
@@ -69,6 +70,9 @@ export class Player {
     loadModel('knife').then((model) => {
       if (!model) return;
       this.knife.clear();
+      // knife.glb's origin is at the guard/hide wrap: handle runs 7.5 cm down -Y, blade from
+      // +4.5 cm up +Y. Nudged so the fist closes on the handle with the blade clear in front.
+      model.position.y = KNIFE_GRIP_OFFSET;
       this.knife.add(model);
     });
     this.knife.position.set(0.42, 0.9, 0.2);

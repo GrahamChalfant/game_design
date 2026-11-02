@@ -50,6 +50,8 @@ const KINDS = {
     placeholder: placeholders.boar,
   },
 };
+// Kinds whose .glb is on hold (they use the stand-in). Currently none.
+const HELD_MODELS = new Set();
 const SPAWN_DISTANCE = 25; // new animals appear at least this far from the player
 const RESPAWN_TIME = 60; // seconds before a caught animal is replaced
 const FADE_TIME = 0.2; // seconds to blend from one animation to the next
@@ -69,6 +71,7 @@ export class Animals {
     // Called with (animal, damage) when a charging boar gores the player.
     this.onAttack = () => {};
     for (const kind of Object.keys(KINDS)) {
+      if (HELD_MODELS.has(kind)) continue; // keep the stand-in
       loadModel(kind).then((model) => {
         if (!model) return;
         this.models[kind] = model;

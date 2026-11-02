@@ -8,7 +8,7 @@ import bpy, bmesh, math, os, random
 from mathutils import Vector, Matrix
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'public', 'models')
-PAL = dict(berry=0x8b3a3a, boar=0x3a2e28, boar_light=0x4c473c, snout=0x8c5b3f, leaf=0x4f6b45, wood=0x6b4a32, wood_dark=0x54392a, driftwood=0x7a7067, end_grain=0x9c7a56,
+PAL = dict(berry=0x8b3a3a, boar=0x7a5c40, boar_light=0x8a6a4a, boar_dark=0x54392a, snout=0x6a4636, leaf=0x4f6b45, wood=0x6b4a32, wood_dark=0x54392a, driftwood=0x7a7067, end_grain=0x9c7a56,
            hide=0x8a6a4a, bone=0xd8c49a, slate_dark=0x3e4a52, slate=0x626260, lichen=0x848266,
            moss=0x56743f, moss_dark=0x3d5739, ash=0x3a3633, char=0x2d2824, rust=0xa4442f, ochre=0xb88a2e)
 def col(name, var=0.0):
@@ -160,7 +160,7 @@ b.add([v.co.copy() for v in bl.verts], [tuple(vi[v] for v in f.verts) for f in b
       lambda: col(random.choice(('slate_dark', 'slate')), 0.1)); bl.free()
 models.append((build('knife', b, material('knife', 0.7)), 'knife.glb'))
 
-# ---------------- boar (#76): stocky, dark bristly hide, tusks, facing -Y ----------------
+# ---------------- boar (#76): stocky, hide-brown bristly body, tusks, facing -Y ----------------
 random.seed(76); b = Builder(); N = 12
 prof = [(y, zc - 0.05, rx, rz) for y, zc, rx, rz in [(0.55, 0.50, 0.07, 0.08), (0.50, 0.50, 0.17, 0.19), (0.38, 0.50, 0.21, 0.23), (0.15, 0.50, 0.23, 0.24),
         (-0.08, 0.53, 0.24, 0.27), (-0.24, 0.53, 0.21, 0.24), (-0.34, 0.49, 0.16, 0.19),
@@ -169,8 +169,8 @@ rings = [[Vector((rx*math.cos(math.tau*j/N) * random.uniform(0.95, 1.05), y, zc 
           for j in range(N)] for y, zc, rx, rz in prof]
 verts = [p for r in rings for p in r]
 def hide_col(i, j):
-    under = math.sin(math.tau*j/N) < -0.5
-    return lambda: col('boar_light' if under else 'boar', 0.08)
+    sn = math.sin(math.tau*(j + 0.5)/N)   # darker hide along the spine, lighter belly
+    return lambda: col('boar_dark' if sn > 0.8 else 'boar_light' if sn < -0.5 else 'boar', 0.08)
 for i in range(len(rings) - 1):
     for j in range(N):
         b.add(verts, [(i*N + j, (i+1)*N + j, (i+1)*N + (j+1) % N, i*N + (j+1) % N)], hide_col(i, j))
@@ -178,20 +178,19 @@ b.add(verts, [tuple(range(N))], col('boar'))
 b.add(verts, [tuple(range((len(rings)-1)*N, len(rings)*N))[::-1]], col('snout'))   # snout disc
 for x in (-0.13, 0.13):
     for y in (-0.14, 0.36):
-        log(b, (x, y, 0.32), (x*1.05, y, 0.06), 0.068, 6, lambda: col('boar', 0.06), col('boar'), 0.6)
-        log(b, (x*1.05, y, 0.06), (x*1.05, y - 0.01, 0.0), 0.03, 6, col('char'), col('char'))           # hooves
+        log(b, (x, y, 0.34), (x*1.05, y, 0.07), 0.095, 6, lambda: col('boar', 0.06), col('boar'), 0.78)  # thick legs
+        log(b, (x*1.05, y, 0.085), (x*1.05, y - 0.01, 0.0), 0.07, 6, col('char'), col('char'), 0.9)         # hooves overlap leg, sit on z=0
 for s in (-1, 1):
-    tip(b, (s*0.05, -0.58, 0.30), (s*0.085, -0.6, 0.39), 0.012, 4, lambda: col('bone', 0.05))           # tusks
-    b.add([Vector((s*0.07, -0.4, 0.53)), Vector((s*0.12, -0.38, 0.53)), Vector((s*0.12, -0.33, 0.65))],
-          [(0, 1, 2)], col('boar'))                                                          # ears
+    tip(b, (s*0.05, -0.575, 0.30), (s*0.125, -0.625, 0.49), 0.025, 4, lambda: col('bone', 0.05))          # tusks ~2x
+    b.add([Vector((s*0.07, -0.4, 0.53)), Vector((s*0.13, -0.38, 0.53)), Vector((s*0.13, -0.32, 0.66))],
+          [(0, 1, 2)], col('boar_dark'))                                                         # ears
     b.add([Vector((s*0.10, -0.47, 0.47)), Vector((s*0.105, -0.465, 0.455)), Vector((s*0.10, -0.455, 0.47))],
-          [(0, 1, 2)], col('char'))                                                          # eyes
-for k in range(9):  # bristle ridge along the spine
-    y = 0.38 - k * 0.09; zt = max(z for yy, zc, rx, rz in prof for z in [zc + rz] if abs(yy - y) < 0.2)
-    h = 0.07 + 0.05 * math.sin(math.pi * k / 8)
-    b.add([Vector((0, y + 0.06, zt - 0.03)), Vector((0, y - 0.05, zt - 0.03)), Vector((0, y - 0.02, zt + h))],
-          [(0, 1, 2)], lambda: col('char', 0.08))
-b.add([Vector((0, 0.55, 0.47)), Vector((0.012, 0.56, 0.45)), Vector((0, 0.66, 0.35))], [(0, 1, 2)], col('char'))  # tail
+          [(0, 1, 2)], col('char'))                                                              # eyes
+for y, h, lean, w in [(0.22, 0.07, 0.02, 0.09), (0.0, 0.10, -0.015, 0.11), (-0.2, 0.08, 0.01, 0.08)]:  # mane: 3 chunky leaning tufts
+    zt = max(zc + rz for yy, zc, rx, rz in prof if abs(yy - y) < 0.2)
+    blob(b, (lean, y, zt - h*0.25), (w*0.7, w*1.9, h*1.1), 8, lambda: col(random.choice(('boar_dark', 'boar_dark', 'char')), 0.06))
+tip(b, (0, 0.53, 0.47), (0.02, 0.66, 0.33), 0.03, 4, lambda: col('boar_dark', 0.05))           # chunky tail
+blob(b, (0.02, 0.665, 0.32), (0.03, 0.03, 0.04), 6, col('boar_dark'))                           # tail tuft
 bmesh.ops.scale(b.bm, vec=(1, 0.88, 1), verts=b.bm.verts[:])   # tighten to ~1.15 m long
 models.append((ground(build('boar', b, material('boar', 0.9))), 'boar.glb'))
 
