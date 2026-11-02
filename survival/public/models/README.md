@@ -8,7 +8,7 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 
 | File | What it is | Tris | Source |
 | --- | --- | --- | --- |
-| `player.glb` | Survivor (rigged, animated; `hand_R` bone, `player-pack` mesh) | 740 | player.blend |
+| `player.glb` | Survivor (rigged, animated; `hand_R` bone, `player-pack` mesh = the backpack.glb mesh, skinned to `spine`) | 864 | player.blend |
 | `axe.glb` | Hand axe held by the player (material `tool`) | 56 | player.blend |
 | `deer.glb` | Deer (rigged) | 536 | animals.blend |
 | `rabbit.glb` | Rabbit (rigged) | 272 | animals.blend |
@@ -19,7 +19,8 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `bow.glb` | Self bow, 1.40 m, hide grip, string; origin at grip centre, string toward +Y (archer) | 188 | hunting_props.py |
 | `arrow.glb` | Arrow, 0.70 m, stone head, 3 vanes; origin at the nock, points -Y | 40 | hunting_props.py |
 | `stone.glb` | Fist-sized throwing stone, ~0.095 m; origin at base centre | 28 | hunting_props.py |
-| `campfire.glb` | Stone ring, log teepee, embers and a simple crossed-blade flame, ~0.9 m across | 251 | camp_props.py |
+| `backpack.glb` | Canvas backpack (greens, rust bedroll), upright, origin base centre; straps toward +Z, pocket toward -Z (glTF). Same mesh as the worn `player-pack` | 204 | backpack.py |
+| `campfire.glb` | Ring of 15 nearly-touching stones built from `rock-small`/`rock` (mossy vertex paint), log teepee, embers, crossed-blade flame, ~0.95 m across | 861 | camp_props.py |
 | `log-pile.glb` | 4-3-2 stack of 1.2 m logs with two stakes | 204 | camp_props.py |
 | `stump.glb` | Tree stump with root flares, ~0.45 m tall | 90 | camp_props.py |
 | `trap.glb` | Figure-4 deadfall: propped stone slab, trigger sticks, bait; open side faces -Y | 106 | camp_props.py |

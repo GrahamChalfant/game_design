@@ -124,10 +124,36 @@ models.append((ground(build('log-pile', b, material('log-pile', 0.95))), 'log-pi
 
 # ---------------- campfire: stone ring, log teepee, embers ----------------
 random.seed(303); b = Builder()
-for k in range(9):
-    a = math.tau * k / 9 + random.uniform(-0.06, 0.06); r = 0.41
-    rock(b, (r*math.cos(a), r*math.sin(a), 0.05), (0.078, 0.065, 0.045), 11, lambda: col('slate', 0.1))
-b.add([Vector((0, 0, 0.01))] + [Vector((0.34*math.cos(math.tau*k/8), 0.34*math.sin(math.tau*k/8), 0.005)) for k in range(8)],
+def load_rock(name):
+    """Vertices, faces and per-face colour (from the painted 'Color' attribute) of an existing rock GLB."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.abspath(os.path.join(OUT, name + '.glb')))
+    o = next(o for o in set(bpy.data.objects) - before if o.type == 'MESH'); me = o.data
+    ca = me.color_attributes['Color']
+    faces = [tuple(p.vertices) for p in me.polygons]
+    cols = [tuple(sum(ca.data[li].color[i] for li in p.loop_indices) / len(p.loop_indices) for i in range(3)) + (1.0,)
+            for p in me.polygons]
+    verts = [o.matrix_world @ v.co for v in me.vertices]
+    for x in set(bpy.data.objects) - before: bpy.data.objects.remove(x)
+    return verts, faces, cols
+ROCKS = [load_rock('rock-small'), load_rock('rock')]
+# 15 softer, mossy stones from the rock set, nearly touching, flattened and resting on the ground
+NS = 15
+for k in range(NS):
+    a = math.tau * k / NS + random.uniform(-0.03, 0.03); r = 0.4 + random.uniform(-0.01, 0.01)
+    verts, faces, cols = ROCKS[1] if k % 4 == 1 else ROCKS[0]
+    span = max(max(v.x for v in verts) - min(v.x for v in verts), max(v.y for v in verts) - min(v.y for v in verts))
+    s = random.uniform(0.17, 0.2) / span
+    M = (Matrix.Translation((r*math.cos(a), r*math.sin(a), 0)) @ Matrix.Rotation(a + math.pi/2 + random.uniform(-0.25, 0.25), 4, 'Z')
+         @ Matrix.Diagonal((s, s * random.uniform(0.85, 1.0), s * random.uniform(0.6, 0.75), 1)))
+    vs = [M @ v for v in verts]; zmin = min(v.z for v in vs)
+    vs = [v - Vector((0, 0, zmin + 0.01)) for v in vs]          # sit on the ground, slightly sunk
+    shade = random.uniform(0.9, 1.08)
+    vb = [b.bm.verts.new(v) for v in vs]
+    for f, c in zip(faces, cols):
+        try: b.paint(b.bm.faces.new([vb[i] for i in f]), tuple(min(1, x * shade) for x in c[:3]) + (1.0,))
+        except ValueError: pass
+b.add([Vector((0, 0, 0.01))] + [Vector((0.33*math.cos(math.tau*k/8), 0.33*math.sin(math.tau*k/8), 0.005)) for k in range(8)],
       [(0, k + 1, (k + 1) % 8 + 1) for k in range(8)], lambda: col('ash', 0.08))
 for k in range(5):  # teepee logs leaning to the centre
     a = math.tau * k / 5 + 0.3
