@@ -251,7 +251,6 @@ export function backpack() {
   roll.rotation.z = Math.PI / 2;
   roll.position.y = 0.64;
   group.add(bag, flap, pocket, roll);
-  group.rotation.set(0, 0.5, -0.25); // tipped over in the grass
   group.traverse((child) => (child.castShadow = true));
   return group;
 }
@@ -358,11 +357,15 @@ export function trap() {
 export function campfire() {
   const group = new THREE.Group();
   const stone = material(0x7d7a74, 0.95);
-  for (let i = 0; i < 9; i++) {
-    const angle = (i / 9) * Math.PI * 2;
-    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.16, 1), stone);
-    rock.position.set(Math.cos(angle) * 0.55, 0.08, Math.sin(angle) * 0.55);
-    rock.scale.set(1, 0.7, 1);
+  // A dense ring of soft, flattened stones, nearly touching (matches campfire.glb).
+  const stones = 14;
+  for (let i = 0; i < stones; i++) {
+    const angle = (i / stones) * Math.PI * 2;
+    const size = 0.11 + 0.015 * Math.sin(i * 2.7);
+    const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 1), stone);
+    rock.position.set(Math.cos(angle) * 0.5, size * 0.3, Math.sin(angle) * 0.5);
+    rock.scale.set(1.25, 0.55, 0.9);
+    rock.rotation.y = -angle + 0.3 * Math.sin(i * 1.9); // long side along the ring
     group.add(rock);
   }
   for (let i = 0; i < 4; i++) {

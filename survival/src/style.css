@@ -404,7 +404,12 @@ canvas {
 
 .recipes {
   display: grid;
+  align-content: start;
   gap: 6px;
+  /* Scroll the list rather than stretching the menu as recipes unlock (#73). */
+  max-height: min(380px, calc(100vh - 160px));
+  overflow-y: auto;
+  padding-right: 4px; /* room for the scrollbar */
 }
 
 .recipe {
