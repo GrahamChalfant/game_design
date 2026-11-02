@@ -28,13 +28,6 @@ export const RECIPES = [
     description: 'Dry and twist intestines into cord',
   },
   {
-    item: 'rope',
-    name: 'Rope (from hide)',
-    count: 2,
-    cost: { hide: 1 },
-    description: 'Cut a hide into strips',
-  },
-  {
     item: 'flask',
     count: 1,
     cost: { hide: 2, rope: 1 },

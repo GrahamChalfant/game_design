@@ -118,6 +118,10 @@ export class Hud {
   }
 
   update(survival, inventory, { prompt, progress }) {
+    // Craftable recipes first, then the rest, each group in RECIPES order (#70).
+    const list = this.crafting.querySelector('.recipes');
+    const sorted = [...this.recipes].sort((a, b) => canCraft(inventory, b.recipe) - canCraft(inventory, a.recipe) || this.recipes.indexOf(a) - this.recipes.indexOf(b));
+    if (sorted.some((r, i) => list.children[i] !== r.button)) list.append(...sorted.map((r) => r.button));
     for (const { recipe, button, costs } of this.recipes) {
       const known = isKnown(inventory, recipe);
       button.hidden = !known;

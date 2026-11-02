@@ -11,6 +11,7 @@ const MERGE_DISTANCE = 1; // dropping next to a pile of the same item adds to it
 const GROUND_MODELS = {
   wood: [placeholders.logPile, 'logs'],
   axe: [placeholders.axeOnGround, 'axe-ground'],
+  // TODO(#67): Art is making backpack.glb and updating player.glb's player-pack to the same mesh; the ground pickup loads 'backpack' once it exists.
   backpack: [placeholders.backpack, 'backpack'],
   stone: [placeholders.stone, 'stone', 2.5], // stone.glb is life-size (~10 cm): scaled up to be visible
 };
