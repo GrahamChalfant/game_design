@@ -35,9 +35,17 @@ export const RECIPES = [
   },
   {
     item: 'bowstring',
+    name: 'Bowstring (from intestines)',
     count: 1,
     cost: { gut: 1 },
     description: 'Twist intestines into a strong string for a bow',
+  },
+  {
+    item: 'bowstring',
+    name: 'Bowstring (from rope)',
+    count: 1,
+    cost: { rope: 1 },
+    description: 'Twist gut rope tight into a strong string for a bow',
   },
   {
     item: 'bow',
