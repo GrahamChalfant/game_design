@@ -251,7 +251,6 @@ export function backpack() {
   roll.rotation.z = Math.PI / 2;
   roll.position.y = 0.64;
   group.add(bag, flap, pocket, roll);
-  group.rotation.set(0, 0.5, -0.25); // tipped over in the grass
   group.traverse((child) => (child.castShadow = true));
   return group;
 }

@@ -30,7 +30,6 @@ export class Campfires {
 
     const pit = new THREE.Group();
     pit.add(placeholders.campfire());
-    // TODO(#69): Art is rebuilding campfire.glb with a denser ring of rock-small.glb-style rocks; no code change needed once it lands.
     loadModel('campfire').then((model) => {
       if (!model) return;
       model.traverse((child) => (child.castShadow = child.receiveShadow = true));

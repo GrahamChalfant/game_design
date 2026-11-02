@@ -5,14 +5,15 @@ import { itemIconCanvas } from './itemIcons.js';
 
 // Items that lie in the world like any other prop, with no floating icon above them.
 const NO_ICON = new Set(['stone']);
+// Items that lie tipped over rather than upright (applied to the model and its stand-in alike).
+const GROUND_TILT = { backpack: [0, 0.5, -0.25] };
 const MERGE_DISTANCE = 1; // dropping next to a pile of the same item adds to it
 // What some items look like lying on the ground: [stand-in, Blender model name, model scale].
 // Items not listed here just show their floating icon.
 const GROUND_MODELS = {
   wood: [placeholders.logPile, 'logs'],
   axe: [placeholders.axeOnGround, 'axe-ground'],
-  // TODO(#67): Art is making backpack.glb and updating player.glb's player-pack to the same mesh; the ground pickup loads 'backpack' once it exists.
-  backpack: [placeholders.backpack, 'backpack'],
+  backpack: [placeholders.backpack, 'backpack'], // same mesh as the worn player-pack in player.glb (#67)
   stone: [placeholders.stone, 'stone', 2.5], // stone.glb is life-size (~10 cm): scaled up to be visible
 };
 
@@ -42,6 +43,7 @@ export class Pickups {
     if (GROUND_MODELS[item]) {
       const [placeholder, modelName, modelScale = 1] = GROUND_MODELS[item];
       const shown = new THREE.Group();
+      if (GROUND_TILT[item]) shown.rotation.set(...GROUND_TILT[item]);
       shown.add(placeholder());
       loadModel(modelName).then((model) => {
         if (!model) return;
