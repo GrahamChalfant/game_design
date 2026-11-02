@@ -1,4 +1,5 @@
-import { BOW_DURABILITY, STONE_STACK } from './hunting.js';
+import { BOW_DURABILITY, KNIFE_DURABILITY, STONE_STACK } from './hunting.js';
+import { BERRY_STACK } from './foraging.js';
 
 // What the player is carrying: a hotbar of slots, plus a backpack with more slots.
 // Each item's icon is a small 3D model, drawn in itemIcons.js.
@@ -23,6 +24,9 @@ export const ITEMS = {
   // Wears out: shots left are kept on its slot as `durability`.
   bow: { name: 'Bow', stack: 1, durability: BOW_DURABILITY },
   arrow: { name: 'Arrow', stack: 30 },
+  // Wears out: stabs that land are counted down on its slot as `durability`.
+  knife: { name: 'Stone knife', stack: 1, durability: KNIFE_DURABILITY },
+  berries: { name: 'Berries', stack: BERRY_STACK },
   rawMeat: { name: 'Raw meat', stack: 10 },
   cookedMeat: { name: 'Cooked meat', stack: 10 },
   // Not kept in a slot: picking it up unlocks the backpack's slots.

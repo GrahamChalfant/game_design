@@ -1,7 +1,8 @@
 import { formatFuel } from './campfires.js';
 import { isNight } from './daylight.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
-import { ANIMAL_DROPS, BOW_COOLDOWN, BUTCHER_TIME } from './hunting.js';
+import { ANIMAL_DROPS, BOW_COOLDOWN, BUTCHER_TIME, KNIFE_COOLDOWN, hitAnimal, knifeHitTest } from './hunting.js';
+import { BERRY_HUNGER, hasBerries, regrowLeft } from './foraging.js';
 
 const COOK_TIME = 3; // seconds of holding the mouse button at a fire to cook one piece of meat
 const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
@@ -13,15 +14,17 @@ const FLASK_DRINK = 35; // thirst one drink from the flask restores
 const FOOD = {
   cookedMeat: { hunger: 35, health: 0, message: 'Delicious' },
   rawMeat: { hunger: 12, health: -15, message: 'You feel sick' },
+  berries: { hunger: BERRY_HUNGER, health: 0, message: 'Tart, but it helps' }, // no spoiling in v1 (#74)
 };
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, animals, arrows, survival, hud, onSleep }) {
+export function createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep }) {
   let cooking = 0;
   let searching = 0;
   let butchering = 0;
   let bowReady = 0; // seconds until the bow can shoot again
+  let knifeReady = 0; // seconds until the knife can stab again
 
   // Adds items to the inventory. Anything that doesn't fit is dropped on the ground at
   // (dropX, dropZ), or at the player's feet.
@@ -60,6 +63,9 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     let searchingNow = false;
     let butcheringNow = false;
     bowReady = Math.max(0, bowReady - dt);
+    knifeReady = Math.max(0, knifeReady - dt);
+    const bush = bushes.near(x, z, 1.4);
+    const now = survival.minutesSurvived;
     const tree = player.treeInReach(world);
     const chopping = Boolean(tree && held === 'axe' && input.usingTool() && !player.airborne);
     let prompt = null;
@@ -123,6 +129,10 @@ export function createActions({ input, inventory, player, world, wreck, campfire
         const taken = pickups.pickUp(pile, inventory);
         hud.toast(taken > 0 ? `+${taken} ${name}` : 'Inventory full');
       }
+    } else if (!fire && bush && hasBerries(bush, now)) {
+      // A berry bush in fruit: E picks a handful.
+      prompt = 'Berry bush · E to pick berries';
+      if (pressedE) give('berries', bushes.pick(bush, now), bush.x, bush.z);
     } else if (!fire && carcass) {
       // A shot animal: hold E to butcher it for meat, hide and intestines.
       const time = BUTCHER_TIME[carcass.kind];
@@ -259,10 +269,16 @@ export function createActions({ input, inventory, player, world, wreck, campfire
           }
         }
       }
+    } else if (!fire && held === 'knife') {
+      const knife = inventory.slots[inventory.selected];
+      prompt = `Stone knife ${knife.durability}/${ITEMS.knife.durability} · click to stab`;
+    } else if (!fire && bush) {
+      const hours = Math.ceil(regrowLeft(bush, now) / 60);
+      prompt = `This bush has been picked · berries again in about ${hours} h`;
     } else if (!fire && held === 'arrow') {
       prompt = 'Equip a bow to shoot arrows';
     } else if (!fire && held === 'stone') {
-      prompt = 'Stones are used to craft arrows (Tab)';
+      prompt = 'Stones are used to craft knives and arrows (Tab)';
     } else if (!fire && held === 'bowstring') {
       prompt = 'Bowstrings are used to craft a bow (Tab)';
     } else if (!fire && held === 'flare') {
@@ -275,6 +291,29 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     } else if (!fire && held === 'rawMeat') {
       prompt = 'Cook it at a campfire · click to eat it raw (risky)';
       if (input.startedUsingTool()) eat('rawMeat');
+    } else if (!fire && held === 'berries') {
+      prompt = `Click to eat (+${BERRY_HUNGER} hunger)`;
+      if (input.startedUsingTool()) eat('berries');
+    }
+
+    // Stone knife (#75): click or hold to stab whatever's right in front of you. Only stabs
+    // that land wear it down. Works next to a carcass or bush too, so you can fight a boar there.
+    if (held === 'knife' && input.usingTool() && knifeReady === 0 && !player.swimming && !player.airborne) {
+      knifeReady = KNIFE_COOLDOWN;
+      player.stab();
+      const target = knifeHitTest(x, z, player.facing, animals.all);
+      if (target) {
+        const knife = inventory.slots[inventory.selected];
+        if (hitAnimal(target, 'knife')) {
+          animals.kill(target);
+          hud.toast(`You killed a ${target.kind}! Hold E next to it to butcher it`);
+        } else hud.toast(`You stab the ${target.kind}`);
+        knife.durability -= 1;
+        if (knife.durability <= 0) {
+          inventory.slots[inventory.selected] = null;
+          hud.toast('Your knife broke');
+        }
+      }
     }
 
     if (!cookingNow) cooking = 0;

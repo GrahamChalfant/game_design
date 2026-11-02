@@ -580,3 +580,79 @@ export function arrow() {
   group.traverse((child) => (child.castShadow = true));
   return group;
 }
+
+// A low berry bush, about 0.9 m tall, base at the origin (stand-in until berry-bush.glb lands).
+// userData.berries is the cluster of berries, hidden once the bush has been picked.
+export function berryBush() {
+  const bush = new THREE.Group();
+  const leaf = material(0x3f5a2e);
+  for (const [x, y, z, r] of [[0, 0.4, 0, 0.45], [0.3, 0.3, 0.15, 0.32], [-0.28, 0.32, -0.1, 0.34], [0.05, 0.62, -0.1, 0.3]]) {
+    const clump = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), leaf);
+    clump.position.set(x, y, z);
+    bush.add(clump);
+  }
+  const berries = new THREE.Group();
+  const red = material(0xb3243a, 0.5);
+  for (let i = 0; i < 14; i++) {
+    const a = i * 2.4;
+    const berry = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), red);
+    berry.position.set(Math.cos(a) * 0.42, 0.25 + (i % 4) * 0.13, Math.sin(a) * 0.42);
+    berries.add(berry);
+  }
+  bush.add(berries);
+  bush.userData.berries = berries;
+  bush.traverse((child) => (child.castShadow = true));
+  return bush;
+}
+
+// A stocky wild boar, about 0.8 m at the shoulder, facing +z (stand-in until boar.glb lands).
+export function boar() {
+  const bristle = material(0x4a3a2e);
+  const boar = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.6, 8, 14), bristle);
+  body.rotation.x = Math.PI / 2;
+  body.position.y = 0.62;
+  const legs = [];
+  for (const [x, z] of [[-0.16, 0.32], [0.16, 0.32], [-0.16, -0.32], [0.16, -0.32]]) {
+    const hip = new THREE.Group();
+    hip.position.set(x, 0.45, z);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.45, 6), bristle);
+    leg.position.y = -0.225;
+    hip.add(leg);
+    legs.push(hip);
+    boar.add(hip);
+  }
+  const head = new THREE.Group();
+  head.position.set(0, 0.62, 0.55);
+  const skull = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.5, 8), bristle);
+  skull.rotation.x = Math.PI / 2;
+  skull.position.z = 0.15;
+  const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 8), material(0x8a5a50));
+  snout.rotation.x = Math.PI / 2;
+  snout.position.z = 0.42;
+  head.add(skull, snout);
+  for (const side of [-1, 1]) {
+    const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.14, 5), material(0xeee6d0));
+    tusk.position.set(side * 0.09, -0.05, 0.36);
+    tusk.rotation.x = -0.6;
+    head.add(tusk);
+  }
+  boar.add(body, head);
+  boar.userData.legs = legs;
+  boar.userData.head = head;
+  boar.traverse((child) => (child.castShadow = true));
+  return boar;
+}
+
+// A stone knife, about 0.3 m long: a wooden grip and a knapped stone blade along +y,
+// origin at the grip (stand-in until knife.glb lands).
+export function knife() {
+  const group = new THREE.Group();
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.022, 0.12, 6), material(0x7a5232));
+  const blade = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 4), material(0x8a8880, 0.6));
+  blade.scale.z = 0.4;
+  blade.position.y = 0.16;
+  group.add(grip, blade);
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}

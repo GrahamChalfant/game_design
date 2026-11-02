@@ -21,23 +21,68 @@ export const FLEE_DISTANCE = {
   rabbit: { standing: 6, crouching: 3 },
   deer: { standing: 12, crouching: 5 },
 };
-export const HITS_TO_KILL = { rabbit: 1, deer: 1 }; // one arrow kills: a deer won't wait for a second
+export const HITS_TO_KILL = { rabbit: 1, deer: 1, boar: 1 }; // one arrow kills: a deer won't wait for a second
+// Knife stabs needed (issue #75/#76). Deer bolt before you can reach them, but count it anyway.
+export const KNIFE_HITS_TO_KILL = { rabbit: 1, deer: 2, boar: 3 };
 // What each animal gives when you take it from a trap or butcher it.
 export const ANIMAL_DROPS = {
   rabbit: { rawMeat: 2, hide: 1, gut: 1 },
   deer: { rawMeat: 6, hide: 2, gut: 2 },
+  boar: { rawMeat: 3, hide: 1, gut: 1 }, // less than a deer (#76)
 };
-export const BUTCHER_TIME = { rabbit: 1, deer: 4 }; // seconds of holding E at a shot animal
+export const BUTCHER_TIME = { rabbit: 1, deer: 4, boar: 2.5 }; // seconds of holding E at a shot animal
+
+// --- Stone knife (issue #75) ---
+export const KNIFE_DURABILITY = 20; // stabs that land before the knife breaks (misses are free)
+export const KNIFE_RANGE = 1.6; // meters from the player's centre to the tip of a stab
+export const KNIFE_ARC = Math.PI / 3; // stabs hit anything within ±60° of where you face
+export const KNIFE_COOLDOWN = 0.45; // seconds between stabs (hold the button to keep stabbing)
+
+// --- Boar (issue #76) ---
+// Boars don't flee: they charge when you get close, standing up / crouching.
+export const BOAR_CHARGE_DISTANCE = { standing: 7, crouching: 3.5 };
+export const BOAR_WALK_SPEED = 2.5; // m/s while wandering
+export const BOAR_CHARGE_SPEED = 4.5; // m/s: a little slower than the player's 5, so you can back off
+export const BOAR_CALM_DISTANCE = 14; // gives up the charge once you're this far away
+export const BOAR_ATTACK_REACH = 1.1; // meters between centres for a gore to land
+export const BOAR_DAMAGE = 12; // health lost per gore
+export const BOAR_ATTACK_COOLDOWN = 1.5; // seconds between gores
+export const BOAR_COUNT = 3;
+
+export function chargeDistance(sneaking) {
+  return sneaking ? BOAR_CHARGE_DISTANCE.crouching : BOAR_CHARGE_DISTANCE.standing;
+}
 
 export function fleeDistance(kind, sneaking) {
   const d = FLEE_DISTANCE[kind];
   return sneaking ? d.crouching : d.standing;
 }
 
-// Applies one arrow hit; returns true if the animal is now dead.
-export function hitAnimal(animal) {
+// Applies one hit ('arrow' or 'knife'); returns true if the animal is now dead.
+// Damage is tracked as a fraction, so mixing a stab and an arrow still adds up.
+export function hitAnimal(animal, weapon = 'arrow') {
+  const needed = (weapon === 'knife' ? KNIFE_HITS_TO_KILL : HITS_TO_KILL)[animal.kind];
+  animal.wounds = (animal.wounds ?? 0) + 1 / needed;
   animal.hits = (animal.hits ?? 0) + 1;
-  return animal.hits >= HITS_TO_KILL[animal.kind];
+  return animal.wounds >= 1 - 1e-9;
+}
+
+// The nearest living animal a knife stab from (x, z) facing `facing` reaches, or null.
+export function knifeHitTest(x, z, facing, animals) {
+  let best = null;
+  let bestDistance = Infinity;
+  for (const animal of animals) {
+    if (animal.dead) continue;
+    const dx = animal.position.x - x;
+    const dz = animal.position.z - z;
+    const distance = Math.hypot(dx, dz);
+    if (distance > KNIFE_RANGE + animal.radius) continue;
+    const angle = Math.atan2(dx, dz) - facing;
+    const off = Math.abs(Math.atan2(Math.sin(angle), Math.cos(angle)));
+    if (off > KNIFE_ARC && distance > animal.radius) continue; // behind you (unless touching)
+    if (distance < bestDistance) [best, bestDistance] = [animal, distance];
+  }
+  return best;
 }
 
 // The first living animal an arrow moving from (x0, z0) to (x1, z1) passes through, or null.
