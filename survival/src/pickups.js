@@ -14,7 +14,8 @@ const GROUND_MODELS = {
   wood: [placeholders.logPile, 'logs'],
   axe: [placeholders.axeOnGround, 'axe-ground'],
   backpack: [placeholders.backpack, 'backpack'], // same mesh as the worn player-pack in player.glb (#67)
-  stone: [placeholders.stone, 'stone', 2.5], // stone.glb is life-size (~10 cm): scaled up to be visible
+  stone: [placeholders.stone, 'stone', 2.5],
+  berries: [placeholders.stone, 'berry', 4], // berry.glb is a single life-size berry: scaled up to be visible // stone.glb is life-size (~10 cm): scaled up to be visible
 };
 
 // Items lying on the ground (e.g. logs that didn't fit in your inventory),

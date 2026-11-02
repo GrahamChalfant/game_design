@@ -122,6 +122,11 @@ export class Animals {
       child.frustumCulled = false;
     });
     animal.object.add(animal.body);
+    // Static models (boar.glb has no clips yet) just glide, with a little bob in animate().
+    if (!model.animations.some((clip) => clip.name.startsWith(`${animal.kind}-`))) {
+      animal.mixer = null;
+      return;
+    }
     animal.mixer = new THREE.AnimationMixer(animal.body);
     animal.clips = Object.fromEntries(
       model.animations
@@ -294,6 +299,11 @@ export class Animals {
       return;
     }
     const legs = animal.body.userData.legs;
+    if (!legs && animal.kind !== 'rabbit') {
+      // A static model without legs to swing: trot with a small bob instead.
+      animal.body.position.y = moving ? Math.abs(Math.sin(animal.gait * 1.2)) * 0.05 : 0;
+      return;
+    }
     if (animal.kind === 'rabbit') {
       animal.body.position.y = moving ? Math.abs(Math.sin(animal.gait * 1.4)) * 0.22 : 0;
     } else if (legs) {
