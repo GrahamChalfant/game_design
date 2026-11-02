@@ -3,6 +3,7 @@ import { createActions } from './actions.js';
 import { Daylight } from './daylight.js';
 import { createPainterlyRenderer } from './painterly.js';
 import { Animals } from './animals.js';
+import { Arrows } from './arrows.js';
 import { Campfires } from './campfires.js';
 import { Shelters } from './shelters.js';
 import { CharacterView } from './characterView.js';
@@ -76,10 +77,14 @@ const shelters = new Shelters(scene, world);
 const animals = new Animals(scene, world, SEED + 2);
 animals.spawnAll(player.position);
 const traps = new Traps(scene, world, animals);
+const arrows = new Arrows(scene, world, animals);
+arrows.onKill = (animal) => hud.toast(`You shot a ${animal.kind}! Hold E next to it to butcher it`);
 const pickups = new Pickups(scene, world);
 // The axe and backpack lie around the wreckage at the start of every game.
 const placeStartItems = () => {
   for (const { item, x, z } of START_ITEMS) pickups.drop(item, 1, x, z);
+  // Loose stones by the rocks and lake shore (they don't come back once taken, for now).
+  for (const { x, z } of world.stones) pickups.drop('stone', 1, x, z);
 };
 placeStartItems();
 const hud = new Hud({
@@ -90,6 +95,7 @@ const hud = new Hud({
     campfires.reset();
     shelters.reset();
     traps.reset();
+    arrows.reset();
     pickups.reset();
     placeStartItems();
     wreck.reset();
@@ -128,7 +134,7 @@ const sleep = () => {
   const { day } = survival.clock;
   hud.showSleep(`Day ${day} · 0${WAKE_HOUR}:00`);
 };
-const updateActions = createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, survival, hud, onSleep: sleep });
+const updateActions = createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, animals, arrows, survival, hud, onSleep: sleep });
 
 // --- Top-down camera that follows the player ---
 let zoom = 20; // distance from the player
@@ -185,6 +191,7 @@ renderer.setAnimationLoop(() => {
   updateCamera(dt);
   world.update(dt, clock.elapsedTime, player.position);
   animals.update(dt, player.position, player.sneaking);
+  arrows.update(dt);
   traps.update();
   pickups.update(clock.elapsedTime);
   wreck.update(dt);

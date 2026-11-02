@@ -165,6 +165,26 @@ const MODELS = {
     return group(...loops, tail);
   },
 
+  stone: () => mesh(new THREE.DodecahedronGeometry(0.4, 0).scale(1, 0.65, 0.85), STONE, [0, 0.26, 0], [0.2, 0.5, 0]),
+
+  bowstring: () => {
+    const cord = flat(0xe8dcc0);
+    const loops = [0, 1, 2].map((i) => mesh(new THREE.TorusGeometry(0.34, 0.03, 4, 14), cord, [0, 0.05 + i * 0.05, 0], [Math.PI / 2, 0, i * 0.4]));
+    return group(...loops);
+  },
+
+  bow: () => group(placeholders.bow()).rotateZ(-0.7),
+
+  arrow: () => {
+    const arrows = [-0.12, 0, 0.12].map((x) => {
+      const a = placeholders.arrow();
+      a.position.x = x;
+      a.scale.setScalar(1.3);
+      return a;
+    });
+    return group(...arrows).rotateY(Math.PI / 4).rotateX(-0.4);
+  },
+
   // A leather water flask with a wooden stopper and a carrying cord.
   flask: () => {
     const leather = flat(0x7a5236);

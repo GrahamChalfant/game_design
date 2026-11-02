@@ -3,13 +3,16 @@ import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { itemIconCanvas } from './itemIcons.js';
 
+// Items that lie in the world like any other prop, with no floating icon above them.
+const NO_ICON = new Set(['stone']);
 const MERGE_DISTANCE = 1; // dropping next to a pile of the same item adds to it
-// What some items look like lying on the ground: [stand-in, Blender model name].
+// What some items look like lying on the ground: [stand-in, Blender model name, model scale].
 // Items not listed here just show their floating icon.
 const GROUND_MODELS = {
   wood: [placeholders.logPile, 'logs'],
   axe: [placeholders.axeOnGround, 'axe-ground'],
   backpack: [placeholders.backpack, 'backpack'],
+  stone: [placeholders.stone, 'stone', 2.5], // stone.glb is life-size (~10 cm): scaled up to be visible
 };
 
 // Items lying on the ground (e.g. logs that didn't fit in your inventory),
@@ -36,18 +39,19 @@ export class Pickups {
     const object = new THREE.Group();
     object.position.set(x, this.world.terrain.heightAt(x, z), z);
     if (GROUND_MODELS[item]) {
-      const [placeholder, modelName] = GROUND_MODELS[item];
+      const [placeholder, modelName, modelScale = 1] = GROUND_MODELS[item];
       const shown = new THREE.Group();
       shown.add(placeholder());
       loadModel(modelName).then((model) => {
         if (!model) return;
         shown.clear();
+        model.scale.setScalar(modelScale);
         shown.add(model);
       });
       object.add(shown);
     }
-    const icon = iconSprite(item);
-    object.add(icon);
+    const icon = NO_ICON.has(item) ? null : iconSprite(item);
+    if (icon) object.add(icon);
     this.scene.add(object);
     this.world.grass.clear(x, z, 0.6);
     this.piles.push({ item, count, x, z, object, icon, bob: Math.random() * 10 });
@@ -82,7 +86,7 @@ export class Pickups {
   }
 
   update(time) {
-    for (const pile of this.piles) pile.icon.position.y = 1 + Math.sin(time * 2 + pile.bob) * 0.08;
+    for (const pile of this.piles) if (pile.icon) pile.icon.position.y = 1 + Math.sin(time * 2 + pile.bob) * 0.08;
   }
 
   // Removes everything on the ground, for a new game.

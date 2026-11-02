@@ -1,3 +1,5 @@
+import { BOW_DURABILITY, STONE_STACK } from './hunting.js';
+
 // What the player is carrying: a hotbar of slots, plus a backpack with more slots.
 // Each item's icon is a small 3D model, drawn in itemIcons.js.
 // Each slot holds a stack of one kind of item. Slots 0–5 are the hotbar; the rest are the backpack.
@@ -16,6 +18,11 @@ export const ITEMS = {
   gut: { name: 'Intestines', stack: 10 },
   // Holds up to `holds` drinks of water, kept on its slot as `water`.
   flask: { name: 'Water flask', stack: 1, holds: 3 },
+  stone: { name: 'Stone', stack: STONE_STACK },
+  bowstring: { name: 'Bowstring', stack: 10 },
+  // Wears out: shots left are kept on its slot as `durability`.
+  bow: { name: 'Bow', stack: 1, durability: BOW_DURABILITY },
+  arrow: { name: 'Arrow', stack: 30 },
   rawMeat: { name: 'Raw meat', stack: 10 },
   cookedMeat: { name: 'Cooked meat', stack: 10 },
   // Not kept in a slot: picking it up unlocks the backpack's slots.
@@ -106,7 +113,10 @@ export class Inventory {
     for (let i = 0; i < this.usableSlots && count > 0; i++) {
       if (this.slots[i]) continue;
       const added = Math.min(count, stack);
-      this.slots[i] = ITEMS[item].holds ? { item, count: added, water: 0 } : { item, count: added };
+      const slot = { item, count: added };
+      if (ITEMS[item].holds) slot.water = 0;
+      if (ITEMS[item].durability) slot.durability = ITEMS[item].durability;
+      this.slots[i] = slot;
       count -= added;
     }
     return count;

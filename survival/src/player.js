@@ -45,6 +45,20 @@ export class Player {
       this.axe.add(model);
     });
 
+    // The bow, shown in the right hand while it's selected (stand-in until bow.glb loads).
+    this.bow = new THREE.Group();
+    this.bow.add(placeholders.bow());
+    loadModel('bow').then((model) => {
+      if (!model) return;
+      model.traverse((child) => (child.castShadow = true));
+      this.bow.clear();
+      this.bow.add(model);
+    });
+    this.bow.position.set(-0.4, 1.0, 0.25);
+    this.bow.scale.setScalar(0.8);
+    this.bow.visible = false;
+    this.object.add(this.bow);
+
     loadModel('player').then((model) => {
       if (!model) return;
       model.traverse((child) => {
@@ -60,6 +74,11 @@ export class Player {
       model.getObjectByName('hand_R').add(this.axe);
       this.axe.position.set(0, 0.03, 0.02);
       this.axe.rotation.set(Math.PI / 2, 0, 0);
+      // bow.glb's origin is the grip, so it sits in the hand with its tips along the arm's up axis.
+      model.getObjectByName('hand_R').add(this.bow);
+      this.bow.position.set(0, 0.03, 0.02);
+      this.bow.rotation.set(0, 0, 0);
+      this.bow.scale.setScalar(1);
 
       this.mixer = new THREE.AnimationMixer(model);
       this.clips = Object.fromEntries(model.animations.map((clip) => [clip.name, this.mixer.clipAction(clip)]));
@@ -85,6 +104,7 @@ export class Player {
   // and whether they've found the backpack yet.
   setAction(heldItem, chopping, drinking, hasBackpack) {
     this.axe.visible = heldItem === 'axe' && !this.swimming && !drinking; // put away when the hands are busy
+    this.bow.visible = heldItem === 'bow' && !this.swimming && !drinking;
     this.body.getObjectByName('player-pack').visible = hasBackpack;
     this.chopping = chopping;
     this.drinking = drinking;

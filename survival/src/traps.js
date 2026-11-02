@@ -83,7 +83,7 @@ export class Traps {
     for (const trap of this.all) {
       if (trap.caught) continue;
       const rabbit = this.animals.all.find(
-        (animal) => animal.kind === 'rabbit' && Math.hypot(animal.position.x - trap.x, animal.position.z - trap.z) < CATCH_RADIUS,
+        (animal) => animal.kind === 'rabbit' && !animal.dead && Math.hypot(animal.position.x - trap.x, animal.position.z - trap.z) < CATCH_RADIUS,
       );
       if (!rabbit) continue;
       this.animals.remove(rabbit);

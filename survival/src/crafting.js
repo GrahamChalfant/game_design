@@ -1,3 +1,5 @@
+import { ARROWS_PER_CRAFT, BOW_DURABILITY } from './hunting.js';
+
 // Things the player can make from what they're carrying. Add new recipes here.
 export const RECIPES = [
   {
@@ -38,10 +40,32 @@ export const RECIPES = [
     cost: { hide: 2, rope: 1 },
     description: 'Fill it at the lake or river, then drink from it anywhere (3 drinks)',
   },
+  {
+    item: 'bowstring',
+    count: 1,
+    cost: { gut: 1 },
+    description: 'Twist intestines into a strong string for a bow',
+  },
+  {
+    item: 'bow',
+    count: 1,
+    cost: { wood: 3, bowstring: 2 },
+    requires: 'bowstring',
+    description: `Equip it and click to shoot. Breaks after ${BOW_DURABILITY} shots`,
+  },
+  {
+    item: 'arrow',
+    count: ARROWS_PER_CRAFT,
+    cost: { wood: 1, stone: 1 },
+    requires: 'bow',
+    description: 'One hit brings down a deer or a rabbit. Arrows are lost once shot',
+  },
 ];
 
-// A recipe shows up once the player has found everything it's made from.
+// A recipe shows up once the player has found everything it's made from, and is carrying
+// its `requires` item (e.g. arrows only once you have a bow).
 export function isKnown(inventory, recipe) {
+  if (recipe.requires && inventory.count(recipe.requires) === 0) return false;
   return Object.keys(recipe.cost).every((item) => inventory.found.has(item));
 }
 
