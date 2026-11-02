@@ -1,4 +1,4 @@
-import { ARROWS_PER_CRAFT, BOW_DURABILITY } from './hunting.js';
+import { ARROWS_PER_CRAFT, BOW_DURABILITY, KNIFE_DURABILITY } from './hunting.js';
 
 // Things the player can make from what they're carrying. Add new recipes here.
 export const RECIPES = [
@@ -53,6 +53,13 @@ export const RECIPES = [
     cost: { wood: 3, bowstring: 2 },
     requires: 'bowstring',
     description: `Equip it and click to shoot. Breaks after ${BOW_DURABILITY} shots`,
+  },
+  {
+    item: 'knife',
+    name: 'Stone knife',
+    count: 1,
+    cost: { wood: 1, stone: 1 },
+    description: `Equip it and click to stab up close. Boars take a few stabs. Breaks after ${KNIFE_DURABILITY} hits`,
   },
   {
     item: 'arrow',

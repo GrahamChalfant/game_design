@@ -13,6 +13,7 @@ const GRAVITY = 20;
 const JUMP_MAX_DEPTH = 0.3; // too deep in the water to jump beyond this
 const TOP_MARGIN = 0.1; // feet this close below the top of a rock or stump still clear it
 const TOP_OVERHANG = 0.25; // how far past a rock's edge the player can stand on it
+const STAB_TIME = 0.25; // seconds a knife jab lasts
 const FADE_TIME = 0.15; // seconds to blend from one animation to the next
 
 export class Player {
@@ -62,6 +63,19 @@ export class Player {
     this.bow.visible = false;
     this.object.add(this.bow);
 
+    // The stone knife (#75), in the right hand while selected (stand-in until knife.glb loads).
+    this.knife = new THREE.Group();
+    this.knife.add(placeholders.knife());
+    loadModel('knife').then((model) => {
+      if (!model) return;
+      this.knife.clear();
+      this.knife.add(model);
+    });
+    this.knife.position.set(0.42, 0.9, 0.2);
+    this.knife.visible = false;
+    this.object.add(this.knife);
+    this.stabTime = 0; // counts down after a stab, to jab the knife forward
+
     loadModel('player').then((model) => {
       if (!model) return;
       model.traverse((child) => {
@@ -82,6 +96,10 @@ export class Player {
       this.bow.position.set(0, 0.03, 0.02);
       this.bow.rotation.set(0, 0, 0);
       this.bow.scale.setScalar(1);
+      // knife's origin is the grip; the blade points along the hand's up axis, like the bow.
+      model.getObjectByName('hand_R').add(this.knife);
+      this.knife.position.set(0, 0.03, 0.02);
+      this.knife.rotation.set(Math.PI / 2, 0, 0);
 
       this.mixer = new THREE.AnimationMixer(model);
       this.clips = Object.fromEntries(model.animations.map((clip) => [clip.name, this.mixer.clipAction(clip)]));
@@ -108,6 +126,7 @@ export class Player {
   setAction(heldItem, chopping, drinking, hasBackpack) {
     this.axe.visible = heldItem === 'axe' && !this.swimming && !drinking; // put away when the hands are busy
     this.bow.visible = heldItem === 'bow' && !this.swimming && !drinking;
+    this.knife.visible = heldItem === 'knife' && !this.swimming && !drinking;
     this.body.getObjectByName('player-pack').visible = hasBackpack;
     this.chopping = chopping;
     this.drinking = drinking;
@@ -130,7 +149,15 @@ export class Player {
     this.mixer.update(dt);
   }
 
+  // A quick forward jab of the knife (no stab animation in player.glb yet).
+  stab() {
+    this.stabTime = STAB_TIME;
+  }
+
   update(dt, input, world) {
+    this.stabTime = Math.max(0, this.stabTime - dt);
+    const jab = Math.sin((this.stabTime / STAB_TIME) * Math.PI); // 0 → 1 → 0
+    this.knife.rotation.x = Math.PI / 2 - jab * 0.9;
     if (!this.mixer) {
       // Swing the axe while chopping; otherwise rest it on the shoulder.
       this.chopTime = this.chopping ? (this.chopTime ?? 0) + dt : 0;

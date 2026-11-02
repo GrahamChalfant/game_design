@@ -3,7 +3,10 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { createRandom } from './random.js';
-import { fleeDistance } from './hunting.js';
+import {
+  BOAR_ATTACK_COOLDOWN, BOAR_ATTACK_REACH, BOAR_CALM_DISTANCE, BOAR_CHARGE_SPEED, BOAR_COUNT,
+  BOAR_DAMAGE, BOAR_WALK_SPEED, chargeDistance, fleeDistance,
+} from './hunting.js';
 
 // Each kind of animal. Distances in meters, speeds in meters per second
 // (the player walks at 5, so both outrun the player when scared).
@@ -33,6 +36,19 @@ const KINDS = {
     turnSpeed: 5,
     placeholder: placeholders.deer,
   },
+  // Boars don't run from you: they charge (issue #76). Numbers in hunting.js.
+  boar: {
+    count: BOAR_COUNT,
+    radius: 0.45,
+    wanderSpeed: BOAR_WALK_SPEED,
+    fleeSpeed: BOAR_CHARGE_SPEED, // used as its charge speed
+    calmDistance: BOAR_CALM_DISTANCE,
+    wanderRange: 8,
+    idleTime: [3, 8],
+    turnSpeed: 6,
+    aggressive: true,
+    placeholder: placeholders.boar,
+  },
 };
 const SPAWN_DISTANCE = 25; // new animals appear at least this far from the player
 const RESPAWN_TIME = 60; // seconds before a caught animal is replaced
@@ -50,6 +66,8 @@ export class Animals {
     this.models = {};
     // Things that draw animals in (set by Traps): a function returning [{ x, z }].
     this.lures = () => [];
+    // Called with (animal, damage) when a charging boar gores the player.
+    this.onAttack = () => {};
     for (const kind of Object.keys(KINDS)) {
       loadModel(kind).then((model) => {
         if (!model) return;
@@ -165,13 +183,33 @@ export class Animals {
     const playerDistance = Math.hypot(position.x - playerPosition.x, position.z - playerPosition.z);
 
     // Notice the player and bolt; settle down again once well away.
-    const scareDistance = fleeDistance(animal.kind, sneaking);
-    if (playerDistance < scareDistance) animal.state = 'flee';
-    if (animal.state === 'flee' && playerDistance > config.calmDistance) this.rest(animal);
-
+    // Boars charge instead; a wounded boar charges wherever you are within its calm distance.
     let direction = null;
     let speed = 0;
-    if (animal.state === 'flee') {
+    if (config.aggressive) {
+      animal.attackCooldown = Math.max(0, (animal.attackCooldown ?? 0) - dt);
+      if (playerDistance < chargeDistance(sneaking) || (animal.hits && playerDistance < config.calmDistance)) animal.state = 'charge';
+      if (animal.state === 'charge' && playerDistance > config.calmDistance) this.rest(animal);
+      if (animal.state === 'charge' && playerDistance < BOAR_ATTACK_REACH + animal.radius) {
+        // Close enough: gore the player, then stand its ground until it can again.
+        this.turnToward(animal, Math.atan2(playerPosition.x - position.x, playerPosition.z - position.z), dt);
+        if (animal.attackCooldown === 0) {
+          animal.attackCooldown = BOAR_ATTACK_COOLDOWN;
+          this.onAttack(animal, BOAR_DAMAGE);
+        }
+      } else if (animal.state === 'charge') {
+        direction = new THREE.Vector2(playerPosition.x - position.x, playerPosition.z - position.z).normalize();
+        speed = config.fleeSpeed;
+      }
+    } else {
+      const scareDistance = fleeDistance(animal.kind, sneaking);
+      if (playerDistance < scareDistance) animal.state = 'flee';
+      if (animal.state === 'flee' && playerDistance > config.calmDistance) this.rest(animal);
+    }
+
+    if (animal.state === 'charge') {
+      // (direction and speed set above)
+    } else if (animal.state === 'flee') {
       direction = new THREE.Vector2(position.x - playerPosition.x, position.z - playerPosition.z).normalize();
       speed = config.fleeSpeed;
     } else if (animal.state === 'wander') {
@@ -250,7 +288,7 @@ export class Animals {
     animal.gait += dt * (moving ? speed * 2.2 : 1);
     if (animal.mixer) {
       if (!moving) this.play(animal, Math.sin(animal.gait * GRAZE_PACE) > 0 ? 'graze' : 'idle');
-      else if (animal.state === 'flee') this.play(animal, 'run');
+      else if (animal.state === 'flee' || animal.state === 'charge') this.play(animal, 'run');
       else this.play(animal, 'walk');
       animal.mixer.update(dt);
       return;

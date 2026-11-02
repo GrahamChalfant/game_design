@@ -175,6 +175,17 @@ const MODELS = {
 
   bow: () => group(placeholders.bow()).rotateZ(-0.7),
 
+  knife: () => group(placeholders.knife()).rotateZ(-0.8),
+
+  // A small heap of red berries with a leaf.
+  berries: () => {
+    const red = flat(0xb3243a, 0.5);
+    const berries = [[0, 0.1, 0], [0.18, 0.1, 0.05], [-0.15, 0.1, 0.08], [0.05, 0.1, -0.17], [0.04, 0.26, 0.02], [-0.1, 0.24, -0.08]]
+      .map((p) => mesh(new THREE.IcosahedronGeometry(0.12, 1), red, p));
+    const leaf = mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.02, 5).scale(1, 1, 0.5), flat(0x4f6e35), [0.2, 0.32, -0.05], [0.4, 0.3, 0.5]);
+    return group(...berries, leaf);
+  },
+
   arrow: () => {
     const arrows = [-0.12, 0, 0.12].map((x) => {
       const a = placeholders.arrow();

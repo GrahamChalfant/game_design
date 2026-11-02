@@ -12,6 +12,8 @@ import { Hud } from './hud.js';
 import { Input } from './input.js';
 import { HOTBAR_SIZE, ITEMS, Inventory } from './inventory.js';
 import { Pickups } from './pickups.js';
+import { Bushes } from './bushes.js';
+import { createRandom } from './random.js';
 import { Player } from './player.js';
 import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
@@ -74,7 +76,14 @@ const survival = new Survival();
 const inventory = new Inventory();
 const campfires = new Campfires(scene, world);
 const shelters = new Shelters(scene, world);
+// Berry bushes first, so animals don't spawn inside them.
+const bushes = new Bushes(scene, world, createRandom(SEED + 3));
 const animals = new Animals(scene, world, SEED + 2);
+// A charging boar gores the player (#76).
+animals.onAttack = (animal, damage) => {
+  survival.eat(0, -damage);
+  hud.toast(`The ${animal.kind} gores you! (-${damage} health)`);
+};
 animals.spawnAll(player.position);
 const traps = new Traps(scene, world, animals);
 const arrows = new Arrows(scene, world, animals);
@@ -95,6 +104,7 @@ const hud = new Hud({
     campfires.reset();
     shelters.reset();
     traps.reset();
+    bushes.reset();
     arrows.reset();
     pickups.reset();
     placeStartItems();
@@ -134,7 +144,7 @@ const sleep = () => {
   const { day } = survival.clock;
   hud.showSleep(`Day ${day} · 0${WAKE_HOUR}:00`);
 };
-const updateActions = createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, animals, arrows, survival, hud, onSleep: sleep });
+const updateActions = createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep });
 
 // --- Top-down camera that follows the player ---
 let zoom = 20; // distance from the player
@@ -193,6 +203,7 @@ renderer.setAnimationLoop(() => {
   animals.update(dt, player.position, player.sneaking);
   arrows.update(dt);
   traps.update();
+  bushes.update(survival.minutesSurvived);
   pickups.update(clock.elapsedTime);
   wreck.update(dt);
   snow.update(dt, clock.elapsedTime, cameraTarget);

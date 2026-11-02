@@ -32,5 +32,10 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `rock.glb`, `rock-small.glb`, `rock-flat.glb`, `rock-tall.glb`, `rock-large.glb` | Rocks | 44–140 | rock.blend |
 | `grass-tuft.glb`, `grass-short.glb`, `grass-clump.glb`, `grass-sparse.glb`, `grass-wide.glb`, `grass-wisp.glb`, `grass-tall.glb`, `grass-seed.glb`, `grass-fern.glb` | Grass tufts, painted grey (tinted by the ground) | 9–45 | grass.blend |
 
+**Wanted (placeholders in code until these land):**
+- `berry-bush.glb` — low bush ~0.9 m, origin base centre; berries as a child node named `berries` (hidden when picked).
+- `knife.glb` — stone knife ~0.3 m, origin at the grip, blade along +Y (attached to `hand_R` like the bow).
+- `boar.glb` — boar ~0.8 m at shoulder, facing +Z; optional clips `boar-idle`, `boar-graze`, `boar-walk`, `boar-run` (same naming as deer/rabbit).
+
 Style, palette and poly budgets: `survival/blender/STYLE_GUIDE.md`.
 See "Adding models from Blender" in `survival/README.md` for sizes and orientation.
