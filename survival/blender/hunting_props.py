@@ -51,6 +51,7 @@ def build(name, b, mat):
         for li in p.loop_indices: a.data[li].color = b.cols[ci[p.index].value]
     me.attributes.remove(me.attributes['ci'])
     me.materials.append(mat)
+    for e in me.edges: e.use_edge_sharp = True   # flat shading: every edge hard (issue #77)
     o = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(o)
     print(f'@@ {name}: {len(me.polygons)} tris, size {tuple(round(d, 3) for d in o.dimensions)}')
     return o
@@ -73,16 +74,16 @@ for s in (-1, 1):                       # lower and upper limb, from grip outwar
     for i in range(SEG + 1):
         t = i / SEG; z = s * (0.06 + t * (L/2 - 0.06))
         y = DEPTH * (z / (L/2))**2  # braced: tips bend toward the archer (+Y)
-        w = 0.016 * (1 - 0.6*t); d = 0.013 * (1 - 0.45*t)
+        w = 0.0192 * (1 - 0.6*t); d = 0.0156 * (1 - 0.45*t)   # +20% (#77)
         rings.append(ring(Vector((0, y, z)), X, Y, w, d, 4, math.pi/4))
     tips.append(Vector((0, rings[-1][0].y, z)))
     b.loft(rings, lambda: col('wood', 0.06))
 # grip: hide wrap, 6-sided, slightly thicker, joins the limbs
-b.loft([ring(Vector((0, 0, z)), X, Y, 0.021, 0.019, 6) for z in (-0.075, -0.03, 0.03, 0.075)],
+b.loft([ring(Vector((0, 0, z)), X, Y, 0.0252, 0.0228, 6) for z in (-0.075, -0.03, 0.03, 0.075)],
        lambda: col('hide', 0.05))
 # string: thin 3-sided strand between the nocks (straight, bow braced)
 tz = L/2 - 0.02; sy = tips[1].y + 0.004
-b.loft([ring(Vector((0, sy, z)), X, Y, 0.003, 0.003, 3) for z in (-tz, tz)], col('bone'))
+b.loft([ring(Vector((0, sy, z)), X, Y, 0.0036, 0.0036, 3) for z in (-tz, tz)], col('bone'))
 bow = build('bow', b, material('bow', 0.9))
 
 # ---------------- arrow: 0.70 m, origin at the nock, points -Y ----------------

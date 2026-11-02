@@ -52,6 +52,7 @@ def build(name, b, mat):
         for li in p.loop_indices: a.data[li].color = b.cols[ci[p.index].value]
     me.attributes.remove(me.attributes['ci'])
     me.materials.append(mat)
+    for e in me.edges: e.use_edge_sharp = True   # flat shading: every edge hard (issue #77)
     o = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(o)
     print(f'@@ {name}: {len(me.polygons)} tris, size {tuple(round(d, 3) for d in o.dimensions)}')
     return o
