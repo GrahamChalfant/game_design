@@ -146,26 +146,21 @@ for a in (0.0, math.pi/2):
     b.add(pts, [(0, 2, 1), (0, 3, 2), (3, 4, 2)], col('rust', 0.0))
 models.append((ground(build('campfire', b, material('campfire', 0.9))), 'campfire.glb'))
 
-# ---------------- trap: figure-4 deadfall ----------------
+# ---------------- trap: simple snare (stake + rope noose facing -Y) ----------------
 random.seed(404); b = Builder()
-# heavy slab, propped up at the back, open edge toward the front (-Y)
-slab = bmesh.new()
-for _ in range(22):
-    slab.verts.new(Vector((random.uniform(-0.3, 0.3), random.uniform(-0.25, 0.25), random.uniform(-0.035, 0.035))))
-bmesh.ops.convex_hull(slab, input=slab.verts[:])
-for e in [e for e in slab.edges if not e.link_faces]: slab.edges.remove(e)
-for v in [v for v in slab.verts if not v.link_faces]: slab.verts.remove(v)
-M = Matrix.Translation((0, 0.05, 0.14)) @ Matrix.Rotation(math.radians(28), 4, 'X')
-vi = {v: i for i, v in enumerate(slab.verts)}
-b.add([M @ v.co for v in slab.verts], [tuple(vi[v] for v in f.verts) for f in slab.faces], lambda: col('slate', 0.1)); slab.free()
-# figure-4 trigger: upright, diagonal and bait stick
-log(b, (0, -0.02, 0), (0, -0.02, 0.24), 0.012, 6, lambda: col('wood', 0.05), col('end_grain'))
-log(b, (0.0, 0.16, 0.30), (0.0, -0.12, 0.08), 0.010, 6, lambda: col('driftwood', 0.05), col('end_grain'))
-log(b, (-0.2, -0.04, 0.10), (0.12, -0.04, 0.17), 0.009, 6, lambda: col('wood_dark', 0.05), col('end_grain'))
-b.add([Vector((-0.2, -0.07, 0.06)), Vector((-0.17, -0.01, 0.08)), Vector((-0.23, -0.02, 0.09)), Vector((-0.2, -0.04, 0.13))],
-      [(0, 1, 3), (1, 2, 3), (2, 0, 3), (0, 2, 1)], col('lichen'))   # bait bundle
-for p in ((0.28, 0.25, 0.03), (-0.3, 0.22, 0.03)):  # footing stones
-    rock(b, p, (0.05, 0.04, 0.025), 7, lambda: col('slate_dark', 0.08))
+log(b, (0, 0, 0), (0.01, 0, 0.5), 0.018, 6, lambda: col('wood', 0.05), col('end_grain'), 0.8)     # stake
+log(b, (0.005, 0, 0.45), (0.005, -0.12, 0.47), 0.009, 5, lambda: col('wood', 0.05), col('end_grain'))  # arm
+log(b, (0.005, -0.12, 0.465), (0.005, -0.12, 0.31), 0.005, 4, col('bone'), col('bone'))            # hanging cord
+# noose: a low-poly ring in the XZ plane so the opening faces the camera (-Y)
+C = Vector((0.005, -0.12, 0.205)); R, r, S, T = 0.1, 0.008, 10, 4
+verts = []
+for i in range(S):
+    a = math.tau * i / S; d = Vector((math.sin(a), 0, math.cos(a)))
+    for k in range(T):
+        t = math.tau * k / T + math.pi / 4
+        verts.append(C + d * (R + r * math.cos(t)) + Vector((0, r * math.sin(t), 0)))
+faces = [(i*T + k, i*T + (k+1) % T, ((i+1) % S)*T + (k+1) % T, ((i+1) % S)*T + k) for i in range(S) for k in range(T)]
+b.add(verts, faces, lambda: col('bone', 0.06))
 models.append((ground(build('trap', b, material('trap', 0.95))), 'trap.glb'))
 
 for o, f in models: export(o, f)
