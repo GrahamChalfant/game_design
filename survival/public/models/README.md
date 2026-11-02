@@ -19,6 +19,10 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `bow.glb` | Self bow, 1.40 m, hide grip, string; origin at grip centre, string toward +Y (archer) | 188 | hunting_props.py |
 | `arrow.glb` | Arrow, 0.70 m, stone head, 3 vanes; origin at the nock, points -Y | 40 | hunting_props.py |
 | `stone.glb` | Fist-sized throwing stone, ~0.095 m; origin at base centre | 28 | hunting_props.py |
+| `campfire.glb` | Stone ring, log teepee, embers and a simple crossed-blade flame, ~0.9 m across | 251 | camp_props.py |
+| `log-pile.glb` | 4-3-2 stack of 1.2 m logs with two stakes | 204 | camp_props.py |
+| `stump.glb` | Tree stump with root flares, ~0.45 m tall | 90 | camp_props.py |
+| `trap.glb` | Figure-4 deadfall: propped stone slab, trigger sticks, bait; open side faces -Y | 106 | camp_props.py |
 | `pine.glb`, `pine-small.glb`, `pine-skinny.glb`, `pine-tall.glb`, `pine-wide.glb` | Pines | 188–448 | trees.blend |
 | `pine-snow.glb`, `pine-small-snow.glb` | Snowy pines | 1,124 / 548 | trees.blend |
 | `sapling-pine.glb`, `sapling-broadleaf.glb` | Saplings | 144 / 288 | trees.blend |
