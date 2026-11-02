@@ -186,7 +186,7 @@ canvas {
   left: 50%;
   bottom: 16px;
   display: flex;
-  gap: 6px;
+  gap: 8px;
   padding: 6px;
   border-radius: 10px;
   background: rgb(20 30 40 / 0.55);
@@ -197,8 +197,8 @@ canvas {
   position: relative;
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 64px;
+  height: 64px;
   padding: 0;
   border: 2px solid rgb(255 255 255 / 0.15);
   border-radius: 8px;
@@ -222,8 +222,8 @@ canvas {
 }
 
 .slot .icon {
-  width: 42px;
-  height: 42px;
+  width: 52px;
+  height: 52px;
 }
 
 .slot .key,
@@ -254,8 +254,13 @@ canvas {
   }
 
   .slot {
-    width: 44px;
-    height: 44px;
+    width: 56px;
+    height: 56px;
+  }
+
+  .slot .icon {
+    width: 46px;
+    height: 46px;
   }
 }
 
