@@ -173,16 +173,24 @@ const MODELS = {
     return group(...loops);
   },
 
-  bow: () => group(placeholders.bow()).rotateZ(-0.7),
+  // HUD-only bow: chunkier limbs than the world model so it reads at hotbar size.
+  bow: () => {
+    const stave = mesh(new THREE.TorusGeometry(0.75, 0.06, 6, 18, Math.PI * 0.55), flat(0x7a5232), [0, 0, 0], [0, 0, -Math.PI * 0.275]);
+    const grip = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.22, 6), flat(0x4a3220), [0.75, 0, 0]);
+    const chord = 2 * 0.75 * Math.sin(Math.PI * 0.275);
+    const string = mesh(new THREE.CylinderGeometry(0.016, 0.016, chord, 4), flat(0xe8e0cc), [0.75 * Math.cos(Math.PI * 0.275), 0, 0]);
+    return group(group(stave, grip, string).rotateZ(-0.7)).rotateX(-0.5);
+  },
 
+  // HUD-only arrow: one bold diagonal arrow (thicker than the world model) so it reads at 50px.
   arrow: () => {
-    const arrows = [-0.12, 0, 0.12].map((x) => {
-      const a = placeholders.arrow();
-      a.position.x = x;
-      a.scale.setScalar(1.3);
-      return a;
-    });
-    return group(...arrows).rotateY(Math.PI / 4).rotateX(-0.4);
+    const shaft = mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.0, 6), flat(0xc89a62));
+    const head = mesh(new THREE.ConeGeometry(0.13, 0.26, 6), flat(0x5f5f5a, 0.5), [0, 0.62, 0]);
+    const vanes = [0, 1, 2].map((i) =>
+      mesh(new THREE.BoxGeometry(0.02, 0.24, 0.14).translate(0, 0, 0.09), flat(0xe0503a), [0, -0.4, 0], [0, (i * Math.PI * 2) / 3, 0]),
+    );
+    const nock = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.06, 6), flat(0x3a2a1c), [0, -0.52, 0]);
+    return group(group(shaft, head, ...vanes, nock).rotateZ(-Math.PI / 4)).rotateX(-0.55);
   },
 
   // A leather water flask with a wooden stopper and a carrying cord.
