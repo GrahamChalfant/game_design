@@ -9,7 +9,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'public', 'models')
 PAL = dict(wood=0x6b4a32, wood_dark=0x54392a, driftwood=0x7a7067, end_grain=0x9c7a56,
            hide=0x8a6a4a, bone=0xd8c49a, slate_dark=0x3e4a52, slate=0x626260, lichen=0x848266,
-           moss=0x56743f, moss_dark=0x3d5739, ash=0x3a3633, char=0x2d2824, rust=0xa4442f, ochre=0xb88a2e)
+           moss=0x56743f, moss_dark=0x3d5739, ash=0x3a3633, char=0x2d2824, ash_bed=0x3e4a52, rust=0xa4442f, ochre=0xb88a2e)
 def col(name, var=0.0):
     h = PAL[name]; k = 1 + random.uniform(-var, var)
     return (*[min(1, (((h >> s) & 255) / 255) * k) ** 2.2 for s in (16, 8, 0)], 1.0)
@@ -47,6 +47,7 @@ def build(name, b, mat):
         for li in p.loop_indices: a.data[li].color = b.cols[ci[p.index].value]
     me.attributes.remove(me.attributes['ci'])
     me.materials.append(mat)
+    for e in me.edges: e.use_edge_sharp = True   # flat shading: every edge hard (issue #77)
     o = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(o)
     print(f'@@ {name}: {len(me.polygons)} tris, size {tuple(round(d, 3) for d in o.dimensions)}')
     return o
@@ -154,7 +155,7 @@ for k in range(NS):
         try: b.paint(b.bm.faces.new([vb[i] for i in f]), tuple(min(1, x * shade) for x in c[:3]) + (1.0,))
         except ValueError: pass
 b.add([Vector((0, 0, 0.01))] + [Vector((0.33*math.cos(math.tau*k/8), 0.33*math.sin(math.tau*k/8), 0.005)) for k in range(8)],
-      [(0, k + 1, (k + 1) % 8 + 1) for k in range(8)], lambda: col('ash', 0.08))
+      [(0, k + 1, (k + 1) % 8 + 1) for k in range(8)], lambda: col('ash_bed', 0.08))  # ash bed lifted to slate-dark (#77)
 for k in range(5):  # teepee logs leaning to the centre
     a = math.tau * k / 5 + 0.3
     log(b, (0.3*math.cos(a), 0.3*math.sin(a), 0.02), (0.03*math.cos(a), 0.03*math.sin(a), 0.42), 0.035, 5,
