@@ -31,6 +31,10 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `tree-dead.glb` | Bare dead tree | 272 | trees.blend |
 | `rock.glb`, `rock-small.glb`, `rock-flat.glb`, `rock-tall.glb`, `rock-large.glb` | Rocks | 44–140 | rock.blend |
 | `grass-tuft.glb`, `grass-short.glb`, `grass-clump.glb`, `grass-sparse.glb`, `grass-wide.glb`, `grass-wisp.glb`, `grass-tall.glb`, `grass-seed.glb`, `grass-fern.glb` | Grass tufts, painted grey (tinted by the ground) | 9–45 | grass.blend |
+| `berry-bush.glb` | Berry bush, rust berry clusters; origin base centre | 258 | food_props.py |
+| `berry.glb` | Berry pickup (3 berries + leaf) | 25 | food_props.py |
+| `knife.glb` | Stone knife, wood handle, slate blade; origin grip centre, blade along +Z Blender / +Y glTF (like axe), edge toward -Y | 76 | food_props.py |
+| `boar.glb` | Boar, static (unrigged), faces -Y, origin at feet | 422 | food_props.py |
 
 **Wanted (placeholders in code until these land):**
 - `berry-bush.glb` — low bush ~0.9 m, origin base centre; berries as a child node named `berries` (hidden when picked).
