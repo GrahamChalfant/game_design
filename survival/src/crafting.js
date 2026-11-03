@@ -28,6 +28,13 @@ export const RECIPES = [
     description: 'Warm hides stitched into a coat. Wear it to brave the cold up the mountains',
   },
   {
+    item: 'bandage',
+    name: 'Bandages (from hide)',
+    count: 2,
+    cost: { hide: 1 },
+    description: 'Cut a hide into soft strips. Click and hold to bandage yourself up',
+  },
+  {
     item: 'trap',
     count: 1,
     cost: { wood: 3, rope: 1 },
@@ -65,7 +72,7 @@ export const RECIPES = [
     count: 1,
     cost: { wood: 3, bowstring: 2 },
     requires: 'bowstring',
-    description: `Equip it and click to shoot. Breaks after ${BOW_DURABILITY} shots`,
+    description: `Equip it, hold the mouse button to draw and let go to shoot. Breaks after ${BOW_DURABILITY} shots`,
   },
   {
     item: 'knife',
@@ -79,7 +86,7 @@ export const RECIPES = [
     count: ARROWS_PER_CRAFT,
     cost: { wood: 1, stone: 1 },
     requires: 'bow',
-    description: 'One hit brings down a deer or a rabbit. Arrows are lost once shot',
+    description: 'One hit brings down a deer or a rabbit. Pick up the ones that miss',
   },
 ];
 

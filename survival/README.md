@@ -61,8 +61,9 @@ automatically whenever you save a file.
 
 The game starts paused on a menu listing the controls. Press Esc at any time to see it again.
 
-You start hurt (35 health) and empty-handed, a short walk south of your crashed bush
-plane. It's just out of sight, so head north to find it. The plane came down beside a lake,
+You start hurt (55 health), empty-handed and cold, in just a shirt, a short walk south of your crashed bush
+plane. Your jacket is packed in your suitcase by the wreck: find it, select it and click to put it on, and
+you warm up (in a shirt, a day outdoors never gets you above chilly, and nights bite harder). It's just out of sight, so head north to find it. The plane came down beside a lake,
 so water is never far away. Your axe and backpack were thrown
 clear in the crash: look around the wreckage (they have floating icons) and press E to
 pick them up. The backpack gives you 12 extra slots.
@@ -88,8 +89,7 @@ you (the roof, a wall or window, or the floor above you on the stairs), just tha
 see-through so you can always see yourself; everything else stays solid. Out on the balcony on
 the camera's side, nothing is in the way, so the tower looks as it always does.
 
-Your compass fell out of your pocket a couple of steps north of where you start (E to pick it
-up). While you carry it, a compass strip at the top of the screen shows which way you're facing,
+There's a compass in the pilot's bag by the plane's broken wing. While you carry it, a compass strip at the top of the screen shows which way you're facing,
 and an arrow under it points to the crash with how far away it is: handy for finding your way
 back on a big map. North is always up the screen.
 
@@ -100,13 +100,25 @@ Each one can be searched once:
 | Where | What's inside |
 | --- | --- |
 | The suitcase in the skid furrow | Lighter, flare |
-| The suitcases around the wreck | A first-aid kit (3 bandages), and 5 rope between them |
+| Your suitcase (blue) | Your red jacket, 2 rope |
+| The pilot's bag (red, by the wing) | Compass, rope |
+| The brown case | A first-aid kit (3 bandages), 2 rope |
 
-Select a bandage and click to heal 30 health. Keep the lighter: you need it to
+You crouch down to search things on the ground (and stand to search the ranger's locker).
+Select a bandage and click and hold to bandage yourself up (+30 health); craft more from a hide
+(2 bandages each). Eating also takes a moment: click and hold. Keep the lighter: you need it to Keep the lighter: you need it to
 light fires. Save the flare for signalling a rescue (coming later).
 
+To take off your outfit or backpack, open the menu (Tab) and drag it from your character: onto an
+empty slot to carry the outfit, or off the menu to leave it on the ground. A backpack put down keeps
+everything inside it until you pick it up again.
+
+Boars never come near the crash, so you can get your bearings there. Further out, a boar that
+gores you knocks you back, and leaves some blood on the ground.
+
 Your stats are the icons at the bottom right. They're white, turn yellow when low, and red when
-you're about to run out. Temperature falls at night and in the water, and rises near a burning
+you're about to run out; the thermometer goes from a cool blue when you're freezing to a warm red
+at its hottest. You'll say so when you get hungry or thirsty. Temperature falls at night and in the water, and rises near a burning
 fire. If it reaches zero, you start losing health.
 
 The land around the crash is open birch woods, meadows and lakes. In one corner of the map,
@@ -160,16 +172,20 @@ intestines.
 To hunt deer, make a bow. Stones lie in little groups by the rocks and the lake shore (press E
 to pick them up); a taken stone comes back three days later, so once you've picked an area clean you'll need to look further afield. A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
 (3 wood, 2 bowstrings), and once you hold a bow, arrows (1 wood and 1 stone make 3). Select the
-bow and click on the ground where you want to shoot: you turn and loose an arrow that way. One hit kills a deer or a rabbit; hold E next to
+bow, aim at the ground with the mouse and hold the button to draw (you turn to aim and walk slowly);
+let go to shoot. The further you draw, the faster and further the arrow flies (8–30 m): it arcs to
+where you aimed and can be seen in flight, so a running animal can get away. One hit kills a deer or
+a rabbit, which stumbles on and falls over, with the arrow stuck in it; hold E next to
 it to butcher it (a deer takes 4 s and gives 6 raw meat, 2 hides and 2 intestines). The bow
-breaks after 30 shots and arrows are lost once shot. All the numbers are in `src/hunting.js`.
+breaks after 30 shots. An arrow that misses lands in the ground, where you can pick it up again. All the numbers are in `src/hunting.js`.
 Craft a shelter (20 wood, 6 rope, 4 hides), select it and click to build it a few steps
 ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
 Nights are dark away from a fire. Craft a torch (2 wood), hold it at a burning campfire and click
 to light it. A lit torch lights up the ground around you and burns for 3 in-game hours (about 75
-real seconds), whether you hold it or not; its slot shows how long it has left.
+real seconds) while you hold it, with your arm bent up in front of you; put away in your inventory, it
+keeps. Its slot shows how long it has left.
 Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows in your Outfit
 slot, and on your character as a knee-length hide coat with a fur-trimmed hood. It keeps out most of the mountain cold, so you can climb up there by
 day, and halves the chill of a night outdoors. Nights up the mountains still need a fire.
@@ -213,7 +229,7 @@ src/wreck.js          The crashed plane at the start, and where the starting ite
 src/lookout.js        The fire lookout tower: where it stands, and its supply crate
 src/mapView.js        The map you can find (M): the whole area, markers and where you've been
 src/farView.js        A rough view of the whole map, shown while you look through the binoculars
-src/outfits.js        What you can wear over your coat, and how it looks on you
+src/outfits.js        What you can wear (shirt, jacket, parka), and how it looks on you
 src/crashTrail.js     The skid marks behind the plane: where they run and how they cut the ground
 src/crafting.js       Crafting recipes (add new ones here)
 src/characterView.js  The close-up of your character in the inventory (drag it to turn them)
@@ -223,6 +239,7 @@ src/itemIcons.js      Item icons: small low-poly models, rendered into pictures 
 src/survival.js       Hunger, thirst, temperature, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
 src/input.js          Keyboard and mouse handling
+src/blood.js          Blood spatter on the ground when you're hurt
 src/models.js         Loads Blender models and draws many copies efficiently
 src/placeholders.js   Simple stand-in shapes used until Blender models exist
 src/random.js         Seeded random numbers and noise (same seed = same map)

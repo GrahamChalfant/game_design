@@ -21,6 +21,10 @@ const STEP = 0.6; // the most you can step up or down onto a floor (stairs, the 
 const KNIFE_GRIP_OFFSET = 0.01; // nudge so the middle of knife.glb's handle (1 cm below its origin) sits in the fist
 const STAB_TIME = 0.25; // seconds a knife jab lasts
 const FADE_TIME = 0.15; // seconds to blend from one animation to the next
+const POSE_SPEED = 8; // how quickly the arms move into and out of a pose (see poseArms)
+const HURT_TIME = 0.45; // seconds the player reels after being hit
+const KNOCKBACK = 7; // m/s a hit throws the player back at first
+const TORCH_LEAN = 0.25; // a held torch leans this far forward from upright (radians)
 
 export class Player {
   constructor(scene, spawn, worldSize, spawnFacing = 0) {
@@ -81,6 +85,12 @@ export class Player {
     this.knife.visible = false;
     this.object.add(this.knife);
     this.stabTime = 0; // counts down after a stab, to jab the knife forward
+    this.busy = null; // what the hands are doing: 'search', 'searchLow', 'eat', 'bandage', 'draw' or null
+    this.drawAmount = 0; // how far the bow is drawn (0–1), while drawing it
+    this.pose = null; // the arm pose being shown (stays set while it fades out)
+    this.poseWeight = 0;
+    this.hurtTime = 0; // counts down after being hit
+    this.knock = new THREE.Vector2(); // how fast a hit is pushing the player back
 
     // A torch (#94), in the right hand while selected. Lit, it has a flame and lights up the
     // dark around the player.
@@ -132,6 +142,9 @@ export class Player {
         clip.clampWhenFinished = true;
       }
       this.play('idle');
+      this.bones = Object.fromEntries(
+        ['spine', 'upperarm_L', 'lowerarm_L', 'upperarm_R', 'lowerarm_R', 'hand_R'].map((name) => [name, model.getObjectByName(name)]),
+      );
     });
   }
 
@@ -152,7 +165,7 @@ export class Player {
     dressModel(this.body, outfit);
   }
 
-  setAction(heldItem, chopping, drinking, hasBackpack) {
+  setAction(heldItem, chopping, drinking, hasBackpack, busy = null) {
     this.axe.visible = heldItem === 'axe' && !this.swimming && !drinking; // put away when the hands are busy
     this.bow.visible = heldItem === 'bow' && !this.swimming && !drinking;
     this.knife.visible = heldItem === 'knife' && !this.swimming && !drinking;
@@ -163,6 +176,13 @@ export class Player {
     this.body.getObjectByName('player-pack').visible = hasBackpack;
     this.chopping = chopping;
     this.drinking = drinking;
+    this.busy = busy;
+  }
+
+  // Hit by something at (fromX, fromZ), like a charging boar: reel back and get knocked away.
+  hit(fromX, fromZ) {
+    this.hurtTime = HURT_TIME;
+    this.knock.set(this.position.x - fromX, this.position.z - fromZ).normalize().multiplyScalar(KNOCKBACK);
   }
 
   // True while in the air from a jump, or falling off a rock.
@@ -177,10 +197,94 @@ export class Player {
     else if (this.airborne) this.play('jump');
     else if (this.drinking) this.play('drink');
     else if (this.chopping) this.play('chop');
+    else if (this.busy === 'searchLow' || this.busy === 'bandage') this.play('crouch'); // down on your knees
     else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? SNEAK_SPEED : WALK_SPEED));
     else this.play(this.sneaking ? 'crouch' : 'idle');
     this.mixer.update(dt);
+    if (this.alive) this.poseArms(dt);
   }
+
+  // Bends the arms (on top of the animation) for things player.glb has no animation for:
+  // rummaging through a suitcase, eating, bandaging, holding up a torch, and reeling from a hit.
+  // Directions are in the player's own space: +y up, +z forward, `side` out to that arm's side.
+  poseArms(dt) {
+    const b = this.bones;
+    if (!b?.spine) return;
+    const t = this.flicker; // (a steady clock)
+    const busy = this.swimming || this.drinking || this.chopping ? null : this.busy;
+    if (busy) this.pose = busy;
+    this.poseWeight += ((busy ? 1 : 0) - this.poseWeight) * Math.min(1, dt * POSE_SPEED);
+    const w = this.poseWeight;
+    const arm = (side, upper, lower, weight = w) => {
+      const [up, low] = side > 0 ? [b.upperarm_L, b.lowerarm_L] : [b.upperarm_R, b.lowerarm_R];
+      this.aimBone(up, upper, weight);
+      this.aimBone(low, lower, weight);
+    };
+    const rummage = (side, speed) => Math.sin(t * speed + side) * 0.35;
+    if (w > 0.01) {
+      if (this.pose === 'searchLow') {
+        // Kneeling, both hands down in the suitcase, rummaging about.
+        for (const side of [1, -1]) arm(side, [side * 0.25, -0.55, 0.8], [rummage(side, 9), -0.75, 0.6]);
+      } else if (this.pose === 'search') {
+        // Standing, both hands reaching into the locker.
+        for (const side of [1, -1]) arm(side, [side * 0.2, -0.3, 0.95], [rummage(side, 9) - side * 0.2, 0.05, 1]);
+      } else if (this.pose === 'eat') {
+        // The right hand up to the mouth, between bites.
+        const bite = Math.max(0, Math.sin(t * 7)) * 0.25;
+        arm(-1, [-0.25, -0.75, 0.55], [0.55, 0.8 - bite, 0.25 + bite]);
+      } else if (this.pose === 'draw') {
+        // Drawing the bow: the bow arm (right) straight out in front, the string hand (left)
+        // pulled back toward the chest the further it's drawn.
+        const d = this.drawAmount;
+        arm(-1, [-0.1, 0.08, 1], [-0.04, 0.08, 1]);
+        arm(1, [0.35, 0.05, 1 - d * 0.9], [-1, 0.05, 0.9 - d * 0.9]);
+      } else if (this.pose === 'bandage') {
+        // Kneeling, winding a bandage round the leg.
+        for (const side of [1, -1]) arm(side, [side * 0.2, -0.7, 0.7], [-side * 0.5 + rummage(side, 6), -0.7, 0.45]);
+      }
+    }
+    // Holding a torch: the elbow bent at 90 degrees, the forearm out in front, flame upright.
+    if (this.torch.visible && !(w > 0.5 && this.pose !== 'eat')) {
+      arm(-1, [-0.12, -1, 0.12], [-0.05, 0.02, 1], 1 - w);
+      this.uprightTorch();
+    } else if (this.torch.visible) this.uprightTorch();
+    // Hit: rock back from the waist, quickly at first, then straighten up.
+    if (this.hurtTime > 0) {
+      const reel = Math.sin((this.hurtTime / HURT_TIME) * Math.PI);
+      this.aimBone(b.spine, [0, 1, -0.55], reel * 0.8);
+    }
+  }
+
+  // Turns `bone` (blended by `weight`) so it points along `direction`, given in the player's
+  // own space. In player.glb the spine points along its own +y, and the arm bones (which hang
+  // down from the shoulder) along their own -y.
+  aimBone(bone, [x, y, z], weight) {
+    if (weight <= 0) return;
+    const { _v, _q, _w, _p } = Player.scratch;
+    bone.updateWorldMatrix(true, false);
+    bone.getWorldQuaternion(_w);
+    const now = _v.set(0, bone.name.includes('arm') ? -1 : 1, 0).applyQuaternion(_w);
+    this.body.getWorldQuaternion(_p);
+    const want = Player.scratch._t.set(x, y, z).normalize().applyQuaternion(_p);
+    _q.setFromUnitVectors(now, want).multiply(_w); // the world rotation it should have
+    bone.parent.getWorldQuaternion(_p).invert();
+    _q.premultiply(_p);
+    bone.quaternion.slerp(_q, Math.min(1, weight));
+    bone.updateWorldMatrix(false, true);
+  }
+
+  // Keeps a held torch standing up, leaning a little forward, however the hand is turned.
+  uprightTorch() {
+    const { _q, _p } = Player.scratch;
+    this.body.getWorldQuaternion(_q).multiply(Player.scratch._r.setFromAxisAngle(Player.scratch._x, TORCH_LEAN));
+    this.torch.parent.getWorldQuaternion(_p).invert();
+    this.torch.quaternion.copy(_q.premultiply(_p));
+  }
+
+  static scratch = {
+    _v: new THREE.Vector3(), _t: new THREE.Vector3(), _x: new THREE.Vector3(1, 0, 0),
+    _q: new THREE.Quaternion(), _w: new THREE.Quaternion(), _p: new THREE.Quaternion(), _r: new THREE.Quaternion(),
+  };
 
   // A quick forward jab of the knife (no stab animation in player.glb yet).
   stab() {
@@ -209,6 +313,14 @@ export class Player {
       return;
     }
 
+    // Knocked back by a hit: slide away (around trees and rocks), slowing quickly.
+    this.hurtTime = Math.max(0, this.hurtTime - dt);
+    if (this.knock.lengthSq() > 0.01) {
+      this.tryMove(this.knock.x * dt, 0, world);
+      this.tryMove(0, this.knock.y * dt, world);
+      this.knock.multiplyScalar(Math.max(0, 1 - dt * 8));
+    } else this.knock.set(0, 0);
+
     const { x, z } = input.moveAxis();
     const moving = x !== 0 || z !== 0;
     const depth = world.terrain.waterDepth(this.position.x, this.position.z);
@@ -218,7 +330,8 @@ export class Player {
     // as soon.
     if (input.wasPressed('KeyC')) this.crouched = !this.crouched;
     this.sneaking = (this.crouched || input.isDown('ShiftLeft', 'ShiftRight')) && !this.swimming;
-    const landSpeed = this.sneaking ? SNEAK_SPEED : WALK_SPEED;
+    const aiming = this.busy === 'draw'; // drawing a bow: walk slowly, still facing the aim
+    const landSpeed = this.sneaking || aiming ? SNEAK_SPEED : WALK_SPEED;
     const speed = THREE.MathUtils.lerp(landSpeed, SWIM_SPEED, Math.min(1, depth / SWIM_DEPTH));
 
     if (moving) {
@@ -227,8 +340,8 @@ export class Player {
       this.tryMove(step.x, 0, world);
       this.tryMove(0, step.y, world);
 
-      // Turn smoothly toward the direction of travel.
-      const target = Math.atan2(x, z);
+      // Turn smoothly toward the direction of travel (unless aiming the bow).
+      const target = aiming ? this.facing : Math.atan2(x, z);
       const diff = Math.atan2(Math.sin(target - this.facing), Math.cos(target - this.facing));
       this.facing += diff * Math.min(1, TURN_SPEED * dt);
       this.walkTime += dt;
@@ -302,6 +415,10 @@ export class Player {
     this.jumpHeight = this.jumpSpeed = this.standingHeight = 0;
     this.crouched = false;
     this.body.rotation.x = 0;
+    this.hurtTime = 0;
+    this.knock.set(0, 0);
+    this.pose = null;
+    this.poseWeight = 0;
   }
 
   // How high above the ground the feet can rest here: the top of the highest rock or stump

@@ -8,6 +8,16 @@ const WARNING = 35; // a stat turns yellow below this...
 const DANGER = 15; // ...and red, pulsing, below this
 const DRAG_START = 6; // pixels the mouse moves before a press on a slot becomes a drag
 
+// The thermometer's colour at temperature `value` (0–100).
+const COOL = [79, 163, 255]; // freezing
+const MILD = [255, 255, 255];
+const WARM = [255, 84, 48]; // as warm as you get
+function temperatureColor(value) {
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * Math.min(1, Math.max(0, t))));
+  const rgb = value < 50 ? mix(COOL, MILD, (value - 15) / 35) : mix(MILD, WARM, (value - 50) / 50);
+  return `rgb(${rgb.join(', ')})`;
+}
+
 // Game buttons never take keyboard focus. Otherwise, after clicking one, keys like Tab and
 // Space would act on the button (e.g. Space would "click" a hotbar slot again).
 function unfocusable(button) {
@@ -18,7 +28,7 @@ function unfocusable(button) {
 
 // Shows the survival stats, clock, prompts and game-over screen.
 export class Hud {
-  constructor({ seed, onNewMap, onRestart, onSlotClick, onSlotDrop, onDropItem, onCraft }) {
+  constructor({ seed, onNewMap, onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onCraft }) {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
@@ -49,8 +59,16 @@ export class Hud {
     this.noBackpack = document.getElementById('no-backpack');
     this.equippedBackpack = document.querySelector('#equip-backpack .icon');
     this.equippedOutfit = document.querySelector('#equip-outfit .icon');
-    showItemIcon(this.equippedOutfit, 'outfit');
+    showItemIcon(this.equippedOutfit, 'shirt');
     this.shownOutfit = null;
+    // Drag what you're wearing off the menu to leave it on the ground, or the outfit onto an
+    // empty slot to take it off and carry it.
+    for (const [kind, icon] of [['outfit', this.equippedOutfit], ['backpack', this.equippedBackpack]]) {
+      const box = icon.closest('.equip');
+      box.addEventListener('pointerdown', (e) =>
+        this.startDrag(e, box, (to) => onUnequip(kind, to), () => onUnequip(kind, null)),
+      );
+    }
 
     // Hotbar slots (numbered 1–6) at the bottom, then the backpack's slots in the menu.
     this.hotbar = document.getElementById('hotbar');
@@ -66,7 +84,7 @@ export class Hud {
         if (this.justDragged) this.justDragged = false;
         else onSlotClick(i);
       });
-      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, i, onSlotDrop, onDropItem));
+      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => onSlotDrop(i, to), () => onDropItem(i)));
       (inHotbar ? this.hotbar : backpackGrid).append(slot);
       return slot;
     });
@@ -147,7 +165,7 @@ export class Hud {
     showItemIcon(this.equippedBackpack, inventory.hasBackpack ? 'backpack' : null);
     if (this.shownOutfit !== inventory.outfit) {
       this.shownOutfit = inventory.outfit;
-      showItemIcon(this.equippedOutfit, inventory.outfit ?? 'outfit');
+      showItemIcon(this.equippedOutfit, inventory.outfit ?? 'shirt');
     }
 
     this.slots.forEach((slot, i) => {
@@ -171,6 +189,13 @@ export class Hud {
     for (const [name, stat] of Object.entries(this.bars)) {
       const value = survival[name];
       stat.querySelector('.level').style.clipPath = `inset(${100 - value}% 0 0 0)`;
+      if (name === 'temperature') {
+        // The thermometer shows how warm you are: cool blue when freezing, white in between,
+        // warm red at its hottest (pulsing while you're freezing).
+        stat.style.color = temperatureColor(value);
+        stat.classList.toggle('freezing', survival.isFreezing);
+        continue;
+      }
       stat.classList.toggle('warning', value < WARNING && value >= DANGER);
       stat.classList.toggle('danger', value < DANGER);
     }
@@ -193,10 +218,12 @@ export class Hud {
 
   // Follows the mouse after a press on a slot. Letting go on another slot moves the item
   // there; letting go off the menu and hotbar drops it on the ground.
-  startDrag(down, slot, index, onSlotDrop, onDropItem) {
+  // Drags the item shown in `slot` (a slot or an equipment box): dropped onto a slot, calls
+  // onto(thatSlotsIndex); dropped off the menu, calls outside().
+  startDrag(down, slot, onto, outside) {
     if (down.button !== 0) return;
     const item = slot.querySelector('.icon').dataset.item;
-    if (!item) return;
+    if (!item || item === 'shirt') return; // (the shirt stays on)
     const ghost = document.getElementById('drag-item');
     let dragging = false;
 
@@ -205,7 +232,7 @@ export class Hud {
       if (!dragging) {
         dragging = true;
         showItemIcon(ghost.querySelector('.icon'), item);
-        ghost.querySelector('.count').textContent = slot.querySelector('.count').textContent;
+        ghost.querySelector('.count').textContent = slot.querySelector('.count')?.textContent ?? '';
         ghost.hidden = false;
         slot.classList.add('dragging');
       }
@@ -219,11 +246,11 @@ export class Hud {
       ghost.hidden = true;
       slot.classList.remove('dragging');
       const target = document.elementFromPoint(e.clientX, e.clientY);
-      const onto = target?.closest('.slot');
+      const ontoSlot = target?.closest('.slot');
       // The browser may still send a click to the slot where the drag started.
-      this.justDragged = target?.closest('.slot') === slot;
-      if (onto) onSlotDrop(index, Number(onto.dataset.index));
-      else if (!target?.closest('#inventory, #hotbar')) onDropItem(index);
+      this.justDragged = ontoSlot === slot;
+      if (ontoSlot) onto(Number(ontoSlot.dataset.index));
+      else if (!target?.closest('#inventory, #hotbar')) outside();
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -305,6 +332,15 @@ export class Hud {
     if (speech.hidden) return;
     speech.style.left = `${x}px`;
     speech.style.top = `${y}px`;
+  }
+
+  // A brief red flash round the edges of the screen when you're hurt.
+  flashHurt() {
+    const flash = document.getElementById('hurt');
+    flash.hidden = false;
+    flash.style.animation = 'none';
+    void flash.offsetWidth; // (restarts the animation)
+    flash.style.animation = '';
   }
 
   hideSpeech() {

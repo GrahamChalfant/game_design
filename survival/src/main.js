@@ -4,6 +4,7 @@ import { Daylight } from './daylight.js';
 import { createPainterlyRenderer } from './painterly.js';
 import { Animals } from './animals.js';
 import { Arrows } from './arrows.js';
+import { Blood } from './blood.js';
 import { respawnStones } from './hunting.js';
 import { Campfires } from './campfires.js';
 import { Shelters } from './shelters.js';
@@ -99,14 +100,26 @@ const shelters = new Shelters(scene, world);
 const bushes = new Bushes(scene, world, createRandom(SEED + 3));
 const animals = new Animals(scene, world, SEED + 2);
 // A charging boar gores the player (#76).
+// You reel back from the hit, and a little blood spatters the ground.
+const blood = new Blood(scene, world);
 animals.onAttack = (animal, damage) => {
   survival.hurt(damage);
+  player.hit(animal.position.x, animal.position.z);
+  const away = new THREE.Vector2(player.position.x - animal.position.x, player.position.z - animal.position.z).normalize();
+  blood.spill(player.position.x, player.position.z, away.x, away.y);
+  hud.flashHurt();
   hud.toast(`The ${animal.kind} gores you! (-${damage} health)`);
 };
 animals.spawnAll(player.position);
 const traps = new Traps(scene, world, animals);
 const arrows = new Arrows(scene, world, animals);
-arrows.onKill = (animal) => hud.toast(`You shot a ${animal.kind}! Hold E next to it to butcher it`);
+arrows.onKill = (animal) => {
+  blood.splat(animal.position.x, animal.position.z, animal.radius * 0.9);
+  hud.toast(`You shot a ${animal.kind}! Hold E next to it to butcher it`);
+};
+arrows.onHit = (animal) => blood.splat(animal.position.x, animal.position.z, animal.radius * 0.6);
+// An arrow that hits nothing comes down in the ground, where you can pick it up again.
+arrows.onLand = (x, z) => pickups.drop('arrow', 1, x, z);
 const pickups = new Pickups(scene, world);
 // The axe and backpack lie around the wreckage at the start of every game.
 const placeStartItems = () => {
@@ -130,6 +143,7 @@ const hud = new Hud({
     traps.reset();
     bushes.reset();
     arrows.reset();
+    blood.reset();
     pickups.reset();
     placeStartItems();
     wreck.reset();
@@ -143,12 +157,32 @@ const hud = new Hud({
     hud.forgetRecipes();
     hud.hideSpeech();
     warnedDay = 0;
+    saidShirtCold = saidHungry = saidThirsty = false;
     hud.hideGameOver();
   },
   onSlotClick: (i) => {
     if (i < HOTBAR_SIZE) inventory.select(i);
   },
   onSlotDrop: (from, to) => inventory.transfer(from, to),
+  // Dragged your outfit or backpack off the character: onto an empty slot (`to`) to carry the
+  // outfit, or off the menu (to null) to leave it on the ground in front of you.
+  onUnequip: (kind, to) => {
+    if (kind === 'outfit' && to !== null) {
+      if (inventory.slots[to] || to >= inventory.usableSlots) return;
+      inventory.slots[to] = { item: inventory.outfit, count: 1 };
+      inventory.outfit = null;
+      return;
+    }
+    const spots = [player.ahead(1.2), player.position];
+    const put = (item, extra) => spots.some(({ x, z }) => pickups.drop(item, 1, x, z, extra));
+    if (kind === 'outfit') {
+      if (put(inventory.outfit)) inventory.outfit = null;
+      else hud.toast("You can't drop that in the water");
+    } else if (spots.some(({ x, z }) => world.terrain.waterDepth(x, z) === 0)) {
+      put('backpack', { contents: inventory.takeOffBackpack() });
+      if (inventory.selected >= HOTBAR_SIZE) inventory.select(0);
+    } else hud.toast("You can't drop that in the water");
+  },
   // Dragged off the menu: drop it in front of the player, or at their feet if that's water.
   onDropItem: (i) => {
     const { item, count } = inventory.slots[i];
@@ -183,7 +217,10 @@ const aimPoint = () => {
   aimRay.setFromCamera(aimNdc, camera);
   return aimRay.intersectObject(world.terrain.ground, true)[0]?.point ?? null;
 };
-const updateActions = createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: () => startSpotting(), aimPoint });
+const onDressed = (outfit) => {
+  if (outfit === 'jacket') hud.say("That's better. I'll warm up in no time.", 5);
+};
+const updateActions = createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: () => startSpotting(), onDressed, aimPoint });
 
 // The player says things out loud when they're in trouble, in a speech bubble.
 // Each line is said at most once per evening/cold spell.
@@ -191,9 +228,29 @@ const DUSK_WARNING_HOUR = 18.5; // a while before sunset at 20:00
 let warnedDay = 0; // the last day the dusk warning was given
 let saidFreezing = false;
 let saidMountainCold = false; // said again each time you head back up
+let saidShirtCold = false; // said once you come to, in just a shirt
+// Running low on food or water: said once each time it drops to a quarter.
+const LOW = 25;
+let saidHungry = false;
+let saidThirsty = false;
+const COME_TO_MINUTES = 4; // in-game minutes after the start before you say it (~2 s)
 function thinkAloud({ fire, shelter, cold = 0 }) {
   if (!survival.alive) return;
   const warm = fire || shelter;
+  if (survival.hunger <= LOW && !saidHungry) {
+    saidHungry = true;
+    hud.say("My stomach's growling… I need to find something to eat.", 6);
+  }
+  if (survival.hunger > LOW + 10) saidHungry = false;
+  if (survival.thirst <= LOW && !saidThirsty) {
+    saidThirsty = true;
+    hud.say("I'm so thirsty… I should find some water.", 6);
+  }
+  if (survival.thirst > LOW + 10) saidThirsty = false;
+  if (!saidShirtCold && !inventory.outfit && survival.minutesSurvived > COME_TO_MINUTES) {
+    saidShirtCold = true;
+    hud.say("Brr… it's cold, and I'm only in a shirt. My jacket must be in my suitcase.", 7);
+  }
   const { day } = survival.clock;
   const hour = survival.hourOfDay;
   if (hour >= DUSK_WARNING_HOUR && hour < 21 && warnedDay !== day && !warm) {
@@ -227,6 +284,7 @@ function updateCompass() {
 }
 
 // --- Top-down camera that follows the player ---
+const MAX_ZOOM = 30; // the furthest the camera pulls back, in meters
 let zoom = 20; // distance from the player (scroll to change it)
 let shownZoom = zoom; // eases towards the zoom it should be at
 const INSIDE_ZOOM = 10; // closer in while you're inside a building
@@ -289,7 +347,7 @@ function updateSpottingCamera(dt) {
 
 function updateCamera(dt) {
   if (spotting) return updateSpottingCamera(dt);
-  zoom = THREE.MathUtils.clamp(zoom + input.scroll * 0.02, 8, 40);
+  zoom = THREE.MathUtils.clamp(zoom + input.scroll * 0.02, 8, MAX_ZOOM);
   // Inside a roofed building (like the lookout's cab), zoom in.
   const { x, z } = player.position;
   const inside = world.structures.some((structure) => structure.roofOver(x, z, player.feet));
@@ -398,6 +456,7 @@ renderer.setAnimationLoop(() => {
     );
   }
   wreck.update(dt);
+  blood.update(dt);
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);

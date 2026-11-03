@@ -6,22 +6,23 @@ import * as placeholders from './placeholders.js';
 // Where the plane came down: around (0, 0), in a clearing. The player starts about 20 m
 // south of it (see SPAWN in world.js), facing it but just out of view.
 const WING = { x: -5.5, z: -9, heading: 2.2 }; // the wing that broke off
+const WING_TOP = 0.45; // how high the wing lies off the ground, for hopping onto it
 // Things to search around the crash (hold E). Each can be searched once, and always
 // holds the same supplies.
 const SUITCASES = [
   // Thrown out as the plane skidded in, lying in the furrow it dug.
   { ...trailPoint(17, 0.4), heading: 2.2, color: 0x4f5b3a, loot: [['lighter', 1], ['flare', 1]] },
   { x: 4.2, z: -1.8, heading: 0.3, color: 0x6b4a32, loot: [['bandage', 3], ['rope', 2]], note: 'a first-aid kit' },
-  { x: -3, z: -3.6, heading: 2.4, color: 0x3d5a78, loot: [['rope', 2]] },
-  { x: -1.2, z: -10.6, heading: 1.1, color: 0x7a2f2f, loot: [['rope', 1]] },
+  // Your own luggage: your jacket (you come to in just a shirt, and it's cold)...
+  { x: -3, z: -3.6, heading: 2.4, color: 0x3d5a78, loot: [['jacket', 1], ['rope', 2]], note: 'your jacket' },
+  // ...and the pilot's bag, with a compass.
+  { x: -1.2, z: -10.6, heading: 1.1, color: 0x7a2f2f, loot: [['compass', 1], ['rope', 1]], note: 'a compass' },
 ];
 const CLODS = 46;
 // Where the starting items lie around the wreckage.
 export const START_ITEMS = [
   { item: 'axe', x: -3.6, z: -6.8 },
   { item: 'backpack', x: 2.8, z: -3.2 },
-  // Fell out of your pocket where you came to, a couple of steps north of where you start.
-  { item: 'compass', x: 1.1, z: 11.6 },
 ];
 
 // The crashed bush plane at the start: the plane, its broken-off wing, a few
@@ -105,7 +106,14 @@ export function buildWreck(scene, world) {
   for (let d = -3; d <= 3; d += 1.5) {
     world.obstacles.add({ x: PLANE.x + along.x * d, z: PLANE.z + along.y * d, radius: 1 });
   }
-  world.obstacles.add({ x: WING.x, z: WING.z, radius: 1.6 });
+  // The wing: a row of circles along its length (it's about 5.8 m long and 1.6 m wide), low
+  // enough to hop up onto and walk along.
+  const span = new THREE.Vector2(Math.cos(WING.heading), -Math.sin(WING.heading)); // its local +x
+  for (let d = -2.4; d <= 2.2; d += 0.75) {
+    const x = WING.x + span.x * d;
+    const z = WING.z + span.y * d;
+    world.obstacles.add({ x, z, radius: 0.75, top: world.terrain.heightAt(x, z) + WING_TOP });
+  }
 
   // The crash flattened the grass.
   world.grass.clear(PLANE.x, PLANE.z, 6);

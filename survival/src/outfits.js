@@ -1,9 +1,12 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-// What the player can wear over their red coat (#88), and how it looks on them. How warm
-// each one keeps you is in survival.js (OUTFIT_WARMTH).
+// What the player can wear (#88), and how it looks on them. How warm each one keeps you is in
+// survival.js (OUTFIT_WARMTH). player.glb is modelled in the red jacket; with no outfit on,
+// the jacket is painted as a plain shirt instead.
 export const OUTFITS = {
+  shirt: { color: 0x4a5560 }, // (linear) a thin grey-blue shirt
+  jacket: { color: null }, // the red jacket, as modelled
   // A heavy coat of stitched hides, down to the knees, with a fur-trimmed hood: the colour
   // its body takes on, and its fur.
   parka: { color: 0x8a6a4a, fur: [0xd8c49a, 0xc2a878, 0xe6d6b0] },
@@ -13,18 +16,19 @@ export const OUTFITS = {
 const isCoat = (r, g) => r > 0.12 && r > g * 4;
 const COAT_RED = 0.4; // the coat's usual brightness (linear), so darker folds stay darker
 
-// Paints the coat on a loaded player model to match `outfit` (or back to red for null).
+// Paints the coat on a loaded player model to match `outfit` (null: just the shirt).
 // Safe to call every frame: it only repaints when the outfit changes.
 export function dressModel(model, outfit) {
   if (!model || model.userData.outfit === outfit) return;
   model.userData.outfit = outfit;
   showParkaParts(model, outfit === 'parka');
-  const target = outfit ? new THREE.Color(OUTFITS[outfit].color) : null; // (linear, like the vertex colours)
+  const { color } = OUTFITS[outfit ?? 'shirt'];
+  const target = color === null ? null : new THREE.Color(color); // (linear, like the vertex colours)
   model.traverse((child) => {
     if (child.userData.parkaPart) return; // the parka's own pieces keep their colours
     const colors = child.isMesh ? child.geometry.attributes.color : null;
     if (!colors) return;
-    // Keep the original colours, so the red coat can come back for a new game.
+    // Keep the original colours, so the red jacket can come back when it's put on.
     child.userData.coatColors ??= colors.array.slice();
     const original = child.userData.coatColors;
     for (let i = 0; i < colors.count; i++) {

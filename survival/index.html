@@ -34,7 +34,7 @@
           <tr><th>W A S D / arrows</th><td>Walk</td></tr>
           <tr><th>C, or hold Shift</th><td>Crouch, so animals don't notice you as soon</td></tr>
           <tr><th>1–6, or click a slot</th><td>Choose an item from your hotbar</td></tr>
-          <tr><th>Left click (hold)</th><td>Use the item in your hand: chop, place, cook, eat, shoot</td></tr>
+          <tr><th>Left click (hold)</th><td>Use the item in your hand: chop, place, cook, eat, bandage up, draw the bow (let go to shoot)</td></tr>
           <tr><th>Space</th><td>Jump</td></tr>
           <tr><th>E</th><td>Interact: drink, tend a fire, check a trap, pick things up</td></tr>
           <tr><th>Tab or I</th><td>Open your character, inventory and crafting</td></tr>
@@ -78,8 +78,8 @@
         <h2>Character</h2>
         <canvas id="character-view"></canvas>
         <div class="equipment">
-          <div class="equip" id="equip-outfit"><span class="icon"></span><small>Outfit</small></div>
-          <div class="equip" id="equip-backpack"><span class="icon"></span><small>Backpack</small></div>
+          <div class="equip" id="equip-outfit" title="What you're wearing · drag it onto a slot to take it off, or off the menu to drop it"><span class="icon"></span><small>Outfit</small></div>
+          <div class="equip" id="equip-backpack" title="Drag it off the menu to put it down (everything in it stays inside)"><span class="icon"></span><small>Backpack</small></div>
         </div>
       </section>
       <section id="stash">
@@ -91,7 +91,7 @@
           <div class="grid"></div>
         </div>
         <p class="tip" id="no-backpack">You don't have a backpack yet. Look around the plane.</p>
-        <p class="tip">Drag items to move them. Drag one off this menu to drop it.</p>
+        <p class="tip">Drag items to move them. Drag one off this menu to drop it (your outfit and backpack too).</p>
       </section>
       <section id="crafting">
         <div class="header">
@@ -104,6 +104,7 @@
     </div>
     <div id="toasts"></div>
     <div id="speech" hidden></div>
+    <div id="hurt" hidden></div>
     <div id="sleep" hidden><p>You sleep through the night…</p><strong></strong></div>
     <div id="drag-item" hidden><span class="icon"></span><span class="count"></span></div>
     <div id="game-over" hidden>

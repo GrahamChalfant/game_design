@@ -1,11 +1,13 @@
 import { formatFuel } from './campfires.js';
 import { isNight } from './daylight.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
-import { ANIMAL_DROPS, BOW_COOLDOWN, BUTCHER_TIME, KNIFE_COOLDOWN, hitAnimal, knifeHitTest } from './hunting.js';
+import { ANIMAL_DROPS, BOW_COOLDOWN, BOW_DRAW_TIME, BOW_MIN_DRAW, BUTCHER_TIME, KNIFE_COOLDOWN, arrowFlight, hitAnimal, knifeHitTest } from './hunting.js';
 import { BERRY_HUNGER, hasBerries, regrowLeft } from './foraging.js';
 
 const COOK_TIME = 3; // seconds of holding the mouse button at a fire to cook one piece of meat
 const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
+const EAT_TIME = 1.2; // seconds of holding the mouse button to eat something
+const BANDAGE_TIME = 2.5; // ...and to bandage yourself up
 const WARMTH_REACH = 3; // how close to a burning fire warms you up, in meters
 const WET_DEPTH = 0.3; // water this deep (in meters) chills you
 const BANDAGE_HEALING = 30;
@@ -22,11 +24,14 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, aimPoint }) {
+export function createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, aimPoint }) {
   let cooking = 0;
   let searching = 0;
+  let using = 0; // seconds spent eating or bandaging so far
+  let usingItem = null;
   let butchering = 0;
   let bowReady = 0; // seconds until the bow can shoot again
+  let drawing = 0; // seconds the bow has been drawn for (0 when not drawing)
   let knifeReady = 0; // seconds until the knife can stab again
 
   // Adds items to the inventory. Anything that doesn't fit is dropped on the ground at
@@ -79,6 +84,20 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     let prompt = null;
     let progress = null;
     let cookingNow = false;
+    let usingNow = false;
+    let drawingNow = false;
+    let busy = null; // what the player's hands are doing, for their pose (see Player.busy)
+    // Hold the mouse button for `time` seconds to use the held item. True once it's done.
+    const holdToUse = (time) => {
+      usingNow = input.usingTool();
+      if (usingItem !== held) using = 0;
+      usingItem = held;
+      using = usingNow ? using + dt : 0;
+      progress = using / time;
+      if (using < time) return false;
+      using = 0;
+      return true;
+    };
 
     if (fire) {
       // Tending a fire: E lights it (with a lighter) or adds a log.
@@ -137,10 +156,11 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
       const amount = pile.count > 1 ? ` ×${pile.count}` : '';
       prompt = `${name}${amount} on the ground · E to pick up`;
       if (pressedE && pile.item === 'backpack') {
-        // The backpack isn't stored in a slot: finding it gives you its extra slots.
+        // The backpack isn't stored in a slot: finding it gives you its extra slots, with
+        // whatever was in it when you put it down.
         pickups.remove(pile);
-        inventory.hasBackpack = true;
-        hud.toast('Found a backpack! Press Tab to open it');
+        inventory.putOnBackpack(pile.contents);
+        hud.toast(pile.contents ? 'You put your backpack back on' : 'Found a backpack! Press Tab to open it');
       } else if (pressedE) {
         const taken = pickups.pickUp(pile, inventory);
         hud.toast(taken > 0 ? `+${taken} ${name}` : 'Inventory full');
@@ -172,6 +192,8 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
       searching = searchingNow ? searching + dt : 0;
       progress = searching / SEARCH_TIME;
       prompt = searchingNow ? 'Searching…' : `Hold E to search ${container.label}`;
+      // Crouch down to search things on the floor; stand to search a locker.
+      if (searchingNow) busy = container.standing ? 'search' : 'searchLow';
       if (searching >= SEARCH_TIME) {
         searching = 0;
         if (container.note) hud.toast(`You found ${container.note}`);
@@ -244,8 +266,10 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
       if (survival.health >= 100) {
         prompt = "You're not hurt";
       } else {
-        prompt = `Click to use a bandage (+${BANDAGE_HEALING} health)`;
-        if (input.startedUsingTool()) {
+        const done = holdToUse(BANDAGE_TIME);
+        prompt = usingNow ? 'Bandaging…' : `Click and hold to use a bandage (+${BANDAGE_HEALING} health)`;
+        if (usingNow) busy = 'bandage';
+        if (done) {
           inventory.remove('bandage', 1);
           survival.eat(0, BANDAGE_HEALING);
           hud.toast('You patch yourself up');
@@ -258,12 +282,16 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     } else if (!fire && held === 'litTorch') {
       const { burn } = inventory.slots[inventory.selected];
       prompt = `Lit torch · burns for ${formatFuel(burn)} more`;
-    } else if (!fire && held === 'parka') {
-      prompt = 'Click to put on the hide parka';
+    } else if (!fire && ITEMS[held]?.wear) {
+      // Clothes: click to put them on. Whatever you had on goes into the slot they came from.
+      const name = ITEMS[held].name.toLowerCase();
+      prompt = `Click to put on the ${name}`;
       if (input.startedUsingTool()) {
-        inventory.remove('parka', 1);
-        inventory.outfit = 'parka';
-        hud.toast('You pull on the hide parka. Much warmer.');
+        const old = inventory.outfit;
+        inventory.slots[inventory.selected] = old ? { item: old, count: 1 } : null;
+        inventory.outfit = held;
+        hud.toast(held === 'parka' ? 'You pull on the hide parka. Much warmer.' : `You put on the ${name}`);
+        onDressed(held);
       }
     } else if (!fire && held === 'lighter') {
       prompt = 'Keep it on you to light campfires (E next to one)';
@@ -288,27 +316,42 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
         }
       }
     } else if (!fire && held === 'bow') {
-      // Click to shoot an arrow the way you're facing. Each shot wears the bow down.
+      // Hold the mouse button to draw the bow, turning to face where you aim; let go to shoot.
+      // Each shot wears the bow down.
       const bow = inventory.slots[inventory.selected];
       const arrowsLeft = inventory.count('arrow');
+      const target = aimPoint();
       if (arrowsLeft === 0) {
         prompt = 'No arrows · craft them from wood and stone (Tab)';
-      } else {
-        prompt = `Bow ${bow.durability}/${ITEMS.bow.durability} · ${arrowsLeft} arrows · click where to shoot`;
-        if (input.startedUsingTool() && bowReady === 0 && !player.swimming) {
+      } else if (input.usingTool() && bowReady === 0 && !player.swimming) {
+        drawingNow = true;
+        drawing = Math.min(BOW_DRAW_TIME, drawing + dt);
+        const draw = drawing / BOW_DRAW_TIME;
+        if (target) player.facing = Math.atan2(target.x - x, target.z - z);
+        const { range } = arrowFlight(draw);
+        const away = target ? Math.hypot(target.x - x, target.z - z) : 0;
+        progress = draw;
+        busy = 'draw';
+        player.drawAmount = draw;
+        prompt = draw < BOW_MIN_DRAW ? 'Drawing…' : `${draw >= 1 ? 'Fully drawn' : 'Drawing…'} · reaches ${Math.round(range)} m${away > range ? ' (not that far)' : ''} · let go to shoot`;
+      } else if (drawing > 0) {
+        // Let go: loose the arrow (unless the bow was barely drawn).
+        const draw = drawing / BOW_DRAW_TIME;
+        if (draw >= BOW_MIN_DRAW) {
           bowReady = BOW_COOLDOWN;
           inventory.remove('arrow', 1);
-          // Shoot toward the spot on the ground under the mouse, turning to face it.
-          const target = aimPoint();
-          if (target) player.facing = Math.atan2(target.x - x, target.z - z);
           const from = player.ahead(0.5);
-          arrows.fire(from.x, from.z, player.facing);
+          const aim = target ?? player.ahead(30);
+          arrows.fire(from.x, from.z, aim.x, aim.z, draw);
           bow.durability -= 1;
           if (bow.durability <= 0) {
             inventory.slots[inventory.selected] = null;
             hud.toast('Your bow snapped');
           }
         }
+        prompt = `Bow ${bow.durability}/${ITEMS.bow.durability} · ${arrowsLeft} arrows · hold the mouse button to draw, let go to shoot`;
+      } else {
+        prompt = `Bow ${bow.durability}/${ITEMS.bow.durability} · ${arrowsLeft} arrows · hold the mouse button to draw, let go to shoot`;
       }
     } else if (!fire && held === 'knife') {
       const knife = inventory.slots[inventory.selected];
@@ -327,14 +370,20 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     } else if (!fire && held === 'rope') {
       prompt = 'Rope is used to craft traps (Tab)';
     } else if (!fire && held === 'cookedMeat') {
-      prompt = 'Click to eat';
-      if (input.startedUsingTool()) eat('cookedMeat');
+      const done = holdToUse(EAT_TIME);
+      prompt = usingNow ? 'Eating…' : 'Click and hold to eat';
+      if (usingNow) busy = 'eat';
+      if (done) eat('cookedMeat');
     } else if (!fire && held === 'rawMeat') {
-      prompt = 'Cook it at a campfire · click to eat it raw (risky)';
-      if (input.startedUsingTool()) eat('rawMeat');
+      const done = holdToUse(EAT_TIME);
+      prompt = usingNow ? 'Eating…' : 'Cook it at a campfire · hold the mouse button to eat it raw (risky)';
+      if (usingNow) busy = 'eat';
+      if (done) eat('rawMeat');
     } else if (!fire && held === 'berries') {
-      prompt = `Click to eat (+${BERRY_HUNGER} hunger)`;
-      if (input.startedUsingTool()) eat('berries');
+      const done = holdToUse(EAT_TIME);
+      prompt = usingNow ? 'Eating…' : `Click and hold to eat (+${BERRY_HUNGER} hunger)`;
+      if (usingNow) busy = 'eat';
+      if (done) eat('berries');
     }
 
     // Stone knife (#75): click or hold to stab whatever's right in front of you. Only stabs
@@ -359,6 +408,8 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
 
     if (!cookingNow) cooking = 0;
     if (!searchingNow) searching = 0;
+    if (!usingNow) using = 0;
+    if (!drawingNow) drawing = 0;
     if (!butcheringNow) butchering = 0;
     if (chopping && world.trees.chop(tree, dt, x, z)) {
       // Wood that doesn't fit lands where the tree fell, a little beyond the stump.
@@ -376,7 +427,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
       if (night && pressedE) onSleep();
     }
 
-    player.setAction(inventory.selectedItem, chopping, drinking, inventory.hasBackpack);
+    player.setAction(inventory.selectedItem, chopping, drinking, inventory.hasBackpack, busy);
     const warmFire = upHigh ? null : campfires.near(x, z, WARMTH_REACH);
     const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
     const wet = world.terrain.waterDepth(x, z) > WET_DEPTH;
