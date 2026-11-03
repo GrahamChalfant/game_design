@@ -22,6 +22,7 @@ import { Traps } from './traps.js';
 import { buildWreck, START_ITEMS } from './wreck.js';
 import { buildLookout } from './lookout.js';
 import { MapView } from './mapView.js';
+import { FarView } from './farView.js';
 import { CRASH } from './crashTrail.js';
 import { GAME_MINUTES_PER_SECOND, Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
@@ -84,6 +85,8 @@ const world = buildWorld(scene, SEED);
 const wreck = buildWreck(scene, world);
 const lookout = buildLookout(scene, world);
 const mapView = new MapView(world);
+// A rough view of the whole map, for the lookout's binoculars (built a little each frame).
+const farView = new FarView(scene, world);
 // Start south of the crashed plane, facing it (north) but just out of sight of it.
 const player = new Player(scene, world.spawn, WORLD_SIZE, Math.PI);
 const snow = new Snowfall(scene);
@@ -132,6 +135,7 @@ const hud = new Hud({
     wreck.reset();
     lookout.reset();
     mapView.reset();
+    if (spotting) stopSpotting();
     player.reset();
     world.drawAround(player.position.x, player.position.z);
     animals.reset(player.position);
@@ -179,7 +183,7 @@ const aimPoint = () => {
   aimRay.setFromCamera(aimNdc, camera);
   return aimRay.intersectObject(world.terrain.ground, true)[0]?.point ?? null;
 };
-const updateActions = createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, aimPoint });
+const updateActions = createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: () => startSpotting(), aimPoint });
 
 // The player says things out loud when they're in trouble, in a speech bubble.
 // Each line is said at most once per evening/cold spell.
@@ -230,7 +234,61 @@ const CAMERA_ANGLE = THREE.MathUtils.degToRad(55); // 90 = straight down
 const cameraTarget = player.position.clone();
 const cameraGoal = new THREE.Vector3();
 
+// --- Looking through the lookout's binoculars: the camera pulls way back ---
+// WASD looks around, scrolling zooms, and E or Esc stops.
+const SPOTTING = {
+  zoom: [100, 450], // how far back the camera can be, in meters
+  startZoom: 240,
+  startAhead: 120, // the view starts this far out, the way the binoculars face
+  angle: THREE.MathUtils.degToRad(62), // looking down a little more steeply
+  reach: 650, // how far from the tower you can look
+  far: 3000, // how far the camera draws (it's normally 300)
+};
+let spotting = null; // { target, zoom } while looking through them
+const stillInput = { moveAxis: () => ({ x: 0, z: 0 }), wasPressed: () => false, isDown: () => false };
+function startSpotting() {
+  const { look } = lookout;
+  const x = lookout.x + look.x * SPOTTING.startAhead;
+  const z = lookout.z + look.z * SPOTTING.startAhead;
+  spotting = { target: new THREE.Vector3(x, world.terrain.heightAt(x, z), z), zoom: SPOTTING.startZoom };
+  farView.show(true);
+  camera.near = 1;
+  camera.far = SPOTTING.far;
+  camera.updateProjectionMatrix();
+}
+function stopSpotting() {
+  spotting = null;
+  farView.show(false);
+  camera.near = 0.1;
+  camera.far = 300;
+  camera.updateProjectionMatrix();
+}
+function updateSpottingCamera(dt) {
+  spotting.zoom = THREE.MathUtils.clamp(spotting.zoom * (1 + input.scroll * 0.001), ...SPOTTING.zoom);
+  // Pan faster the further out you are, so it feels the same at any zoom.
+  const { x, z } = input.moveAxis();
+  const t = spotting.target;
+  t.x += x * spotting.zoom * 0.8 * dt;
+  t.z += z * spotting.zoom * 0.8 * dt;
+  const out = Math.hypot(t.x - lookout.x, t.z - lookout.z);
+  if (out > SPOTTING.reach) {
+    t.x = lookout.x + ((t.x - lookout.x) / out) * SPOTTING.reach;
+    t.z = lookout.z + ((t.z - lookout.z) / out) * SPOTTING.reach;
+  }
+  t.y = world.terrain.heightAt(t.x, t.z);
+  shownZoom += (spotting.zoom - shownZoom) * Math.min(1, dt * 3);
+  cameraTarget.lerp(t, Math.min(1, dt * 3));
+  camera.position.set(
+    cameraTarget.x,
+    cameraTarget.y + Math.sin(SPOTTING.angle) * shownZoom,
+    cameraTarget.z + Math.cos(SPOTTING.angle) * shownZoom,
+  );
+  camera.lookAt(cameraTarget);
+  lookout.update(dt, true);
+}
+
 function updateCamera(dt) {
+  if (spotting) return updateSpottingCamera(dt);
   zoom = THREE.MathUtils.clamp(zoom + input.scroll * 0.02, 8, 40);
   // Inside a roofed building (like the lookout's cab), zoom in and see through the roof.
   const { x, z } = player.position;
@@ -264,7 +322,8 @@ renderer.setAnimationLoop(() => {
   // Menus and panels.
   // Esc closes the map first, then the inventory, then opens or closes the pause menu.
   if (input.wasPressed('Escape')) {
-    if (mapView.isOpen) mapView.close();
+    if (spotting) stopSpotting();
+    else if (mapView.isOpen) mapView.close();
     else hud.escape();
   }
   if (hud.menuOpen) {
@@ -288,7 +347,11 @@ renderer.setAnimationLoop(() => {
     if (inventory.count('map') > 0) mapView.toggle();
     else hud.toast("You don't have a map");
   }
-  const actions = updateActions(dt);
+  // Looking through the binoculars, the player stands still; E stops.
+  if (spotting && (input.wasPressed('KeyE') || !survival.alive)) stopSpotting();
+  const actions = spotting
+    ? { prompt: 'Binoculars · WASD to look around · scroll to zoom · E to stop', cold: world.terrain.coldAt(player.position.x, player.position.z) }
+    : updateActions(dt);
   player.wear(inventory.outfit);
   // Lit torches burn down, whether they're in your hand or not.
   if (survival.alive && inventory.burnTorches(dt * GAME_MINUTES_PER_SECOND * TIME_SPEED) > 0) hud.toast('Your torch burned out');
@@ -305,8 +368,9 @@ renderer.setAnimationLoop(() => {
   speechPoint.copy(player.position).setY(player.feet + 2.1).project(camera);
   hud.placeSpeech((speechPoint.x * 0.5 + 0.5) * innerWidth, (-speechPoint.y * 0.5 + 0.5) * innerHeight);
 
-  player.update(dt, input, world);
+  player.update(dt, spotting ? stillInput : input, world);
   updateCamera(dt);
+  farView.update();
   world.update(dt, clock.elapsedTime, player.position);
   animals.update(dt, player.position, player.sneaking);
   arrows.update(dt);
@@ -329,6 +393,11 @@ renderer.setAnimationLoop(() => {
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);
+  // Through the binoculars you can see a long way: push the haze right back.
+  if (spotting) {
+    scene.fog.near = 600;
+    scene.fog.far = 2200;
+  }
 
   input.endFrame();
   draw();

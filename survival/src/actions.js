@@ -19,7 +19,7 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, aimPoint }) {
+export function createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, aimPoint }) {
   let cooking = 0;
   let searching = 0;
   let butchering = 0;
@@ -156,6 +156,10 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
         animals.remove(carcass);
         for (const [item, count] of Object.entries(ANIMAL_DROPS[carcass.kind])) give(item, count, cx, cz);
       }
+    } else if (!fire && lookout.binocularsNear(x, z, player.feet)) {
+      // The lookout's binoculars: E to look through them and see far across the land.
+      prompt = 'Binoculars · E to look through them';
+      if (pressedE) onBinoculars();
     } else if (!fire && container && !container.searched) {
       // Hold E to search a suitcase; everything inside is yours.
       searchingNow = input.isDown('KeyE');

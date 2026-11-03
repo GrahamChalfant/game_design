@@ -71,7 +71,14 @@ Somewhere on high ground, a few hundred meters from the crash, stands a fire loo
 onto the stairs at its foot and follow the flights up past the landings to the cab, 12 m up: a
 6 m square room with the lookout's fire-finder table, a cot, a supply crate and a ranger's locker.
 Hold E at the crate or the locker to search it. On most maps (about 3 in 5) the crate has a map
-in it. Press M to look at it: it shows the whole area (lakes, the river, woods, the mountains and
+in it.
+
+A doorway leads out onto a balcony that runs all the way round the cab. Out there, binoculars
+stand on a pole by the railing: press E next to them to look through them. The view pulls way
+back so you can see far across the land. WASD looks around, scrolling zooms in and out, and E or
+Esc stops.
+
+Press M to look at the map: it shows the whole area (lakes, the river, woods, the mountains and
 the lookout), where you are, the crash, your campfires and shelters, and a pale trail over the
 ground you've already covered.
 
@@ -203,6 +210,7 @@ src/pickups.js        Items lying on the ground
 src/wreck.js          The crashed plane at the start, and where the starting items lie
 src/lookout.js        The fire lookout tower: where it stands, and its supply crate
 src/mapView.js        The map you can find (M): the whole area, markers and where you've been
+src/farView.js        A rough view of the whole map, shown while you look through the binoculars
 src/outfits.js        What you can wear over your coat, and how it looks on you
 src/crashTrail.js     The skid marks behind the plane: where they run and how they cut the ground
 src/crafting.js       Crafting recipes (add new ones here)

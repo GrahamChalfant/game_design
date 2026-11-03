@@ -521,7 +521,7 @@ export function lookoutTower(layout) {
     mesh.position.set((x0 + x1) / 2, y - 0.05, (z0 + z1) / 2);
     return add(mesh);
   };
-  const { storey, flights, stairEnd, lane, laneHalf, landing, landingHalf, cab, cabFloor, legSpread } = layout;
+  const { storey, flights, stairEnd, lane, laneHalf, landing, landingHalf, cab, balcony, door, cabFloor, legSpread } = layout;
   const spread = (y) => legSpread - (y / cabFloor) * 0.6; // the legs lean in as they rise
   const corners = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
   // (The legs reach a little below the foot, into the ground on a slope.)
@@ -565,31 +565,57 @@ export function lookoutTower(layout) {
   board(-wide, wide, top + laneHalf, wide, cabFloor);
   board(-wide, -stairEnd, top - laneHalf, top + laneHalf, cabFloor);
   board(stairEnd, wide, top - laneHalf, top + laneHalf, cabFloor);
-  // Waist-high walls, then windows and a roof. While you're inside, the roof fades away, and
-  // so do the walls and windows on the camera's side (`cutaway`).
+  // The balcony: boards all round the cab, a railing, and braces underneath.
+  board(-balcony, balcony, -balcony, -wide, cabFloor);
+  board(-balcony, balcony, wide, balcony, cabFloor);
+  board(-balcony, -wide, -wide, wide, cabFloor);
+  board(wide, balcony, -wide, wide, cabFloor);
+  const railing = [];
+  for (const [ax, az, bx, bz] of [[-1, -1, 1, -1], [1, -1, 1, 1], [1, 1, -1, 1], [-1, 1, -1, -1]]) {
+    const [x0, z0, x1, z1] = [ax * balcony, az * balcony, bx * balcony, bz * balcony];
+    railing.push(beam([x0, cabFloor + 1, z0], [x1, cabFloor + 1, z1], 0.08));
+    railing.push(beam([x0, cabFloor + 0.5, z0], [x1, cabFloor + 0.5, z1], 0.05));
+    for (let t = 0; t < 1; t += 0.25) {
+      railing.push(beam([x0 + (x1 - x0) * t, cabFloor, z0 + (z1 - z0) * t], [x0 + (x1 - x0) * t, cabFloor + 1.05, z0 + (z1 - z0) * t], 0.09));
+    }
+  }
+  for (const [sx, sz] of corners) beam([sx * spread(cabFloor - 2.5), cabFloor - 2.5, sz * spread(cabFloor - 2.5)], [sx * (balcony - 0.2), cabFloor - 0.1, sz * (balcony - 0.2)], 0.12, dark);
+
+  // Waist-high walls, then windows and a roof, with a doorway out onto the balcony in the +x
+  // wall. While you're inside, the roof fades away, and so do the walls, windows and railing
+  // on the camera's side (`cutaway`).
   const wallMat = material(0x8a6a45);
   const glassMat = new THREE.MeshStandardMaterial({ color: 0x2a3a44, roughness: 0.2, transparent: true, opacity: 0.55 });
-  for (const [w, d, x, z] of [[cab * 2, 0.08, 0, cab], [cab * 2, 0.08, 0, -cab], [0.08, cab * 2, cab, 0], [0.08, cab * 2, -cab, 0]]) {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), wallMat);
+  const cutaway = (mesh) => {
+    mesh.userData.cutaway = true;
+    return mesh;
+  };
+  // A stretch of wall and window from (x0, z0) to (x1, z1).
+  const wallFrom = (x0, z0, x1, z1) => {
+    const [w, d] = [Math.max(Math.abs(x1 - x0), 0.08), Math.max(Math.abs(z1 - z0), 0.08)];
+    const [x, z] = [(x0 + x1) / 2, (z0 + z1) / 2];
+    const wall = cutaway(add(new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), wallMat)));
     wall.position.set(x, cabFloor + 0.5, z);
-    wall.userData.cutaway = true;
-    add(wall);
-    const glass = new THREE.Mesh(new THREE.BoxGeometry(w, 1.2, d), glassMat);
+    const glass = cutaway(add(new THREE.Mesh(new THREE.BoxGeometry(w, 1.2, d), glassMat)));
     glass.position.set(x, cabFloor + 1.6, z);
-    glass.userData.cutaway = true;
-    add(glass);
-    // A beam along the top of the windows, under the roof.
-    const header = new THREE.Mesh(new THREE.BoxGeometry(Math.max(w, 0.14), 0.14, Math.max(d, 0.14)), timber);
+  };
+  wallFrom(-cab, cab, cab, cab);
+  wallFrom(-cab, -cab, cab, -cab);
+  wallFrom(-cab, -cab, -cab, cab);
+  wallFrom(cab, -cab, cab, -door);
+  wallFrom(cab, door, cab, cab);
+  // A beam along the top of the windows (and over the doorway), under the roof.
+  for (const [w, d, x, z] of [[cab * 2, 0.14, 0, cab], [cab * 2, 0.14, 0, -cab], [0.14, cab * 2, cab, 0], [0.14, cab * 2, -cab, 0]]) {
+    const header = cutaway(add(new THREE.Mesh(new THREE.BoxGeometry(w, 0.14, d), timber)));
     header.position.set(x, cabFloor + 2.27, z);
-    header.userData.cutaway = true;
-    add(header);
   }
-  for (const [sx, sz] of corners) {
-    beam([sx * cab, cabFloor, sz * cab], [sx * cab, cabFloor + 2.3, sz * cab], 0.16).userData.cutaway = true;
-  }
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(cab * 1.75, 1.8, 4), material(0x5a5148));
+  for (const [sx, sz] of corners) cutaway(beam([sx * cab, cabFloor, sz * cab], [sx * cab, cabFloor + 2.3, sz * cab], 0.16));
+  for (const s of [-1, 1]) cutaway(beam([cab, cabFloor, s * door], [cab, cabFloor + 2.2, s * door], 0.12)); // the door frame
+  for (const rail of railing) cutaway(rail);
+  // The roof reaches out over the balcony.
+  const roof = new THREE.Mesh(new THREE.ConeGeometry((balcony + 0.4) * Math.SQRT2, 2.2, 4), material(0x5a5148));
   roof.rotation.y = Math.PI / 4;
-  roof.position.y = cabFloor + 3;
+  roof.position.y = cabFloor + 3.35;
   roof.userData.roof = true;
   add(roof);
   group.traverse((child) => {
@@ -620,6 +646,32 @@ export function fireFinder() {
     return sight;
   });
   group.add(post, top, chart, ring, ...sights);
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
+// Binoculars on a post, for scanning the country from a lookout's balcony. Base at the
+// origin; they look out along +x.
+export function mountedBinoculars() {
+  const group = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.25, 8), material(0x3a3430, 0.6));
+  post.position.y = 0.625;
+  const yoke = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.26), material(0x3a3430, 0.6));
+  yoke.position.y = 1.3;
+  const body = material(0x2a2e30, 0.5);
+  const tubes = [-0.07, 0.07].map((z) => {
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.32, 10), body);
+    tube.rotation.z = Math.PI / 2;
+    tube.position.set(0.04, 1.4, z);
+    return tube;
+  });
+  const lenses = [-0.07, 0.07].map((z) => {
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.01, 10), material(0x6a8aa0, 0.15));
+    lens.rotation.z = Math.PI / 2;
+    lens.position.set(0.205, 1.4, z);
+    return lens;
+  });
+  group.add(post, yoke, ...tubes, ...lenses);
   group.traverse((child) => (child.castShadow = true));
   return group;
 }
