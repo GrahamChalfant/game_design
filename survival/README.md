@@ -82,8 +82,10 @@ Your stats are the icons at the bottom right. They're white, turn yellow when lo
 you're about to run out. Temperature falls at night and in the water, and rises near a burning
 fire. If it reaches zero, you start losing health.
 
-The land around the crash is open birch woods, meadows and lakes. Further out are snowy
-mountains. Spruce grow on their lower slopes, then scree and bare rock, then snow. The air gets
+The land around the crash is open birch woods, meadows and lakes. In one corner of the map,
+a different one each game, is a big mountain range, about half a kilometer across: a rocky,
+spruce-wooded highland with snowy peaks standing on it. Spruce grow on the lower slopes, then
+scree and bare rock, then snow. The air gets
 colder the higher you climb: above the snowline you lose warmth even in the daytime, and you'll
 freeze in under a minute unless you have a fire or a shelter (or a hide parka: see below). The
 mountains are rocky, so they're a good place to find stones.
@@ -208,8 +210,8 @@ built as you come near and dropped once you're well away, and items on the groun
 somewhere new around you. How thickly trees and rocks grow is set per hectare at the top of
 `src/world.js`, so changing the map's size keeps the same density.
 
-Each map has three snowy mountains, at least 180 m from the crash and clear of the river, and
-about 20 lakes around the lowlands. To change how many there are, how big and tall the mountains
+Each map has one mountain range, filling the corner the river doesn't run through, and about
+20 lakes around the lowlands. To change how many there are, how big and tall the mountains
 are, and where the snow and the cold start, edit `MOUNTAINS` and `LAKES` at the top of
 `src/terrain.js`. How fast the mountain cold chills you is `MOUNTAIN_CHILL_PER_HOUR` in
 `src/survival.js`. Which trees grow up the slopes, and where the treeline is, is at the top of

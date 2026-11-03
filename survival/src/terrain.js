@@ -27,13 +27,16 @@ const LAKE_GAP = [12, 18]; // meters from the plane to the crash lake's shore
 const LAKES = { perSquareKm: 10, radius: [6, 16], clearOfCrash: 90, spacing: 40 };
 // Snowy mountains. `up` is how far up a mountain you are, 0 at its foot to 1 near the top.
 const MOUNTAINS = {
-  count: 3,
-  radius: [200, 290], // meters from a massif's middle to its foot
-  height: [40, 60], // meters
-  clearOfCrash: 180, // meters kept between the crash and the foot of any mountain
+  reach: 620, // meters the range reaches into the map from its corner
+  peaks: 12,
+  highlandHeight: 16, // meters the whole corner rises before the peaks
+  highlandUp: 0.4, // how far "up" the highland counts as: rocky and wooded, but not cold
+  peakRadius: [130, 210], // meters from a peak to its foot
+  height: [32, 72], // meters: the lowest foothill peaks and the highest, towards the corner
+  clearOfCrash: 180, // meters kept between the crash and the foot of any peak
   screeFrom: 0.2, // `up` where scree and bare rock start to show...
   screeFull: 0.42, // ...and cover the ground
-  snowline: 0.55, // `up` where the snow starts
+  snowline: 0.52, // `up` where the snow starts
   coldFrom: 0.42, // `up` where the air starts getting colder...
   coldFull: 0.68, // ...and is coldest
 };
@@ -60,28 +63,30 @@ export function createTerrain(random, noise, size) {
   const nearRiver = (x, z, distance) =>
     river.points.some((p, i) => i % 4 === 0 && Math.hypot(p.x - x, p.z - z) < distance);
 
-  // Snowy mountains: a few big massifs, well away from the crash and clear of the river.
-  const massifs = [];
-  for (let tries = 0; massifs.length < MOUNTAINS.count && tries < 400; tries++) {
-    const radius = random.range(...MOUNTAINS.radius);
-    const angle = random.range(0, Math.PI * 2);
-    const distance = random.range(radius + MOUNTAINS.clearOfCrash, size / 2 - radius * 0.4);
-    const x = CRASH.x + Math.cos(angle) * distance;
-    const z = CRASH.z + Math.sin(angle) * distance;
-    if (Math.abs(x) > size / 2 - radius * 0.4 || Math.abs(z) > size / 2 - radius * 0.4) continue;
-    if (nearRiver(x, z, radius * 1.15 + 30)) continue;
-    if (massifs.some((m) => Math.hypot(m.x - x, m.z - z) < (m.radius + radius) * 0.85)) continue;
-    // Each massif is a main peak with a couple of lower shoulders, so it isn't a round dome.
-    const height = random.range(...MOUNTAINS.height);
-    const offset = random.range(0, 500);
-    const peaks = [{ x, z, radius: radius * 0.85, height, offset }];
-    for (let i = 0; i < 3; i++) {
-      const a = random.range(0, Math.PI * 2);
-      const d = radius * random.range(0.3, 0.5);
-      peaks.push({ x: x + Math.cos(a) * d, z: z + Math.sin(a) * d, radius: radius * random.range(0.5, 0.65), height: height * random.range(0.65, 0.9), offset: offset + 100 * (i + 1) });
-    }
-    massifs.push({ x, z, radius, peaks });
+  // The mountains: one big range filling a corner of the map, so there's a whole region to
+  // explore. It takes the corner the river doesn't run through (the one with the least river
+  // in it). Its peaks are highest towards the corner and lower towards the middle of the map,
+  // so you climb up through the foothills into the snow.
+  const edge = size / 2 - 40; // the playable edge
+  const corners = [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([sx, sz]) => ({ sx, sz, x: sx * edge, z: sz * edge }));
+  const riverIn = (c) => river.points.filter((p) => Math.hypot(p.x - c.x, p.z - c.z) < MOUNTAINS.reach + 60).length;
+  const corner = corners.map((c) => ({ ...c, river: riverIn(c), pick: random.next() })).sort((a, b) => a.river - b.river || a.pick - b.pick)[0];
+  const range = { x: corner.x, z: corner.z, radius: MOUNTAINS.reach, peaks: [] };
+  for (let tries = 0; range.peaks.length < MOUNTAINS.peaks && tries < 400; tries++) {
+    // Somewhere in the quarter-circle reaching into the map from the corner.
+    const angle = random.range(0, Math.PI / 2);
+    const out = MOUNTAINS.reach * Math.sqrt(random.range(0.02, 0.75));
+    const x = corner.x - corner.sx * Math.cos(angle) * out;
+    const z = corner.z - corner.sz * Math.sin(angle) * out;
+    const radius = random.range(...MOUNTAINS.peakRadius);
+    if (Math.hypot(x - CRASH.x, z - CRASH.z) < radius + MOUNTAINS.clearOfCrash) continue;
+    if (nearRiver(x, z, radius * 1.1 + 30)) continue;
+    if (range.peaks.some((p) => Math.hypot(p.x - x, p.z - z) < (p.radius + radius) * 0.45)) continue;
+    // Taller the closer to the corner.
+    const height = THREE.MathUtils.lerp(MOUNTAINS.height[1], MOUNTAINS.height[0], out / MOUNTAINS.reach) * random.range(0.8, 1);
+    range.peaks.push({ x, z, radius, height, offset: random.range(0, 500) });
   }
+  const massifs = [range];
   const peaks = massifs.flatMap((m) => m.peaks);
   // How far out from a peak (x, z) is, compared to the peak's foot: 0 at the top, 1 at the foot.
   // The foot wanders in and out, so mountains have ragged edges.
@@ -90,9 +95,15 @@ export function createTerrain(random, noise, size) {
     return Math.hypot(x - p.x, z - p.z) / edge;
   };
   const nearPeak = (p, x, z) => Math.abs(x - p.x) < p.radius * 1.6 && Math.abs(z - p.z) < p.radius * 1.6;
+  // The whole corner rises into a rocky highland, with the peaks standing on it, so the range
+  // is one region rather than separate hills: 0 out in the lowlands, 1 deep in the corner.
+  const highlandAt = (x, z) => {
+    const out = Math.hypot(x - range.x, z - range.z) / (range.radius * (1 + 0.18 * noise(x * 0.004 + 900, z * 0.004)));
+    return 1 - smoothstep(out, 0.5, 0.95);
+  };
   // How far up a mountain (x, z) is: 0 on the lowlands and at a mountain's foot, 1 at the top.
   const mountainAt = (x, z) => {
-    let best = 0;
+    let best = highlandAt(x, z) * MOUNTAINS.highlandUp;
     for (const p of peaks) {
       if (!nearPeak(p, x, z)) continue;
       best = Math.max(best, (p.height / MOUNTAINS.height[1]) * (1 - smoothstep(outFrom(p, x, z), 0, 1)));
@@ -100,6 +111,8 @@ export function createTerrain(random, noise, size) {
     return best;
   };
   const mountainHeight = (x, z) => {
+    const highland = highlandAt(x, z);
+    if (highland === 0 && !peaks.some((p) => nearPeak(p, x, z))) return 0;
     let h = 0;
     for (const p of peaks) {
       if (!nearPeak(p, x, z)) continue;
@@ -109,7 +122,7 @@ export function createTerrain(random, noise, size) {
       const ridges = 1 - Math.abs(noise(x * 0.018 + p.offset, z * 0.018));
       h = Math.max(h, p.height * up ** 1.3 + ridges * 7 * up * up);
     }
-    return h;
+    return MOUNTAINS.highlandHeight * highland ** 1.2 + h;
   };
   const baseHeight = (x, z) => hills(x, z) + mountainHeight(x, z);
 
@@ -410,11 +423,14 @@ function createGround(size, heightAt, groundAt, noise) {
     const corners = grid.attributes.position;
     for (let i = 0; i < corners.count; i++) {
       corners.setY(i, heightAt(corners.getX(i), corners.getZ(i)));
-      if (i % 400 === 399) yield;
+      if (i % 100 === 99) yield;
     }
+    yield;
     // Triangles that don't share corners get hard edges between them.
     const geometry = grid.toNonIndexed();
+    yield;
     geometry.computeVertexNormals();
+    yield;
 
     const position = geometry.attributes.position;
     const colors = new Float32Array(position.count * 3);
@@ -426,7 +442,7 @@ function createGround(size, heightAt, groundAt, noise) {
       const speckle = noise(x * 1.3, z * 1.3) * 0.08 + noise(x * 7.3, z * 7.3) * 0.1;
       shade.setRGB(color.r, color.g, color.b, THREE.SRGBColorSpace).multiplyScalar(1 + speckle);
       for (let corner = 0; corner < 3; corner++) shade.toArray(colors, (i + corner) * 3);
-      if (i % 1200 === 1197) yield;
+      if (i % 300 === 297) yield;
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.computeBoundingSphere();

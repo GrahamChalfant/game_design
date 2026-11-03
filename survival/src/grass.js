@@ -72,7 +72,7 @@ export function createGrass(seed, terrain, area) {
     const random = createRandom(chunkSeed(seed, cx, cz));
     const tufts = Object.fromEntries(TUFT_MIX.map((name) => [name, []]));
     for (let tries = 0; tries < TRIES_PER_CHUNK; tries++) {
-      if (tries % 100 === 99) yield;
+      if (tries % 40 === 39) yield;
       const x = (cx + random.next()) * CHUNK_SIZE;
       const z = (cz + random.next()) * CHUNK_SIZE;
       const name = random.pick(TUFT_MIX);

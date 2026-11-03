@@ -101,7 +101,7 @@ export function buildWorld(scene, seed) {
     return tree;
   });
   for (const massif of terrain.massifs) {
-    const hectares = Math.PI * (massif.radius / 100) ** 2;
+    const hectares = (Math.PI * (massif.radius / 100) ** 2) / 4; // a quarter-circle in from a corner
     scatterAround(random, massif, Math.round(SPRUCE_PER_HECTARE * hectares), (x, z) => {
       const up = terrain.mountainAt(x, z);
       // Thinner the higher you go, and none above the treeline.
