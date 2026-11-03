@@ -230,6 +230,7 @@ renderer.setAnimationLoop(() => {
     hud.update(survival, inventory, { prompt: null });
     updateCamera(dt);
     world.update(0, clock.elapsedTime, player.position); // keeps the scenery around the player drawn
+    pickups.update(clock.elapsedTime, player.position.x, player.position.z);
     daylight.update(survival.hourOfDay, cameraTarget);
     input.endFrame();
     draw();
@@ -258,11 +259,11 @@ renderer.setAnimationLoop(() => {
   arrows.update(dt);
   traps.update();
   bushes.update(survival.minutesSurvived);
-  pickups.update(clock.elapsedTime);
+  pickups.update(clock.elapsedTime, player.position.x, player.position.z);
   respawnStones(
     world.stones,
     survival.minutesSurvived,
-    (x, z) => pickups.piles.some((p) => p.item === 'stone' && Math.hypot(p.x - x, p.z - z) < 0.3),
+    (x, z) => pickups.find('stone', x, z, 0.3) !== null,
     (spot) => pickups.drop('stone', 1, spot.x, spot.z),
     player.position,
   );

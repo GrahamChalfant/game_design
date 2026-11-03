@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { itemIconCanvas } from './itemIcons.js';
+import { SpatialGrid } from './grid.js';
 
 // Items that lie in the world like any other prop, with no floating icon above them.
 const NO_ICON = new Set(['stone']);
@@ -18,55 +19,95 @@ const GROUND_MODELS = {
   berries: [placeholders.stone, 'berry', 4], // berry.glb is a single life-size berry: scaled up to be visible
 };
 
-// Items lying on the ground (e.g. logs that didn't fit in your inventory),
-// each shown with a floating icon so they're easy to spot.
+// Items lying on the ground (e.g. logs that didn't fit in your inventory, or loose stones),
+// each shown with a floating icon so they're easy to spot. A big map has thousands of them,
+// so a pile only gets its 3D object when the player comes within SHOW_DISTANCE.
+const SHOW_DISTANCE = 70;
+const HIDE_DISTANCE = 90; // a little further, so piles at the edge don't flicker in and out
+const models = new Map(); // model name → promise of the loaded model, loaded once and copied
+
 export class Pickups {
   constructor(scene, world) {
     this.scene = scene;
     this.world = world;
-    this.piles = [];
+    this.grid = new SpatialGrid();
+    this.shown = new Set(); // piles with a 3D object in the scene
+    this.lastCheck = null;
+  }
+
+  // Every pile on the ground.
+  get piles() {
+    return [...this.grid];
   }
 
   // Leaves `count` of `item` on the ground at (x, z). Returns false if that spot is in
   // the lake (nothing is dropped there).
   drop(item, count, x, z) {
     if (this.world.terrain.waterDepth(x, z) > 0) return false;
-    const existing = this.piles.find(
-      (p) => p.item === item && Math.hypot(p.x - x, p.z - z) < MERGE_DISTANCE,
-    );
+    const existing = this.find(item, x, z, MERGE_DISTANCE);
     if (existing) {
       existing.count += count;
       return true;
     }
+    const pile = { item, count, x, z, radius: 0, object: null, icon: null, bob: Math.random() * 10 };
+    this.grid.add(pile);
+    this.world.grass.clear(x, z, 0.6);
+    // Show it right away if it's near the player (e.g. something they just dropped).
+    if (this.lastCheck && Math.hypot(x - this.lastCheck.x, z - this.lastCheck.z) < SHOW_DISTANCE) this.show(pile);
+    return true;
+  }
 
+  // The nearest pile of `item` within `reach` of (x, z), or null.
+  find(item, x, z, reach) {
+    let best = null;
+    for (const pile of this.grid.near(x, z, reach)) {
+      if (pile.item !== item) continue;
+      const distance = Math.hypot(pile.x - x, pile.z - z);
+      if (distance < reach) [best, reach] = [pile, distance];
+    }
+    return best;
+  }
+
+  // Makes the pile's 3D object: its model (if it has one) and floating icon.
+  show(pile) {
     const object = new THREE.Group();
-    object.position.set(x, this.world.terrain.heightAt(x, z), z);
-    if (GROUND_MODELS[item]) {
-      const [placeholder, modelName, modelScale = 1] = GROUND_MODELS[item];
+    object.position.set(pile.x, this.world.terrain.heightAt(pile.x, pile.z), pile.z);
+    if (GROUND_MODELS[pile.item]) {
+      const [placeholder, modelName, modelScale = 1] = GROUND_MODELS[pile.item];
       const shown = new THREE.Group();
-      if (GROUND_TILT[item]) shown.rotation.set(...GROUND_TILT[item]);
+      if (GROUND_TILT[pile.item]) shown.rotation.set(...GROUND_TILT[pile.item]);
       shown.add(placeholder());
-      loadModel(modelName).then((model) => {
-        if (!model) return;
+      if (!models.has(modelName)) models.set(modelName, loadModel(modelName));
+      models.get(modelName).then((model) => {
+        if (!model || pile.object !== object) return;
+        const copy = model.clone();
+        copy.scale.setScalar(modelScale);
         shown.clear();
-        model.scale.setScalar(modelScale);
-        shown.add(model);
+        shown.add(copy);
       });
       object.add(shown);
     }
-    const icon = NO_ICON.has(item) ? null : iconSprite(item);
-    if (icon) object.add(icon);
+    pile.icon = NO_ICON.has(pile.item) ? null : iconSprite(pile.item);
+    if (pile.icon) object.add(pile.icon);
+    pile.object = object;
     this.scene.add(object);
-    this.world.grass.clear(x, z, 0.6);
-    this.piles.push({ item, count, x, z, object, icon, bob: Math.random() * 10 });
-    return true;
+    this.shown.add(pile);
+  }
+
+  hide(pile) {
+    if (!pile.object) return;
+    this.scene.remove(pile.object);
+    pile.icon?.material.map.dispose();
+    pile.icon?.material.dispose();
+    pile.object = pile.icon = null;
+    this.shown.delete(pile);
   }
 
   // The pile nearest to (x, z), if one is within `reach`.
   near(x, z, reach) {
     let best = null;
     let bestDistance = reach;
-    for (const pile of this.piles) {
+    for (const pile of this.grid.near(x, z, reach)) {
       const distance = Math.hypot(pile.x - x, pile.z - z);
       if (distance < bestDistance) {
         best = pile;
@@ -85,18 +126,28 @@ export class Pickups {
   }
 
   remove(pile) {
-    this.scene.remove(pile.object);
-    this.piles.splice(this.piles.indexOf(pile), 1);
+    this.hide(pile);
+    this.grid.remove(pile);
   }
 
-  update(time) {
-    for (const pile of this.piles) if (pile.icon) pile.icon.position.y = 1 + Math.sin(time * 2 + pile.bob) * 0.08;
+  // Bobs the floating icons, and shows the piles near (x, z) and hides the far ones.
+  update(time, x, z) {
+    for (const pile of this.shown) if (pile.icon) pile.icon.position.y = 1 + Math.sin(time * 2 + pile.bob) * 0.08;
+    if (this.lastCheck && Math.hypot(x - this.lastCheck.x, z - this.lastCheck.z) < 4) return;
+    this.lastCheck = { x, z };
+    for (const pile of this.shown) {
+      if (Math.hypot(pile.x - x, pile.z - z) > HIDE_DISTANCE) this.hide(pile);
+    }
+    for (const pile of this.grid.near(x, z, SHOW_DISTANCE)) {
+      if (!pile.object && Math.hypot(pile.x - x, pile.z - z) < SHOW_DISTANCE) this.show(pile);
+    }
   }
 
   // Removes everything on the ground, for a new game.
   reset() {
-    for (const pile of this.piles) this.scene.remove(pile.object);
-    this.piles = [];
+    for (const pile of [...this.shown]) this.hide(pile);
+    this.grid.clear();
+    this.lastCheck = null;
   }
 }
 
