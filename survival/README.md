@@ -358,6 +358,13 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `logs.glb` | Pile of logs lying on the ground | ~0.7 m long |
 | `trap.glb` | Spring-pole snare (rebuilt by `blender/camp_props.py`) | ~0.7 m across |
 | `boar.glb` | Rigged wild boar with idle, walk, run and graze clips (rebuilt by `blender/boar.py`) | ~1.4 m long, 0.9 m tall |
+| `cabin.glb` | Abandoned log cabin: walls (`cabin-wall-*`) and roof fade when in the way; the cupboard and chest stay in code (rebuilt by `blender/places.py`, as are the rest below) | 5.9 × 4.9 m, 3.6 m tall |
+| `hunting-stand.glb` | Hunter's stand, platform 3 m up; `hunting-stand-roof` is the canopy (hidden on stands without one) | 2.7 m square, 5 m tall |
+| `lean-to.glb` | Trapper's lean-to with a bark roof (`lean-to-roof`), drying rack and chopping block | ~6 m across |
+| `campsite.glb` | Abandoned campsite: fire ring, tripod and pot, log seats, collapsed tent | ~4 m across |
+| `truck.glb` | Rusted forest service pickup, passenger door open | 1.9 × 5.1 m |
+| `fallen-log.glb` | Fallen trunk, 1 m long and 1 m thick (stretched per copy) | 1 × 1 m |
+| `fence.glb`, `fence-broken.glb` | One 2.5 m length of split-rail fence, whole or with a rail down | 2.5 m long |
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
 | `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |

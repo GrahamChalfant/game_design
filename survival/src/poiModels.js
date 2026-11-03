@@ -320,7 +320,8 @@ export function huntingStand(random) {
   group.add(ammo);
   group.userData.box = ammo;
   // Some have a sloping camouflage canopy.
-  if (random.next() < 0.55) {
+  group.userData.canopy = random.next() < 0.55;
+  if (group.userData.canopy) {
     const canopy = box(half * 2 + 0.5, 0.04, half * 2 + 0.7, CAMO, 0, P + 2.0, 0);
     canopy.rotation.x = 0.18;
     canopy.userData.roof = true;

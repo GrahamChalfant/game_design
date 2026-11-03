@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CRASH } from './crashTrail.js';
 import { Cutaway } from './cutaway.js';
 import { createRandom } from './random.js';
+import { loadModel } from './models.js';
 import { CABIN, CAMP, LEAN_TO, STAND, TRUCK, barrel, cabin, campsite, huntingStand, leanTo, rustedTruck } from './poiModels.js';
 import { ENTRANCE, buildUnderground, caveEntrance, entranceRocks } from './caves.js';
 
@@ -266,6 +267,30 @@ export function poiStructure(poi) {
 // ---------------------------------------------------------------------------------------
 // Building them, searching them, and keeping only the nearby ones drawn.
 
+// The Blender models (see blender/places.py) that replace each kind's stand-in once loaded.
+// The things you search, and anything else marked `userData.keep`, stay as they are.
+const MODELS = { cabin: 'cabin', stand: 'hunting-stand', leanto: 'lean-to', camp: 'campsite', truck: 'truck' };
+const loading = new Map();
+function useModel(place, model) {
+  const name = MODELS[place.poi.kind];
+  if (!name) return;
+  if (!loading.has(name)) loading.set(name, loadModel(name));
+  loading.get(name).then((glb) => {
+    if (!glb) return;
+    for (const c of place.containers) if (c.object.isObject3D) c.object.userData.keep = true;
+    for (const child of [...model.children]) if (!child.userData.keep) model.remove(child);
+    const copy = glb.clone();
+    copy.traverse((child) => {
+      if (!child.isMesh) return;
+      child.castShadow = child.receiveShadow = true;
+      // A stand without a canopy.
+      if (/roof/.test(child.name) && place.poi.kind === 'stand' && !model.userData.canopy) child.visible = false;
+    });
+    model.add(copy);
+    place.cutaway.refresh();
+  });
+}
+
 export function buildPois(scene, world) {
   const woodPiles = []; // split logs stacked by the cabins: wood to take (see placeLoose)
   const all = world.pois.map((poi) => {
@@ -284,6 +309,7 @@ export function buildPois(scene, world) {
       add(model.userData.cupboard, 'the cupboard', -2.3, 0.55, poi.base, ROLLS.cupboard, 'cabin', { standing: true });
       add(model.userData.chest, 'the old chest', -1.75, 1.55, poi.base, ROLLS.chest, 'cabin');
       const rain = barrel();
+      rain.userData.keep = true;
       rain.position.set(CABIN.halfWidth + CABIN.wall + 0.7, groundY(world, poi, 3.45, 1.7), CABIN.halfDepth - 0.4);
       model.add(rain);
       // Split logs stacked by the wall: wood to take.
@@ -318,7 +344,9 @@ export function buildPois(scene, world) {
     group.add(model);
     group.visible = false;
     scene.add(group);
-    return { poi, group, containers, underground, cutaway: new Cutaway(group), seen: false };
+    const place = { poi, group, containers, underground, cutaway: new Cutaway(group), seen: false };
+    useModel(place, model);
+    return place;
   });
 
   const setOpen = (c, open) => {

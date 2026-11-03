@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Cutaway } from './cutaway.js';
 import { weatheredPack, woodenChest } from './poiModels.js';
+import { loadModel } from './models.js';
 
 // Caves go underground. On the surface there's only a ring of rocks round a dark hole in the
 // hillside. Walk into it holding a lit torch and the screen fades: you come out in a cave
@@ -81,6 +82,7 @@ export function caveEntrance(random, groundAt) {
     mesh.position.set(x, groundAt(x, z) + size * 0.35, z);
     mesh.rotation.set(random.range(0, 3), random.range(0, 3), random.range(0, 3));
     mesh.scale.set(random.range(0.9, 1.3), random.range(0.8, 1.4), random.range(0.9, 1.2));
+    mesh.userData.boulder = size; // (swapped for a Blender boulder below)
     group.add(mesh);
   }
   // A bigger slab leaning over the back of the hole.
@@ -117,8 +119,23 @@ export function caveEntrance(random, groundAt) {
   group.traverse((child) => {
     if (child.isMesh && child.material.isMeshStandardMaterial) child.castShadow = child.receiveShadow = true;
   });
+  // The game's boulders (rock-large.glb, ~1.9 m across) in place of the plain stand-ins.
+  boulders.then((model) => {
+    if (!model) return;
+    for (const stand of group.children.filter((child) => child.userData.boulder)) {
+      const rock = model.clone();
+      rock.position.copy(stand.position);
+      rock.position.y -= stand.userData.boulder * 0.45;
+      rock.rotation.y = stand.rotation.y;
+      rock.scale.copy(stand.scale).multiplyScalar(stand.userData.boulder / 0.8);
+      rock.traverse((child) => (child.castShadow = child.receiveShadow = true));
+      group.remove(stand);
+      group.add(rock);
+    }
+  });
   return group;
 }
+const boulders = loadModel('rock-large');
 
 // ---------------------------------------------------------------------------------------
 // Underground.
