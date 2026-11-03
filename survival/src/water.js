@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 const WATER = {
-  color: 0x4a7d9c,
+  color: 0x5b8a8e, // pale glacial teal-grey
   roughness: 0.08,
   metalness: 0.1,
   transparent: true,

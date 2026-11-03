@@ -4,6 +4,10 @@
 Canada in a short summer). Golden-green meadows, dark spruce forest, grey boulders, a lake
 and a winding river, a little lingering snow. No coast, no sea.
 
+**The palette:** muted and cool, after an autumn morning in the Rockies: deep blue-green
+spruce, rusty-orange and ochre shrubs, cool grey stone, a grey-blue sky with a warm glow low
+down, and pale teal glacial water. Saturated greens and yellows are out.
+
 **The look:** painterly low-poly, in the spirit of the farmland in *Vinland Saga* season 2
 and the hand-painted valley reference: soft, natural, a little nostalgic. Warm low sunlight
 and long shadows, bluish haze in the distance, muted colour with a few warm accents. The
@@ -22,15 +26,18 @@ painted look; never use pure black (#000) or pure white (#fff) in albedo.
 
 | Family | Swatch | Hex | Use |
 | --- | --- | --- | --- |
-| Meadow (the ground the game paints) | sage | `#8AA660` | grass, the main field colour |
-| | olive | `#A4A659` | drier grass |
-| | ochre | `#BFAE72` | dry patches, sunlit edges, straw |
-| | moss | `#688841` | dark grass blotches, moss on wood |
-| | forest floor | `#4C6334` | under trees, bough beds |
+| Meadow (the ground the game paints) | sage | `#7D8F5E` | grass, the main field colour |
+| | olive | `#948F58` | drier grass |
+| | ochre | `#AE8D58` | dry patches, sunlit edges, straw |
+| | rust | `#A0643A` | autumn shrubs (willow, dwarf birch) in the open |
+| | moss | `#5E7444` | dark grass blotches, moss on wood |
+| | forest floor | `#435440` | under trees, bough beds |
+| Birch | bark | `#D9D4C6` | birch trunks (with `#3A3632` marks) |
+| | leaves | `#8E9452` / `#B39A52` | muted olive and autumn gold |
 | Spruce | needles-dark | `#1F3A2A` | inside of spruce tiers |
 | | needles | `#2E5E38` | conifer needles, bough highlights |
 | | needle-tip | `#46684A` | tier edges, sunlit tips |
-| Stone | stone | `#86877F` | boulders, scree, the ground's rocky patches |
+| Stone | stone | `#8A8C8E` | boulders, scree, the ground's rocky patches (cool grey) |
 | | stone-dark | `#58585A` | shadowed faces, flint, wet rock |
 | | lichen | `#949266` | tops of rocks and old wood |
 | Wood | wood-dark | `#54392A` | end grain, lashings, bark in shade |
@@ -42,7 +49,7 @@ painted look; never use pure black (#000) or pure white (#fff) in albedo.
 | | hide-red | `#8C5B3F` | deer coat |
 | | bone | `#D8C49A` | stitching, cord, rope, tusks, bone tools |
 | Snow and water | snow | `#EEF2F4` | the odd lingering snow patch |
-| | water | `#4A7D9C` | lake and river |
+| | water | `#5B8A8E` | lake and river (pale glacial teal-grey) |
 | Warm accents | wreck yellow | `#D9A52B` | the plane |
 | | rust red | `#A83A2A` | plane stripes, the player's coat, danger |
 | | ember | `#FF7A2A` | fire (with `#FFD36A` cores); the only emissive colour |
@@ -107,6 +114,9 @@ player must notice. Keep colours muted: the lighting (golden sun, blue night) ad
   include vertex colours, no images, animations only for rigged assets.
 - **Delete helper/default objects** (the default `Cube`, `Camera`, `Light` still sit in several .blend files) before export,
   or export with selection only.
+- Shared helpers (palette, `Builder`, `build`, `build_hinged`, `export`) are in `blender/kit.py`;
+  `props.py`, `places.py` and `lookout.py` use them. Parts that open in the game (lids, doors)
+  are separate objects named `<model>-lid`, `<model>-door…`, with their origin on the hinge.
 - Prefer a script in `survival/blender/<asset>.py` that rebuilds the GLB headlessly
   (`blender -b --python <asset>.py`), as `shelter.py` does. Seed randomness.
 

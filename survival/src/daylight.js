@@ -11,18 +11,18 @@ const HANDOVER = 0.75;
 // The sun is stronger at dawn and dusk because low sunlight hits the ground at a slant.
 // light: sun (or moon) colour and strength · sky/ground: ambient light from above/below ·
 // haze: horizon and fog colour · fogFar: how far you can see.
-const NIGHT = { light: [0xa9bcff, 0.5], sky: 0x3a4a80, ground: 0x1c2420, ambient: 0.5, haze: 0x111a2e, fogFar: 60 };
+const NIGHT = { light: [0xa0b4f0, 0.5], sky: 0x36466e, ground: 0x1a2220, ambient: 0.5, haze: 0x10182a, fogFar: 60 };
 const KEYFRAMES = [
   { hour: 0, ...NIGHT },
   { hour: 4, ...NIGHT },
-  { hour: 5, light: [0xff9a6a, 1.2], sky: 0x8a7aaa, ground: 0x3a3a30, ambient: 1.1, haze: 0x7b6a88, fogFar: 75 },
-  { hour: 6.5, light: [0xffb27a, 4.2], sky: 0xd8c8e0, ground: 0x7a8048, ambient: 1.8, haze: 0xf0cdb0, fogFar: 95 },
-  // Daytime: soft, cool, open daylight with a bluish haze.
-  { hour: 9, light: [0xfff6ea, 3.3], sky: 0xdde8f4, ground: 0x8a9a5a, ambient: 1.7, haze: 0xc4d0dc, fogFar: 160 },
-  { hour: 16.5, light: [0xffeed6, 3.2], sky: 0xdde8f4, ground: 0x8a9a5a, ambient: 1.7, haze: 0xcfd4d6, fogFar: 150 },
-  { hour: 18.5, light: [0xffb070, 4.2], sky: 0xe8c8b8, ground: 0x8a8048, ambient: 1.8, haze: 0xf4c090, fogFar: 95 },
-  { hour: 19.5, light: [0xff8050, 3.0], sky: 0xb88aa0, ground: 0x5a4a38, ambient: 1.4, haze: 0xc87a7a, fogFar: 85 },
-  { hour: 20, light: [0xff6a48, 1.2], sky: 0x6a5a8a, ground: 0x2e2e28, ambient: 0.9, haze: 0x4a3a60, fogFar: 75 },
+  { hour: 5, light: [0xf0a07a, 1.2], sky: 0x7e7a9e, ground: 0x36382e, ambient: 1.1, haze: 0x6e6a84, fogFar: 75 },
+  { hour: 6.5, light: [0xf2b488, 4.0], sky: 0xc4c2d4, ground: 0x6c7048, ambient: 1.7, haze: 0xd4c0aa, fogFar: 95 },
+  // Daytime: cool, muted, open daylight under a grey-blue sky, with a bluish haze.
+  { hour: 9, light: [0xf2f0e8, 3.2], sky: 0xc6d4e4, ground: 0x6f7a5a, ambient: 1.65, haze: 0xa9b8c8, fogFar: 160 },
+  { hour: 16.5, light: [0xf4ecdc, 3.1], sky: 0xc6d4e4, ground: 0x6f7a5a, ambient: 1.65, haze: 0xb2bcc6, fogFar: 150 },
+  { hour: 18.5, light: [0xf0b47e, 4.0], sky: 0xd2c0b8, ground: 0x786e4c, ambient: 1.7, haze: 0xd6b28e, fogFar: 95 },
+  { hour: 19.5, light: [0xe88a5c, 2.9], sky: 0xa48aa0, ground: 0x524638, ambient: 1.35, haze: 0xae7e7e, fogFar: 85 },
+  { hour: 20, light: [0xe0705a, 1.2], sky: 0x605a82, ground: 0x2c2c28, ambient: 0.9, haze: 0x423a5c, fogFar: 75 },
   { hour: 21, ...NIGHT },
   { hour: 24, ...NIGHT },
 ];

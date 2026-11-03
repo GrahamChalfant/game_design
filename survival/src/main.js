@@ -56,7 +56,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.05; // (a little muted)
 document.body.appendChild(renderer.domElement);
 
 // The sky, fog and light colours are set by Daylight (src/daylight.js) as the day goes on.
