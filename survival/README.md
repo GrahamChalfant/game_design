@@ -140,6 +140,9 @@ Craft a shelter (20 wood, 6 rope, 4 hides), select it and click to build it a fe
 ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
+Nights are dark away from a fire. Craft a torch (2 wood), hold it at a burning campfire and click
+to light it. A lit torch lights up the ground around you and burns for 3 in-game hours (about 75
+real seconds), whether you hold it or not; its slot shows how long it has left.
 Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows in your Outfit
 slot and on your character. It keeps out most of the mountain cold, so you can climb up there by
 day, and halves the chill of a night outdoors. Nights up the mountains still need a fire.

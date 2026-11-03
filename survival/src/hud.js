@@ -155,8 +155,13 @@ export class Hud {
       slot.classList.toggle('selected', i === inventory.selected);
       slot.title = contents ? ITEMS[contents.item].name : '';
       showItemIcon(slot.querySelector('.icon'), contents?.item ?? null);
-      // A flask shows how many drinks it holds; other stacks show how many there are.
-      const count = !contents ? '' : ITEMS[contents.item].holds ? `${contents.water}/${ITEMS[contents.item].holds}` : contents.count > 1 ? contents.count : '';
+      // A flask shows how many drinks it holds, a lit torch how long it has left; other stacks
+      // show how many there are.
+      const item = contents && ITEMS[contents.item];
+      const count = !contents ? ''
+        : item.holds ? `${contents.water}/${item.holds}`
+        : item.burns ? (contents.burn >= 60 ? `${Math.ceil(contents.burn / 60)}h` : `${Math.ceil(contents.burn)}m`)
+        : contents.count > 1 ? contents.count : '';
       slot.querySelector('.count').textContent = count;
     });
 

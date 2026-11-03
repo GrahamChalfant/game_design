@@ -112,6 +112,14 @@ export function createActions({ input, inventory, player, world, wreck, campfire
         }
       } else if (held === 'rawMeat') {
         prompt = `${status} · light it to cook`;
+      } else if (held === 'torch' && burning) {
+        prompt = `Click to light the torch · ${tend}`;
+        if (input.startedUsingTool()) {
+          inventory.remove('torch', 1);
+          give('litTorch', 1);
+        }
+      } else if (held === 'torch') {
+        prompt = `${status} · light it to light your torch`;
       }
     }
 
@@ -229,6 +237,11 @@ export function createActions({ input, inventory, player, world, wreck, campfire
           hud.toast('You patch yourself up');
         }
       }
+    } else if (!fire && held === 'torch') {
+      prompt = 'Hold it at a burning campfire and click to light it';
+    } else if (!fire && held === 'litTorch') {
+      const { burn } = inventory.slots[inventory.selected];
+      prompt = `Lit torch · burns for ${formatFuel(burn)} more`;
     } else if (!fire && held === 'parka') {
       prompt = 'Click to put on the hide parka';
       if (input.startedUsingTool()) {

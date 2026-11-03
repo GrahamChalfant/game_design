@@ -1,6 +1,8 @@
 import { BOW_DURABILITY, KNIFE_DURABILITY, STONE_STACK } from './hunting.js';
 import { BERRY_STACK } from './foraging.js';
 
+export const TORCH_MINUTES = 3 * 60; // a lit torch burns for 3 in-game hours (about 75 real seconds)
+
 // What the player is carrying: a hotbar of slots, plus a backpack with more slots.
 // Each item's icon is a small 3D model, drawn in itemIcons.js.
 // Each slot holds a stack of one kind of item. Slots 0–5 are the hotbar; the rest are the backpack.
@@ -29,6 +31,11 @@ export const ITEMS = {
   berries: { name: 'Berries', stack: BERRY_STACK },
   rawMeat: { name: 'Raw meat', stack: 10 },
   cookedMeat: { name: 'Cooked meat', stack: 10 },
+  // Made from wood; light it at a burning campfire (#94).
+  torch: { name: 'Torch', stack: 5 },
+  // Lights up the dark around you. Burns down whether you hold it or not: the in-game
+  // minutes it has left are kept on its slot as `burn`.
+  litTorch: { name: 'Lit torch', stack: 1, burns: TORCH_MINUTES },
   // Warm hides to wear over your coat (#88). Select it and click to put it on.
   parka: { name: 'Hide parka', stack: 1 },
   // Not kept in a slot: picking it up unlocks the backpack's slots.
@@ -106,6 +113,19 @@ export class Inventory {
     }
   }
 
+  // Lit torches burn down by `minutes` (in-game). Returns how many burned out.
+  burnTorches(minutes) {
+    let out = 0;
+    this.slots.forEach((slot, i) => {
+      if (slot?.item !== 'litTorch') return;
+      slot.burn -= minutes;
+      if (slot.burn > 0) return;
+      this.slots[i] = null;
+      out++;
+    });
+    return out;
+  }
+
   // Adds items, filling existing stacks first. Returns how many didn't fit.
   add(item, count) {
     this.found.add(item);
@@ -123,6 +143,7 @@ export class Inventory {
       const slot = { item, count: added };
       if (ITEMS[item].holds) slot.water = 0;
       if (ITEMS[item].durability) slot.durability = ITEMS[item].durability;
+      if (ITEMS[item].burns) slot.burn = ITEMS[item].burns;
       this.slots[i] = slot;
       count -= added;
     }

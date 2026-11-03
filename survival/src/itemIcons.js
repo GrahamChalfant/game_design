@@ -91,6 +91,18 @@ const MODELS = {
     return group(body, top, wheel, flame(0.7).translateX(0.08).translateY(0.9)).rotateZ(-0.2);
   },
 
+  // A stick with a dark, pitch-soaked wrap at the top (#94); lit, it has a flame.
+  torch: () => {
+    const stick = mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.25, 7), BARK, [0, 0, 0]);
+    const wrap = mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.32, 7), flat(0x3a2a20), [0, 0.55, 0]);
+    return group(stick, wrap).rotateZ(-0.6);
+  },
+  litTorch: () => {
+    const stick = mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.25, 7), BARK, [0, 0, 0]);
+    const wrap = mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.32, 7), flat(0x2a1e18), [0, 0.55, 0]);
+    return group(stick, wrap, flame(0.9).translateY(0.68)).rotateZ(-0.6);
+  },
+
   flare: () => {
     const tube = mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.2, 7), flat(0xd8342a, 0.55), [0, 0, 0]);
     const band = mesh(new THREE.CylinderGeometry(0.135, 0.135, 0.16, 7), WHITE, [0, 0.25, 0]);

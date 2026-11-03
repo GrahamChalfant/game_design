@@ -478,6 +478,20 @@ export function flames() {
   return group;
 }
 
+// A torch: a stick with a dark, pitch-soaked wrap at the top. The origin is where the hand
+// grips it; `userData.tip` is how far up the wrap's top is (where a flame goes).
+export function torch() {
+  const group = new THREE.Group();
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.03, 0.62, 7), material(0x6b4a32));
+  stick.position.y = 0.16;
+  const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.04, 0.13, 7), material(0x3a2a20));
+  wrap.position.y = 0.46;
+  group.add(stick, wrap);
+  group.traverse((child) => (child.castShadow = true));
+  group.userData.tip = 0.52;
+  return group;
+}
+
 // Axe held in the player's hand. The origin is where the hand grips the handle.
 export function axe() {
   const group = new THREE.Group();

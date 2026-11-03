@@ -160,6 +160,7 @@ const WAKE_HOUR = 6;
 const sleep = () => {
   const minutes = survival.sleepUntil(WAKE_HOUR);
   campfires.update(minutes, clock.elapsedTime);
+  inventory.burnTorches(minutes);
   const { day } = survival.clock;
   hud.showSleep(`Day ${day} · 0${WAKE_HOUR}:00`);
 };
@@ -251,6 +252,8 @@ renderer.setAnimationLoop(() => {
 
   const actions = updateActions(dt);
   player.wear(inventory.outfit);
+  // Lit torches burn down, whether they're in your hand or not.
+  if (survival.alive && inventory.burnTorches(dt * GAME_MINUTES_PER_SECOND * TIME_SPEED) > 0) hud.toast('Your torch burned out');
   survival.update(dt, actions, TIME_SPEED);
   thinkAloud(actions);
   campfires.update(survival.alive ? dt * GAME_MINUTES_PER_SECOND * TIME_SPEED : 0, clock.elapsedTime);

@@ -3,6 +3,9 @@ import { loadModel } from './models.js';
 import { dressModel } from './outfits.js';
 import * as placeholders from './placeholders.js';
 
+const TORCH_LIGHT = 7; // how bright a lit torch is (a campfire is 18): about an 8 m pool of light at night
+const TORCH_LIGHT_RANGE = 14; // meters its light reaches
+const TORCH_HOLD_TILT = -Math.PI / 2 + 0.35; // turns the torch in the hand: upright, leaning a little forward
 const RADIUS = 0.4;
 const WALK_SPEED = 5;
 const SNEAK_SPEED = 2.2;
@@ -78,6 +81,20 @@ export class Player {
     this.object.add(this.knife);
     this.stabTime = 0; // counts down after a stab, to jab the knife forward
 
+    // A torch (#94), in the right hand while selected. Lit, it has a flame and lights up the
+    // dark around the player.
+    this.torch = placeholders.torch();
+    this.torchFlame = placeholders.flames();
+    this.torchFlame.scale.setScalar(0.32);
+    this.torchFlame.position.y = this.torch.userData.tip;
+    this.torchLight = new THREE.PointLight(0xff9a3c, 0, TORCH_LIGHT_RANGE, 1.4);
+    this.torchLight.position.y = this.torch.userData.tip + 0.5;
+    this.torch.add(this.torchFlame, this.torchLight);
+    this.torch.position.set(0.42, 0.85, 0.05);
+    this.torch.visible = false;
+    this.object.add(this.torch);
+    this.flicker = 0;
+
     loadModel('player').then((model) => {
       if (!model) return;
       model.traverse((child) => {
@@ -100,6 +117,10 @@ export class Player {
       this.bow.scale.setScalar(1);
       // knife's origin is the grip; the blade points along the hand's up axis, like the bow.
       model.getObjectByName('hand_R').add(this.knife);
+      // The torch is held upright, flame up, a little out in front.
+      model.getObjectByName('hand_R').add(this.torch);
+      this.torch.position.set(0, 0.03, 0.02);
+      this.torch.rotation.set(TORCH_HOLD_TILT, 0, 0);
       this.knife.position.set(0, 0.03, 0.02);
       this.knife.rotation.set(Math.PI / 2, 0, 0);
 
@@ -134,6 +155,10 @@ export class Player {
     this.axe.visible = heldItem === 'axe' && !this.swimming && !drinking; // put away when the hands are busy
     this.bow.visible = heldItem === 'bow' && !this.swimming && !drinking;
     this.knife.visible = heldItem === 'knife' && !this.swimming && !drinking;
+    const torch = heldItem === 'torch' || heldItem === 'litTorch';
+    this.torch.visible = torch && !this.swimming && !drinking;
+    this.torchLit = heldItem === 'litTorch' && this.torch.visible;
+    this.torchFlame.visible = this.torchLit;
     this.body.getObjectByName('player-pack').visible = hasBackpack;
     this.chopping = chopping;
     this.drinking = drinking;
@@ -162,6 +187,11 @@ export class Player {
   }
 
   update(dt, input, world) {
+    // A lit torch flickers.
+    this.flicker += dt;
+    const flicker = 0.85 + 0.1 * Math.sin(this.flicker * 13) + 0.05 * Math.sin(this.flicker * 31);
+    this.torchLight.intensity = this.torchLit ? TORCH_LIGHT * flicker : 0;
+    this.torchFlame.scale.setScalar(0.32 * (0.9 + 0.15 * flicker));
     this.stabTime = Math.max(0, this.stabTime - dt);
     const jab = Math.sin((this.stabTime / STAB_TIME) * Math.PI); // 0 → 1 → 0
     this.knife.rotation.x = Math.PI / 2 - jab * 0.9;
