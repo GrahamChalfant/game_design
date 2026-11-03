@@ -9,6 +9,9 @@ const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
 const WARMTH_REACH = 3; // how close to a burning fire warms you up, in meters
 const WET_DEPTH = 0.3; // water this deep (in meters) chills you
 const BANDAGE_HEALING = 30;
+// Up a building (the lookout tower) more than this far above the ground, things down on the
+// ground are out of reach, and you can't put things down. (Higher than the tallest rock.)
+const UP_HIGH = 2.5;
 const FLASK_DRINK = 35; // thirst one drink from the flask restores
 // What eating each food does to hunger and health.
 const FOOD = {
@@ -53,22 +56,25 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     const held = inventory.selectedItem;
     const { x, z } = player.position;
     const pressedE = input.wasPressed('KeyE');
-    const canDrink = player.canDrink(world);
+    // Up the lookout tower, the ground (and everything on it) is out of reach.
+    const upHigh = player.feet - world.terrain.heightAt(x, z) > UP_HIGH;
+    const onGround = (thing) => (upHigh ? null : thing);
+    const canDrink = !upHigh && player.canDrink(world);
     const drinking = canDrink && input.isDown('KeyE');
-    const fire = campfires.near(x, z, 1.2);
-    const trap = traps.near(x, z, 1.3);
-    const pile = pickups.near(x, z, 1.3);
+    const fire = onGround(campfires.near(x, z, 1.2));
+    const trap = onGround(traps.near(x, z, 1.3));
+    const pile = onGround(pickups.near(x, z, 1.3));
     // Somewhere to search: a suitcase at the wreck, or the lookout tower's supply crate.
     const crate = lookout.near(x, z, 1.8, player.feet);
-    const container = crate ?? wreck.near(x, z, 1.8);
-    const carcass = animals.carcassNear(x, z, 1.8);
+    const container = crate ?? onGround(wreck.near(x, z, 1.8));
+    const carcass = onGround(animals.carcassNear(x, z, 1.8));
     let searchingNow = false;
     let butcheringNow = false;
     bowReady = Math.max(0, bowReady - dt);
     knifeReady = Math.max(0, knifeReady - dt);
-    const bush = bushes.near(x, z, 1.4);
+    const bush = onGround(bushes.near(x, z, 1.4));
     const now = survival.minutesSurvived;
-    const tree = player.treeInReach(world);
+    const tree = onGround(player.treeInReach(world));
     const chopping = Boolean(tree && held === 'axe' && input.usingTool() && !player.airborne);
     let prompt = null;
     let progress = null;
@@ -199,6 +205,8 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     } else if (!fire && tree && held === 'axe') {
       prompt = chopping ? 'Chopping…' : 'Click and hold to chop';
       progress = world.trees.progress(tree);
+    } else if (upHigh && (held === 'campfire' || held === 'shelter' || held === 'trap')) {
+      prompt = "You can't put that down up here";
     } else if (!fire && held === 'campfire') {
       // A crafted campfire: place it on open ground in front of you.
       const spot = player.ahead(1.6);
@@ -334,7 +342,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     if (held === 'knife' && input.usingTool() && knifeReady === 0 && !player.swimming && !player.airborne) {
       knifeReady = KNIFE_COOLDOWN;
       player.stab();
-      const target = knifeHitTest(x, z, player.facing, animals.all);
+      const target = upHigh ? null : knifeHitTest(x, z, player.facing, animals.all);
       if (target) {
         const knife = inventory.slots[inventory.selected];
         if (hitAnimal(target, 'knife')) {
@@ -369,7 +377,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     }
 
     player.setAction(inventory.selectedItem, chopping, drinking, inventory.hasBackpack);
-    const warmFire = campfires.near(x, z, WARMTH_REACH);
+    const warmFire = upHigh ? null : campfires.near(x, z, WARMTH_REACH);
     const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
     const wet = world.terrain.waterDepth(x, z) > WET_DEPTH;
     const cold = world.terrain.coldAt(x, z); // up the mountains
