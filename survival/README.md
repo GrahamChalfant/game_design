@@ -80,6 +80,23 @@ stand on a pole by the railing: press E next to them to look through them. The v
 back so you can see far across the land. WASD looks around, scrolling zooms in and out, and E or
 Esc stops.
 
+Out across the map are places worth finding. Each has something to search (hold E), and its
+roof turns see-through when you step inside, like the lookout's.
+
+- **Abandoned cabins** (about a dozen), on flat ground by the water or the woods. Inside are a
+  bed, a stove, a table, and a cupboard and an old chest to search. There's split wood stacked by
+  the wall outside. A cabin is warm shelter: at night, press E inside to sleep until morning.
+- **Caves** (about nine), dug into the hillsides on rocky ground and up the mountains, their
+  mouths facing downhill. Inside is an old fire ring and a weathered pack to search. Caves are
+  shelter too, which helps a lot up in the cold.
+- **Hunting stands** (about 25), at the edges of the woods. Climb the ladder onto the platform,
+  3 m up: from there, animals don't notice you, so it's a good spot to shoot from. There's often
+  an ammo box with arrows or dried meat up there (and once in a while a bow).
+
+What's in each is decided by the map's seed. The first time you come across each kind of place,
+you'll say so. Cabins and caves are marked on the map. All the numbers are at the top of
+`src/pois.js`, and the stand-in models are in `src/poiModels.js`.
+
 Press M to look at the map: it shows the whole area (lakes, the river, woods, the mountains and
 the lookout), where you are, the crash, your campfires and shelters, and a pale trail over the
 ground you've already covered.
@@ -132,7 +149,7 @@ mountains are rocky, so they're a good place to find stones.
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
 you start losing health. Drink from a lake or the river to stay hydrated. There are lakes all
 over the map. While you're well fed and
-watered, your health slowly recovers. One in-game day lasts 10 real minutes.
+watered, your health slowly recovers. The clock runs slower by day: the 15 daylit hours (05:00–20:00) last 12.5 real minutes, and the night about 5.5.
 
 Days are long, like a northern summer: the sun rises around 05:00 and sets around 20:00.
 Nights are dark, so keep a campfire going if you want to see what you're doing.
@@ -153,8 +170,8 @@ you need (like 2/3 wood): red until you have enough, then green.
 
 To make a campfire, press Tab and craft one (5 wood), then select it and click to
 place it on open ground. Stand next to it and press E to light it (you need the lighter).
-A fire burns for 2 in-game hours; stand next to it and press E to add a log
-(1 more hour each). A fire that's gone out needs more wood (E) and lighting again.
+A fire burns for 6 in-game hours; stand next to it and press E to add a log
+(2 more hours each, up to 16). A fire that's gone out needs more wood (E) and lighting again.
 
 Rabbits and deer live around you wherever you go, but there aren't many of them. They graze and wander
 until you get too close, then bolt. Both run faster than you, and deer spook from much
@@ -183,8 +200,8 @@ ahead. Its open front always faces the camera, so you can see inside it. Under i
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
 Nights are dark away from a fire. Craft a torch (2 wood), hold it at a burning campfire and click
-to light it. A lit torch lights up the ground around you and burns for 3 in-game hours (about 75
-real seconds) while you hold it, with your arm bent up in front of you; put away in your inventory, it
+to light it. A lit torch lights up the ground around you and burns for 8 in-game hours (about 5 real
+minutes at night) while you hold it, with your arm bent up in front of you; put away in your inventory, it
 keeps. Its slot shows how long it has left.
 Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows in your Outfit
 slot, and on your character as a knee-length hide coat with a fur-trimmed hood. It keeps out most of the mountain cold, so you can climb up there by
@@ -240,6 +257,9 @@ src/survival.js       Hunger, thirst, temperature, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
 src/input.js          Keyboard and mouse handling
 src/blood.js          Blood spatter on the ground when you're hurt
+src/pois.js           Cabins, caves and hunting stands: where they go, loot, floors and shelter
+src/poiModels.js      Stand-in models for the cabins, caves and hunting stands
+src/cutaway.js        Fades the parts of a building between the camera and the player
 src/models.js         Loads Blender models and draws many copies efficiently
 src/placeholders.js   Simple stand-in shapes used until Blender models exist
 src/random.js         Seeded random numbers and noise (same seed = same map)

@@ -24,7 +24,7 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, aimPoint }) {
+export function createActions({ input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, aimPoint }) {
   let cooking = 0;
   let searching = 0;
   let using = 0; // seconds spent eating or bandaging so far
@@ -71,7 +71,8 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     const pile = onGround(pickups.near(x, z, 1.3));
     // Somewhere to search: a suitcase at the wreck, or the lookout tower's supply crate.
     const crate = lookout.near(x, z, 1.8, player.feet);
-    const container = crate ?? onGround(wreck.near(x, z, 1.8));
+    const poiContainer = crate ? null : pois.near(x, z, 1.4, player.feet); // in a cabin, a cave or up a stand
+    const container = crate ?? poiContainer ?? onGround(wreck.near(x, z, 1.8));
     const carcass = onGround(animals.carcassNear(x, z, 1.8));
     let searchingNow = false;
     let butcheringNow = false;
@@ -197,7 +198,10 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
       if (searching >= SEARCH_TIME) {
         searching = 0;
         if (container.note) hud.toast(`You found ${container.note}`);
-        for (const [item, count] of (crate ? lookout : wreck).search(container)) give(item, count, container.x, container.z);
+        const source = crate ? lookout : poiContainer ? pois : wreck;
+        const loot = source.search(container);
+        if (loot.length === 0) hud.toast(`${container.label[0].toUpperCase()}${container.label.slice(1)} is empty`);
+        for (const [item, count] of loot) give(item, count, container.x, container.z);
       }
     } else if (!fire && trap) {
       // At a trap: E takes the catch out, or picks the empty trap back up.
@@ -420,10 +424,13 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     if (canDrink && !(held === 'flask' && !drinking)) prompt = drinking ? 'Drinking…' : 'Hold E to drink';
 
     // Under a shelter you're warm, and at night E sleeps until morning.
-    const shelter = shelters.around(x, z);
+    // So are you inside a cabin or a cave.
+    const place = pois.shelterAt(x, z, player.feet);
+    const shelter = shelters.around(x, z) ?? place;
     if (shelter && !prompt) {
       const night = isNight(survival.hourOfDay);
-      prompt = night ? "Shelter · warmer here · E to sleep until morning" : "Shelter · warmer here";
+      const name = place ? (place.kind === 'cabin' ? 'Cabin' : 'Cave') : 'Shelter';
+      prompt = night ? `${name} · warmer in here · E to sleep until morning` : `${name} · warmer in here`;
       if (night && pressedE) onSleep();
     }
 

@@ -1,6 +1,6 @@
 // Node simulation of the temperature rules. Run: node sim/temperature-sim.mjs
-import { Survival, GAME_MINUTES_PER_SECOND, stepTemperature, FREEZING } from '../src/survival.js';
-const SEC_PER_HOUR = 60 / GAME_MINUTES_PER_SECOND;
+import { Survival, DAY_MINUTES_PER_SECOND, stepTemperature, FREEZING } from '../src/survival.js';
+const SEC_PER_HOUR = 60 / DAY_MINUTES_PER_SECOND; // (the tests run by day)
 const dt = 0.1; let fails = 0;
 const ok = (c, m) => { console.log(`${c ? 'PASS' : 'FAIL'} ${m}`); if (!c) fails++; };
 // (Wearing the jacket unless a test says otherwise: you start in just a shirt.)
@@ -11,7 +11,7 @@ const setHour = (s, h) => { s.minutesSurvived = ((h - 8 + 24) % 24) * 60; };
 // 1) lake: full temp -> freezing within ~75 s, then HP drains
 let s = new Survival(); setHour(s, 10); s.temperature = 100; s.health = 100;
 let t = 0; while (s.temperature > FREEZING) { s.update(dt, { ...J, wet: true }); t += dt; }
-ok(t >= 70 && t <= 80, `1 lake 100->freezing in ${t.toFixed(1)} real s`);
+ok(t >= 140 && t <= 160, `1 lake 100->freezing in ${t.toFixed(1)} real s (by day)`);
 const hp = s.health; run(s, { wet: true }, 10); ok(s.health < hp && s.isWet && s.isFreezing, `1 HP drains in water (${hp.toFixed(1)} -> ${s.health.toFixed(1)})`);
 
 // 2) warming rates, caps, wet
@@ -25,7 +25,7 @@ s = new Survival(); setHour(s, 10); run(s, { wet: true }, 1); run(s, {}, SEC_PER
 run(s, {}, SEC_PER_HOUR * 0.02); ok(!s.isWet, '2 Wet clears after 1 game hour');
 
 // 3) regen only after 1 h at >=80 with hunger & thirst >=25
-s = new Survival(); setHour(s, 10); s.temperature = 95; s.health = 50; s.hunger = 30; s.thirst = 30;
+s = new Survival(); setHour(s, 10); s.temperature = 95; s.health = 50; s.hunger = 40; s.thirst = 40;
 run(s, { fire: true }, SEC_PER_HOUR * 0.95); ok(s.health === 50, '3 no regen before 1 h at >=80');
 run(s, { fire: true }, SEC_PER_HOUR * 0.5); ok(s.health > 50, `3 regen after 1 h at >=80 (${s.health.toFixed(2)})`);
 s = new Survival(); setHour(s, 10); s.temperature = 95; s.health = 50; s.hunger = 22; s.thirst = 80;
@@ -45,7 +45,7 @@ ok(typeof s.isWet === 'boolean' && s.isFreezing === true, '5 isWet / isFreezing 
 // 6) mountain cold (#87): freezing by day up high, unless there's a fire or a shelter
 s = new Survival(); setHour(s, 10); s.temperature = 60;
 t = 0; while (s.temperature > FREEZING && t < 600) { s.update(dt, { ...J, cold: 1 }); t += dt; }
-ok(t > 30 && t < 60, `6 daytime at the coldest: 60 -> freezing in ${t.toFixed(1)} real s`);
+ok(t > 60 && t < 120, `6 daytime at the coldest: 60 -> freezing in ${t.toFixed(1)} real s`);
 ok(capAfter({ cold: 1, fire: true }) === 100 && capAfter({ cold: 1, shelter: true }) === 85, '6 a fire or shelter still warms you up the mountains');
 ok(capAfter({ cold: 0 }) === 60, '6 no change in the lowlands');
 ok(rise({ cold: 0.5 }) < 0, `6 halfway up, you cool by day (${rise({ cold: 0.5 })} per hour)`);

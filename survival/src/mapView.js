@@ -102,7 +102,7 @@ export class MapView {
   }
 
   // Draws the open map: the land, the ground you've covered, and markers.
-  draw({ player, lookout, campfires, shelters }) {
+  draw({ player, lookout, pois = [], campfires, shelters }) {
     if (!this.isOpen) return;
     const ctx = this.ctx;
     const at = (x) => (x + this.size / 2) / PIXEL;
@@ -139,6 +139,28 @@ export class MapView {
       ctx.fill();
       ctx.fillRect(x - 3, y - 6, 6, 3);
       label('Lookout', x, y + 12);
+    }
+    // Cabins (little houses) and caves (dark arches). Hunting stands are too small to be marked.
+    for (const poi of pois) {
+      const x = at(poi.x);
+      const y = at(poi.z);
+      ctx.fillStyle = '#3a2a1a';
+      ctx.beginPath();
+      if (poi.kind === 'cabin') {
+        ctx.rect(x - 3, y - 1, 6, 4);
+        ctx.moveTo(x - 4, y - 1);
+        ctx.lineTo(x, y - 4.5);
+        ctx.lineTo(x + 4, y - 1);
+      } else if (poi.kind === 'cave') {
+        ctx.arc(x, y + 2, 4, Math.PI, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#d9cba6';
+        ctx.beginPath();
+        ctx.arc(x, y + 2, 1.8, Math.PI, 0);
+      } else continue;
+      ctx.closePath();
+      ctx.fill();
     }
     // The crash: a red cross.
     {

@@ -9,6 +9,7 @@ import { stoneSpots } from './hunting.js';
 import { CRASH, trailPoint } from './crashTrail.js';
 import { SpatialGrid } from './grid.js';
 import { LOOKOUT, chooseLookout, lookoutBase, lookoutObstacles, lookoutStructure } from './lookout.js';
+import { choosePois, poiClearing, poiObstacles, poiStructure } from './pois.js';
 
 // Meters across; the playable area is a square centred on the crash, at 0,0. Only the chunks
 // around the player are drawn (see stream.js), so a big map costs little more than a small one.
@@ -81,9 +82,18 @@ export function buildWorld(scene, seed) {
   for (const o of lookoutObstacles(lookout, lookout.base)) obstacles.add(o);
   // Buildings you can walk up into: each has floorAt(x, z, maxY) and roofOver(x, z, feet).
   const structures = [lookoutStructure(lookout, lookout.base)];
+  // Then the cabins, caves and hunting stands (see pois.js), each with a clearing round it.
+  const pois = choosePois(createRandom(mapSeed + 13), terrain, WORLD_SIZE, lookout);
+  const clearings = new SpatialGrid();
+  for (const poi of pois) {
+    clearings.add(poiClearing(poi));
+    for (const o of poiObstacles(poi)) obstacles.add(o);
+    structures.push(poiStructure(poi));
+  }
   const isFree = (x, z, spacing) =>
     Math.hypot(x, z) > CRASH_CLEARING &&
     Math.hypot(x - lookout.x, z - lookout.z) > LOOKOUT.clearing &&
+    clearings.isClear(x, z, 0) &&
     Math.hypot(x - SPAWN.x, z - SPAWN.z) > SPAWN_CLEARING &&
     !terrain.nearWater(x, z, 2) &&
     !terrain.crashTrail.near(x, z, 2) &&
@@ -178,6 +188,7 @@ export function buildWorld(scene, seed) {
     grass,
     stones,
     lookout,
+    pois,
     structures,
     size: WORLD_SIZE,
     spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),

@@ -28,7 +28,7 @@ function unfocusable(button) {
 
 // Shows the survival stats, clock, prompts and game-over screen.
 export class Hud {
-  constructor({ seed, onNewMap, onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onCraft }) {
+  constructor({ seed, onNewMap, onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onWear, onCraft }) {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
@@ -84,7 +84,7 @@ export class Hud {
         if (this.justDragged) this.justDragged = false;
         else onSlotClick(i);
       });
-      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => onSlotDrop(i, to), () => onDropItem(i)));
+      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => onSlotDrop(i, to), () => onDropItem(i), () => onWear(i)));
       (inHotbar ? this.hotbar : backpackGrid).append(slot);
       return slot;
     });
@@ -219,8 +219,8 @@ export class Hud {
   // Follows the mouse after a press on a slot. Letting go on another slot moves the item
   // there; letting go off the menu and hotbar drops it on the ground.
   // Drags the item shown in `slot` (a slot or an equipment box): dropped onto a slot, calls
-  // onto(thatSlotsIndex); dropped off the menu, calls outside().
-  startDrag(down, slot, onto, outside) {
+  // onto(thatSlotsIndex); onto your character or Outfit box, wear(); off the menu, outside().
+  startDrag(down, slot, onto, outside, wear = null) {
     if (down.button !== 0) return;
     const item = slot.querySelector('.icon').dataset.item;
     if (!item || item === 'shirt') return; // (the shirt stays on)
@@ -250,6 +250,7 @@ export class Hud {
       // The browser may still send a click to the slot where the drag started.
       this.justDragged = ontoSlot === slot;
       if (ontoSlot) onto(Number(ontoSlot.dataset.index));
+      else if (wear && target?.closest('#equip-outfit, #character-view')) wear();
       else if (!target?.closest('#inventory, #hotbar')) outside();
     };
     window.addEventListener('pointermove', move);

@@ -22,10 +22,11 @@ import { Snowfall } from './snow.js';
 import { Traps } from './traps.js';
 import { buildWreck, START_ITEMS } from './wreck.js';
 import { buildLookout } from './lookout.js';
+import { buildPois } from './pois.js';
 import { MapView } from './mapView.js';
 import { FarView } from './farView.js';
 import { CRASH } from './crashTrail.js';
-import { GAME_MINUTES_PER_SECOND, Survival } from './survival.js';
+import { Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
 
 // Each game grows a new map from a random seed. Add ?seed=1234 to the address to play (or
@@ -121,6 +122,8 @@ arrows.onHit = (animal) => blood.splat(animal.position.x, animal.position.z, ani
 // An arrow that hits nothing comes down in the ground, where you can pick it up again.
 arrows.onLand = (x, z) => pickups.drop('arrow', 1, x, z);
 const pickups = new Pickups(scene, world);
+// Abandoned cabins, caves and hunting stands around the map (see pois.js).
+const pois = buildPois(scene, world);
 // The axe and backpack lie around the wreckage at the start of every game.
 const placeStartItems = () => {
   for (const { item, x, z } of START_ITEMS) pickups.drop(item, 1, x, z);
@@ -129,6 +132,7 @@ const placeStartItems = () => {
     pickups.drop('stone', 1, spot.x, spot.z);
     spot.emptySince = null;
   }
+  pois.placeLoose(pickups); // wood stacked by the cabins
 };
 placeStartItems();
 const hud = new Hud({
@@ -148,6 +152,8 @@ const hud = new Hud({
     placeStartItems();
     wreck.reset();
     lookout.reset();
+    pois.reset();
+    saidAbout.clear();
     mapView.reset();
     if (spotting) stopSpotting();
     player.reset();
@@ -164,6 +170,17 @@ const hud = new Hud({
     if (i < HOTBAR_SIZE) inventory.select(i);
   },
   onSlotDrop: (from, to) => inventory.transfer(from, to),
+  // Dragged clothes from a slot onto your character: put them on (what you had on takes
+  // their place in that slot).
+  onWear: (i) => {
+    const slot = inventory.slots[i];
+    if (!slot || !ITEMS[slot.item].wear) return;
+    const old = inventory.outfit;
+    inventory.outfit = slot.item;
+    inventory.slots[i] = old ? { item: old, count: 1 } : null;
+    hud.toast(`You put on the ${ITEMS[slot.item].name.toLowerCase()}`);
+    onDressed(slot.item);
+  },
   // Dragged your outfit or backpack off the character: onto an empty slot (`to`) to carry the
   // outfit, or off the menu (to null) to leave it on the ground in front of you.
   onUnequip: (kind, to) => {
@@ -220,7 +237,7 @@ const aimPoint = () => {
 const onDressed = (outfit) => {
   if (outfit === 'jacket') hud.say("That's better. I'll warm up in no time.", 5);
 };
-const updateActions = createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: () => startSpotting(), onDressed, aimPoint });
+const updateActions = createActions({ input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: () => startSpotting(), onDressed, aimPoint });
 
 // The player says things out loud when they're in trouble, in a speech bubble.
 // Each line is said at most once per evening/cold spell.
@@ -269,6 +286,14 @@ function thinkAloud({ fire, shelter, cold = 0 }) {
   if (cold === 0) saidMountainCold = false;
 }
 const speechPoint = new THREE.Vector3();
+// What the player says on coming across the first of each kind of place.
+const FIRST_SIGHT = {
+  cabin: "An old cabin… nobody's lived here for years. Maybe there's something useful inside.",
+  cave: "A cave. It'd keep the wind off: somewhere to shelter for the night.",
+  stand: "A hunting stand. From up there, the animals wouldn't notice me.",
+};
+const saidAbout = new Set();
+const SPOTTING_SHOW = 900; // through the binoculars, places this far away are drawn
 
 // The compass strip (#94): which way the player faces, and which way the crash is. Bearings
 // are degrees clockwise from north, and north is -z (up the screen).
@@ -343,6 +368,7 @@ function updateSpottingCamera(dt) {
   );
   camera.lookAt(cameraTarget);
   lookout.update(dt, null); // (nothing is in the way of the view)
+  pois.update(dt, null, 0, spotting.target, SPOTTING_SHOW); // far-off cabins and stands show too
 }
 
 function updateCamera(dt) {
@@ -364,6 +390,11 @@ function updateCamera(dt) {
   camera.updateMatrixWorld();
   // Fade whatever part of a building is between the camera and the player.
   lookout.update(dt, camera, player.feet, player.position);
+  const found = pois.update(dt, camera, player.feet, player.position);
+  if (found && !saidAbout.has(found.kind)) {
+    saidAbout.add(found.kind);
+    hud.say(FIRST_SIGHT[found.kind], 6);
+  }
 
   // Keep the player visible through any trees in the way.
   updateSeeThrough(camera, renderer, player.position.clone().setY(player.feet + 1));
@@ -420,16 +451,16 @@ renderer.setAnimationLoop(() => {
     : updateActions(dt);
   player.wear(inventory.outfit);
   // Lit torches burn down, whether they're in your hand or not.
-  if (survival.alive && inventory.burnTorches(dt * GAME_MINUTES_PER_SECOND * TIME_SPEED) > 0) hud.toast('Your torch burned out');
+  if (survival.alive && inventory.burnTorches(dt * survival.clockSpeed * TIME_SPEED) > 0) hud.toast('Your torch burned out');
   survival.update(dt, actions, TIME_SPEED);
   thinkAloud(actions);
-  campfires.update(survival.alive ? dt * GAME_MINUTES_PER_SECOND * TIME_SPEED : 0, clock.elapsedTime);
+  campfires.update(survival.alive ? dt * survival.clockSpeed * TIME_SPEED : 0, clock.elapsedTime);
   if (!survival.alive && player.alive) player.die();
   hud.update(survival, inventory, actions);
   updateCompass();
   mapView.explore(player.position.x, player.position.z);
   mapView.update(inventory.count('map') > 0);
-  mapView.draw({ player, lookout, campfires, shelters });
+  mapView.draw({ player, lookout, pois: world.pois, campfires, shelters });
   // Keep the speech bubble above the player's head.
   speechPoint.copy(player.position).setY(player.feet + 2.1).project(camera);
   hud.placeSpeech((speechPoint.x * 0.5 + 0.5) * innerWidth, (-speechPoint.y * 0.5 + 0.5) * innerHeight);
@@ -438,7 +469,8 @@ renderer.setAnimationLoop(() => {
   updateCamera(dt);
   farView.update();
   world.update(dt, clock.elapsedTime, player.position);
-  animals.update(dt, player.position, player.sneaking);
+  // Up a hunting stand, animals don't notice you, as if you were sneaking.
+  animals.update(dt, player.position, player.sneaking || pois.upAStand(player.position.x, player.position.z, player.feet));
   arrows.update(dt);
   traps.update();
   bushes.update(survival.minutesSurvived);
