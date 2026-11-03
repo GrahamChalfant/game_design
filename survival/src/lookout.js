@@ -216,7 +216,7 @@ export function buildLookout(scene, world) {
       crateObject,
       spot.hasMap ? 'a map of the area' : null,
     ),
-    container("the ranger's locker", CAB.locker, [['torch', 2], ['rope', 2]], lockerObject),
+    { ...container("the ranger's locker", CAB.locker, [['torch', 2], ['rope', 2]], lockerObject), standing: true }, // searched standing up
   ];
   const setOpen = (c, open) => {
     c.searched = open;

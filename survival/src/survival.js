@@ -14,12 +14,13 @@ const STARVING_DAMAGE_PER_HOUR = 25; // health lost per empty stat: dead about 4
 const HEALING_PER_HOUR = 5; // health regained while well fed and watered
 const WELL_FED = 25; // hunger and thirst both need to be at least this to heal
 
-const START_HEALTH = 35; // you start hurt from the crash: use bandages to heal
+const START_HEALTH = 55; // you start hurt from the crash: use bandages to heal
 const DRINK_PER_SECOND = 30; // thirst regained per real second while drinking
 const WORK_HUNGER = 3; // hard work (like chopping) makes you hungry this many times faster
 
 // Temperature (0–100). Rates are points per in-game hour (1 game hour ≈ 25 real seconds).
-const START_TEMPERATURE = 60;
+// You come to in just a shirt: chilly until you find your jacket in the luggage.
+const START_TEMPERATURE = 40;
 const WATER_CHILL_PER_HOUR = 28; // submerged in water
 const NIGHT_CHILL_PER_HOUR = 12; // outdoors at night with no fire or shelter
 const OUTDOOR_WARMING_PER_HOUR = 5; // daytime outdoors drifts toward DAY_TEMPERATURE at this rate
@@ -35,9 +36,12 @@ const FIRE_MAX = 100; // a fire is the only way above SHELTER_MAX
 // About 1.5 in-game hours (under a minute) takes you from 60 to Freezing.
 export const MOUNTAIN_CHILL_PER_HOUR = 30;
 // What you're wearing keeps some of the cold out (#88): the share of the mountain cold and of
-// the night's chill that still gets through.
+// the night's chill that still gets through, and how warm a day outdoors gets you. You start in
+// just a shirt (no outfit); your jacket is in one of the suitcases at the crash.
 export const OUTFIT_WARMTH = {
-  parka: { mountainChill: 0.15, nightChill: 0.5 },
+  shirt: { mountainChill: 1.4, nightChill: 1.5, day: 40 },
+  jacket: { mountainChill: 1, nightChill: 1, day: DAY_TEMPERATURE },
+  parka: { mountainChill: 0.15, nightChill: 0.5, day: DAY_TEMPERATURE },
 };
 export const FREEZING = 15; // at or below this you're Freezing
 const FREEZING_DAMAGE_PER_HOUR = 10;
@@ -48,7 +52,7 @@ const COSY_HOURS = 1; // ...held for this many in-game hours in a row
 // One step of the temperature model. Pure, so it can be simulated outside the game.
 // state: { temperature, wetHours }; env: { submerged, fire, shelter, night, cold (0–1), outfit }.
 export function stepTemperature(state, { submerged, fire, shelter, night, cold = 0, outfit = null }, hours) {
-  const warmth = OUTFIT_WARMTH[outfit] ?? { mountainChill: 1, nightChill: 1 };
+  const warmth = OUTFIT_WARMTH[outfit ?? 'shirt'];
   let t = state.temperature;
   let wetHours = state.wetHours;
   if (submerged) {
@@ -59,12 +63,12 @@ export function stepTemperature(state, { submerged, fire, shelter, night, cold =
     if (fire) [rate, max] = [FIRE_WARMING_PER_HOUR, FIRE_MAX];
     else if (shelter) [rate, max] = [SHELTER_WARMING_PER_HOUR, SHELTER_MAX];
     else if (night) [rate, max] = [-NIGHT_CHILL_PER_HOUR * warmth.nightChill, 100];
-    else [rate, max] = [OUTDOOR_WARMING_PER_HOUR, DAY_TEMPERATURE];
+    else [rate, max] = [OUTDOOR_WARMING_PER_HOUR, warmth.day];
     if (!fire && !shelter) rate -= MOUNTAIN_CHILL_PER_HOUR * cold * warmth.mountainChill;
     if (wetHours > 0) rate = Math.min(rate, WET_WARMING_PER_HOUR);
     if (rate > 0) {
       if (t < max) t = Math.min(max, t + rate * hours); // a source never pushes you past its cap
-      else if (!fire && !shelter) t = Math.max(max, t - OUTDOOR_WARMING_PER_HOUR * hours); // daytime drifts down to 60
+      else if (!fire && !shelter) t = Math.max(max, t - OUTDOOR_WARMING_PER_HOUR * hours); // daytime drifts down to the day's warmth
     } else t += rate * hours;
     wetHours = Math.max(0, wetHours - hours);
   }

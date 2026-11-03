@@ -41,15 +41,16 @@ export class Pickups {
   }
 
   // Leaves `count` of `item` on the ground at (x, z). Returns false if that spot is in
-  // the lake (nothing is dropped there).
-  drop(item, count, x, z) {
+  // the lake (nothing is dropped there). `extra` is kept on the pile (a dropped backpack's
+  // `contents`), which then doesn't merge with another.
+  drop(item, count, x, z, extra = null) {
     if (this.world.terrain.waterDepth(x, z) > 0) return false;
-    const existing = this.find(item, x, z, MERGE_DISTANCE);
+    const existing = extra ? null : this.find(item, x, z, MERGE_DISTANCE);
     if (existing) {
       existing.count += count;
       return true;
     }
-    const pile = { item, count, x, z, radius: 0, object: null, icon: null, bob: Math.random() * 10 };
+    const pile = { item, count, x, z, radius: 0, object: null, icon: null, bob: Math.random() * 10, ...extra };
     this.grid.add(pile);
     this.world.grass.clear(x, z, 0.6);
     // Show it right away if it's near the player (e.g. something they just dropped).

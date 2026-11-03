@@ -31,10 +31,25 @@ export function respawnStones(spots, now, hasStone, restock, player) {
 // --- Bow and arrows ---
 export const BOW_DURABILITY = 30; // shots before the bow breaks
 export const ARROWS_PER_CRAFT = 3;
-export const ARROW_SPEED = 30; // meters per second
-export const ARROW_RANGE = 25; // meters an arrow flies before dropping (it's lost: no recovery in v1)
+// Hold the mouse button to draw the bow, and let go to shoot. The further you draw it, the
+// faster and further the arrow flies; it arcs to the spot you aimed at (if it's in range),
+// and lands there if it hits nothing. Arrows that miss can be picked up again.
+export const BOW_DRAW_TIME = 0.9; // seconds to draw the bow all the way
+export const BOW_MIN_DRAW = 0.25; // let go before this much draw and the arrow isn't loosed
+export const ARROW_SPEED = [12, 24]; // meters per second, from a light draw to a full one
+export const ARROW_RANGE = [8, 30]; // the furthest it flies, from a light draw to a full one
+export const ARROW_ARC = 0.05; // how high the arrow arcs, as a share of the distance
 export const ARROW_HIT_PADDING = 0.15; // added to an animal's radius, so near misses still count
-export const BOW_COOLDOWN = 0.8; // seconds between shots
+export const BOW_COOLDOWN = 0.5; // seconds after a shot before you can draw again
+
+// How fast and how far an arrow flies after drawing the bow `draw` (0–1) of the way.
+export function arrowFlight(draw) {
+  const t = Math.min(1, Math.max(0, (draw - BOW_MIN_DRAW) / (1 - BOW_MIN_DRAW)));
+  return {
+    speed: ARROW_SPEED[0] + (ARROW_SPEED[1] - ARROW_SPEED[0]) * t,
+    range: ARROW_RANGE[0] + (ARROW_RANGE[1] - ARROW_RANGE[0]) * t,
+  };
+}
 
 // --- Animals ---
 // Distance at which an animal notices the player and bolts, standing up / crouching.

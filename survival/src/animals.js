@@ -3,6 +3,7 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { createRandom } from './random.js';
+import { CRASH } from './crashTrail.js';
 import {
   BOAR_ATTACK_COOLDOWN, BOAR_ATTACK_REACH, BOAR_CALM_DISTANCE, BOAR_CHARGE_SPEED, BOAR_COUNT,
   BOAR_DAMAGE, BOAR_WALK_SPEED, chargeDistance, fleeDistance,
@@ -56,6 +57,16 @@ const KINDS = {
 const SPAWN_DISTANCE = [25, 90];
 const WANDERED_OFF = 130;
 const RESPAWN_TIME = 60; // seconds before a caught animal is replaced
+// A killed animal stumbles on (if it was running) for STUMBLE_TIME seconds; its legs stop and
+// it starts to fall at FALL_START, and lies on its side FALL_TIME seconds later.
+const STUMBLE_TIME = 0.7;
+const FALL_START = 0.35;
+const FALL_TIME = 0.8;
+const RETRY_TIME = 5; // seconds before trying again to place an animal that found no spot
+// Boars keep away from the crash, so you can get your bearings there in peace: none appear
+// within BOAR_SPAWN_CLEAR meters of it, and none go within BOAR_KEEP_OUT, even when charging.
+const BOAR_SPAWN_CLEAR = 160;
+const BOAR_KEEP_OUT = 130;
 const FADE_TIME = 0.2; // seconds to blend from one animation to the next
 const GRAZE_PACE = 0.12; // how quickly an animal switches between looking up and grazing
 
@@ -90,8 +101,11 @@ export class Animals {
 
   spawn(kind, playerPosition) {
     const config = KINDS[kind];
-    const spot = this.findSpot(playerPosition, config.radius);
-    if (!spot) return null;
+    const spot = this.findSpot(playerPosition, config.radius, kind);
+    if (!spot) {
+      this.respawns.push({ kind, timer: RETRY_TIME }); // (e.g. a boar, while you're at the crash)
+      return null;
+    }
 
     const object = new THREE.Group();
     const body = config.placeholder();
@@ -157,13 +171,47 @@ export class Animals {
     this.respawns.push({ kind: animal.kind, timer: RESPAWN_TIME });
   }
 
-  // Shot with an arrow: it drops where it stands, to be butchered (see carcassNear).
+  // Killed (by an arrow or the knife): it stumbles on a few steps if it was running, then its
+  // legs give way and it topples onto its side (see updateDying). Then it can be butchered.
   kill(animal) {
+    const running = animal.state === 'flee' || animal.state === 'charge';
     animal.dead = true;
     animal.state = 'dead';
-    if (animal.mixer) animal.mixer.stopAllAction();
-    animal.body.rotation.z = Math.PI / 2; // lying on its side
-    animal.body.position.y = animal.config.radius * 0.6;
+    animal.dying = 0; // seconds since it was killed
+    animal.dyingSpeed = running ? animal.config.fleeSpeed * 0.7 : 0.6;
+  }
+
+  updateDying(animal, dt) {
+    animal.dying += dt;
+    const t = animal.dying;
+    // Carries on a little way, slowing down.
+    const speed = animal.dyingSpeed * Math.max(0, 1 - t / STUMBLE_TIME);
+    const step = speed * dt;
+    const nx = animal.position.x + Math.sin(animal.facing) * step;
+    const nz = animal.position.z + Math.cos(animal.facing) * step;
+    if (step > 0 && this.isFree(nx, nz, animal.radius)) {
+      animal.position.x = nx;
+      animal.position.z = nz;
+      animal.position.y = this.world.terrain.heightAt(nx, nz);
+      animal.object.position.copy(animal.position);
+    }
+    // Its legs slow and stop...
+    if (animal.mixer) {
+      animal.mixer.timeScale = Math.max(0, 1 - t / FALL_START);
+      animal.mixer.update(dt);
+    }
+    // ...then it falls over, slowly at first and faster as it goes (like falling under its weight).
+    const f = Math.min(1, Math.max(0, (t - FALL_START) / FALL_TIME));
+    const eased = f * f;
+    animal.body.rotation.z = (Math.PI / 2) * eased; // onto its side
+    animal.body.position.y = animal.config.radius * 0.6 * eased;
+    if (f === 1) {
+      animal.dying = null;
+      if (animal.mixer) {
+        animal.mixer.stopAllAction();
+        animal.mixer.timeScale = 1;
+      }
+    }
   }
 
   // The nearest shot animal within `reach` of (x, z), or null.
@@ -178,7 +226,10 @@ export class Animals {
   }
 
   update(dt, playerPosition, sneaking) {
-    for (const animal of this.all) if (!animal.dead) this.updateAnimal(animal, dt, playerPosition, sneaking);
+    for (const animal of this.all) {
+      if (!animal.dead) this.updateAnimal(animal, dt, playerPosition, sneaking);
+      else if (animal.dying != null) this.updateDying(animal, dt);
+    }
     // (Rabbits drawn to a set trap stay, so traps keep working while you're away.)
     const lures = this.lures();
     for (const animal of [...this.all]) {
@@ -248,7 +299,7 @@ export class Animals {
       // If the way is blocked, try veering left or right.
       for (const angle of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8]) {
         const step = direction.clone().rotateAround(new THREE.Vector2(), angle).multiplyScalar(speed * dt);
-        if (this.isFree(position.x + step.x, position.z + step.y, config.radius)) {
+        if (this.isFree(position.x + step.x, position.z + step.y, config.radius, animal.kind)) {
           position.x += step.x;
           position.z += step.y;
           this.turnToward(animal, Math.atan2(step.x, step.y), dt);
@@ -288,7 +339,7 @@ export class Animals {
       const distance = this.random.range(config.wanderRange * 0.3, config.wanderRange);
       const x = position.x + Math.cos(angle) * distance;
       const z = position.z + Math.sin(angle) * distance;
-      if (this.isFree(x, z, config.radius)) {
+      if (this.isFree(x, z, config.radius, animal.kind)) {
         animal.state = 'wander';
         animal.target = { x, z };
         return;
@@ -327,30 +378,32 @@ export class Animals {
     if (head) head.rotation.x = moving ? 0 : Math.max(0, Math.sin(animal.gait * 0.7)) * 0.9; // nibbling
   }
 
-  // Somewhere on dry land, clear of trees and rocks and inside the map.
-  isFree(x, z, radius) {
+  // Somewhere on dry land, clear of trees and rocks and inside the map (and for a boar, away
+  // from the crash).
+  isFree(x, z, radius, kind = null, keepOut = BOAR_KEEP_OUT) {
     const limit = this.world.size / 2 - 1;
     if (Math.abs(x) > limit || Math.abs(z) > limit) return false;
+    if (kind === 'boar' && Math.hypot(x - CRASH.x, z - CRASH.z) < keepOut) return false;
     if (this.world.terrain.waterDepth(x, z) > 0.05) return false;
     return this.world.obstacles.isClear(x, z, radius);
   }
 
   // Somewhere free in a ring around the player (see SPAWN_DISTANCE).
-  findSpot(playerPosition, radius) {
+  findSpot(playerPosition, radius, kind) {
     for (let tries = 0; tries < 200; tries++) {
       const angle = this.random.range(0, Math.PI * 2);
       const distance = this.random.range(...SPAWN_DISTANCE);
       const x = playerPosition.x + Math.cos(angle) * distance;
       const z = playerPosition.z + Math.sin(angle) * distance;
-      if (this.isFree(x, z, radius + 0.5)) return { x, z };
+      if (this.isFree(x, z, radius + 0.5, kind, BOAR_SPAWN_CLEAR)) return { x, z };
     }
     return null;
   }
 
   // Moves an animal the player has left far behind to somewhere new around them.
   relocate(animal, playerPosition) {
-    const spot = this.findSpot(playerPosition, animal.radius);
-    if (!spot) return;
+    const spot = this.findSpot(playerPosition, animal.radius, animal.kind);
+    if (!spot) return; // (stays where it is for now)
     animal.position.set(spot.x, 0, spot.z);
     this.rest(animal);
   }

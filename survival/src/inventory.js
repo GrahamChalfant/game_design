@@ -33,15 +33,18 @@ export const ITEMS = {
   cookedMeat: { name: 'Cooked meat', stack: 10 },
   // Made from wood; light it at a burning campfire (#94).
   torch: { name: 'Torch', stack: 5 },
-  // Lights up the dark around you. Burns down whether you hold it or not: the in-game
-  // minutes it has left are kept on its slot as `burn`.
+  // Lights up the dark around you. Burns down only while you hold it: the in-game minutes
+  // it has left are kept on its slot as `burn`.
   litTorch: { name: 'Lit torch', stack: 1, burns: TORCH_MINUTES },
   // Carry it to see which way you're facing, and which way the crash is (#94).
   compass: { name: 'Compass', stack: 1 },
   // Press M to look at it (#94). Sometimes found in the fire lookout tower's supply crate.
   map: { name: 'Map', stack: 1 },
-  // Warm hides to wear over your coat (#88). Select it and click to put it on.
-  parka: { name: 'Hide parka', stack: 1 },
+  // Clothes: select one and click to put it on (what you had on goes back in your bag).
+  // Your own jacket, packed in a suitcase: you come to in just a shirt.
+  jacket: { name: 'Red jacket', stack: 1, wear: true },
+  // Warm hides, warmer still (#88).
+  parka: { name: 'Hide parka', stack: 1, wear: true },
   // Not kept in a slot: picking it up unlocks the backpack's slots.
   backpack: { name: 'Backpack', stack: 1 },
 };
@@ -59,13 +62,25 @@ export class Inventory {
     this.selected = 0;
     // You start with nothing: the axe and backpack are found at the crash site.
     this.hasBackpack = false;
-    this.outfit = null; // what you're wearing over your coat ('parka'), or null
+    this.outfit = null; // what you're wearing over your shirt ('jacket' or 'parka'), or null
     this.found = new Set(); // every item picked up this game, even if it's since been used
   }
 
   // Slots you can currently put things in: just the hotbar until you find the backpack.
   get usableSlots() {
     return this.hasBackpack ? this.slots.length : HOTBAR_SIZE;
+  }
+
+  // Puts the backpack on, with `contents` (its slots, from taking it off) inside.
+  putOnBackpack(contents = null) {
+    this.hasBackpack = true;
+    contents?.forEach((slot, i) => (this.slots[HOTBAR_SIZE + i] = slot));
+  }
+
+  // Takes the backpack off. Returns what's in it (its slots), which stays inside.
+  takeOffBackpack() {
+    this.hasBackpack = false;
+    return this.slots.splice(HOTBAR_SIZE, BACKPACK_SIZE, ...Array(BACKPACK_SIZE).fill(null));
   }
 
   // The item in the selected slot ('axe', 'wood', ...), or null.
@@ -117,11 +132,12 @@ export class Inventory {
     }
   }
 
-  // Lit torches burn down by `minutes` (in-game). Returns how many burned out.
+  // The lit torch in your hand burns down by `minutes` (in-game); tucked away in your
+  // inventory, it keeps. Returns how many burned out.
   burnTorches(minutes) {
     let out = 0;
     this.slots.forEach((slot, i) => {
-      if (slot?.item !== 'litTorch') return;
+      if (slot?.item !== 'litTorch' || i !== this.selected) return;
       slot.burn -= minutes;
       if (slot.burn > 0) return;
       this.slots[i] = null;

@@ -243,8 +243,18 @@ const MODELS = {
 
   shelter: () => placeholders.shelter().rotateY(0.5),
 
-  // The red coat the player wears (shown in the character panel's Outfit slot).
-  outfit: () => {
+  // The plain shirt you wear until you find something warmer (the empty Outfit slot).
+  shirt: () => {
+    const cloth = flat(0x8d9aa6);
+    const body = mesh(new THREE.BoxGeometry(0.72, 0.85, 0.32), cloth, [0, 0.45, 0]);
+    const sleeves = [-1, 1].map((s) => mesh(new THREE.BoxGeometry(0.2, 0.36, 0.24), cloth, [s * 0.45, 0.72, 0], [0, 0, s * 0.5]));
+    const collar = mesh(new THREE.BoxGeometry(0.3, 0.08, 0.3), flat(0x6f7c88), [0, 0.9, 0]);
+    const buttons = [0.25, 0.45, 0.65].map((y) => mesh(new THREE.BoxGeometry(0.05, 0.05, 0.02), flat(0xe0e0d8), [0, y, 0.17]));
+    return group(body, ...sleeves, collar, ...buttons);
+  },
+
+  // Your red jacket, found in a suitcase at the crash.
+  jacket: () => {
     const red = flat(0xb5432f);
     const dark = flat(0x8a3324);
     const body = mesh(new THREE.BoxGeometry(0.8, 1, 0.4), red, [0, 0.5, 0]);

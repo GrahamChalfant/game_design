@@ -192,6 +192,10 @@ canvas {
   color: #e8c547;
 }
 
+.stat.freezing {
+  animation: pulse 0.8s ease-in-out infinite alternate;
+}
+
 .stat.danger {
   color: #e0442f;
   animation: pulse 0.8s ease-in-out infinite alternate;
@@ -475,6 +479,9 @@ canvas {
 }
 
 .equip {
+  cursor: grab; /* drag it off the menu to take it off and drop it */
+  user-select: none;
+  touch-action: none;
   display: grid;
   place-items: center;
   gap: 2px;
@@ -637,7 +644,8 @@ canvas {
 }
 
 .slot.dragging .icon,
-.slot.dragging .count {
+.slot.dragging .count,
+.equip.dragging .icon {
   opacity: 0.25;
 }
 
@@ -801,6 +809,26 @@ canvas {
 }
 
 /* --- Sleeping: fade to black and back --- */
+
+/* A red flash round the edges of the screen when you're hurt. */
+#hurt {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 45%, rgb(170 10 10 / 0.55) 100%);
+  opacity: 0;
+  animation: hurt 0.6s ease-out;
+}
+
+@keyframes hurt {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
 
 #sleep {
   position: fixed;
