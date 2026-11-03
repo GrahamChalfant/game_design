@@ -17,6 +17,7 @@ const GRAVITY = 20;
 const JUMP_MAX_DEPTH = 0.3; // too deep in the water to jump beyond this
 const TOP_MARGIN = 0.1; // feet this close below the top of a rock or stump still clear it
 const TOP_OVERHANG = 0.25; // how far past a rock's edge the player can stand on it
+const STEP = 0.6; // the most you can step up or down onto a floor (stairs, the tower) without jumping
 const KNIFE_GRIP_OFFSET = 0.01; // nudge so the middle of knife.glb's handle (1 cm below its origin) sits in the fist
 const STAB_TIME = 0.25; // seconds a knife jab lasts
 const FADE_TIME = 0.15; // seconds to blend from one animation to the next
@@ -239,6 +240,9 @@ export class Player {
     // Space to jump (not while swimming or wading deep). The jump only lifts the body:
     // `position` stays on the ground, so the camera doesn't bob.
     this.standingHeight = this.heightUnderfoot(world);
+    // Standing on something (not mid-jump), follow it up, or down a step, so walking down
+    // stairs doesn't turn into a string of little falls. Anything further down, you fall.
+    if (this.jumpSpeed === 0 && this.jumpHeight - this.standingHeight <= STEP) this.jumpHeight = this.standingHeight;
     if (input.wasPressed('Space') && !this.airborne && depth < JUMP_MAX_DEPTH) this.jumpSpeed = JUMP_SPEED;
     if (this.jumpSpeed !== 0 || this.airborne) {
       this.jumpSpeed -= GRAVITY * dt;
@@ -309,7 +313,21 @@ export class Player {
       if (o.top === undefined || o.top > feet + TOP_MARGIN) continue;
       if (Math.hypot(o.x - this.position.x, o.z - this.position.z) < o.radius + TOP_OVERHANG) top = Math.max(top, o.top);
     }
+    // Floors in buildings (stairs, landings, the lookout's cab) you can step up onto.
+    for (const structure of world.structures) {
+      top = Math.max(top, structure.floorAt(this.position.x, this.position.z, feet + STEP));
+    }
     return top - this.position.y;
+  }
+
+  // The height the player's feet are at (on a floor or a rock, or in the air).
+  get feet() {
+    return this.position.y + this.jumpHeight;
+  }
+
+  // The height of what the player is standing on (ignoring jumps), for the camera.
+  get standingOn() {
+    return this.position.y + this.standingHeight;
   }
 
   tryMove(dx, dz, world) {
@@ -318,6 +336,8 @@ export class Player {
     const feet = this.position.y + this.jumpHeight;
     for (const o of world.obstacles.near(x, z, RADIUS)) {
       if (o.top !== undefined && feet >= o.top - TOP_MARGIN) continue; // high enough to pass over it
+      if (o.below !== undefined && feet >= o.below) continue; // only in the way lower down (the tower's legs)
+      if (o.above !== undefined && feet < o.above) continue; // only in the way higher up (the cab's walls)
       const distance = Math.hypot(o.x - x, o.z - z);
       // Moving away is always allowed, so landing against something can't trap the player.
       if (distance < o.radius + RADIUS && distance < Math.hypot(o.x - this.position.x, o.z - this.position.z)) return;

@@ -493,11 +493,19 @@ export function torch() {
 }
 
 // A fire lookout tower, about 15 m tall, base at the origin: four timber legs leaning in,
-// cross-braced on every storey, a zig-zag stair, and a cab with windows all round and a roof.
-export function lookoutTower() {
+// cross-braced on every storey, flights of stairs switching back between landings, and a cab
+// with windows all round and a roof. `layout` is TOWER in lookout.js: the stairs, landings
+// and floors here are where the player can walk. The cab's roof and windows are marked
+// `userData.roof`, so they can fade away while the player is inside.
+export function lookoutTower(layout) {
   const timber = material(0x6b4a32);
   const dark = material(0x54392a);
+  const plank = material(0x8a6a45);
   const group = new THREE.Group();
+  const add = (mesh) => {
+    group.add(mesh);
+    return mesh;
+  };
   // A square beam from a to b.
   const beam = (a, b, width, mat = timber) => {
     const from = new THREE.Vector3(...a);
@@ -505,45 +513,81 @@ export function lookoutTower() {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, from.distanceTo(to), width), mat);
     mesh.position.copy(from).add(to).multiplyScalar(0.5);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
-    group.add(mesh);
+    return add(mesh);
   };
-  const HEIGHT = 12;
-  const STOREYS = 4;
-  const spread = (y) => 2 - (y / HEIGHT) * 0.6; // the legs lean in as they rise
+  // A flat board: x from x0 to x1, z from z0 to z1, its top at height y.
+  const board = (x0, x1, z0, z1, y, mat = plank) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.1, z1 - z0), mat);
+    mesh.position.set((x0 + x1) / 2, y - 0.05, (z0 + z1) / 2);
+    return add(mesh);
+  };
+  const { storey, flights, stairEnd, lane, laneHalf, landing, cab, cabFloor } = layout;
+  const spread = (y) => 2 - (y / cabFloor) * 0.6; // the legs lean in as they rise
   const corners = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
-  for (const [sx, sz] of corners) beam([sx * 2, 0, sz * 2], [sx * spread(HEIGHT), HEIGHT, sz * spread(HEIGHT)], 0.26);
-  for (let i = 0; i < STOREYS; i++) {
-    const y0 = (i / STOREYS) * HEIGHT;
-    const y1 = ((i + 1) / STOREYS) * HEIGHT;
-    const s0 = spread(y0);
-    const s1 = spread(y1);
+  for (const [sx, sz] of corners) beam([sx * 2, 0, sz * 2], [sx * spread(cabFloor), cabFloor, sz * spread(cabFloor)], 0.26);
+  for (let i = 0; i < flights; i++) {
+    const y0 = i * storey;
+    const y1 = y0 + storey;
     corners.forEach(([ax, az], k) => {
       const [bx, bz] = corners[(k + 1) % 4];
+      const [s0, s1] = [spread(y0), spread(y1)];
       // A crossbar at the top of the storey, and an X across each side.
       beam([ax * s1, y1, az * s1], [bx * s1, y1, bz * s1], 0.14);
       beam([ax * s0, y0 + 0.2, az * s0], [bx * s1, y1, bz * s1], 0.09, dark);
       beam([bx * s0, y0 + 0.2, bz * s0], [ax * s1, y1, az * s1], 0.09, dark);
     });
-    // A flight of stairs zig-zagging up through the middle.
-    const side = i % 2 ? 1 : -1;
-    beam([side * 0.9, y0, -1.1], [-side * 0.9, y1, 1.1], 0.5, dark);
+    // The flight of stairs: a sloping board with treads, and a handrail.
+    const z = i % 2 ? lane : -lane;
+    const [from, to] = i % 2 ? [stairEnd, -stairEnd] : [-stairEnd, stairEnd];
+    const run = to - from;
+    const slope = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(run, storey), 0.08, laneHalf * 2), dark);
+    slope.position.set((from + to) / 2, y0 + storey / 2 - 0.06, z);
+    slope.rotation.z = Math.atan2(storey, run);
+    add(slope);
+    for (let t = 0; t < 1; t += 1 / 12) {
+      const tread = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, laneHalf * 2), plank);
+      tread.position.set(from + run * (t + 1 / 24), y0 + storey * (t + 1 / 24), z);
+      add(tread);
+    }
+    const rail = z + Math.sign(z) * laneHalf;
+    beam([from, y0 + 0.9, rail], [to, y1 + 0.9, rail], 0.05);
+    // A landing at the top of every flight but the last.
+    if (i < flights - 1) {
+      const side = Math.sign(to);
+      board(Math.min(side * stairEnd, side * landing), Math.max(side * stairEnd, side * landing), -1, 1, y1);
+    }
   }
-  // The cab: a floor, posts, a waist-high wall, windows and a pyramid roof.
-  const CAB = 1.9;
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(CAB * 2 + 0.4, 0.2, CAB * 2 + 0.4), timber);
-  floor.position.y = HEIGHT + 0.1;
-  group.add(floor);
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(CAB * 2, 1, CAB * 2), material(0x8a6a45));
-  wall.position.y = HEIGHT + 0.7;
-  const glass = new THREE.Mesh(new THREE.BoxGeometry(CAB * 2 - 0.1, 1.2, CAB * 2 - 0.1), material(0x2a3a44, 0.2));
-  glass.position.y = HEIGHT + 1.8;
-  group.add(wall, glass);
-  for (const [sx, sz] of corners) beam([sx * CAB, HEIGHT + 0.2, sz * CAB], [sx * CAB, HEIGHT + 2.5, sz * CAB], 0.16);
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(CAB * 1.75, 1.5, 4), material(0x5a5148));
+  // The cab floor, with a hatch where the last flight comes up.
+  const top = flights % 2 ? lane : -lane; // (the last flight's lane)
+  const wide = cab + 0.2;
+  board(-wide, wide, -wide, top - laneHalf, cabFloor);
+  board(-wide, wide, top + laneHalf, wide, cabFloor);
+  board(-wide, -stairEnd, top - laneHalf, top + laneHalf, cabFloor);
+  board(stairEnd, wide, top - laneHalf, top + laneHalf, cabFloor);
+  // Waist-high walls, then windows and a roof (which fade while you're inside).
+  const wallMat = material(0x8a6a45);
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x2a3a44, roughness: 0.2, transparent: true, opacity: 0.55 });
+  for (const [w, d, x, z] of [[cab * 2, 0.08, 0, cab], [cab * 2, 0.08, 0, -cab], [0.08, cab * 2, cab, 0], [0.08, cab * 2, -cab, 0]]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), wallMat);
+    wall.position.set(x, cabFloor + 0.5, z);
+    add(wall);
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(w, 1.2, d), glassMat);
+    glass.position.set(x, cabFloor + 1.6, z);
+    glass.userData.roof = true;
+    add(glass);
+  }
+  for (const [sx, sz] of corners) {
+    beam([sx * cab, cabFloor, sz * cab], [sx * cab, cabFloor + 2.3, sz * cab], 0.16).userData.roof = true;
+  }
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(cab * 1.75, 1.5, 4), material(0x5a5148));
   roof.rotation.y = Math.PI / 4;
-  roof.position.y = HEIGHT + 3.2;
-  group.add(roof);
-  group.traverse((child) => (child.castShadow = child.receiveShadow = true));
+  roof.position.y = cabFloor + 3;
+  roof.userData.roof = true;
+  add(roof);
+  group.traverse((child) => {
+    child.castShadow = true;
+    child.receiveShadow = true;
+  });
   return group;
 }
 

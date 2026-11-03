@@ -8,7 +8,7 @@ import { Trees } from './trees.js';
 import { stoneSpots } from './hunting.js';
 import { CRASH, trailPoint } from './crashTrail.js';
 import { SpatialGrid } from './grid.js';
-import { LOOKOUT, chooseLookout, lookoutObstacles } from './lookout.js';
+import { LOOKOUT, chooseLookout, lookoutObstacles, lookoutStructure } from './lookout.js';
 
 // Meters across; the playable area is a square centred on the crash, at 0,0. Only the chunks
 // around the player are drawn (see stream.js), so a big map costs little more than a small one.
@@ -77,7 +77,18 @@ export function buildWorld(scene, seed) {
   const obstacles = new SpatialGrid();
   // The fire lookout tower goes first, so trees and rocks keep clear of it.
   const lookout = chooseLookout(createRandom(mapSeed + 11), terrain, WORLD_SIZE);
-  for (const o of lookoutObstacles(lookout)) obstacles.add(o);
+  // Its foot is at the lowest ground under it, so the stairs start at (or below) the ground
+  // and you can always step onto them. (The legs reach down into the ground elsewhere.)
+  lookout.base = Math.min(
+    ...[[0, 0], [-2.2, -0.55], [2, 2], [2, -2], [-2, 2], [-2, -2]].map(([lx, lz]) => {
+      const c = Math.cos(lookout.heading);
+      const s = Math.sin(lookout.heading);
+      return terrain.heightAt(lookout.x + lx * c + lz * s, lookout.z - lx * s + lz * c);
+    }),
+  ) - 0.1;
+  for (const o of lookoutObstacles(lookout, lookout.base)) obstacles.add(o);
+  // Buildings you can walk up into: each has floorAt(x, z, maxY) and roofOver(x, z, feet).
+  const structures = [lookoutStructure(lookout, lookout.base)];
   const isFree = (x, z, spacing) =>
     Math.hypot(x, z) > CRASH_CLEARING &&
     Math.hypot(x - lookout.x, z - lookout.z) > LOOKOUT.clearing &&
@@ -175,6 +186,7 @@ export function buildWorld(scene, seed) {
     grass,
     stones,
     lookout,
+    structures,
     size: WORLD_SIZE,
     spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),
     // Builds what's around (x, z) right away, e.g. after the player jumps back to the start.

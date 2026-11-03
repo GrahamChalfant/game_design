@@ -223,22 +223,32 @@ function updateCompass() {
 }
 
 // --- Top-down camera that follows the player ---
-let zoom = 20; // distance from the player
+let zoom = 20; // distance from the player (scroll to change it)
+let shownZoom = zoom; // eases towards the zoom it should be at
+const INSIDE_ZOOM = 10; // closer in while you're inside a building
 const CAMERA_ANGLE = THREE.MathUtils.degToRad(55); // 90 = straight down
 const cameraTarget = player.position.clone();
+const cameraGoal = new THREE.Vector3();
 
 function updateCamera(dt) {
   zoom = THREE.MathUtils.clamp(zoom + input.scroll * 0.02, 8, 40);
-  cameraTarget.lerp(player.position, Math.min(1, dt * 6));
+  // Inside a roofed building (like the lookout's cab), zoom in and see through the roof.
+  const { x, z } = player.position;
+  const inside = world.structures.some((structure) => structure.roofOver(x, z, player.feet));
+  lookout.update(dt, inside);
+  shownZoom += ((inside ? Math.min(zoom, INSIDE_ZOOM) : zoom) - shownZoom) * Math.min(1, dt * 4);
+  // Follow the player up stairs and onto rocks (but not their jumps, so it doesn't bob).
+  cameraGoal.set(x, player.standingOn, z);
+  cameraTarget.lerp(cameraGoal, Math.min(1, dt * 6));
   camera.position.set(
     cameraTarget.x,
-    cameraTarget.y + Math.sin(CAMERA_ANGLE) * zoom,
-    cameraTarget.z + Math.cos(CAMERA_ANGLE) * zoom,
+    cameraTarget.y + Math.sin(CAMERA_ANGLE) * shownZoom,
+    cameraTarget.z + Math.cos(CAMERA_ANGLE) * shownZoom,
   );
   camera.lookAt(cameraTarget);
 
   // Keep the player visible through any trees in the way.
-  updateSeeThrough(camera, renderer, player.position.clone().setY(player.position.y + 1));
+  updateSeeThrough(camera, renderer, player.position.clone().setY(player.feet + 1));
 
 }
 
@@ -292,7 +302,7 @@ renderer.setAnimationLoop(() => {
   mapView.update(inventory.count('map') > 0);
   mapView.draw({ player, lookout, campfires, shelters });
   // Keep the speech bubble above the player's head.
-  speechPoint.copy(player.position).setY(player.position.y + 2.1).project(camera);
+  speechPoint.copy(player.position).setY(player.feet + 2.1).project(camera);
   hud.placeSpeech((speechPoint.x * 0.5 + 0.5) * innerWidth, (-speechPoint.y * 0.5 + 0.5) * innerHeight);
 
   player.update(dt, input, world);
