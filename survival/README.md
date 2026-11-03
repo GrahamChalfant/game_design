@@ -53,6 +53,7 @@ automatically whenever you save a file.
 | E (at a trap) | Take the catch, or pick up an empty trap |
 | E (next to something on the ground) | Pick it up |
 | Tab or I | Open or close your character, inventory and crafting (drag items to move them, or off the menu to drop them) |
+| M | Look at your map, once you've found one |
 | Mouse wheel / trackpad scroll | Zoom in and out |
 | Esc | Pause and show the controls (also closes the inventory) |
 
@@ -65,6 +66,12 @@ plane. It's just out of sight, so head north to find it. The plane came down bes
 so water is never far away. Your axe and backpack were thrown
 clear in the crash: look around the wreckage (they have floating icons) and press E to
 pick them up. The backpack gives you 12 extra slots.
+
+Somewhere on high ground, a few hundred meters from the crash, stands a fire lookout tower.
+Hold E at the supply crate at its foot to search it: on most maps (about 3 in 5) there's a map
+inside. Press M to look at it: it shows the whole area (lakes, the river, woods, the mountains
+and the lookout), where you are, the crash, your campfires and shelters, and a pale trail over
+the ground you've already covered. Climbing the tower is coming later.
 
 Your compass fell out of your pocket a couple of steps north of where you start (E to pick it
 up). While you carry it, a compass strip at the top of the screen shows which way you're facing,
@@ -188,6 +195,9 @@ src/arrows.js         Arrows in flight
 sim/hunting-sim.mjs   Node check of the hunting rules: node sim/hunting-sim.mjs
 src/pickups.js        Items lying on the ground
 src/wreck.js          The crashed plane at the start, and where the starting items lie
+src/lookout.js        The fire lookout tower: where it stands, and its supply crate
+src/mapView.js        The map you can find (M): the whole area, markers and where you've been
+src/outfits.js        What you can wear over your coat, and how it looks on you
 src/crashTrail.js     The skid marks behind the plane: where they run and how they cut the ground
 src/crafting.js       Crafting recipes (add new ones here)
 src/characterView.js  The close-up of your character in the inventory (drag it to turn them)
@@ -240,6 +250,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink`, `jump` and `die`. | ~1.8 m tall |
 | `birch.glb` | Birch: thin, pale trunk with dark marks and a narrow crown. Most of the forest is birch | ~8 m tall |
 | `pine.glb` | Tall conifer mixed into the forests | ~9 m tall |
+| `lookout.glb` | The fire lookout tower: four timber legs, stairs, and a cab with windows on top | ~15 m tall, ~4 m across at the foot |
 | `pine-small.glb` | Young pine | ~3.5 m tall |
 | `pine-skinny.glb` | Narrow pine | ~10 m tall, ~2 m across |
 | `pine-tall.glb` | Big old pine | ~14 m tall |

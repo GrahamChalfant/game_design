@@ -8,6 +8,7 @@ import { Trees } from './trees.js';
 import { stoneSpots } from './hunting.js';
 import { CRASH, trailPoint } from './crashTrail.js';
 import { SpatialGrid } from './grid.js';
+import { LOOKOUT, chooseLookout, lookoutObstacles } from './lookout.js';
 
 // Meters across; the playable area is a square centred on the crash, at 0,0. Only the chunks
 // around the player are drawn (see stream.js), so a big map costs little more than a small one.
@@ -74,8 +75,12 @@ export function buildWorld(scene, seed) {
 
   // Obstacles are circles on the ground the player can't walk into: { x, z, radius }.
   const obstacles = new SpatialGrid();
+  // The fire lookout tower goes first, so trees and rocks keep clear of it.
+  const lookout = chooseLookout(createRandom(mapSeed + 11), terrain, WORLD_SIZE);
+  for (const o of lookoutObstacles(lookout)) obstacles.add(o);
   const isFree = (x, z, spacing) =>
     Math.hypot(x, z) > CRASH_CLEARING &&
+    Math.hypot(x - lookout.x, z - lookout.z) > LOOKOUT.clearing &&
     Math.hypot(x - SPAWN.x, z - SPAWN.z) > SPAWN_CLEARING &&
     !terrain.nearWater(x, z, 2) &&
     !terrain.crashTrail.near(x, z, 2) &&
@@ -169,6 +174,7 @@ export function buildWorld(scene, seed) {
     trees,
     grass,
     stones,
+    lookout,
     size: WORLD_SIZE,
     spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),
     // Builds what's around (x, z) right away, e.g. after the player jumps back to the start.

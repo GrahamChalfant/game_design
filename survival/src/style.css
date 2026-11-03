@@ -30,6 +30,39 @@ canvas {
 
 /* --- Survival HUD --- */
 
+/* --- The map (#94) --- */
+
+#map {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+}
+
+#map .paper {
+  padding: 14px 14px 8px;
+  border-radius: 6px;
+  background: #e6d8b4;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.45);
+}
+
+#map canvas {
+  display: block;
+  width: min(560px, calc(100vh - 110px), calc(100vw - 60px));
+  aspect-ratio: 1;
+  border: 2px solid #8a7450;
+  /* A printed look: a little faded and warm. */
+  filter: sepia(0.3) saturate(0.85);
+}
+
+#map .hint {
+  margin: 6px 0 0;
+  color: #5a4a32;
+  font-size: 12px;
+  text-align: center;
+}
+
 /* --- Compass strip (#94): which way you're facing, and which way the crash is --- */
 
 #compass {

@@ -492,6 +492,87 @@ export function torch() {
   return group;
 }
 
+// A fire lookout tower, about 15 m tall, base at the origin: four timber legs leaning in,
+// cross-braced on every storey, a zig-zag stair, and a cab with windows all round and a roof.
+export function lookoutTower() {
+  const timber = material(0x6b4a32);
+  const dark = material(0x54392a);
+  const group = new THREE.Group();
+  // A square beam from a to b.
+  const beam = (a, b, width, mat = timber) => {
+    const from = new THREE.Vector3(...a);
+    const to = new THREE.Vector3(...b);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, from.distanceTo(to), width), mat);
+    mesh.position.copy(from).add(to).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
+    group.add(mesh);
+  };
+  const HEIGHT = 12;
+  const STOREYS = 4;
+  const spread = (y) => 2 - (y / HEIGHT) * 0.6; // the legs lean in as they rise
+  const corners = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
+  for (const [sx, sz] of corners) beam([sx * 2, 0, sz * 2], [sx * spread(HEIGHT), HEIGHT, sz * spread(HEIGHT)], 0.26);
+  for (let i = 0; i < STOREYS; i++) {
+    const y0 = (i / STOREYS) * HEIGHT;
+    const y1 = ((i + 1) / STOREYS) * HEIGHT;
+    const s0 = spread(y0);
+    const s1 = spread(y1);
+    corners.forEach(([ax, az], k) => {
+      const [bx, bz] = corners[(k + 1) % 4];
+      // A crossbar at the top of the storey, and an X across each side.
+      beam([ax * s1, y1, az * s1], [bx * s1, y1, bz * s1], 0.14);
+      beam([ax * s0, y0 + 0.2, az * s0], [bx * s1, y1, bz * s1], 0.09, dark);
+      beam([bx * s0, y0 + 0.2, bz * s0], [ax * s1, y1, az * s1], 0.09, dark);
+    });
+    // A flight of stairs zig-zagging up through the middle.
+    const side = i % 2 ? 1 : -1;
+    beam([side * 0.9, y0, -1.1], [-side * 0.9, y1, 1.1], 0.5, dark);
+  }
+  // The cab: a floor, posts, a waist-high wall, windows and a pyramid roof.
+  const CAB = 1.9;
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(CAB * 2 + 0.4, 0.2, CAB * 2 + 0.4), timber);
+  floor.position.y = HEIGHT + 0.1;
+  group.add(floor);
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(CAB * 2, 1, CAB * 2), material(0x8a6a45));
+  wall.position.y = HEIGHT + 0.7;
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(CAB * 2 - 0.1, 1.2, CAB * 2 - 0.1), material(0x2a3a44, 0.2));
+  glass.position.y = HEIGHT + 1.8;
+  group.add(wall, glass);
+  for (const [sx, sz] of corners) beam([sx * CAB, HEIGHT + 0.2, sz * CAB], [sx * CAB, HEIGHT + 2.5, sz * CAB], 0.16);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(CAB * 1.75, 1.5, 4), material(0x5a5148));
+  roof.rotation.y = Math.PI / 4;
+  roof.position.y = HEIGHT + 3.2;
+  group.add(roof);
+  group.traverse((child) => (child.castShadow = child.receiveShadow = true));
+  return group;
+}
+
+// A wooden supply crate, base at the origin, with a lid that hinges open at the back
+// (`userData.lid`: set its rotation.x to about -1.9 to open it).
+export function supplyCrate() {
+  const wood = material(0x8a6a45);
+  const band = material(0x54392a);
+  const group = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.55, 0.6), wood);
+  box.position.y = 0.275;
+  for (const x of [-0.35, 0.35]) {
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.57, 0.62), band);
+    strap.position.set(x, 0.275, 0);
+    group.add(strap);
+  }
+  const lid = new THREE.Group();
+  lid.position.set(0, 0.55, -0.3); // the hinge, along the back edge
+  const top = new THREE.Mesh(new THREE.BoxGeometry(0.97, 0.08, 0.62), wood);
+  top.position.set(0, 0.04, 0.3);
+  const stencil = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.01, 0.2), material(0xa83a2a));
+  stencil.position.set(0, 0.085, 0.3);
+  lid.add(top, stencil);
+  group.add(box, lid);
+  group.userData.lid = lid;
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
 // Axe held in the player's hand. The origin is where the hand grips the handle.
 export function axe() {
   const group = new THREE.Group();

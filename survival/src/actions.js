@@ -19,7 +19,7 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, aimPoint }) {
+export function createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, aimPoint }) {
   let cooking = 0;
   let searching = 0;
   let butchering = 0;
@@ -58,7 +58,9 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     const fire = campfires.near(x, z, 1.2);
     const trap = traps.near(x, z, 1.3);
     const pile = pickups.near(x, z, 1.3);
-    const container = wreck.near(x, z, 1.8);
+    // Somewhere to search: a suitcase at the wreck, or the lookout tower's supply crate.
+    const crate = lookout.near(x, z, 1.8);
+    const container = crate ?? wreck.near(x, z, 1.8);
     const carcass = animals.carcassNear(x, z, 1.8);
     let searchingNow = false;
     let butcheringNow = false;
@@ -163,7 +165,7 @@ export function createActions({ input, inventory, player, world, wreck, campfire
       if (searching >= SEARCH_TIME) {
         searching = 0;
         if (container.note) hud.toast(`You found ${container.note}`);
-        for (const [item, count] of wreck.search(container)) give(item, count, container.x, container.z);
+        for (const [item, count] of (crate ? lookout : wreck).search(container)) give(item, count, container.x, container.z);
       }
     } else if (!fire && trap) {
       // At a trap: E takes the catch out, or picks the empty trap back up.
@@ -237,6 +239,8 @@ export function createActions({ input, inventory, player, world, wreck, campfire
           hud.toast('You patch yourself up');
         }
       }
+    } else if (!fire && held === 'map') {
+      prompt = 'Press M to look at the map';
     } else if (!fire && held === 'torch') {
       prompt = 'Hold it at a burning campfire and click to light it';
     } else if (!fire && held === 'litTorch') {

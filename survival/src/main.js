@@ -20,6 +20,8 @@ import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
 import { Traps } from './traps.js';
 import { buildWreck, START_ITEMS } from './wreck.js';
+import { buildLookout } from './lookout.js';
+import { MapView } from './mapView.js';
 import { CRASH } from './crashTrail.js';
 import { GAME_MINUTES_PER_SECOND, Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
@@ -80,6 +82,8 @@ scene.add(sun, sun.target);
 const input = new Input(renderer.domElement);
 const world = buildWorld(scene, SEED);
 const wreck = buildWreck(scene, world);
+const lookout = buildLookout(scene, world);
+const mapView = new MapView(world);
 // Start south of the crashed plane, facing it (north) but just out of sight of it.
 const player = new Player(scene, world.spawn, WORLD_SIZE, Math.PI);
 const snow = new Snowfall(scene);
@@ -126,6 +130,8 @@ const hud = new Hud({
     pickups.reset();
     placeStartItems();
     wreck.reset();
+    lookout.reset();
+    mapView.reset();
     player.reset();
     world.drawAround(player.position.x, player.position.z);
     animals.reset(player.position);
@@ -173,7 +179,7 @@ const aimPoint = () => {
   aimRay.setFromCamera(aimNdc, camera);
   return aimRay.intersectObject(world.terrain.ground, true)[0]?.point ?? null;
 };
-const updateActions = createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, aimPoint });
+const updateActions = createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, aimPoint });
 
 // The player says things out loud when they're in trouble, in a speech bubble.
 // Each line is said at most once per evening/cold spell.
@@ -246,7 +252,11 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05); // avoid huge jumps after a tab switch
 
   // Menus and panels.
-  if (input.wasPressed('Escape')) hud.escape();
+  // Esc closes the map first, then the inventory, then opens or closes the pause menu.
+  if (input.wasPressed('Escape')) {
+    if (mapView.isOpen) mapView.close();
+    else hud.escape();
+  }
   if (hud.menuOpen) {
     // Paused: keep drawing the scene, but nothing moves or uses up time.
     hud.update(survival, inventory, { prompt: null });
@@ -264,6 +274,10 @@ renderer.setAnimationLoop(() => {
   }
   if (hud.inventoryOpen) characterView.update(dt, inventory.hasBackpack, inventory.outfit);
 
+  if (input.wasPressed('KeyM')) {
+    if (inventory.count('map') > 0) mapView.toggle();
+    else hud.toast("You don't have a map");
+  }
   const actions = updateActions(dt);
   player.wear(inventory.outfit);
   // Lit torches burn down, whether they're in your hand or not.
@@ -274,6 +288,9 @@ renderer.setAnimationLoop(() => {
   if (!survival.alive && player.alive) player.die();
   hud.update(survival, inventory, actions);
   updateCompass();
+  mapView.explore(player.position.x, player.position.z);
+  mapView.update(inventory.count('map') > 0);
+  mapView.draw({ player, lookout, campfires, shelters });
   // Keep the speech bubble above the player's head.
   speechPoint.copy(player.position).setY(player.position.y + 2.1).project(camera);
   hud.placeSpeech((speechPoint.x * 0.5 + 0.5) * innerWidth, (-speechPoint.y * 0.5 + 0.5) * innerHeight);

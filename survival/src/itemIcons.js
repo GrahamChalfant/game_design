@@ -91,6 +91,17 @@ const MODELS = {
     return group(body, top, wheel, flame(0.7).translateX(0.08).translateY(0.9)).rotateZ(-0.2);
   },
 
+  // A folded paper map, with a red route marked on it (#94).
+  map: () => {
+    const paper = flat(0xe6d8b4);
+    const fold = flat(0xcdbd94);
+    const panels = [-1, 0, 1].map((i) => mesh(new THREE.BoxGeometry(0.42, 0.02, 0.9), i === 0 ? fold : paper, [i * 0.42, Math.abs(i) * 0.06, 0], [0, 0, i * -0.15]));
+    const lake = mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 8), flat(0x4a7d9c), [-0.38, 0.09, 0.15]);
+    const hill = mesh(new THREE.ConeGeometry(0.14, 0.12, 5), flat(0x86877f), [0.4, 0.13, -0.2]);
+    const route = mesh(new THREE.BoxGeometry(0.75, 0.03, 0.04), flat(0xa83a2a), [0, 0.1, 0.05], [0, 0.35, 0]);
+    return group(...panels, lake, hill, route).rotateX(0.75);
+  },
+
   // A brass pocket compass, lid open, needle pointing north (#94).
   compass: () => {
     const brass = flat(0xc9a24a, 0.5);

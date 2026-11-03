@@ -1,0 +1,203 @@
+import { CRASH } from './crashTrail.js';
+
+// The map (#94): press M while you carry one. It's a printed map of the whole area: the
+// lakes, the river, the woods and the mountains, with the lookout tower marked. On it you can
+// see where you are, the crash, your campfires and shelters, and the ground you've already
+// covered, shaded in like a pencilled trail. Where you've been is remembered from the start
+// of the game, so a map found later already shows it.
+const PIXEL = 4; // meters per pixel of the map picture
+const CELL = 16; // meters per square of "explored" ground
+const SEEN = 48; // meters around you that count as explored
+const BUDGET_MS = 3; // the most time per frame spent drawing the map picture
+const PAPER = '#d9cba6';
+const TRAIL = 'rgba(255, 244, 214, 0.3)'; // a pale wash over the ground you've covered
+
+export class MapView {
+  constructor(world) {
+    this.world = world;
+    this.size = world.size;
+    this.pixels = Math.round(this.size / PIXEL);
+    this.cells = Math.ceil(this.size / CELL);
+    this.explored = new Uint8Array(this.cells * this.cells);
+
+    this.panel = document.getElementById('map');
+    this.canvas = this.panel.querySelector('canvas');
+    this.canvas.width = this.canvas.height = this.pixels;
+    this.ctx = this.canvas.getContext('2d');
+
+    // The land itself, drawn a few rows at a time once you have a map.
+    this.land = document.createElement('canvas');
+    this.land.width = this.land.height = this.pixels;
+    this.landCtx = this.land.getContext('2d');
+    this.image = this.landCtx.createImageData(this.pixels, this.pixels);
+    this.rowsDrawn = 0;
+    this.drawing = false;
+
+    // The ground you've covered, shaded in.
+    this.trail = document.createElement('canvas');
+    this.trail.width = this.trail.height = this.pixels;
+    this.trailCtx = this.trail.getContext('2d');
+    this.trailCtx.fillStyle = TRAIL;
+    this.reset();
+  }
+
+  get isOpen() {
+    return !this.panel.hidden;
+  }
+
+  toggle() {
+    this.panel.hidden = !this.panel.hidden;
+  }
+
+  close() {
+    this.panel.hidden = true;
+  }
+
+  // Marks the ground around (x, z) as explored. Cheap: call it every frame.
+  explore(x, z) {
+    const reach = Math.ceil(SEEN / CELL);
+    const cx = Math.floor((x + this.size / 2) / CELL);
+    const cz = Math.floor((z + this.size / 2) / CELL);
+    for (let i = cx - reach; i <= cx + reach; i++) {
+      for (let j = cz - reach; j <= cz + reach; j++) {
+        if (i < 0 || j < 0 || i >= this.cells || j >= this.cells) continue;
+        const k = j * this.cells + i;
+        if (this.explored[k]) continue;
+        const middleX = (i + 0.5) * CELL - this.size / 2;
+        const middleZ = (j + 0.5) * CELL - this.size / 2;
+        if (Math.hypot(middleX - x, middleZ - z) > SEEN) continue;
+        this.explored[k] = 1;
+        const p = CELL / PIXEL;
+        this.trailCtx.fillRect(i * p, j * p, p, p);
+      }
+    }
+  }
+
+  // Draws more of the map picture (once you have a map), a little each frame.
+  update(hasMap) {
+    if (hasMap) this.drawing = true;
+    if (!this.drawing || this.rowsDrawn >= this.pixels) return;
+    const { terrain } = this.world;
+    const data = this.image.data;
+    const deadline = performance.now() + BUDGET_MS;
+    const first = this.rowsDrawn;
+    while (this.rowsDrawn < this.pixels && performance.now() < deadline) {
+      const j = this.rowsDrawn++;
+      for (let i = 0; i < this.pixels; i++) {
+        const x = (i + 0.5) * PIXEL - this.size / 2;
+        const z = (j + 0.5) * PIXEL - this.size / 2;
+        let { r, g, b } = terrain.groundAt(x, z).color;
+        if (terrain.waterDepth(x, z) > 0) [r, g, b] = [0.29, 0.49, 0.61];
+        // Shade slopes facing away from the light (from the top left), so hills and
+        // mountains stand out.
+        const shade = (terrain.heightAt(x - 2, z - 2) - terrain.heightAt(x + 2, z + 2)) * 0.05;
+        const k = (j * this.pixels + i) * 4;
+        data[k] = (r + shade) * 255;
+        data[k + 1] = (g + shade) * 255;
+        data[k + 2] = (b + shade) * 255;
+        data[k + 3] = 255;
+      }
+    }
+    this.landCtx.putImageData(this.image, 0, 0, 0, first, this.pixels, this.rowsDrawn - first);
+  }
+
+  // Draws the open map: the land, the ground you've covered, and markers.
+  draw({ player, lookout, campfires, shelters }) {
+    if (!this.isOpen) return;
+    const ctx = this.ctx;
+    const at = (x) => (x + this.size / 2) / PIXEL;
+    ctx.fillStyle = PAPER;
+    ctx.fillRect(0, 0, this.pixels, this.pixels);
+    ctx.drawImage(this.land, 0, 0);
+    ctx.drawImage(this.trail, 0, 0);
+    if (this.rowsDrawn < this.pixels) {
+      ctx.fillStyle = '#5a4a32';
+      ctx.font = '10px sans-serif';
+      ctx.fillText(`Drawing the map… ${Math.round((this.rowsDrawn / this.pixels) * 100)}%`, 8, this.pixels - 8);
+    }
+
+    const label = (text, x, y) => {
+      ctx.font = 'bold 8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = 'rgba(240, 230, 205, 0.85)';
+      ctx.strokeText(text, x, y);
+      ctx.fillStyle = '#3a2a1a';
+      ctx.fillText(text, x, y);
+    };
+    // The lookout tower: a little tower shape.
+    {
+      const x = at(lookout.x);
+      const y = at(lookout.z);
+      ctx.fillStyle = '#3a2a1a';
+      ctx.beginPath();
+      ctx.moveTo(x - 3, y + 4);
+      ctx.lineTo(x - 1.5, y - 3);
+      ctx.lineTo(x + 1.5, y - 3);
+      ctx.lineTo(x + 3, y + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillRect(x - 3, y - 6, 6, 3);
+      label('Lookout', x, y + 12);
+    }
+    // The crash: a red cross.
+    {
+      const x = at(CRASH.x);
+      const y = at(CRASH.z);
+      ctx.strokeStyle = '#a83a2a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y - 4);
+      ctx.lineTo(x + 4, y + 4);
+      ctx.moveTo(x + 4, y - 4);
+      ctx.lineTo(x - 4, y + 4);
+      ctx.stroke();
+      label('Crash', x, y + 13);
+    }
+    // Your campfires (orange dots) and shelters (little roofs).
+    ctx.fillStyle = '#e8762a';
+    for (const fire of campfires.fires) {
+      ctx.beginPath();
+      ctx.arc(at(fire.x), at(fire.z), 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#6b4a32';
+    for (const shelter of shelters.all) {
+      const x = at(shelter.x);
+      const y = at(shelter.z);
+      ctx.beginPath();
+      ctx.moveTo(x - 3.5, y + 2.5);
+      ctx.lineTo(x, y - 3);
+      ctx.lineTo(x + 3.5, y + 2.5);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // You: an arrow pointing the way you're facing.
+    {
+      const x = at(player.position.x);
+      const y = at(player.position.z);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.PI - player.facing);
+      ctx.fillStyle = '#a83a2a';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(4, 4);
+      ctx.lineTo(0, 2);
+      ctx.lineTo(-4, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // Forgets where you've been, for a new game. (The map picture itself stays: it's the same map.)
+  reset() {
+    this.explored.fill(0);
+    this.trailCtx.clearRect(0, 0, this.pixels, this.pixels);
+    this.close();
+  }
+}
