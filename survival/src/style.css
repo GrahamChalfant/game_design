@@ -179,8 +179,23 @@ canvas {
   fill: currentColor;
 }
 
+.stat svg {
+  overflow: visible; /* (room for the outline) */
+}
+
+/* The used-up part of a stat: an outline over dark glass, so it reads the same over grass,
+   snow or the dark of a cave. */
 .stat .empty {
-  opacity: 0.3;
+  fill: rgb(20 30 40 / 0.55);
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-opacity: 0.85;
+  stroke-linejoin: round;
+}
+
+/* (The thermometer's tube is thin: a finer outline keeps the empty part showing.) */
+#stat-temperature .empty {
+  stroke-width: 0.6;
 }
 
 .stat .level {
