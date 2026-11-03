@@ -42,7 +42,7 @@ export class Arrows {
       const nz = arrow.z + arrow.dz * step;
       const hit = arrowHitTest(arrow.x, arrow.z, nx, nz, this.animals.all);
       // Trees and boulders stop arrows too.
-      const blocked = this.world.obstacles.some((o) => Math.hypot(o.x - nx, o.z - nz) < o.radius);
+      const blocked = !this.world.obstacles.isClear(nx, nz, 0);
       [arrow.x, arrow.z] = [nx, nz];
       arrow.travelled += step;
       this.place(arrow);

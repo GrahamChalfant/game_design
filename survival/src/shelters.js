@@ -18,7 +18,7 @@ export class Shelters {
   canBuildAt(x, z) {
     return (
       this.world.terrain.waterDepth(x, z) === 0 &&
-      this.world.obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + ROOM)
+      this.world.obstacles.isClear(x, z, ROOM)
     );
   }
 
@@ -48,7 +48,7 @@ export class Shelters {
       ...[-1.5, 1.5].flatMap((lx) => [-0.95, 0, 0.95].map((lz) => ({ ...toWorld(lx, lz), radius: 0.4 }))),
       { ...toWorld(0, -1.55), radius: 0.5 },
     ];
-    this.world.obstacles.push(...obstacles);
+    for (const o of obstacles) this.world.obstacles.add(o);
     this.all.push({ x, z, heading, object, obstacles });
   }
 
@@ -67,7 +67,7 @@ export class Shelters {
   reset() {
     for (const shelter of this.all) {
       this.scene.remove(shelter.object);
-      for (const o of shelter.obstacles) this.world.obstacles.splice(this.world.obstacles.indexOf(o), 1);
+      for (const o of shelter.obstacles) this.world.obstacles.remove(o);
     }
     this.all = [];
   }

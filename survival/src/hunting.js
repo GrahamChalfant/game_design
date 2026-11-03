@@ -6,7 +6,7 @@ export const STONE_AREA_PER_STONE = 400; // about 1 stone per this many square m
 export const STONE_CLUSTER_SIZE = [2, 4]; // stones lie in little groups of 2 to 4
 export const STONE_CLUSTER_SPREAD = 1.4; // meters between stones in a group
 export const STONE_STACK = 20;
-export const STONE_RESPAWN_MINUTES = 24 * 60; // a taken stone is back one in-game day later...
+export const STONE_RESPAWN_MINUTES = 3 * 24 * 60; // a taken stone is back three in-game days later...
 export const STONE_RESPAWN_CLEARANCE = 12; // ...unless you're standing this close to the spot
 
 // Brings stones back to spots that have been empty long enough. Each spot is { x, z } and

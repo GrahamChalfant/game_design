@@ -1,6 +1,6 @@
 # Northern Survival
 
-A top-down survival game set in a northern landscape of golden meadows, pine forests and
+A top-down survival game set in a northern landscape of golden meadows, open birch woods and
 lingering snow, built with [Three.js](https://threejs.org/). The goal is to see how long you can survive.
 
 Everything for this game lives in this `survival` folder. Ideas and planned features are tracked
@@ -53,6 +53,7 @@ automatically whenever you save a file.
 | E (at a trap) | Take the catch, or pick up an empty trap |
 | E (next to something on the ground) | Pick it up |
 | Tab or I | Open or close your character, inventory and crafting (drag items to move them, or off the menu to drop them) |
+| M | Look at your map, once you've found one |
 | Mouse wheel / trackpad scroll | Zoom in and out |
 | Esc | Pause and show the controls (also closes the inventory) |
 
@@ -61,9 +62,35 @@ automatically whenever you save a file.
 The game starts paused on a menu listing the controls. Press Esc at any time to see it again.
 
 You start hurt (35 health) and empty-handed, a short walk south of your crashed bush
-plane. It's just out of sight, so head north to find it. Your axe and backpack were thrown
+plane. It's just out of sight, so head north to find it. The plane came down beside a lake,
+so water is never far away. Your axe and backpack were thrown
 clear in the crash: look around the wreckage (they have floating icons) and press E to
 pick them up. The backpack gives you 12 extra slots.
+
+Somewhere on high ground, a few hundred meters from the crash, stands a fire lookout tower. Walk
+onto the stairs at its foot and follow the flights up past the landings to the cab, 12 m up: a
+6 m square room with the lookout's fire-finder table, a cot, a supply crate and a ranger's locker.
+Hold E at the crate or the locker to search it. On most maps (about 3 in 5) the crate has a map
+in it.
+
+A doorway leads out onto a balcony that runs all the way round the cab. Out there, binoculars
+stand on a pole by the railing: press E next to them to look through them. The view pulls way
+back so you can see far across the land. WASD looks around, scrolling zooms in and out, and E or
+Esc stops.
+
+Press M to look at the map: it shows the whole area (lakes, the river, woods, the mountains and
+the lookout), where you are, the crash, your campfires and shelters, and a pale trail over the
+ground you've already covered.
+
+Inside the cab, the camera moves in closer. Whenever part of the tower is between the camera and
+you (the roof, a wall or window, or the floor above you on the stairs), just that part turns
+see-through so you can always see yourself; everything else stays solid. Out on the balcony on
+the camera's side, nothing is in the way, so the tower looks as it always does.
+
+Your compass fell out of your pocket a couple of steps north of where you start (E to pick it
+up). While you carry it, a compass strip at the top of the screen shows which way you're facing,
+and an arrow under it points to the crash with how far away it is: handy for finding your way
+back on a big map. North is always up the screen.
 
 Suitcases were thrown out of the plane as it crashed: some lie around the wreck, and one lies
 back along the furrow the plane dug as it skidded in. Hold E next to a suitcase to search it.
@@ -81,8 +108,17 @@ Your stats are the icons at the bottom right. They're white, turn yellow when lo
 you're about to run out. Temperature falls at night and in the water, and rises near a burning
 fire. If it reaches zero, you start losing health.
 
+The land around the crash is open birch woods, meadows and lakes. In one corner of the map,
+a different one each game, is a big mountain range, about half a kilometer across: a rocky,
+spruce-wooded highland with snowy peaks standing on it. Spruce grow on the lower slopes, then
+scree and bare rock, then snow. The air gets
+colder the higher you climb: above the snowline you lose warmth even in the daytime, and you'll
+freeze in under a minute unless you have a fire or a shelter (or a hide parka: see below). The
+mountains are rocky, so they're a good place to find stones.
+
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
-you start losing health. Drink from the lake to stay hydrated. While you're well fed and
+you start losing health. Drink from a lake or the river to stay hydrated. There are lakes all
+over the map. While you're well fed and
 watered, your health slowly recovers. One in-game day lasts 10 real minutes.
 
 Days are long, like a northern summer: the sun rises around 05:00 and sets around 20:00.
@@ -107,7 +143,7 @@ place it on open ground. Stand next to it and press E to light it (you need the 
 A fire burns for 2 in-game hours; stand next to it and press E to add a log
 (1 more hour each). A fire that's gone out needs more wood (E) and lighting again.
 
-Rabbits and deer roam the map, but there aren't many of them. They graze and wander
+Rabbits and deer live around you wherever you go, but there aren't many of them. They graze and wander
 until you get too close, then bolt. Both run faster than you, and deer spook from much
 farther away (12 m standing, 5 m crouched), so you won't catch them by chasing. Press C to
 crouch: animals notice you much later.
@@ -121,7 +157,7 @@ Hides and intestines can be crafted into rope (intestines give 1 rope, a hide gi
 it (3 drinks), then click anywhere to take a drink. Bigger animals give more meat, hide and
 intestines.
 To hunt deer, make a bow. Stones lie in little groups by the rocks and the lake shore (press E
-to pick them up); a taken stone comes back a day later. A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
+to pick them up); a taken stone comes back three days later, so once you've picked an area clean you'll need to look further afield. A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
 (3 wood, 2 bowstrings), and once you hold a bow, arrows (1 wood and 1 stone make 3). Select the
 bow and click on the ground where you want to shoot: you turn and loose an arrow that way. One hit kills a deer or a rabbit; hold E next to
 it to butcher it (a deer takes 4 s and gives 6 raw meat, 2 hides and 2 intestines). The bow
@@ -130,6 +166,12 @@ Craft a shelter (20 wood, 6 rope, 4 hides), select it and click to build it a fe
 ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
+Nights are dark away from a fire. Craft a torch (2 wood), hold it at a burning campfire and click
+to light it. A lit torch lights up the ground around you and burns for 3 in-game hours (about 75
+real seconds), whether you hold it or not; its slot shows how long it has left.
+Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows in your Outfit
+slot, and on your character as a knee-length hide coat with a fur-trimmed hood. It keeps out most of the mountain cold, so you can climb up there by
+day, and halves the chill of a night outdoors. Nights up the mountains still need a fire.
 Hold raw meat at a burning fire and click and hold to cook it, then click away from
 the fire to eat. Eating meat raw works in a pinch, but it makes you sick.
 
@@ -148,7 +190,9 @@ index.html            Page shell and HUD
 src/main.js           Renderer, lighting, camera and the main game loop
 src/daylight.js       Day and night: the sun and moon, light colours, sky and fog
 src/world.js          Builds the map from a seed: places trees, rocks and grass
-src/terrain.js        The land: gentle hills, the lake, the river and the ground colours
+src/stream.js         Splits the map into chunks; only the ones around the player are drawn
+src/grid.js           Finds things near a spot quickly (trees, rocks, items on the ground)
+src/terrain.js        The land: hills, mountains, lakes, the river, the ground colours and how cold it is
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
 src/water.js          The lake and the flowing river, and ripples around the player
 src/grass.js          Swaying grass tufts
@@ -165,6 +209,10 @@ src/arrows.js         Arrows in flight
 sim/hunting-sim.mjs   Node check of the hunting rules: node sim/hunting-sim.mjs
 src/pickups.js        Items lying on the ground
 src/wreck.js          The crashed plane at the start, and where the starting items lie
+src/lookout.js        The fire lookout tower: where it stands, and its supply crate
+src/mapView.js        The map you can find (M): the whole area, markers and where you've been
+src/farView.js        A rough view of the whole map, shown while you look through the binoculars
+src/outfits.js        What you can wear over your coat, and how it looks on you
 src/crashTrail.js     The skid marks behind the plane: where they run and how they cut the ground
 src/crafting.js       Crafting recipes (add new ones here)
 src/characterView.js  The close-up of your character in the inventory (drag it to turn them)
@@ -180,7 +228,27 @@ src/random.js         Seeded random numbers and noise (same seed = same map)
 public/models/        3D models exported from Blender (.glb)
 ```
 
-To get a different map, change `SEED` in `src/main.js`.
+Every game is on a new map, grown from a random number (the seed). The map's seed is shown
+under the Play button and on the game-over screen, where **Try again** replays the same map and
+**New map** starts a fresh one. To play a particular map again, or share it, add its seed to the
+address, for example http://localhost:8000/?seed=479583. The wreck and the start are the same on
+every map; the lake is always beside the plane, on its open side, with the river flowing away.
+If a seed would put water where the crash or the start should be, the next seed in line is used
+instead (see `chooseTerrain` in `src/world.js`).
+
+The map is 1.4 km across (`WORLD_SIZE` in `src/world.js`), about 5 minutes' walk from edge to
+edge. Only the 32 m chunks around the player are drawn: the ground, grass, trees and rocks are
+built as you come near and dropped once you're well away, and items on the ground only get their
+3D objects within 70 m. Animals live in a ring around you, and ones you leave far behind turn up
+somewhere new around you. How thickly trees and rocks grow is set per hectare at the top of
+`src/world.js`, so changing the map's size keeps the same density.
+
+Each map has one mountain range, filling the corner the river doesn't run through, and about
+20 lakes around the lowlands. To change how many there are, how big and tall the mountains
+are, and where the snow and the cold start, edit `MOUNTAINS` and `LAKES` at the top of
+`src/terrain.js`. How fast the mountain cold chills you is `MOUNTAIN_CHILL_PER_HOUR` in
+`src/survival.js`. Which trees grow up the slopes, and where the treeline is, is at the top of
+`src/world.js`.
 
 ## Adding models from Blender
 
@@ -195,7 +263,9 @@ The next time you load the game, your model replaces the stand-in automatically.
 | File | What it is | Size |
 | --- | --- | --- |
 | `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink`, `jump` and `die`. | ~1.8 m tall |
-| `pine.glb` | Tall conifer that grows in the forests | ~9 m tall |
+| `birch.glb` | Birch: thin, pale trunk with dark marks and a narrow crown. Most of the forest is birch | ~8 m tall |
+| `pine.glb` | Tall conifer mixed into the forests | ~9 m tall |
+| `lookout.glb` | The fire lookout tower: four timber legs, stairs, and a cab with windows on top. The stairs, landings and cab floor need to match where the player can walk (`TOWER` in `src/lookout.js`), and meshes with `roof`, `wall`, `window`, `floor` or `stair` in their names turn see-through whenever they're between the camera and the player | ~15 m tall, ~4 m across at the foot |
 | `pine-small.glb` | Young pine | ~3.5 m tall |
 | `pine-skinny.glb` | Narrow pine | ~10 m tall, ~2 m across |
 | `pine-tall.glb` | Big old pine | ~14 m tall |

@@ -45,6 +45,57 @@ export function conifer() {
   return tree;
 }
 
+// Birch, about 8 m tall, base at the origin: a thin, pale trunk with dark bark marks and a
+// narrow, airy crown held up high, so you can see and walk between them.
+export function birch() {
+  const parts = [];
+  const bark = new THREE.Color(0xe4ddcc);
+  const mark = new THREE.Color(0x3a3430);
+  const trunk = new THREE.CylinderGeometry(0.09, 0.17, 6.6, 7, 22).translate(0, 3.3, 0);
+  // Dark horizontal marks (lenticels) in bands up the trunk, and a darker, rougher base.
+  paint(trunk, (x, y, z) => {
+    const band = Math.sin(y * 9.1 + Math.sin(Math.atan2(z, x) * 3) * 1.2) > 0.82;
+    return bark.clone().lerp(mark, y < 0.5 ? 0.6 : band ? 0.85 : 0);
+  });
+  parts.push(trunk);
+
+  // A couple of thin limbs reaching up into the crown.
+  for (const [angle, height] of [[0.6, 3.9], [2.6, 4.4], [4.4, 3.6]]) {
+    const limb = new THREE.CylinderGeometry(0.03, 0.05, 1.5, 5)
+      .translate(0, 0.75, 0)
+      .rotateZ(0.7)
+      .rotateY(angle)
+      .translate(0, height, 0);
+    paint(limb, () => bark.clone().lerp(mark, 0.3));
+    parts.push(limb);
+  }
+
+  // Small, loose clusters of light leaves, mostly in the top third.
+  const leaf = new THREE.Color(0x8ea84e);
+  const leafLight = new THREE.Color(0xb3bf62);
+  const clusters = [
+    [0, 7.2, 0, 0.95], [0.75, 6.4, 0.25, 0.75], [-0.7, 6.2, -0.2, 0.8], [0.2, 6.6, -0.75, 0.7],
+    [-0.25, 5.6, 0.7, 0.7], [0.9, 5.2, -0.5, 0.55], [-0.85, 4.9, 0.35, 0.55], [0.1, 8.0, 0.15, 0.6],
+  ];
+  clusters.forEach(([x, y, z, r], i) => {
+    const cluster = new THREE.IcosahedronGeometry(r, 1);
+    const position = cluster.attributes.position;
+    for (let v = 0; v < position.count; v++) {
+      position.setY(v, position.getY(v) * 0.8); // a little flattened
+    }
+    cluster.translate(x, y, z);
+    paint(cluster, (px, py) => leaf.clone().lerp(leafLight, Math.min(1, Math.max(0, (py - y) / r + 0.4)) * (0.6 + (i % 3) * 0.2)));
+    parts.push(cluster);
+  });
+
+  const tree = new THREE.Mesh(
+    mergeGeometries(parts.map((part) => (part.index ? part.toNonIndexed() : part))),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true }),
+  );
+  tree.castShadow = true;
+  return tree;
+}
+
 // Gives every vertex of `geometry` the colour returned by colorAt(x, y, z).
 function paint(geometry, colorAt) {
   const position = geometry.attributes.position;
@@ -424,6 +475,278 @@ export function flames() {
     chunk.userData.ember = true; // campfires.js leaves embers alone when it flickers the flames
     group.add(chunk);
   }
+  return group;
+}
+
+// A torch: a stick with a dark, pitch-soaked wrap at the top. The origin is where the hand
+// grips it; `userData.tip` is how far up the wrap's top is (where a flame goes).
+export function torch() {
+  const group = new THREE.Group();
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.03, 0.62, 7), material(0x6b4a32));
+  stick.position.y = 0.16;
+  const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.04, 0.13, 7), material(0x3a2a20));
+  wrap.position.y = 0.46;
+  group.add(stick, wrap);
+  group.traverse((child) => (child.castShadow = true));
+  group.userData.tip = 0.52;
+  return group;
+}
+
+// A fire lookout tower, about 15 m tall, base at the origin: four timber legs leaning in,
+// cross-braced on every storey, flights of stairs switching back between landings, and a cab
+// with windows all round and a roof. `layout` is TOWER in lookout.js: the stairs, landings
+// and floors here are where the player can walk. The cab's roof and windows are marked
+// `userData.roof`, so they can fade away while the player is inside.
+export function lookoutTower(layout) {
+  const timber = material(0x6b4a32);
+  const dark = material(0x54392a);
+  const plank = material(0x8a6a45);
+  const group = new THREE.Group();
+  const add = (mesh) => {
+    group.add(mesh);
+    return mesh;
+  };
+  // A square beam from a to b.
+  const beam = (a, b, width, mat = timber) => {
+    const from = new THREE.Vector3(...a);
+    const to = new THREE.Vector3(...b);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, from.distanceTo(to), width), mat);
+    mesh.position.copy(from).add(to).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize());
+    return add(mesh);
+  };
+  // A flat board: x from x0 to x1, z from z0 to z1, its top at height y.
+  const board = (x0, x1, z0, z1, y, mat = plank) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.1, z1 - z0), mat);
+    mesh.position.set((x0 + x1) / 2, y - 0.05, (z0 + z1) / 2);
+    mesh.userData.floor = true; // fades when it's between the camera and the player
+    return add(mesh);
+  };
+  const { storey, flights, stairEnd, lane, laneHalf, landing, landingHalf, cab, balcony, door, cabFloor, legSpread } = layout;
+  const spread = (y) => legSpread - (y / cabFloor) * 0.6; // the legs lean in as they rise
+  const corners = [[1, 1], [1, -1], [-1, -1], [-1, 1]];
+  // (The legs reach a little below the foot, into the ground on a slope.)
+  for (const [sx, sz] of corners) beam([sx * legSpread, -1.5, sz * legSpread], [sx * spread(cabFloor), cabFloor, sz * spread(cabFloor)], 0.3);
+  for (let i = 0; i < flights; i++) {
+    const y0 = i * storey;
+    const y1 = y0 + storey;
+    corners.forEach(([ax, az], k) => {
+      const [bx, bz] = corners[(k + 1) % 4];
+      const [s0, s1] = [spread(y0), spread(y1)];
+      // A crossbar at the top of the storey, and an X across each side.
+      beam([ax * s1, y1, az * s1], [bx * s1, y1, bz * s1], 0.14);
+      beam([ax * s0, y0 + 0.2, az * s0], [bx * s1, y1, bz * s1], 0.09, dark);
+      beam([bx * s0, y0 + 0.2, bz * s0], [ax * s1, y1, az * s1], 0.09, dark);
+    });
+    // The flight of stairs: a sloping board with treads, and a handrail.
+    const z = i % 2 ? lane : -lane;
+    const [from, to] = i % 2 ? [stairEnd, -stairEnd] : [-stairEnd, stairEnd];
+    const run = to - from;
+    const slope = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(run, storey), 0.08, laneHalf * 2), dark);
+    slope.position.set((from + to) / 2, y0 + storey / 2 - 0.06, z);
+    slope.rotation.z = Math.atan2(storey, run);
+    slope.userData.floor = true;
+    add(slope);
+    for (let t = 0; t < 1; t += 1 / 12) {
+      const tread = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, laneHalf * 2), plank);
+      tread.position.set(from + run * (t + 1 / 24), y0 + storey * (t + 1 / 24), z);
+      tread.userData.floor = true;
+      add(tread);
+    }
+    const rail = z + Math.sign(z) * laneHalf;
+    beam([from, y0 + 0.9, rail], [to, y1 + 0.9, rail], 0.05);
+    // A landing at the top of every flight but the last.
+    if (i < flights - 1) {
+      const side = Math.sign(to);
+      board(Math.min(side * stairEnd, side * landing), Math.max(side * stairEnd, side * landing), -landingHalf, landingHalf, y1);
+    }
+  }
+  // The cab floor, with a hatch where the last flight comes up.
+  const top = (flights - 1) % 2 ? lane : -lane; // (the last flight's lane)
+  const wide = cab + 0.2;
+  board(-wide, wide, -wide, top - laneHalf, cabFloor);
+  board(-wide, wide, top + laneHalf, wide, cabFloor);
+  board(-wide, -stairEnd, top - laneHalf, top + laneHalf, cabFloor);
+  board(stairEnd, wide, top - laneHalf, top + laneHalf, cabFloor);
+  // The balcony: boards all round the cab, a railing, and braces underneath.
+  board(-balcony, balcony, -balcony, -wide, cabFloor);
+  board(-balcony, balcony, wide, balcony, cabFloor);
+  board(-balcony, -wide, -wide, wide, cabFloor);
+  board(wide, balcony, -wide, wide, cabFloor);
+  const railing = [];
+  for (const [ax, az, bx, bz] of [[-1, -1, 1, -1], [1, -1, 1, 1], [1, 1, -1, 1], [-1, 1, -1, -1]]) {
+    const [x0, z0, x1, z1] = [ax * balcony, az * balcony, bx * balcony, bz * balcony];
+    railing.push(beam([x0, cabFloor + 1, z0], [x1, cabFloor + 1, z1], 0.08));
+    railing.push(beam([x0, cabFloor + 0.5, z0], [x1, cabFloor + 0.5, z1], 0.05));
+    for (let t = 0; t < 1; t += 0.25) {
+      railing.push(beam([x0 + (x1 - x0) * t, cabFloor, z0 + (z1 - z0) * t], [x0 + (x1 - x0) * t, cabFloor + 1.05, z0 + (z1 - z0) * t], 0.09));
+    }
+  }
+  for (const [sx, sz] of corners) beam([sx * spread(cabFloor - 2.5), cabFloor - 2.5, sz * spread(cabFloor - 2.5)], [sx * (balcony - 0.2), cabFloor - 0.1, sz * (balcony - 0.2)], 0.12, dark);
+
+  // Waist-high walls, then windows and a roof, with a doorway out onto the balcony in the +x
+  // wall. Walls, windows and the roof (`cutaway`, `roof`) fade when they're between the camera
+  // and the player.
+  const wallMat = material(0x8a6a45);
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x2a3a44, roughness: 0.2, transparent: true, opacity: 0.55 });
+  const cutaway = (mesh) => {
+    mesh.userData.cutaway = true;
+    return mesh;
+  };
+  // A stretch of wall and window from (x0, z0) to (x1, z1).
+  const wallFrom = (x0, z0, x1, z1) => {
+    const [w, d] = [Math.max(Math.abs(x1 - x0), 0.08), Math.max(Math.abs(z1 - z0), 0.08)];
+    const [x, z] = [(x0 + x1) / 2, (z0 + z1) / 2];
+    const wall = cutaway(add(new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), wallMat)));
+    wall.position.set(x, cabFloor + 0.5, z);
+    const glass = cutaway(add(new THREE.Mesh(new THREE.BoxGeometry(w, 1.2, d), glassMat)));
+    glass.position.set(x, cabFloor + 1.6, z);
+  };
+  wallFrom(-cab, cab, cab, cab);
+  wallFrom(-cab, -cab, cab, -cab);
+  wallFrom(-cab, -cab, -cab, cab);
+  wallFrom(cab, -cab, cab, -door);
+  wallFrom(cab, door, cab, cab);
+  // A beam along the top of the windows (and over the doorway), under the roof.
+  for (const [w, d, x, z] of [[cab * 2, 0.14, 0, cab], [cab * 2, 0.14, 0, -cab], [0.14, cab * 2, cab, 0], [0.14, cab * 2, -cab, 0]]) {
+    const header = cutaway(add(new THREE.Mesh(new THREE.BoxGeometry(w, 0.14, d), timber)));
+    header.position.set(x, cabFloor + 2.27, z);
+  }
+  for (const [sx, sz] of corners) cutaway(beam([sx * cab, cabFloor, sz * cab], [sx * cab, cabFloor + 2.3, sz * cab], 0.16));
+  for (const s of [-1, 1]) cutaway(beam([cab, cabFloor, s * door], [cab, cabFloor + 2.2, s * door], 0.12)); // the door frame
+  // The roof, with short eaves (the balcony is open to the sky).
+  const roof = new THREE.Mesh(new THREE.ConeGeometry((cab + 0.6) * Math.SQRT2, 1.9, 4), material(0x5a5148));
+  roof.rotation.y = Math.PI / 4;
+  roof.position.y = cabFloor + 3.2;
+  roof.userData.roof = true;
+  add(roof);
+  group.traverse((child) => {
+    child.castShadow = true;
+    child.receiveShadow = true;
+  });
+  return group;
+}
+
+// The fire lookout's fire finder (an Osborne fire finder): a round map table on a post, with
+// a sighting ring on top for taking bearings on smoke. Base at the origin.
+export function fireFinder() {
+  const wood = material(0x6b4a32);
+  const brass = material(0xc9a24a, 0.5);
+  const group = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.95, 8), wood);
+  post.position.y = 0.475;
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.06, 16), wood);
+  top.position.y = 0.98;
+  const chart = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.02, 16), material(0xe6d8b4));
+  chart.position.y = 1.02;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.47, 0.025, 4, 24), brass);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 1.04;
+  const sights = [-1, 1].map((s) => {
+    const sight = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.06), brass);
+    sight.position.set(s * 0.47, 1.12, 0);
+    return sight;
+  });
+  group.add(post, top, chart, ring, ...sights);
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
+// Binoculars on a post, for scanning the country from a lookout's balcony. Base at the
+// origin; they look out along +x.
+export function mountedBinoculars() {
+  const group = new THREE.Group();
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.25, 8), material(0x3a3430, 0.6));
+  post.position.y = 0.625;
+  const yoke = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.26), material(0x3a3430, 0.6));
+  yoke.position.y = 1.3;
+  const body = material(0x2a2e30, 0.5);
+  const tubes = [-0.07, 0.07].map((z) => {
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.32, 10), body);
+    tube.rotation.z = Math.PI / 2;
+    tube.position.set(0.04, 1.4, z);
+    return tube;
+  });
+  const lenses = [-0.07, 0.07].map((z) => {
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.01, 10), material(0x6a8aa0, 0.15));
+    lens.rotation.z = Math.PI / 2;
+    lens.position.set(0.205, 1.4, z);
+    return lens;
+  });
+  group.add(post, yoke, ...tubes, ...lenses);
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
+// A camp cot with a rolled blanket, about 2 m long along x, base at the origin.
+export function cot() {
+  const group = new THREE.Group();
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(2, 0.08, 0.75), material(0x4f5b3a));
+  frame.position.y = 0.42;
+  const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.06, 0.72), material(0x8c3a2a));
+  blanket.position.set(0.3, 0.49, 0);
+  const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.7, 8), material(0xd8c49a));
+  roll.rotation.x = Math.PI / 2;
+  roll.position.set(-0.8, 0.56, 0);
+  group.add(frame, blanket, roll);
+  for (const [x, z] of [[-0.95, -0.33], [0.95, -0.33], [-0.95, 0.33], [0.95, 0.33]]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.05), material(0x3a3430));
+    leg.position.set(x, 0.21, z);
+    group.add(leg);
+  }
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
+// A tall metal ranger's locker, base at the origin, its door facing +z and hinged on the
+// left (`userData.open(true)` swings it open).
+export function locker() {
+  const steel = material(0x5a6a5a, 0.6);
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.8, 0.5), steel);
+  body.position.y = 0.9;
+  const hinge = new THREE.Group();
+  hinge.position.set(-0.35, 0, 0.26);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.68, 1.74, 0.03), material(0x6a7a68, 0.6));
+  door.position.set(0.34, 0.9, 0);
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.04), material(0x2f2a28));
+  handle.position.set(0.6, 0.95, 0.03);
+  const vents = [1.45, 1.55, 1.65].map((y) => {
+    const vent = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 0.01), material(0x3a4a3a));
+    vent.position.set(0.34, y, 0.02);
+    return vent;
+  });
+  hinge.add(door, handle, ...vents);
+  group.add(body, hinge);
+  group.userData.open = (open) => (hinge.rotation.y = open ? -1.9 : 0);
+  group.traverse((child) => (child.castShadow = true));
+  return group;
+}
+
+// A wooden supply crate, base at the origin, with a lid that hinges open at the back
+// (`userData.lid`: set its rotation.x to about -1.9 to open it).
+export function supplyCrate() {
+  const wood = material(0x4f5b3a); // olive-painted, so it stands out from floorboards
+  const band = material(0x2f3a28);
+  const group = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.55, 0.6), wood);
+  box.position.y = 0.275;
+  for (const x of [-0.35, 0.35]) {
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.57, 0.62), band);
+    strap.position.set(x, 0.275, 0);
+    group.add(strap);
+  }
+  const lid = new THREE.Group();
+  lid.position.set(0, 0.55, -0.3); // the hinge, along the back edge
+  const top = new THREE.Mesh(new THREE.BoxGeometry(0.97, 0.08, 0.62), wood);
+  top.position.set(0, 0.04, 0.3);
+  const stencil = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.01, 0.2), material(0xa83a2a));
+  stencil.position.set(0, 0.085, 0.3);
+  lid.add(top, stencil);
+  group.add(box, lid);
+  group.userData.lid = lid;
+  group.userData.open = (open) => (lid.rotation.x = open ? -1.9 : 0);
+  group.traverse((child) => (child.castShadow = true));
   return group;
 }
 

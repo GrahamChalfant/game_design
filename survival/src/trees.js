@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { HIDDEN, instancedModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { seeThroughMaterial } from './seeThrough.js';
+import { SpatialGrid } from './grid.js';
 
 // How much wood each kind of tree gives, how long it takes to chop (seconds of holding),
 // and how big its stump is (1 is the size of stump.glb).
@@ -17,6 +18,7 @@ const KINDS = {
   'sapling-broadleaf': { wood: 1, chopTime: 0.8, stump: 0.25 },
   'tree-dead': { wood: 3, chopTime: 2, stump: 0.9 },
   broadleaf: { wood: 3, chopTime: 2, stump: 1 },
+  birch: { wood: 2, chopTime: 1.5, stump: 0.5 },
 };
 // Each tree is multiplied by one of these, so the forest isn't all one green.
 const TREE_TINTS = [0xffffff, 0xe3f2c0, 0xb9d9c6, 0xf0e29a, 0xbdcc9c, 0xa8c9ae].map((hex) => new THREE.Color(hex));
@@ -31,6 +33,8 @@ export class Trees {
   constructor(scene) {
     this.scene = scene;
     this.all = [];
+    this.grid = new SpatialGrid(); // for finding the tree in front of the player quickly
+    this.falling = [];
   }
 
   // `spots` are { x, y, z, rotation, scale, obstacle }, one per tree of this kind.
@@ -39,12 +43,14 @@ export class Trees {
     // Trees get a see-through hole wherever they'd hide the player.
     const tints = UNTINTED.has(kind) ? undefined : spots.map(treeTint);
     const trees = instancedModel(kind, placeholder, transforms, seeThroughMaterial, tints);
-    const stumps = instancedModel('stump', placeholders.stump(), spots.map(() => HIDDEN.clone()));
+    // Stumps start hidden, so tell them where they belong on the map.
+    const stumps = instancedModel('stump', placeholders.stump(), spots.map(() => HIDDEN.clone()), undefined, undefined, spots);
     this.scene.add(trees, stumps);
 
     spots.forEach((spot, index) => {
-      const tree = { ...KINDS[kind], kind, index, spot, trees, stumps, radius: spot.obstacle.radius };
+      const tree = { ...KINDS[kind], kind, index, spot, trees, stumps, x: spot.x, z: spot.z, radius: spot.obstacle.radius };
       this.all.push(tree);
+      this.grid.add(tree);
       this.resetTree(tree);
     });
   }
@@ -53,7 +59,7 @@ export class Trees {
   findTarget(x, z, reach) {
     let best = null;
     let bestDistance = Infinity;
-    for (const tree of this.all) {
+    for (const tree of this.grid.near(x, z, reach)) {
       if (tree.state !== 'standing') continue;
       const distance = Math.hypot(tree.spot.x - x, tree.spot.z - z) - tree.radius;
       if (distance < reach && distance < bestDistance) {
@@ -71,6 +77,7 @@ export class Trees {
 
     tree.state = 'falling';
     tree.fallTime = 0;
+    this.falling.push(tree);
     // Fall away from the player.
     const away = new THREE.Vector3(tree.spot.x - fromX, 0, tree.spot.z - fromZ).normalize();
     tree.fallAxis = new THREE.Vector3(0, 1, 0).cross(away).normalize();
@@ -86,8 +93,7 @@ export class Trees {
   }
 
   update(dt) {
-    for (const tree of this.all) {
-      if (tree.state !== 'falling') continue;
+    for (const tree of this.falling) {
       tree.fallTime += dt;
       const fall = Math.min(1, tree.fallTime / FALL_TIME);
       const angle = (Math.PI / 2) * fall * fall; // speeds up as it goes, like a real tree
@@ -95,10 +101,12 @@ export class Trees {
       tree.trees.setInstance(tree.index, treeMatrix(tree.spot, angle, tree.fallAxis, shrink));
       if (shrink === 0) tree.state = 'stump';
     }
+    this.falling = this.falling.filter((tree) => tree.state === 'falling');
   }
 
   // Puts every tree back, for a new game.
   reset() {
+    this.falling = [];
     for (const tree of this.all) this.resetTree(tree);
   }
 

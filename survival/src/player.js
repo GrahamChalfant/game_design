@@ -1,7 +1,11 @@
 import * as THREE from 'three';
 import { loadModel } from './models.js';
+import { dressModel } from './outfits.js';
 import * as placeholders from './placeholders.js';
 
+const TORCH_LIGHT = 7; // how bright a lit torch is (a campfire is 18): about an 8 m pool of light at night
+const TORCH_LIGHT_RANGE = 14; // meters its light reaches
+const TORCH_HOLD_TILT = -Math.PI / 2 + 0.35; // turns the torch in the hand: upright, leaning a little forward
 const RADIUS = 0.4;
 const WALK_SPEED = 5;
 const SNEAK_SPEED = 2.2;
@@ -13,6 +17,7 @@ const GRAVITY = 20;
 const JUMP_MAX_DEPTH = 0.3; // too deep in the water to jump beyond this
 const TOP_MARGIN = 0.1; // feet this close below the top of a rock or stump still clear it
 const TOP_OVERHANG = 0.25; // how far past a rock's edge the player can stand on it
+const STEP = 0.6; // the most you can step up or down onto a floor (stairs, the tower) without jumping
 const KNIFE_GRIP_OFFSET = 0.01; // nudge so the middle of knife.glb's handle (1 cm below its origin) sits in the fist
 const STAB_TIME = 0.25; // seconds a knife jab lasts
 const FADE_TIME = 0.15; // seconds to blend from one animation to the next
@@ -77,6 +82,20 @@ export class Player {
     this.object.add(this.knife);
     this.stabTime = 0; // counts down after a stab, to jab the knife forward
 
+    // A torch (#94), in the right hand while selected. Lit, it has a flame and lights up the
+    // dark around the player.
+    this.torch = placeholders.torch();
+    this.torchFlame = placeholders.flames();
+    this.torchFlame.scale.setScalar(0.32);
+    this.torchFlame.position.y = this.torch.userData.tip;
+    this.torchLight = new THREE.PointLight(0xff9a3c, 0, TORCH_LIGHT_RANGE, 1.4);
+    this.torchLight.position.y = this.torch.userData.tip + 0.5;
+    this.torch.add(this.torchFlame, this.torchLight);
+    this.torch.position.set(0.42, 0.85, 0.05);
+    this.torch.visible = false;
+    this.object.add(this.torch);
+    this.flicker = 0;
+
     loadModel('player').then((model) => {
       if (!model) return;
       model.traverse((child) => {
@@ -99,6 +118,10 @@ export class Player {
       this.bow.scale.setScalar(1);
       // knife's origin is the grip; the blade points along the hand's up axis, like the bow.
       model.getObjectByName('hand_R').add(this.knife);
+      // The torch is held upright, flame up, a little out in front.
+      model.getObjectByName('hand_R').add(this.torch);
+      this.torch.position.set(0, 0.03, 0.02);
+      this.torch.rotation.set(TORCH_HOLD_TILT, 0, 0);
       this.knife.position.set(0, 0.03, 0.02);
       this.knife.rotation.set(Math.PI / 2, 0, 0);
 
@@ -124,10 +147,19 @@ export class Player {
 
   // What the player holds ('axe', 'wood', null), whether they're chopping or drinking,
   // and whether they've found the backpack yet.
+  // Shows what the player is wearing over their coat (see outfits.js). Call every frame.
+  wear(outfit) {
+    dressModel(this.body, outfit);
+  }
+
   setAction(heldItem, chopping, drinking, hasBackpack) {
     this.axe.visible = heldItem === 'axe' && !this.swimming && !drinking; // put away when the hands are busy
     this.bow.visible = heldItem === 'bow' && !this.swimming && !drinking;
     this.knife.visible = heldItem === 'knife' && !this.swimming && !drinking;
+    const torch = heldItem === 'torch' || heldItem === 'litTorch';
+    this.torch.visible = torch && !this.swimming && !drinking;
+    this.torchLit = heldItem === 'litTorch' && this.torch.visible;
+    this.torchFlame.visible = this.torchLit;
     this.body.getObjectByName('player-pack').visible = hasBackpack;
     this.chopping = chopping;
     this.drinking = drinking;
@@ -156,6 +188,11 @@ export class Player {
   }
 
   update(dt, input, world) {
+    // A lit torch flickers.
+    this.flicker += dt;
+    const flicker = 0.85 + 0.1 * Math.sin(this.flicker * 13) + 0.05 * Math.sin(this.flicker * 31);
+    this.torchLight.intensity = this.torchLit ? TORCH_LIGHT * flicker : 0;
+    this.torchFlame.scale.setScalar(0.32 * (0.9 + 0.15 * flicker));
     this.stabTime = Math.max(0, this.stabTime - dt);
     const jab = Math.sin((this.stabTime / STAB_TIME) * Math.PI); // 0 → 1 → 0
     this.knife.rotation.x = Math.PI / 2 - jab * 0.9;
@@ -198,11 +235,14 @@ export class Player {
     }
 
     const ground = world.terrain.heightAt(this.position.x, this.position.z);
-    this.position.y = Math.max(ground, world.terrain.waterLevel - SWIM_DEPTH);
+    this.position.y = Math.max(ground, world.terrain.waterLevelAt(this.position.x, this.position.z) - SWIM_DEPTH);
 
     // Space to jump (not while swimming or wading deep). The jump only lifts the body:
     // `position` stays on the ground, so the camera doesn't bob.
     this.standingHeight = this.heightUnderfoot(world);
+    // Standing on something (not mid-jump), follow it up, or down a step, so walking down
+    // stairs doesn't turn into a string of little falls. Anything further down, you fall.
+    if (this.jumpSpeed === 0 && this.jumpHeight - this.standingHeight <= STEP) this.jumpHeight = this.standingHeight;
     if (input.wasPressed('Space') && !this.airborne && depth < JUMP_MAX_DEPTH) this.jumpSpeed = JUMP_SPEED;
     if (this.jumpSpeed !== 0 || this.airborne) {
       this.jumpSpeed -= GRAVITY * dt;
@@ -269,19 +309,35 @@ export class Player {
   heightUnderfoot(world) {
     const feet = this.position.y + this.jumpHeight;
     let top = this.position.y;
-    for (const o of world.obstacles) {
+    for (const o of world.obstacles.near(this.position.x, this.position.z, TOP_OVERHANG)) {
       if (o.top === undefined || o.top > feet + TOP_MARGIN) continue;
       if (Math.hypot(o.x - this.position.x, o.z - this.position.z) < o.radius + TOP_OVERHANG) top = Math.max(top, o.top);
     }
+    // Floors in buildings (stairs, landings, the lookout's cab) you can step up onto.
+    for (const structure of world.structures) {
+      top = Math.max(top, structure.floorAt(this.position.x, this.position.z, feet + STEP));
+    }
     return top - this.position.y;
+  }
+
+  // The height the player's feet are at (on a floor or a rock, or in the air).
+  get feet() {
+    return this.position.y + this.jumpHeight;
+  }
+
+  // The height of what the player is standing on (ignoring jumps), for the camera.
+  get standingOn() {
+    return this.position.y + this.standingHeight;
   }
 
   tryMove(dx, dz, world) {
     const x = THREE.MathUtils.clamp(this.position.x + dx, -this.limit, this.limit);
     const z = THREE.MathUtils.clamp(this.position.z + dz, -this.limit, this.limit);
     const feet = this.position.y + this.jumpHeight;
-    for (const o of world.obstacles) {
+    for (const o of world.obstacles.near(x, z, RADIUS)) {
       if (o.top !== undefined && feet >= o.top - TOP_MARGIN) continue; // high enough to pass over it
+      if (o.below !== undefined && feet >= o.below) continue; // only in the way lower down (the tower's legs)
+      if (o.above !== undefined && feet < o.above) continue; // only in the way higher up (the cab's walls)
       const distance = Math.hypot(o.x - x, o.z - z);
       // Moving away is always allowed, so landing against something can't trap the player.
       if (distance < o.radius + RADIUS && distance < Math.hypot(o.x - this.position.x, o.z - this.position.z)) return;

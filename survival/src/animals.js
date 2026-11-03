@@ -50,7 +50,11 @@ const KINDS = {
     placeholder: placeholders.boar,
   },
 };
-const SPAWN_DISTANCE = 25; // new animals appear at least this far from the player
+// Animals live around the player, wherever they go on the map: they appear between these
+// distances (out of sight, but close enough to find), and any that end up further away than
+// WANDERED_OFF are moved somewhere new around the player.
+const SPAWN_DISTANCE = [25, 90];
+const WANDERED_OFF = 130;
 const RESPAWN_TIME = 60; // seconds before a caught animal is replaced
 const FADE_TIME = 0.2; // seconds to blend from one animation to the next
 const GRAZE_PACE = 0.12; // how quickly an animal switches between looking up and grazing
@@ -175,6 +179,11 @@ export class Animals {
 
   update(dt, playerPosition, sneaking) {
     for (const animal of this.all) if (!animal.dead) this.updateAnimal(animal, dt, playerPosition, sneaking);
+    for (const animal of [...this.all]) {
+      if (Math.hypot(animal.position.x - playerPosition.x, animal.position.z - playerPosition.z) < WANDERED_OFF) continue;
+      if (animal.dead) this.remove(animal); // a carcass left far behind
+      else this.relocate(animal, playerPosition);
+    }
 
     for (const respawn of this.respawns) respawn.timer -= dt;
     for (const respawn of this.respawns.filter((r) => r.timer <= 0)) {
@@ -318,18 +327,27 @@ export class Animals {
     const limit = this.world.size / 2 - 1;
     if (Math.abs(x) > limit || Math.abs(z) > limit) return false;
     if (this.world.terrain.waterDepth(x, z) > 0.05) return false;
-    return this.world.obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + radius);
+    return this.world.obstacles.isClear(x, z, radius);
   }
 
+  // Somewhere free in a ring around the player (see SPAWN_DISTANCE).
   findSpot(playerPosition, radius) {
-    const half = this.world.size / 2 - 3;
     for (let tries = 0; tries < 200; tries++) {
-      const x = this.random.range(-half, half);
-      const z = this.random.range(-half, half);
-      const farEnough = Math.hypot(x - playerPosition.x, z - playerPosition.z) > SPAWN_DISTANCE;
-      if (farEnough && this.isFree(x, z, radius + 0.5)) return { x, z };
+      const angle = this.random.range(0, Math.PI * 2);
+      const distance = this.random.range(...SPAWN_DISTANCE);
+      const x = playerPosition.x + Math.cos(angle) * distance;
+      const z = playerPosition.z + Math.sin(angle) * distance;
+      if (this.isFree(x, z, radius + 0.5)) return { x, z };
     }
     return null;
+  }
+
+  // Moves an animal the player has left far behind to somewhere new around them.
+  relocate(animal, playerPosition) {
+    const spot = this.findSpot(playerPosition, animal.radius);
+    if (!spot) return;
+    animal.position.set(spot.x, 0, spot.z);
+    this.rest(animal);
   }
 
   // Clears every animal and places a fresh set, for a new game.

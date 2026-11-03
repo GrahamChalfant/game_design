@@ -12,7 +12,7 @@ export class Bushes {
     const isFree = (x, z) =>
       Math.abs(x) < world.size / 2 - 2 && Math.abs(z) < world.size / 2 - 2 &&
       world.terrain.waterDepth(x, z) === 0 &&
-      world.obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + 0.8);
+      world.obstacles.isClear(x, z, 0.8);
     for (const { x, z } of bushSpots(random, isFree)) {
       const object = new THREE.Group();
       object.position.set(x, world.terrain.heightAt(x, z), z);
@@ -21,7 +21,7 @@ export class Bushes {
       object.add(body);
       scene.add(object);
       world.grass.clear(x, z, 0.8);
-      world.obstacles.push({ x, z, radius: 0.45 });
+      world.obstacles.add({ x, z, radius: 0.45 });
       this.all.push({ x, z, pickedAt: null, object, berries: body.userData.berries });
     }
     loadModel('berry-bush').then((model) => {

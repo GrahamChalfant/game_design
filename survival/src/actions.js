@@ -19,7 +19,7 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, aimPoint }) {
+export function createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, aimPoint }) {
   let cooking = 0;
   let searching = 0;
   let butchering = 0;
@@ -58,7 +58,9 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     const fire = campfires.near(x, z, 1.2);
     const trap = traps.near(x, z, 1.3);
     const pile = pickups.near(x, z, 1.3);
-    const container = wreck.near(x, z, 1.8);
+    // Somewhere to search: a suitcase at the wreck, or the lookout tower's supply crate.
+    const crate = lookout.near(x, z, 1.8, player.feet);
+    const container = crate ?? wreck.near(x, z, 1.8);
     const carcass = animals.carcassNear(x, z, 1.8);
     let searchingNow = false;
     let butcheringNow = false;
@@ -112,6 +114,14 @@ export function createActions({ input, inventory, player, world, wreck, campfire
         }
       } else if (held === 'rawMeat') {
         prompt = `${status} · light it to cook`;
+      } else if (held === 'torch' && burning) {
+        prompt = `Click to light the torch · ${tend}`;
+        if (input.startedUsingTool()) {
+          inventory.remove('torch', 1);
+          give('litTorch', 1);
+        }
+      } else if (held === 'torch') {
+        prompt = `${status} · light it to light your torch`;
       }
     }
 
@@ -146,6 +156,10 @@ export function createActions({ input, inventory, player, world, wreck, campfire
         animals.remove(carcass);
         for (const [item, count] of Object.entries(ANIMAL_DROPS[carcass.kind])) give(item, count, cx, cz);
       }
+    } else if (!fire && lookout.binocularsNear(x, z, player.feet)) {
+      // The lookout's binoculars: E to look through them and see far across the land.
+      prompt = 'Binoculars · E to look through them';
+      if (pressedE) onBinoculars();
     } else if (!fire && container && !container.searched) {
       // Hold E to search a suitcase; everything inside is yours.
       searchingNow = input.isDown('KeyE');
@@ -155,7 +169,7 @@ export function createActions({ input, inventory, player, world, wreck, campfire
       if (searching >= SEARCH_TIME) {
         searching = 0;
         if (container.note) hud.toast(`You found ${container.note}`);
-        for (const [item, count] of wreck.search(container)) give(item, count, container.x, container.z);
+        for (const [item, count] of (crate ? lookout : wreck).search(container)) give(item, count, container.x, container.z);
       }
     } else if (!fire && trap) {
       // At a trap: E takes the catch out, or picks the empty trap back up.
@@ -228,6 +242,20 @@ export function createActions({ input, inventory, player, world, wreck, campfire
           survival.eat(0, BANDAGE_HEALING);
           hud.toast('You patch yourself up');
         }
+      }
+    } else if (!fire && held === 'map') {
+      prompt = 'Press M to look at the map';
+    } else if (!fire && held === 'torch') {
+      prompt = 'Hold it at a burning campfire and click to light it';
+    } else if (!fire && held === 'litTorch') {
+      const { burn } = inventory.slots[inventory.selected];
+      prompt = `Lit torch · burns for ${formatFuel(burn)} more`;
+    } else if (!fire && held === 'parka') {
+      prompt = 'Click to put on the hide parka';
+      if (input.startedUsingTool()) {
+        inventory.remove('parka', 1);
+        inventory.outfit = 'parka';
+        hud.toast('You pull on the hide parka. Much warmer.');
       }
     } else if (!fire && held === 'lighter') {
       prompt = 'Keep it on you to light campfires (E next to one)';
@@ -344,6 +372,7 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     const warmFire = campfires.near(x, z, WARMTH_REACH);
     const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
     const wet = world.terrain.waterDepth(x, z) > WET_DEPTH;
-    return { drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, prompt, progress };
+    const cold = world.terrain.coldAt(x, z); // up the mountains
+    return { drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, cold, outfit: inventory.outfit, prompt, progress };
   };
 }

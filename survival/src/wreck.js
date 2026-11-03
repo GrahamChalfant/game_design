@@ -20,6 +20,8 @@ const CLODS = 46;
 export const START_ITEMS = [
   { item: 'axe', x: -3.6, z: -6.8 },
   { item: 'backpack', x: 2.8, z: -3.2 },
+  // Fell out of your pocket where you came to, a couple of steps north of where you start.
+  { item: 'compass', x: 1.1, z: 11.6 },
 ];
 
 // The crashed bush plane at the start: the plane, its broken-off wing, a few
@@ -97,13 +99,13 @@ export function buildWreck(scene, world) {
   for (const suitcase of SUITCASES) {
     const object = withSuitcaseModel(suitcase.color);
     place(object, suitcase);
-    world.obstacles.push({ x: suitcase.x, z: suitcase.z, radius: 0.4 });
+    world.obstacles.add({ x: suitcase.x, z: suitcase.z, radius: 0.4 });
     containers.push({ ...suitcase, label: 'the suitcase', object });
   }
   for (let d = -3; d <= 3; d += 1.5) {
-    world.obstacles.push({ x: PLANE.x + along.x * d, z: PLANE.z + along.y * d, radius: 1 });
+    world.obstacles.add({ x: PLANE.x + along.x * d, z: PLANE.z + along.y * d, radius: 1 });
   }
-  world.obstacles.push({ x: WING.x, z: WING.z, radius: 1.6 });
+  world.obstacles.add({ x: WING.x, z: WING.z, radius: 1.6 });
 
   // The crash flattened the grass.
   world.grass.clear(PLANE.x, PLANE.z, 6);

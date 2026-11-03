@@ -91,6 +91,40 @@ const MODELS = {
     return group(body, top, wheel, flame(0.7).translateX(0.08).translateY(0.9)).rotateZ(-0.2);
   },
 
+  // A folded paper map, with a red route marked on it (#94).
+  map: () => {
+    const paper = flat(0xe6d8b4);
+    const fold = flat(0xcdbd94);
+    const panels = [-1, 0, 1].map((i) => mesh(new THREE.BoxGeometry(0.42, 0.02, 0.9), i === 0 ? fold : paper, [i * 0.42, Math.abs(i) * 0.06, 0], [0, 0, i * -0.15]));
+    const lake = mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 8), flat(0x4a7d9c), [-0.38, 0.09, 0.15]);
+    const hill = mesh(new THREE.ConeGeometry(0.14, 0.12, 5), flat(0x86877f), [0.4, 0.13, -0.2]);
+    const route = mesh(new THREE.BoxGeometry(0.75, 0.03, 0.04), flat(0xa83a2a), [0, 0.1, 0.05], [0, 0.35, 0]);
+    return group(...panels, lake, hill, route).rotateX(0.75);
+  },
+
+  // A brass pocket compass, lid open, needle pointing north (#94).
+  compass: () => {
+    const brass = flat(0xc9a24a, 0.5);
+    const caseBody = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.14, 16), brass, [0, 0, 0]);
+    const face = mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.02, 16), WHITE, [0, 0.075, 0]);
+    const north = mesh(new THREE.ConeGeometry(0.08, 0.36, 4), flat(0xc0392b), [0, 0.1, -0.18], [-Math.PI / 2, 0, 0]);
+    const south = mesh(new THREE.ConeGeometry(0.08, 0.36, 4), DARK_STEEL, [0, 0.1, 0.18], [Math.PI / 2, 0, 0]);
+    const ring = mesh(new THREE.TorusGeometry(0.1, 0.035, 5, 10), brass, [0, 0.02, -0.56], [Math.PI / 2, 0, 0]);
+    return group(caseBody, face, north, south, ring).rotateX(0.9);
+  },
+
+  // A stick with a dark, pitch-soaked wrap at the top (#94); lit, it has a flame.
+  torch: () => {
+    const stick = mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.25, 7), BARK, [0, 0, 0]);
+    const wrap = mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.32, 7), flat(0x3a2a20), [0, 0.55, 0]);
+    return group(stick, wrap).rotateZ(-0.6);
+  },
+  litTorch: () => {
+    const stick = mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.25, 7), BARK, [0, 0, 0]);
+    const wrap = mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.32, 7), flat(0x2a1e18), [0, 0.55, 0]);
+    return group(stick, wrap, flame(0.9).translateY(0.68)).rotateZ(-0.6);
+  },
+
   flare: () => {
     const tube = mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.2, 7), flat(0xd8342a, 0.55), [0, 0, 0]);
     const band = mesh(new THREE.CylinderGeometry(0.135, 0.135, 0.16, 7), WHITE, [0, 0.25, 0]);
@@ -219,6 +253,21 @@ const MODELS = {
     const zip = mesh(new THREE.BoxGeometry(0.04, 0.9, 0.02), flat(0x3a2a20), [0, 0.5, 0.21]);
     const pockets = [-1, 1].map((s) => mesh(new THREE.BoxGeometry(0.22, 0.16, 0.03), dark, [s * 0.2, 0.28, 0.21]));
     return group(body, ...sleeves, hood, zip, ...pockets);
+  },
+
+  // A heavy coat of stitched hides with a fur-trimmed hood (#88).
+  parka: () => {
+    const hide = flat(0x8a6a4a);
+    const dark = flat(0x6e5238);
+    const fur = flat(0xd8c49a);
+    const body = mesh(new THREE.BoxGeometry(0.85, 1.05, 0.42), hide, [0, 0.5, 0]);
+    const sleeves = [-1, 1].map((s) => mesh(new THREE.BoxGeometry(0.24, 0.88, 0.28), dark, [s * 0.55, 0.55, 0], [0, 0, s * 0.12]));
+    const hood = mesh(new THREE.BoxGeometry(0.56, 0.24, 0.4), fur, [0, 1.1, -0.02]);
+    const hem = mesh(new THREE.BoxGeometry(0.88, 0.1, 0.45), fur, [0, 0.02, 0]);
+    const cuffs = [-1, 1].map((s) => mesh(new THREE.BoxGeometry(0.26, 0.08, 0.3), fur, [s * 0.6, 0.12, 0], [0, 0, s * 0.12]));
+    const stitch = mesh(new THREE.BoxGeometry(0.03, 0.9, 0.02), flat(0xd8c49a), [0, 0.52, 0.22]);
+    const toggles = [0.3, 0.55, 0.8].map((y) => mesh(new THREE.BoxGeometry(0.12, 0.04, 0.04), flat(0x54392a), [0.06, y, 0.23]));
+    return group(body, ...sleeves, hood, hem, ...cuffs, stitch, ...toggles);
   },
 
   backpack: () => {

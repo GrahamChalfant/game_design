@@ -18,7 +18,7 @@ function unfocusable(button) {
 
 // Shows the survival stats, clock, prompts and game-over screen.
 export class Hud {
-  constructor({ onRestart, onSlotClick, onSlotDrop, onDropItem, onCraft }) {
+  constructor({ seed, onNewMap, onRestart, onSlotClick, onSlotDrop, onDropItem, onCraft }) {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
@@ -34,6 +34,9 @@ export class Hud {
     this.wet = document.getElementById('cond-wet');
     this.freezing = document.getElementById('cond-freezing');
     unfocusable(document.getElementById('restart')).addEventListener('click', onRestart);
+    unfocusable(document.getElementById('new-map')).addEventListener('click', onNewMap);
+    // The map's seed, so a good map can be played again (?seed=… in the address).
+    for (const label of document.querySelectorAll('.map-seed')) label.textContent = seed;
 
     // The pause menu with the controls. It's open when the game starts.
     this.menu = document.getElementById('menu');
@@ -45,7 +48,9 @@ export class Hud {
     this.stashHotbar = document.getElementById('stash-hotbar');
     this.noBackpack = document.getElementById('no-backpack');
     this.equippedBackpack = document.querySelector('#equip-backpack .icon');
-    showItemIcon(document.querySelector('#equip-outfit .icon'), 'outfit');
+    this.equippedOutfit = document.querySelector('#equip-outfit .icon');
+    showItemIcon(this.equippedOutfit, 'outfit');
+    this.shownOutfit = null;
 
     // Hotbar slots (numbered 1–6) at the bottom, then the backpack's slots in the menu.
     this.hotbar = document.getElementById('hotbar');
@@ -140,14 +145,23 @@ export class Hud {
     this.backpack.hidden = !inventory.hasBackpack;
     this.noBackpack.hidden = inventory.hasBackpack;
     showItemIcon(this.equippedBackpack, inventory.hasBackpack ? 'backpack' : null);
+    if (this.shownOutfit !== inventory.outfit) {
+      this.shownOutfit = inventory.outfit;
+      showItemIcon(this.equippedOutfit, inventory.outfit ?? 'outfit');
+    }
 
     this.slots.forEach((slot, i) => {
       const contents = inventory.slots[i];
       slot.classList.toggle('selected', i === inventory.selected);
       slot.title = contents ? ITEMS[contents.item].name : '';
       showItemIcon(slot.querySelector('.icon'), contents?.item ?? null);
-      // A flask shows how many drinks it holds; other stacks show how many there are.
-      const count = !contents ? '' : ITEMS[contents.item].holds ? `${contents.water}/${ITEMS[contents.item].holds}` : contents.count > 1 ? contents.count : '';
+      // A flask shows how many drinks it holds, a lit torch how long it has left; other stacks
+      // show how many there are.
+      const item = contents && ITEMS[contents.item];
+      const count = !contents ? ''
+        : item.holds ? `${contents.water}/${item.holds}`
+        : item.burns ? (contents.burn >= 60 ? `${Math.ceil(contents.burn / 60)}h` : `${Math.ceil(contents.burn)}m`)
+        : contents.count > 1 ? contents.count : '';
       slot.querySelector('.count').textContent = count;
     });
 
@@ -241,6 +255,41 @@ export class Hud {
   }
 
   // Fades to black and back, showing what time you woke up.
+  // The compass strip at the top of the screen (#94), shown while you carry a compass.
+  // `heading` is which way you face and `crash` which way the crash is, both in degrees
+  // clockwise from north; `crashDistance` is in meters.
+  updateCompass(show, heading, crash, crashDistance) {
+    if (!this.compass) {
+      this.compass = document.getElementById('compass');
+      const strip = this.compass.querySelector('.strip');
+      this.compassMarks = [];
+      const add = (bearing, text, className) => {
+        const mark = document.createElement('div');
+        mark.className = `mark ${className}`;
+        mark.textContent = text;
+        strip.append(mark);
+        this.compassMarks.push({ bearing, mark });
+        return mark;
+      };
+      const names = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      for (let b = 0; b < 360; b += 15) {
+        if (b % 45 === 0) add(b, names[b / 45], b === 0 ? 'north' : b % 90 ? 'minor' : '');
+        else add(b, '', 'tick');
+      }
+      this.crashMark = add(0, '', 'crash');
+    }
+    this.compass.hidden = !show;
+    if (!show) return;
+    this.compassMarks[this.compassMarks.length - 1].bearing = crash;
+    this.crashMark.textContent = `Crash ${formatDistance(crashDistance)}`;
+    for (const { bearing, mark } of this.compassMarks) {
+      // How far round from where you're facing, -180 to 180 degrees. The strip shows ±90.
+      const off = ((((bearing - heading) % 360) + 540) % 360) - 180;
+      mark.hidden = Math.abs(off) > 90;
+      mark.style.left = `${50 + (off / 180) * 100}%`;
+    }
+  }
+
   // A speech bubble over the player's head, for `seconds`. Call placeSpeech() every frame.
   say(text, seconds = 5) {
     const speech = document.getElementById('speech');
@@ -281,3 +330,8 @@ export class Hud {
 }
 
 const pad = (n) => String(n).padStart(2, '0');
+
+// 340 m, or 1.2 km.
+function formatDistance(meters) {
+  return meters < 1000 ? `${Math.round(meters / 10) * 10} m` : `${(meters / 1000).toFixed(1)} km`;
+}
