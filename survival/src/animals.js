@@ -318,7 +318,7 @@ export class Animals {
     const limit = this.world.size / 2 - 1;
     if (Math.abs(x) > limit || Math.abs(z) > limit) return false;
     if (this.world.terrain.waterDepth(x, z) > 0.05) return false;
-    return this.world.obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + radius);
+    return this.world.obstacles.isClear(x, z, radius);
   }
 
   findSpot(playerPosition, radius) {

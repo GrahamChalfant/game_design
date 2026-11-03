@@ -40,7 +40,7 @@ export class Traps {
   canPlaceAt(x, z) {
     return (
       this.world.terrain.waterDepth(x, z) === 0 &&
-      this.world.obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + 0.4) &&
+      this.world.obstacles.isClear(x, z, 0.4) &&
       this.all.every((trap) => Math.hypot(trap.x - x, trap.z - z) > SPACING)
     );
   }

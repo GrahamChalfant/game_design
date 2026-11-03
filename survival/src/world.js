@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { createGrass } from './grass.js';
-import { instancedModel } from './models.js';
+import { drawModelsAround, instancedModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { createNoise, createRandom } from './random.js';
 import { createTerrain } from './terrain.js';
 import { Trees } from './trees.js';
 import { stoneSpots } from './hunting.js';
 import { CRASH, trailPoint } from './crashTrail.js';
+import { SpatialGrid } from './grid.js';
 
 export const WORLD_SIZE = 140; // meters across; the playable area is a square centred on 0,0
 const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into the haze
@@ -53,22 +54,25 @@ const SPAWN_CLEARING = 4;
 
 // Builds the map from a seed: the same seed always gives the same world.
 export function buildWorld(scene, seed) {
-  const { random, noise, terrain } = chooseTerrain(seed);
+  const { random, noise, terrain, seed: mapSeed } = chooseTerrain(seed);
   terrain.build();
   scene.add(terrain.ground, terrain.water.mesh);
+  // Everything is drawn around the player as they move: start where they spawn.
+  drawModelsAround(SPAWN.x, SPAWN.z);
+  terrain.drawAround(SPAWN.x, SPAWN.z, Infinity);
 
   // Obstacles are circles on the ground the player can't walk into: { x, z, radius }.
-  const obstacles = [];
+  const obstacles = new SpatialGrid();
   const isFree = (x, z, spacing) =>
     Math.hypot(x, z) > CRASH_CLEARING &&
     Math.hypot(x - SPAWN.x, z - SPAWN.z) > SPAWN_CLEARING &&
     !terrain.nearWater(x, z, 2) &&
     !terrain.crashTrail.near(x, z, 2) &&
-    obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + spacing);
+    obstacles.isClear(x, z, spacing);
 
   const place = (x, z, radius, scale) => {
     const obstacle = { x, z, radius: radius * scale };
-    obstacles.push(obstacle);
+    obstacles.add(obstacle);
     // Sink things slightly so they don't float on slopes.
     return { x, y: terrain.heightAt(x, z) - 0.1, z, rotation: random.range(0, Math.PI * 2), scale, obstacle };
   };
@@ -118,22 +122,21 @@ export function buildWorld(scene, seed) {
 
   // Loose stones (for arrowheads) lie in small groups by the rocks and the lake shore,
   // never deep in the forest. They're picked up like any other item (see main.js).
-  const rockObstacles = obstacles.filter((o) => o.top !== undefined);
   const stones = stoneSpots(
     random,
     WORLD_SIZE,
     (x, z) => {
       if (terrain.forest(x, z) > 0.2 || terrain.waterDepth(x, z) > 0) return false;
-      const byRocks = rockObstacles.some((o) => Math.hypot(o.x - x, o.z - z) < o.radius + 3);
+      const byRocks = [...obstacles.near(x, z, 3)].some((o) => o.top !== undefined && Math.hypot(o.x - x, o.z - z) < o.radius + 3);
       return byRocks || (terrain.nearWater(x, z, 4) && !terrain.nearWater(x, z, 0.5));
     },
     (x, z) =>
       Math.abs(x) < WORLD_SIZE / 2 - 1 && Math.abs(z) < WORLD_SIZE / 2 - 1 &&
       terrain.waterDepth(x, z) === 0 &&
-      obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + 0.3),
+      obstacles.isClear(x, z, 0.3),
   );
 
-  const grass = createGrass(random, terrain, WORLD_SIZE + 10);
+  const grass = createGrass(mapSeed, terrain, WORLD_SIZE + 10);
   scene.add(grass.group);
 
   return {
@@ -144,8 +147,16 @@ export function buildWorld(scene, seed) {
     stones,
     size: WORLD_SIZE,
     spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),
+    // Builds what's around (x, z) right away, e.g. after the player jumps back to the start.
+    drawAround(x, z) {
+      drawModelsAround(x, z);
+      terrain.drawAround(x, z, Infinity);
+      grass.update(0, x, z);
+    },
     update(dt, time, player) {
-      grass.update(time);
+      drawModelsAround(player.x, player.z);
+      terrain.drawAround(player.x, player.z);
+      grass.update(time, player.x, player.z);
       terrain.water.update(time, player.x, player.z, terrain.waterDepth(player.x, player.z) > 0.02);
       trees.update(dt);
     },
@@ -161,7 +172,7 @@ function chooseTerrain(seed) {
     const random = createRandom(trySeed);
     const noise = createNoise(trySeed + 1);
     const terrain = createTerrain(random, noise, GROUND_SIZE);
-    if (startIsDry(terrain) || i === MAX_TRIES) return { random, noise, terrain };
+    if (startIsDry(terrain) || i === MAX_TRIES) return { random, noise, terrain, seed: trySeed };
   }
 }
 

@@ -269,7 +269,7 @@ export class Player {
   heightUnderfoot(world) {
     const feet = this.position.y + this.jumpHeight;
     let top = this.position.y;
-    for (const o of world.obstacles) {
+    for (const o of world.obstacles.near(this.position.x, this.position.z, TOP_OVERHANG)) {
       if (o.top === undefined || o.top > feet + TOP_MARGIN) continue;
       if (Math.hypot(o.x - this.position.x, o.z - this.position.z) < o.radius + TOP_OVERHANG) top = Math.max(top, o.top);
     }
@@ -280,7 +280,7 @@ export class Player {
     const x = THREE.MathUtils.clamp(this.position.x + dx, -this.limit, this.limit);
     const z = THREE.MathUtils.clamp(this.position.z + dz, -this.limit, this.limit);
     const feet = this.position.y + this.jumpHeight;
-    for (const o of world.obstacles) {
+    for (const o of world.obstacles.near(x, z, RADIUS)) {
       if (o.top !== undefined && feet >= o.top - TOP_MARGIN) continue; // high enough to pass over it
       const distance = Math.hypot(o.x - x, o.z - z);
       // Moving away is always allowed, so landing against something can't trap the player.

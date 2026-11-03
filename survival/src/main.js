@@ -126,6 +126,7 @@ const hud = new Hud({
     placeStartItems();
     wreck.reset();
     player.reset();
+    world.drawAround(player.position.x, player.position.z);
     animals.reset(player.position);
     if (hud.inventoryOpen) hud.toggleInventory();
     hud.forgetRecipes();
@@ -168,7 +169,7 @@ const aimNdc = new THREE.Vector2();
 const aimPoint = () => {
   aimNdc.set((input.pointer.x / innerWidth) * 2 - 1, -(input.pointer.y / innerHeight) * 2 + 1);
   aimRay.setFromCamera(aimNdc, camera);
-  return aimRay.intersectObject(world.terrain.ground, false)[0]?.point ?? null;
+  return aimRay.intersectObject(world.terrain.ground, true)[0]?.point ?? null;
 };
 const updateActions = createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, aimPoint });
 
@@ -228,6 +229,7 @@ renderer.setAnimationLoop(() => {
     // Paused: keep drawing the scene, but nothing moves or uses up time.
     hud.update(survival, inventory, { prompt: null });
     updateCamera(dt);
+    world.update(0, clock.elapsedTime, player.position); // keeps the scenery around the player drawn
     daylight.update(survival.hourOfDay, cameraTarget);
     input.endFrame();
     draw();

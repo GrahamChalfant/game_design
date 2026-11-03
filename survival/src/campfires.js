@@ -20,7 +20,7 @@ export class Campfires {
   canBuildAt(x, z) {
     return (
       this.world.terrain.waterDepth(x, z) === 0 &&
-      this.world.obstacles.every((o) => Math.hypot(o.x - x, o.z - z) > o.radius + RADIUS + 0.2)
+      this.world.obstacles.isClear(x, z, RADIUS + 0.2)
     );
   }
 
@@ -46,7 +46,7 @@ export class Campfires {
 
     this.world.grass.clear(x, z, RADIUS + 0.5);
     const obstacle = { x, z, radius: RADIUS };
-    this.world.obstacles.push(obstacle);
+    this.world.obstacles.add(obstacle);
     const fire = { x, z, fuel: START_FUEL, lit: false, object, pit, flames, light, obstacle, flicker: Math.random() * 100 };
     this.fires.push(fire);
     return fire;
@@ -112,7 +112,7 @@ export class Campfires {
   reset() {
     for (const fire of this.fires) {
       this.scene.remove(fire.object);
-      this.world.obstacles.splice(this.world.obstacles.indexOf(fire.obstacle), 1);
+      this.world.obstacles.remove(fire.obstacle);
     }
     this.fires = [];
     this.world.grass.restore();
