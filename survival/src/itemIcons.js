@@ -91,6 +91,17 @@ const MODELS = {
     return group(body, top, wheel, flame(0.7).translateX(0.08).translateY(0.9)).rotateZ(-0.2);
   },
 
+  // A brass pocket compass, lid open, needle pointing north (#94).
+  compass: () => {
+    const brass = flat(0xc9a24a, 0.5);
+    const caseBody = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.14, 16), brass, [0, 0, 0]);
+    const face = mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.02, 16), WHITE, [0, 0.075, 0]);
+    const north = mesh(new THREE.ConeGeometry(0.08, 0.36, 4), flat(0xc0392b), [0, 0.1, -0.18], [-Math.PI / 2, 0, 0]);
+    const south = mesh(new THREE.ConeGeometry(0.08, 0.36, 4), DARK_STEEL, [0, 0.1, 0.18], [Math.PI / 2, 0, 0]);
+    const ring = mesh(new THREE.TorusGeometry(0.1, 0.035, 5, 10), brass, [0, 0.02, -0.56], [Math.PI / 2, 0, 0]);
+    return group(caseBody, face, north, south, ring).rotateX(0.9);
+  },
+
   // A stick with a dark, pitch-soaked wrap at the top (#94); lit, it has a flame.
   torch: () => {
     const stick = mesh(new THREE.CylinderGeometry(0.07, 0.09, 1.25, 7), BARK, [0, 0, 0]);

@@ -66,6 +66,11 @@ so water is never far away. Your axe and backpack were thrown
 clear in the crash: look around the wreckage (they have floating icons) and press E to
 pick them up. The backpack gives you 12 extra slots.
 
+Your compass fell out of your pocket a couple of steps north of where you start (E to pick it
+up). While you carry it, a compass strip at the top of the screen shows which way you're facing,
+and an arrow under it points to the crash with how far away it is: handy for finding your way
+back on a big map. North is always up the screen.
+
 Suitcases were thrown out of the plane as it crashed: some lie around the wreck, and one lies
 back along the furrow the plane dug as it skidded in. Hold E next to a suitcase to search it.
 Each one can be searched once:

@@ -255,6 +255,41 @@ export class Hud {
   }
 
   // Fades to black and back, showing what time you woke up.
+  // The compass strip at the top of the screen (#94), shown while you carry a compass.
+  // `heading` is which way you face and `crash` which way the crash is, both in degrees
+  // clockwise from north; `crashDistance` is in meters.
+  updateCompass(show, heading, crash, crashDistance) {
+    if (!this.compass) {
+      this.compass = document.getElementById('compass');
+      const strip = this.compass.querySelector('.strip');
+      this.compassMarks = [];
+      const add = (bearing, text, className) => {
+        const mark = document.createElement('div');
+        mark.className = `mark ${className}`;
+        mark.textContent = text;
+        strip.append(mark);
+        this.compassMarks.push({ bearing, mark });
+        return mark;
+      };
+      const names = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      for (let b = 0; b < 360; b += 15) {
+        if (b % 45 === 0) add(b, names[b / 45], b === 0 ? 'north' : b % 90 ? 'minor' : '');
+        else add(b, '', 'tick');
+      }
+      this.crashMark = add(0, '', 'crash');
+    }
+    this.compass.hidden = !show;
+    if (!show) return;
+    this.compassMarks[this.compassMarks.length - 1].bearing = crash;
+    this.crashMark.textContent = `Crash ${formatDistance(crashDistance)}`;
+    for (const { bearing, mark } of this.compassMarks) {
+      // How far round from where you're facing, -180 to 180 degrees. The strip shows ±90.
+      const off = ((((bearing - heading) % 360) + 540) % 360) - 180;
+      mark.hidden = Math.abs(off) > 90;
+      mark.style.left = `${50 + (off / 180) * 100}%`;
+    }
+  }
+
   // A speech bubble over the player's head, for `seconds`. Call placeSpeech() every frame.
   say(text, seconds = 5) {
     const speech = document.getElementById('speech');
@@ -295,3 +330,8 @@ export class Hud {
 }
 
 const pad = (n) => String(n).padStart(2, '0');
+
+// 340 m, or 1.2 km.
+function formatDistance(meters) {
+  return meters < 1000 ? `${Math.round(meters / 10) * 10} m` : `${(meters / 1000).toFixed(1)} km`;
+}

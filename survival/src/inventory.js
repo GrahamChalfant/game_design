@@ -36,6 +36,8 @@ export const ITEMS = {
   // Lights up the dark around you. Burns down whether you hold it or not: the in-game
   // minutes it has left are kept on its slot as `burn`.
   litTorch: { name: 'Lit torch', stack: 1, burns: TORCH_MINUTES },
+  // Carry it to see which way you're facing, and which way the crash is (#94).
+  compass: { name: 'Compass', stack: 1 },
   // Warm hides to wear over your coat (#88). Select it and click to put it on.
   parka: { name: 'Hide parka', stack: 1 },
   // Not kept in a slot: picking it up unlocks the backpack's slots.

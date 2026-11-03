@@ -20,6 +20,7 @@ import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
 import { Traps } from './traps.js';
 import { buildWreck, START_ITEMS } from './wreck.js';
+import { CRASH } from './crashTrail.js';
 import { GAME_MINUTES_PER_SECOND, Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
 
@@ -202,6 +203,19 @@ function thinkAloud({ fire, shelter, cold = 0 }) {
 }
 const speechPoint = new THREE.Vector3();
 
+// The compass strip (#94): which way the player faces, and which way the crash is. Bearings
+// are degrees clockwise from north, and north is -z (up the screen).
+const bearing = (dx, dz) => (THREE.MathUtils.radToDeg(Math.atan2(dx, -dz)) + 360) % 360;
+function updateCompass() {
+  const { x, z } = player.position;
+  hud.updateCompass(
+    inventory.count('compass') > 0,
+    bearing(Math.sin(player.facing), Math.cos(player.facing)),
+    bearing(CRASH.x - x, CRASH.z - z),
+    Math.hypot(CRASH.x - x, CRASH.z - z),
+  );
+}
+
 // --- Top-down camera that follows the player ---
 let zoom = 20; // distance from the player
 const CAMERA_ANGLE = THREE.MathUtils.degToRad(55); // 90 = straight down
@@ -259,6 +273,7 @@ renderer.setAnimationLoop(() => {
   campfires.update(survival.alive ? dt * GAME_MINUTES_PER_SECOND * TIME_SPEED : 0, clock.elapsedTime);
   if (!survival.alive && player.alive) player.die();
   hud.update(survival, inventory, actions);
+  updateCompass();
   // Keep the speech bubble above the player's head.
   speechPoint.copy(player.position).setY(player.position.y + 2.1).project(camera);
   hud.placeSpeech((speechPoint.x * 0.5 + 0.5) * innerWidth, (-speechPoint.y * 0.5 + 0.5) * innerHeight);

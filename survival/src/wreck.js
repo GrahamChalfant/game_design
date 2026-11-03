@@ -20,6 +20,8 @@ const CLODS = 46;
 export const START_ITEMS = [
   { item: 'axe', x: -3.6, z: -6.8 },
   { item: 'backpack', x: 2.8, z: -3.2 },
+  // Fell out of your pocket where you came to, a couple of steps north of where you start.
+  { item: 'compass', x: 1.1, z: 11.6 },
 ];
 
 // The crashed bush plane at the start: the plane, its broken-off wing, a few
