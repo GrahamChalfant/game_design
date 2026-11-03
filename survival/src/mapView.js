@@ -102,7 +102,7 @@ export class MapView {
   }
 
   // Draws the open map: the land, the ground you've covered, and markers.
-  draw({ player, lookout, pois = [], roads = [], campfires, shelters }) {
+  draw({ player, lookout, pois = [], roads = [], creeks = [], campfires, shelters }) {
     if (!this.isOpen) return;
     const ctx = this.ctx;
     const at = (x) => (x + this.size / 2) / PIXEL;
@@ -140,6 +140,20 @@ export class MapView {
       ctx.fillRect(x - 3, y - 6, 6, 3);
       label('Lookout', x, y + 12);
     }
+    // Creeks: thin blue lines (too narrow to show up in the land picture), widening downstream.
+    ctx.save();
+    ctx.strokeStyle = 'rgb(74, 125, 156)';
+    ctx.lineCap = 'round';
+    for (const { points } of creeks) {
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineWidth = 0.6 + (i / points.length) * 0.8;
+        ctx.beginPath();
+        ctx.moveTo(at(points[i - 1].x), at(points[i - 1].z));
+        ctx.lineTo(at(points[i].x), at(points[i].z));
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
     // The old fire road: a dashed brown track.
     ctx.save();
     ctx.strokeStyle = '#7a5a3a';

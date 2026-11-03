@@ -8,9 +8,9 @@ import bpy, bmesh, math, os, random
 from mathutils import Vector, Matrix
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'public', 'models')
-PAL = dict(berry=0x8b3a3a, boar=0x7a5c40, boar_light=0x8a6a4a, boar_dark=0x54392a, snout=0x6a4636, leaf=0x4f6b45, wood=0x6b4a32, wood_dark=0x54392a, driftwood=0x7a7067, end_grain=0x9c7a56,
+PAL = dict(berry=0x8b3a3a, boar=0x7a5c40, boar_light=0x8a6a4a, boar_dark=0x54392a, snout=0x6a4636, leaf=0x5f6e4a, wood=0x6b4a32, wood_dark=0x54392a, driftwood=0x7a7067, end_grain=0x9c7a56,
            hide=0x8a6a4a, bone=0xd8c49a, slate_dark=0x3e4a52, slate=0x626260, lichen=0x848266,
-           moss=0x56743f, moss_dark=0x3d5739, ash=0x3a3633, char=0x2d2824, rust=0xa4442f, ochre=0xb88a2e)
+           moss=0x5e7444, moss_dark=0x435440, ash=0x3a3633, char=0x2d2824, rust=0xa4442f, ochre=0xb88a2e)
 def col(name, var=0.0):
     h = PAL[name]; k = 1 + random.uniform(-var, var)
     return (*[min(1, (((h >> s) & 255) / 255) * k) ** 2.2 for s in (16, 8, 0)], 1.0)

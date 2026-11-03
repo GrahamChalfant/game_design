@@ -174,8 +174,8 @@ freeze in under a minute unless you have a fire or a shelter (or a hide parka: s
 mountains are rocky, so they're a good place to find stones.
 
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
-you start losing health. Drink from a lake or the river to stay hydrated. There are lakes all
-over the map. While you're well fed and
+you start losing health. Drink from a lake, the river or a creek to stay hydrated. There are
+lakes all over the map, and one big one. While you're well fed and
 watered, your health slowly recovers. The clock runs slower by day: the 15 daylit hours (05:00–20:00) last 12.5 real minutes, and the night about 5.5.
 
 Days are long, like a northern summer: the sun rises around 05:00 and sets around 20:00.
@@ -253,9 +253,9 @@ src/daylight.js       Day and night: the sun and moon, light colours, sky and fo
 src/world.js          Builds the map from a seed: places trees, rocks and grass
 src/stream.js         Splits the map into chunks; only the ones around the player are drawn
 src/grid.js           Finds things near a spot quickly (trees, rocks, items on the ground)
-src/terrain.js        The land: hills, mountains, lakes, the river, the ground colours and how cold it is
+src/terrain.js        The land: hills, mountains, lakes, the river, creeks, the ground colours and how cold it is
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
-src/water.js          The lake and the flowing river, and ripples around the player
+src/water.js          The lakes, the flowing river and creeks, and ripples around the player
 src/grass.js          Swaying grass tufts
 src/snow.js           Light snowfall
 src/player.js         Player movement, swimming and collisions
@@ -279,7 +279,7 @@ src/crafting.js       Crafting recipes (add new ones here)
 src/characterView.js  The close-up of your character in the inventory (drag it to turn them)
 src/actions.js        What the player is doing each frame: chopping, building, cooking, eating…
 src/inventory.js      Items and the hotbar
-src/itemIcons.js      Item icons: small low-poly models, rendered into pictures when the game loads
+src/itemIcons.js      Item icons: pictures rendered in Blender (public/icons), with code-drawn fallbacks
 src/survival.js       Hunger, thirst, temperature, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
 src/input.js          Keyboard and mouse handling
@@ -313,9 +313,12 @@ built as you come near and dropped once you're well away, and items on the groun
 somewhere new around you. How thickly trees and rocks grow is set per hectare at the top of
 `src/world.js`, so changing the map's size keeps the same density.
 
-Each map has one mountain range, filling the corner the river doesn't run through, and about
-20 lakes around the lowlands. To change how many there are, how big and tall the mountains
-are, and where the snow and the cold start, edit `MOUNTAINS` and `LAKES` at the top of
+Each map has one mountain range, filling the corner the river doesn't run through, one big
+lake (well over 100 m across, a long walk from the crash), and about 20 smaller lakes around
+the lowlands. Little creeks, clear, shallow and stony, run down off the hills into the river and
+the lakes: you can wade across them (the old fire road fords them), and they show on the map as
+thin blue lines. To change how many there are, how big and tall the mountains are, and where
+the snow and the cold start, edit `MOUNTAINS`, `BIG_LAKE`, `LAKES` and `CREEKS` at the top of
 `src/terrain.js`. How fast the mountain cold chills you is `MOUNTAIN_CHILL_PER_HOUR` in
 `src/survival.js`. Which trees grow up the slopes, and where the treeline is, is at the top of
 `src/world.js`.
@@ -380,6 +383,17 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
 | `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |
+
+The trees in `blender/trees.blend` (the pines, broadleaf, saplings and dead tree) were made by
+hand. `blender/recolour_trees.py` moved their colours onto the muted palette and exports their
+GLBs; after editing a tree by hand, run it again to re-export them all.
+
+### Inventory icons
+
+Each item's icon is a picture in `public/icons/<item>.png`, rendered in Blender by
+`blender/icons.py` (`blender -b --python icons.py`, or `-- axe map` for just those items). Items
+with a model in `public/models/` are rendered from it; the rest are modelled in that script.
+If a picture is missing, the game draws the item in code instead (`src/itemIcons.js`).
 
 ## Updating Three.js
 

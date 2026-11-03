@@ -30,6 +30,20 @@ const GROUND_BUDGET_MS = 3; // the most time per frame spent building ground
 const LAKE_GAP = [12, 18]; // meters from the plane to the crash lake's shore
 // More lakes around the lowlands: how many, how big (meters), and how far apart.
 const LAKES = { perSquareKm: 10, radius: [6, 16], clearOfCrash: 90, spacing: 40 };
+// One big lake out in the lowlands, a long walk from the crash.
+const BIG_LAKE = { radius: [55, 72], depth: 5, clearOfCrash: 260 };
+// Little creeks: clear, shallow and stony, running down off the hills into the river and the
+// lakes. Each is traced uphill from where it meets the water until the ground stops rising.
+const CREEKS = {
+  count: 14,
+  step: 2.5, // meters between points along a creek
+  maxSteps: 140,
+  minLength: 45, // meters: shorter ones aren't kept
+  halfWidth: [0.4, 0.8], // at the spring, and where it meets the water
+  depth: 0.24, // meters of water in the middle (shallow enough not to soak you: see WET_DEPTH in actions.js)
+  clearOfCrash: 45,
+};
+const CREEK_BED = new THREE.Color(0x8a8670); // pale pebbles under the water
 // Snowy mountains. `up` is how far up a mountain you are, 0 at its foot to 1 near the top.
 const MOUNTAINS = {
   reach: 620, // meters the range reaches into the map from its corner
@@ -131,15 +145,30 @@ export function createTerrain(random, noise, size) {
   };
   const baseHeight = (x, z) => hills(x, z) + mountainHeight(x, z);
 
-  // Lakes dotted around the lowlands, so there's water wherever you wander.
   const half = size / 2 - 60;
-  for (let tries = 0; lakes.length - 1 < Math.round(LAKES.perSquareKm * (size / 1000) ** 2) && tries < 2000; tries++) {
+  const lowland = (x, z, reach) =>
+    [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]].every(
+      ([dx, dz]) => mountainAt(x + dx * reach, z + dz * reach) === 0,
+    );
+  // The big lake: somewhere well out in the lowlands, clear of the river and the crash.
+  for (let tries = 0; lakes.length < 2 && tries < 400; tries++) {
+    const radius = random.range(...BIG_LAKE.radius);
+    const x = random.range(-half + radius * 1.5, half - radius * 1.5);
+    const z = random.range(-half + radius * 1.5, half - radius * 1.5);
+    if (Math.hypot(x - CRASH.x, z - CRASH.z) < BIG_LAKE.clearOfCrash + radius) continue;
+    if (!lowland(x, z, radius * 2) || nearRiver(x, z, radius * 1.7 + 25)) continue;
+    const lake = createLake(noise, lakes.length, radius, BIG_LAKE.depth, baseHeight, () => [x, z], 0.12);
+    lake.big = true;
+    lakes.push(lake);
+  }
+
+  // Smaller lakes dotted around the lowlands, so there's water wherever you wander.
+  for (let tries = 0; lakes.filter((l) => !l.big).length - 1 < Math.round(LAKES.perSquareKm * (size / 1000) ** 2) && tries < 2000; tries++) {
     const radius = random.range(...LAKES.radius);
     const x = random.range(-half, half);
     const z = random.range(-half, half);
     if (Math.hypot(x - CRASH.x, z - CRASH.z) < LAKES.clearOfCrash) continue;
-    if (mountainAt(x, z) > 0 || mountainAt(x + radius * 2, z) > 0 || mountainAt(x - radius * 2, z) > 0 ||
-        mountainAt(x, z + radius * 2) > 0 || mountainAt(x, z - radius * 2) > 0) continue;
+    if (!lowland(x, z, radius * 2)) continue;
     if (nearRiver(x, z, radius * 1.8 + 15)) continue;
     if (lakes.some((l) => Math.hypot(l.x - x, l.z - z) < (l.radius + radius) * 1.8 + LAKES.spacing)) continue;
     lakes.push(createLake(noise, lakes.length, radius, random.range(2.2, 3), baseHeight, () => [x, z]));
@@ -158,18 +187,36 @@ export function createTerrain(random, noise, size) {
 
   const crashTrail = createCrashTrail(noise);
 
-  const heightAt = (x, z) => {
+  // The land before the creeks are cut into it.
+  const landAt = (x, z) => {
     const h = withLakes(baseHeight(x, z), x, z, lakes) + crashTrail.at(x, z).height;
     const r = river.nearest(x, z);
     return r ? Math.min(h, river.carve(r)) : h;
   };
-
-  // The height of the water's surface at (x, z), or -Infinity if there's no water here.
-  const waterLevelAt = (x, z) => {
+  const lakeOrRiverLevel = (x, z) => {
     const near = nearestLake(x, z);
     let level = near && near.distance < 1.5 ? near.lake.level : -Infinity;
     const r = river.nearest(x, z);
     if (r && r.distance < r.halfWidth + 0.5) level = Math.max(level, r.level);
+    return level;
+  };
+  const creeks = createCreeks(
+    random, noise, river, lakes, landAt, mountainAt,
+    (x, z) => lakeOrRiverLevel(x, z) > landAt(x, z) - 0.3,
+    (x, z) => Math.hypot(x - CRASH.x, z - CRASH.z) < CREEKS.clearOfCrash || crashTrail.near(x, z, 6) || Math.max(Math.abs(x), Math.abs(z)) > size / 2 - 30,
+  );
+
+  const heightAt = (x, z) => {
+    const h = landAt(x, z);
+    const c = creeks.nearest(x, z);
+    return c ? Math.min(h, creeks.carve(c)) : h;
+  };
+
+  // The height of the water's surface at (x, z), or -Infinity if there's no water here.
+  const waterLevelAt = (x, z) => {
+    let level = lakeOrRiverLevel(x, z);
+    const c = creeks.nearest(x, z);
+    if (c && c.distance < c.halfWidth + 0.3) level = Math.max(level, c.level);
     return level;
   };
   // How deep the water is at (x, z): 0 on dry land.
@@ -182,7 +229,17 @@ export function createTerrain(random, noise, size) {
     const near = nearestLake(x, z);
     if (near && (near.distance - 1.35) * near.lake.radius < margin) return true;
     const r = river.nearest(x, z);
-    return Boolean(r && r.distance < r.halfWidth + 1.5 + margin);
+    if (r && r.distance < r.halfWidth + 1.5 + margin) return true;
+    const c = creeks.nearest(x, z);
+    return Boolean(c && c.distance < c.halfWidth + 1 + margin);
+  };
+  // True if the only water near (x, z) is a creek (shallow enough to ford: roads cross them).
+  const creekOnly = (x, z) => {
+    const c = creeks.nearest(x, z);
+    if (!c || c.distance > c.halfWidth + 4) return false;
+    const near = nearestLake(x, z);
+    const r = river.nearest(x, z);
+    return !(near && near.distance < 1.6) && !(r && r.distance < r.halfWidth + 5);
   };
 
   // How "foresty" an area is (roughly -1..1). Large woods and open meadows, a few hundred
@@ -282,6 +339,17 @@ export function createTerrain(random, noise, size) {
         if (edge > 0.5) kind = 'road';
       }
     }
+    // Creeks: pale pebbles under clear water, and wet stony banks.
+    const creek = creeks.nearest(x, z);
+    if (creek) {
+      const wet = 1 - smoothstep(creek.distance, creek.halfWidth, creek.halfWidth + 0.9);
+      if (wet > 0) {
+        tint.copy(CREEK_BED).lerp(STONE, clamp(noise(x * 2.1, z * 2.1) * 0.6 + 0.3, 0, 1)).lerp(MOSS, clamp(noise(x * 0.9 + 70, z * 0.9) * 0.5, 0, 0.35));
+        if (creek.distance > creek.halfWidth) tint.lerp(GRAVEL, 0.4);
+        color.lerp(tint, wet);
+        if (wet > 0.4) kind = creek.distance < creek.halfWidth ? 'water' : 'shore';
+      }
+    }
     // Muddy lake shores, gravelly river banks, and the beds under the water.
     const near = nearestLake(x, z);
     const byLake = near && near.distance < 1.6;
@@ -310,6 +378,8 @@ export function createTerrain(random, noise, size) {
     crashTrail,
     groundAt,
     riverPoints: river.points, // the river's path, from the lake outwards
+    creeks: creeks.list, // each { points: [{ x, z, level, halfWidth }] }, from its spring down
+    creekOnly,
     roadAt,
     // Lays roads (each a list of { x, z } points) `width` meters wide into the ground. Call
     // before the ground is drawn.
@@ -345,7 +415,7 @@ export function createTerrain(random, noise, size) {
       const ground = createGround(size, heightAt, groundAt, noise);
       terrain.ground = ground.group;
       terrain.drawAround = ground.drawAround;
-      terrain.water = createWater(lakes, river);
+      terrain.water = createWater(lakes, river, creeks.list);
       return terrain;
     },
   };
@@ -355,9 +425,12 @@ export function createTerrain(random, noise, size) {
 // A lake: a round-ish bowl with a noisy outline, filled to just below the lowest point of its
 // rim (so it never spills over). `place(radiusAt)` returns where its centre goes, [x, z];
 // `heightAt` is the land it's dug into.
-function createLake(noise, index, radius, depth, heightAt, place) {
+// `bays` adds smaller bays and points round the shore (for the big lake).
+function createLake(noise, index, radius, depth, heightAt, place, bays = 0) {
   const offset = 20 + index * 7.3; // each lake gets its own outline
-  const radiusAt = (angle) => radius * (1 + 0.28 * noise(Math.cos(angle) * 1.5 + offset, Math.sin(angle) * 1.5 + offset));
+  const radiusAt = (angle) =>
+    radius * (1 + 0.28 * noise(Math.cos(angle) * 1.5 + offset, Math.sin(angle) * 1.5 + offset) +
+      bays * noise(Math.cos(angle) * 4 + offset + 50, Math.sin(angle) * 4 + offset));
   const [x, z] = place(radiusAt);
   let rimLow = Infinity;
   for (let i = 0; i < 64; i++) {
@@ -373,7 +446,7 @@ function createLake(noise, index, radius, depth, heightAt, place) {
     radiusAt,
     level,
     bed: level - depth, // deep enough to swim in the middle
-    reach: radius * 1.28 * 1.6, // beyond this (in x or z) it can't affect anything
+    reach: radius * (1.28 + bays) * 1.6, // beyond this (in x or z) it can't affect anything
     // Below 1 inside the lake's outline, 1 on it, above 1 outside.
     distance(px, pz) {
       const dx = px - x;
@@ -418,35 +491,120 @@ function createRiver(random, noise, lakeAngle, lake, heightAt, size) {
     z += Math.sin(heading) * STEP;
   }
 
-  // Look-up grid so finding the nearest bit of river is quick.
+  const index = channelIndex([{ points }], 8); // (the channel and banks reach 8 m from its middle)
+  // The ground height the channel cuts down to at that spot: a rounded bed under the
+  // water, and banks sloping back up to meet the land.
+  const carve = ({ distance, level, halfWidth }) =>
+    distance < halfWidth
+      ? level - 0.2 - 1.3 * (1 - (distance / halfWidth) ** 2)
+      : level - 0.2 + (distance - halfWidth) * 0.6;
+
+  return { points, nearest: index.nearest, carve };
+}
+
+// The creeks. Each starts where it meets the water (on the river's banks or a lake shore)
+// and is traced uphill, step by step, until the ground stops rising; then it's turned round so
+// it runs downhill from its spring. `heightAt` is the land so far, `wet(x, z)` says whether
+// there's already water there, `avoid(x, z)` whether a creek mustn't go there.
+function createCreeks(random, noise, river, lakes, heightAt, mountainAt, wet, avoid) {
+  const creeks = [];
+  const nearCreek = (x, z, distance) =>
+    creeks.some((c) => c.points.some((p, i) => i % 2 === 0 && Math.hypot(p.x - x, p.z - z) < distance));
+  // Where creeks could meet the water: along the river (either bank, away from its lake) and
+  // round the lakes (the big ones more often).
+  const mouths = () => {
+    if (random.next() < 0.45 && river.points.length > 40) {
+      const i = Math.floor(random.range(20, river.points.length - 10));
+      const [p, q] = [river.points[i], river.points[i + 1]];
+      const side = random.next() < 0.5 ? 1 : -1;
+      const along = Math.atan2(q.z - p.z, q.x - p.x);
+      const out = along + (side * Math.PI) / 2;
+      const reach = p.halfWidth + 0.3;
+      return { x: p.x + Math.cos(out) * reach, z: p.z + Math.sin(out) * reach, heading: out + side * random.range(-0.5, 0.2) };
+    }
+    const lake = random.pick(lakes.filter((l) => l.radius > 10 || random.next() < 0.5));
+    const angle = random.range(0, Math.PI * 2);
+    const r = lake.radiusAt(angle) * 1.02;
+    return { x: lake.x + Math.cos(angle) * r, z: lake.z + Math.sin(angle) * r, heading: angle };
+  };
+
+  for (let tries = 0; creeks.length < CREEKS.count && tries < CREEKS.count * 12; tries++) {
+    const mouth = mouths();
+    if (avoid(mouth.x, mouth.z) || nearCreek(mouth.x, mouth.z, 60)) continue;
+    let { x, z, heading } = mouth;
+    const offset = random.range(0, 1000);
+    const points = [{ x, z }];
+    let top = { i: 0, h: heightAt(x, z) };
+    for (let i = 1; i < CREEKS.maxSteps; i++) {
+      // Head up the slope, wandering a little, but not turning sharply.
+      let best = null;
+      for (const turn of [0, 0.3, -0.3, 0.6, -0.6]) {
+        const angle = heading + turn + noise(i * 0.2 + offset, 7.7) * 0.25;
+        const nx = x + Math.cos(angle) * CREEKS.step;
+        const nz = z + Math.sin(angle) * CREEKS.step;
+        const score = heightAt(nx, nz) - Math.abs(turn) * 0.25;
+        if (!best || score > best.score) best = { angle, nx, nz, score };
+      }
+      ({ nx: x, nz: z } = best);
+      heading = best.angle;
+      if (avoid(x, z) || mountainAt(x, z) > 0.45 || (i > 4 && (wet(x, z) || nearCreek(x, z, 8)))) break;
+      points.push({ x, z });
+      const h = heightAt(x, z);
+      if (h > top.h + 0.05) top = { i, h };
+      else if (h < top.h - 0.6 || i - top.i > 14) break; // over the top, or flat for a while
+    }
+    points.length = top.i + 1; // (from the water up to the highest point reached)
+    if (points.length * CREEKS.step < CREEKS.minLength) continue;
+    points.reverse(); // now from the spring down to the water
+    // The water's surface follows the ground down (a little below it), never rising.
+    let level = Infinity;
+    points.forEach((p, i) => {
+      const t = i / (points.length - 1);
+      p.halfWidth = THREE.MathUtils.lerp(CREEKS.halfWidth[0], CREEKS.halfWidth[1], t);
+      level = Math.min(level, heightAt(p.x, p.z) - 0.12);
+      p.level = level;
+    });
+    creeks.push({ points });
+  }
+
+  const index = channelIndex(creeks, 5);
+  const carve = ({ distance, level, halfWidth }) =>
+    distance < halfWidth
+      ? level - 0.04 - CREEKS.depth * (1 - (distance / halfWidth) ** 2)
+      : level - 0.04 + (distance - halfWidth) * 0.75;
+  return { list: creeks, nearest: index.nearest, carve };
+}
+
+// A quick look-up for the nearest point on any of a list of watercourses (each with `points`
+// of { x, z, level, halfWidth }), within `reach` meters of its middle.
+function channelIndex(courses, reach) {
   const CELL = 8;
-  const REACH = 8; // the river affects the ground this far from its middle (channel + banks)
   const grid = new Map();
   const key = (cx, cz) => cx * 4096 + cz;
-  for (let i = 0; i < points.length - 1; i++) {
-    const a = points[i];
-    const b = points[i + 1];
-    const minX = Math.floor((Math.min(a.x, b.x) - REACH) / CELL);
-    const maxX = Math.floor((Math.max(a.x, b.x) + REACH) / CELL);
-    const minZ = Math.floor((Math.min(a.z, b.z) - REACH) / CELL);
-    const maxZ = Math.floor((Math.max(a.z, b.z) + REACH) / CELL);
-    for (let cx = minX; cx <= maxX; cx++) {
-      for (let cz = minZ; cz <= maxZ; cz++) {
-        const k = key(cx, cz);
-        if (!grid.has(k)) grid.set(k, []);
-        grid.get(k).push(i);
+  for (const course of courses) {
+    const { points } = course;
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i];
+      const b = points[i + 1];
+      for (let cx = Math.floor((Math.min(a.x, b.x) - reach) / CELL); cx <= Math.floor((Math.max(a.x, b.x) + reach) / CELL); cx++) {
+        for (let cz = Math.floor((Math.min(a.z, b.z) - reach) / CELL); cz <= Math.floor((Math.max(a.z, b.z) + reach) / CELL); cz++) {
+          const k = key(cx, cz);
+          if (!grid.has(k)) grid.set(k, []);
+          grid.get(k).push(points, i);
+        }
       }
     }
   }
-
-  // The closest point on the river to (x, z), if it's within reach:
+  // The closest point on any of them to (x, z), if it's within reach:
   // { distance, level, halfWidth }. Reuses one object, so copy it if you keep it.
   const result = { distance: 0, level: 0, halfWidth: 0 };
   const nearest = (px, pz) => {
     const segments = grid.get(key(Math.floor(px / CELL), Math.floor(pz / CELL)));
     if (!segments) return null;
     let best = Infinity;
-    for (const i of segments) {
+    for (let s = 0; s < segments.length; s += 2) {
+      const points = segments[s];
+      const i = segments[s + 1];
       const a = points[i];
       const b = points[i + 1];
       const dx = b.x - a.x;
@@ -460,17 +618,9 @@ function createRiver(random, noise, lakeAngle, lake, heightAt, size) {
         result.halfWidth = a.halfWidth + (b.halfWidth - a.halfWidth) * t;
       }
     }
-    return best < REACH ? result : null;
+    return best < reach ? result : null;
   };
-
-  // The ground height the channel cuts down to at that spot: a rounded bed under the
-  // water, and banks sloping back up to meet the land.
-  const carve = ({ distance, level, halfWidth }) =>
-    distance < halfWidth
-      ? level - 0.2 - 1.3 * (1 - (distance / halfWidth) ** 2)
-      : level - 0.2 + (distance - halfWidth) * 0.6;
-
-  return { points, nearest, carve };
+  return { nearest };
 }
 
 // The ground: faceted hilly meshes where every triangle is one flat colour, one per chunk,

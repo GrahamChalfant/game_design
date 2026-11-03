@@ -638,7 +638,7 @@ renderer.setAnimationLoop(() => {
   updateCompass();
   mapView.explore(player.position.x, player.position.z);
   mapView.update(inventory.count('map') > 0);
-  mapView.draw({ player, lookout, pois: world.pois, roads: world.roads, campfires, shelters });
+  mapView.draw({ player, lookout, pois: world.pois, roads: world.roads, creeks: world.creeks, campfires, shelters });
   // Keep the speech bubble above the player's head.
   speechPoint.copy(player.position).setY(player.feet + 2.1).project(camera);
   hud.placeSpeech((speechPoint.x * 0.5 + 0.5) * innerWidth, (-speechPoint.y * 0.5 + 0.5) * innerHeight);

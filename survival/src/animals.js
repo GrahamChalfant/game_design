@@ -389,7 +389,7 @@ export class Animals {
     const limit = this.world.size / 2 - 1;
     if (Math.abs(x) > limit || Math.abs(z) > limit) return false;
     if (kind === 'boar' && Math.hypot(x - CRASH.x, z - CRASH.z) < keepOut) return false;
-    if (this.world.terrain.waterDepth(x, z) > 0.05) return false;
+    if (this.world.terrain.waterDepth(x, z) > 0.35) return false; // (they wade the creeks and shallows)
     return this.world.obstacles.isClear(x, z, radius);
   }
 
