@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cot } from './placeholders.js';
 
-// Stand-in models for the places to find around the map (see pois.js): abandoned log cabins,
-// caves in the hillsides and hunters' tree stands. Each is built in its own space: x and z
+// Stand-in models for the places to find around the map (see pois.js): abandoned log cabins
+// and hunters' tree stands. (Caves are in caves.js.) Each is built in its own space: x and z
 // across, +z out of the front (the cabin's door, the cave's mouth, the stand's ladder).
 // Parts marked `userData.roof` / `cutaway` fade when they're between the camera and the
 // player (see cutaway.js). Sizes are shared with pois.js through the layouts below.
@@ -18,11 +18,6 @@ export const CABIN = {
   eave: 2.05, // where the roof ends, out past the front and back walls
 };
 
-export const CAVE = {
-  radius: 4.2, // of the chamber inside
-  height: 3, // at its highest
-  mouth: 0.45, // half the angle of the opening (radians), facing +z
-};
 
 export const STAND = {
   height: 3, // the platform's top
@@ -278,100 +273,6 @@ export function woodenChest() {
   return shadows(group);
 }
 
-// ---------------------------------------------------------------------------------------
-// A cave: a hollow rocky dome with a mouth facing +z, dug into a hillside. Origin on the
-// ground in the middle of the chamber. `groundAt(x, z)` gives the ground's height in its own
-// space, for the things lying inside. Returns the group with `userData.stash` to search.
-export function cave(random, groundAt) {
-  const { radius: R, height: H, mouth } = CAVE;
-  const group = new THREE.Group();
-  // A rough dome: a sphere's top half, open at the mouth, with its surface pushed in and out.
-  const dome = (radius, height, roughness) => {
-    // (It carries on a little below its widest, as a skirt down into the ground on the
-    // downhill side.)
-    const geometry = new THREE.SphereGeometry(radius, 26, 11, Math.PI / 2 + mouth, Math.PI * 2 - mouth * 2, 0, Math.PI / 2 + 0.55);
-    const p = geometry.attributes.position;
-    const seed = random.range(0, 100);
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i);
-      const y = p.getY(i);
-      const z = p.getZ(i);
-      const a = Math.atan2(z, x);
-      const bump = 1 + roughness * (Math.sin(a * 5 + seed) * 0.5 + Math.sin(a * 11 + y * 3 + seed * 2) * 0.35 + Math.sin(y * 4 + seed) * 0.3);
-      // (The bottom edge stays put, so it meets the ground.)
-      const keep = y < 0.05 ? 1 : bump;
-      p.setXYZ(i, x * keep, y * (height / radius) * (y < 0.05 ? 1 : 1 + roughness * 0.3 * Math.sin(a * 3 + seed)), z * keep);
-    }
-    geometry.computeVertexNormals();
-    const mesh = new THREE.Mesh(geometry, ROCK);
-    mesh.position.y = -0.4; // sunk a little, so the edge is buried on uneven ground
-    mesh.userData.roof = true;
-    return mesh;
-  };
-  group.add(dome(R, H + 0.4, 0.08), dome(R + 1.1, H + 1.3, 0.12));
-  // Big boulders framing the mouth, and a lintel stone over it.
-  const boulder = (size, x, y, z) => {
-    const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 0), ROCK_DARK);
-    rock.position.set(x, y, z);
-    rock.rotation.set(random.range(0, 3), random.range(0, 3), random.range(0, 3));
-    rock.scale.set(1, random.range(0.7, 1), random.range(0.8, 1.2));
-    rock.userData.cutaway = true;
-    group.add(rock);
-  };
-  const edge = (side) => [Math.sin(side * mouth) * (R + 0.5), Math.cos(mouth) * (R + 0.5)];
-  for (const side of [-1, 1]) {
-    const [x, z] = edge(side);
-    boulder(1.1, x + side * 0.3, groundAt(x, z) + 0.6, z);
-    boulder(0.7, x + side * 0.9, groundAt(x, z) + 1.6, z - 0.4);
-  }
-  boulder(1.0, 0, H + 0.2, Math.cos(mouth) * R);
-  // Scree spilling out of the mouth.
-  for (let i = 0; i < 7; i++) {
-    const x = random.range(-2, 2);
-    const z = R + random.range(0.3, 2.5);
-    const stone = new THREE.Mesh(new THREE.IcosahedronGeometry(random.range(0.15, 0.4), 0), ROCK_DARK);
-    stone.position.set(x, groundAt(x, z) + 0.05, z);
-    stone.rotation.set(i, i * 2, i * 3);
-    group.add(stone);
-  }
-
-  // Inside: a ring of stones round an old fire, bones, rocks rising from the floor near the
-  // back, an old bedroll, and a weathered pack (to search).
-  const fire = new THREE.Group();
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2;
-    fire.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 0), ROCK_DARK).translateX(Math.cos(a) * 0.45).translateZ(Math.sin(a) * 0.45));
-  }
-  fire.add(beam([-0.3, 0.06, -0.1], [0.3, 0.06, 0.12], 0.1, mat(0x1e1a18), true));
-  fire.add(beam([-0.1, 0.06, 0.25], [0.15, 0.06, -0.3], 0.09, mat(0x1e1a18), true));
-  fire.position.set(0.6, groundAt(0.6, 0.8), 0.8);
-  group.add(fire);
-  const bones = new THREE.Group();
-  const bone = mat(0xe6dfcc);
-  bones.add(beam([-0.3, 0.05, 0], [0.3, 0.05, 0.1], 0.06, bone, true));
-  bones.add(beam([0, 0.05, -0.25], [0.15, 0.05, 0.25], 0.05, bone, true));
-  bones.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 1), bone).translateX(0.4).translateY(0.1));
-  bones.position.set(1.7, groundAt(1.7, -1.4), -1.4);
-  group.add(bones);
-  for (const [x, z, h] of CAVE_ROCKS) {
-    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.28, h, 6), ROCK_DARK);
-    spike.position.set(x, groundAt(x, z) + h / 2 - 0.05, z);
-    group.add(spike);
-  }
-  const bedroll = beam([-2.6, 0.1, 0.5], [-2.0, 0.1, 1.4], 0.22, mat(0x55603a), true);
-  bedroll.position.y += groundAt(-2.3, 0.95);
-  group.add(bedroll);
-  const stash = weatheredPack();
-  stash.position.set(-1.9, groundAt(-1.9, -1.7), -1.7);
-  stash.rotation.y = 0.7;
-  group.add(stash);
-  group.userData.stash = stash;
-  return shadows(group);
-}
-
-// The rocks rising from a cave's floor near the back: [x, z, height].
-export const CAVE_ROCKS = [[-0.8, -3.0, 1.2], [1.3, -3.0, 0.9], [2.9, -1.1, 1.4]];
-
 // An old canvas pack slumped on the ground. "Opening" it flops the flap back.
 export function weatheredPack() {
   const group = new THREE.Group();
@@ -449,4 +350,162 @@ export function barrel() {
   group.add(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.27, 0.85, 12), LOG_DARK).translateY(0.43));
   for (const y of [0.15, 0.7]) group.add(new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.05, 12), IRON).translateY(y));
   return shadows(group);
+}
+
+// ---------------------------------------------------------------------------------------
+// An abandoned campsite: a fire ring, logs to sit on, a collapsed tent, tin cans, and
+// (sometimes) a pack left behind. Origin at the fire. `groundAt(x, z)` as for the cabin.
+export const CAMP = { pack: [1.6, -1.4] };
+export function campsite(random, groundAt) {
+  const group = new THREE.Group();
+  const on = (object, x, z, lift = 0) => {
+    object.position.set(x, groundAt(x, z) + lift, z);
+    group.add(object);
+    return object;
+  };
+  const ring = new THREE.Group();
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    ring.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.14, 0), ROCK_DARK).translateX(Math.cos(a) * 0.5).translateZ(Math.sin(a) * 0.5));
+  }
+  ring.add(beam([-0.3, 0.06, -0.1], [0.3, 0.06, 0.12], 0.1, mat(0x1e1a18), true));
+  ring.add(new THREE.Mesh(new THREE.CircleGeometry(0.4, 10).rotateX(-Math.PI / 2), mat(0x2a2522)).translateY(0.02));
+  on(ring, 0, 0);
+  // Two log seats.
+  for (const [x, z, turn] of [[-1.4, 0.3, 0.3], [0.4, 1.5, 1.6]]) {
+    on(beam([-0.7, 0, 0], [0.7, 0, 0], 0.32, LOG, true), x, z, 0.16).rotation.y = turn;
+  }
+  // A collapsed tent: a sagging tarp over a broken ridge pole.
+  const tent = new THREE.Group();
+  const tarp = mat(random.pick([0x5a6b4a, 0x8a4a2a, 0x3d5a78]), { side: THREE.DoubleSide });
+  for (const side of [-1, 1]) {
+    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.3), tarp);
+    sheet.position.set(0, 0.35, side * 0.5);
+    sheet.rotation.set(side * 1.15, 0, side * 0.12);
+    tent.add(sheet);
+  }
+  tent.add(beam([-1.1, 0.75, 0], [0.9, 0.3, 0], 0.05, LOG_DARK, true));
+  on(tent, -1.2, -2.0).rotation.y = random.range(-0.5, 0.5);
+  // Rusty cans.
+  for (let i = 0; i < 3; i++) {
+    const can = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.11, 8), mat(0x8a5a3a, { roughness: 0.6 }));
+    if (i === 2) can.rotation.z = Math.PI / 2;
+    on(can, random.range(-0.9, 0.9), random.range(0.7, 1.1), 0.05);
+  }
+  const pack = on(weatheredPack(), ...CAMP.pack);
+  pack.rotation.y = random.range(0, 3);
+  group.userData.pack = pack;
+  return shadows(group);
+}
+
+// A trapper's lean-to: a sloping roof of bark on poles, open to the front (+z), with a
+// drying rack of stretched hides, a chopping block and a crate. Origin under the roof.
+export const LEAN_TO = { half: 1.6, depth: 1.5, crate: [-0.9, -0.6], rack: [2.6, 0.4], block: [-2.3, 1.2] };
+export function leanTo(random, groundAt) {
+  const { half, depth } = LEAN_TO;
+  const group = new THREE.Group();
+  const y0 = groundAt(0, 0);
+  // Front posts 2 m tall, the roof sloping back down to the ground.
+  for (const sx of [-1, 1]) {
+    group.add(beam([sx * half, y0 - 0.2, depth / 2], [sx * half, y0 + 2, depth / 2], 0.12, LOG, true));
+    group.add(beam([sx * half, y0 + 2, depth / 2], [sx * half, y0 - 0.1, -depth / 2 - 0.5], 0.1, LOG, true));
+  }
+  group.add(beam([-half - 0.3, y0 + 2, depth / 2], [half + 0.3, y0 + 2, depth / 2], 0.12, LOG, true));
+  const roofLength = Math.hypot(depth + 0.5, 2.1);
+  const bark = mat(0x5a4636, { side: THREE.DoubleSide });
+  for (let i = 0; i < 7; i++) {
+    const x = -half + (i + 0.5) * ((half * 2) / 7);
+    const strip = box((half * 2) / 7 + 0.04, 0.05, roofLength, i % 2 ? bark : LOG_DARK, x, y0 + 0.95, -0.25);
+    strip.rotation.x = Math.atan2(2.1, depth + 0.5);
+    strip.userData.roof = true;
+    group.add(strip);
+  }
+  // A bed of spruce boughs under it, and a crate to search.
+  group.add(box(half * 1.6, 0.08, depth * 0.7, mat(0x3d5a3a), 0.3, y0 + 0.04, -0.1));
+  const crate = woodenChest();
+  crate.position.set(LEAN_TO.crate[0], groundAt(...LEAN_TO.crate), LEAN_TO.crate[1]);
+  crate.scale.setScalar(0.85);
+  group.add(crate);
+  group.userData.crate = crate;
+  // A drying rack with hides stretched on it.
+  const [rx, rz] = LEAN_TO.rack;
+  const ry = groundAt(rx, rz);
+  for (const dz of [-0.7, 0.7]) group.add(beam([rx, ry - 0.2, rz + dz], [rx, ry + 1.6, rz + dz], 0.08, LOG_DARK, true));
+  group.add(beam([rx, ry + 1.55, rz - 0.8], [rx, ry + 1.55, rz + 0.8], 0.07, LOG_DARK, true));
+  const hide = mat(0xb08a5a, { side: THREE.DoubleSide });
+  for (const dz of [-0.35, 0.35]) {
+    const skin = new THREE.Mesh(new THREE.CircleGeometry(0.4, 7), hide);
+    skin.position.set(rx + 0.03, ry + 1.05, rz + dz);
+    skin.rotation.y = Math.PI / 2;
+    skin.scale.set(0.8, 1.2, 1);
+    group.add(skin);
+  }
+  // A chopping block with an old trap hanging off a peg.
+  const [bx, bz] = LEAN_TO.block;
+  group.add(beam([bx, groundAt(bx, bz), bz], [bx, groundAt(bx, bz) + 0.5, bz], 0.45, LOG, true));
+  group.add(box(0.35, 0.03, 0.35, IRON, bx, groundAt(bx, bz) + 0.52, bz));
+  return shadows(group);
+}
+
+// The rusted wreck of a forest service pickup, left on the fire road. Origin in the middle,
+// facing +z. Returns the group with `userData.glovebox` to search (the open passenger door).
+export const TRUCK = { half: [1, 2.6], door: [1.25, 0.4] };
+export function rustedTruck(random) {
+  const group = new THREE.Group();
+  const rust = mat(0x7a4a2e, { roughness: 0.8 });
+  const paint = mat(0x5a6a4a, { roughness: 0.8 }); // what's left of the green paint
+  const dark = mat(0x1e1c1a);
+  group.add(box(1.9, 0.6, 5, random.next() < 0.5 ? rust : paint, 0, 0.75, 0)); // body
+  group.add(box(1.8, 0.75, 1.6, paint, 0, 1.4, 0.4)); // cab
+  group.add(box(1.7, 0.5, 0.05, dark, 0, 1.5, 1.21)); // windscreen (gone)
+  group.add(box(1.9, 0.12, 1.4, rust, 0, 0.98, 1.8)); // bonnet
+  group.add(box(1.9, 0.45, 0.06, rust, 0, 1.0, -1.2)); // the bed's front wall
+  for (const [x, z] of [[-0.9, 1.6], [0.9, 1.6], [-0.9, -1.6], [0.9, -1.6]]) {
+    const tyre = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.25, 12), dark);
+    tyre.rotation.z = Math.PI / 2;
+    tyre.position.set(x, 0.3, z);
+    group.add(tyre);
+  }
+  // The passenger door hangs open.
+  const hinge = new THREE.Group();
+  hinge.position.set(0.95, 0, 1.2);
+  hinge.add(box(0.05, 0.75, 1.0, paint, 0, 1.15, -0.5));
+  hinge.rotation.y = -1.1;
+  group.add(hinge);
+  group.rotation.z = random.range(-0.04, 0.04); // settled on a flat tyre
+  group.userData.glovebox = { userData: { open: (open) => (hinge.rotation.y = open ? -1.6 : -1.1) } };
+  return shadows(group);
+}
+
+// ---------------------------------------------------------------------------------------
+// Little things scattered about (drawn many times over, see details.js).
+
+// A fallen tree trunk, 1 m long along x and 1 m thick (scaled per copy), with a broken
+// branch stub and a little moss.
+export function fallenLog() {
+  const group = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 1, 9).rotateZ(Math.PI / 2), LOG);
+  trunk.position.y = 0.5;
+  const end = new THREE.Mesh(new THREE.CircleGeometry(0.5, 9).rotateY(Math.PI / 2), mat(0xa08060));
+  end.position.set(0.501, 0.5, 0);
+  const stub = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.6, 6), LOG_DARK);
+  stub.position.set(0.1, 0.95, 0.15);
+  stub.rotation.z = -0.6;
+  const moss = box(0.5, 0.12, 0.6, MOSS, -0.15, 0.97, 0);
+  group.add(trunk, end, stub, moss);
+  return group;
+}
+
+// One 2.5 m length of old split-rail fence: posts at both ends, two rails. `broken` has a
+// rail down and a post leaning.
+export const FENCE_LENGTH = 2.5;
+export function fenceSegment(broken = false) {
+  const group = new THREE.Group();
+  const grey = mat(0x7a7064);
+  group.add(beam([0, -0.2, 0], [0, 1.15, 0], 0.11, grey));
+  group.add(beam([FENCE_LENGTH, -0.2, 0], broken ? [FENCE_LENGTH + 0.25, 1.05, 0.15] : [FENCE_LENGTH, 1.15, 0], 0.11, grey));
+  group.add(beam([0, 0.95, 0], [FENCE_LENGTH, 0.95, 0], 0.08, grey));
+  if (broken) group.add(beam([0, 0.5, 0], [FENCE_LENGTH * 0.8, 0.05, 0.2], 0.08, grey));
+  else group.add(beam([0, 0.5, 0], [FENCE_LENGTH, 0.5, 0], 0.08, grey));
+  return group;
 }

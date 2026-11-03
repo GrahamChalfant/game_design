@@ -810,6 +810,26 @@ canvas {
 
 /* --- Sleeping: fade to black and back --- */
 
+/* Down a cave, the view closes in to a circle round you (see main.js). */
+#cave-dark {
+  position: fixed;
+  inset: 0;
+  z-index: 0; /* over the game, under everything else (it comes first in the page) */
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 52%, transparent 14vmin, rgb(0 0 0 / 0.7) 32vmin, #000 52vmin);
+}
+
+/* Going down into a cave or back up: a fade to black and back. */
+#fade {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  opacity: 0;
+  background: #000;
+}
+
 /* A red flash round the edges of the screen when you're hurt. */
 #hurt {
   position: fixed;

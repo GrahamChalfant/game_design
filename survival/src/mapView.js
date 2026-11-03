@@ -102,7 +102,7 @@ export class MapView {
   }
 
   // Draws the open map: the land, the ground you've covered, and markers.
-  draw({ player, lookout, pois = [], campfires, shelters }) {
+  draw({ player, lookout, pois = [], roads = [], campfires, shelters }) {
     if (!this.isOpen) return;
     const ctx = this.ctx;
     const at = (x) => (x + this.size / 2) / PIXEL;
@@ -140,6 +140,17 @@ export class MapView {
       ctx.fillRect(x - 3, y - 6, 6, 3);
       label('Lookout', x, y + 12);
     }
+    // The old fire road: a dashed brown track.
+    ctx.save();
+    ctx.strokeStyle = '#7a5a3a';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([4, 2]);
+    for (const path of roads) {
+      ctx.beginPath();
+      path.forEach(({ x, z }, i) => (i ? ctx.lineTo(at(x), at(z)) : ctx.moveTo(at(x), at(z))));
+      ctx.stroke();
+    }
+    ctx.restore();
     // Cabins (little houses) and caves (dark arches). Hunting stands are too small to be marked.
     for (const poi of pois) {
       const x = at(poi.x);

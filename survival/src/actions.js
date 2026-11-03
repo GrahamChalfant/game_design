@@ -63,8 +63,10 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     const pressedE = input.wasPressed('KeyE');
     // Up the lookout tower, the ground (and everything on it) is out of reach.
     const upHigh = player.feet - world.terrain.heightAt(x, z) > UP_HIGH;
-    const onGround = (thing) => (upHigh ? null : thing);
-    const canDrink = !upHigh && player.canDrink(world);
+    // Up there, or down in a cave, things on the land around are out of reach.
+    const offGround = upHigh || Boolean(player.cave);
+    const onGround = (thing) => (offGround ? null : thing);
+    const canDrink = !offGround && player.canDrink(world);
     const drinking = canDrink && input.isDown('KeyE');
     const fire = onGround(campfires.near(x, z, 1.2));
     const trap = onGround(traps.near(x, z, 1.3));
@@ -231,8 +233,10 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     } else if (!fire && tree && held === 'axe') {
       prompt = chopping ? 'Chopping…' : 'Click and hold to chop';
       progress = world.trees.progress(tree);
-    } else if (upHigh && (held === 'campfire' || held === 'shelter' || held === 'trap')) {
-      prompt = "You can't put that down up here";
+    } else if (offGround && (held === 'campfire' || held === 'shelter' || held === 'trap')) {
+      prompt = player.cave ? "You can't put that down in here" : "You can't put that down up here";
+    } else if (player.cave && held === 'bow') {
+      prompt = 'No room to shoot down here';
     } else if (!fire && held === 'campfire') {
       // A crafted campfire: place it on open ground in front of you.
       const spot = player.ahead(1.6);
@@ -395,7 +399,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     if (held === 'knife' && input.usingTool() && knifeReady === 0 && !player.swimming && !player.airborne) {
       knifeReady = KNIFE_COOLDOWN;
       player.stab();
-      const target = upHigh ? null : knifeHitTest(x, z, player.facing, animals.all);
+      const target = offGround ? null : knifeHitTest(x, z, player.facing, animals.all);
       if (target) {
         const knife = inventory.slots[inventory.selected];
         if (hitAnimal(target, 'knife')) {
@@ -425,20 +429,20 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
 
     // Under a shelter you're warm, and at night E sleeps until morning.
     // So are you inside a cabin or a cave.
-    const place = pois.shelterAt(x, z, player.feet);
+    const place = pois.shelterAt(x, z, player.feet, player.cave);
     const shelter = shelters.around(x, z) ?? place;
     if (shelter && !prompt) {
       const night = isNight(survival.hourOfDay);
-      const name = place ? (place.kind === 'cabin' ? 'Cabin' : 'Cave') : 'Shelter';
+      const name = { cabin: 'Cabin', cave: 'Cave', leanto: 'Lean-to' }[place?.kind] ?? 'Shelter';
       prompt = night ? `${name} · warmer in here · E to sleep until morning` : `${name} · warmer in here`;
       if (night && pressedE) onSleep();
     }
 
     player.setAction(inventory.selectedItem, chopping, drinking, inventory.hasBackpack, busy);
-    const warmFire = upHigh ? null : campfires.near(x, z, WARMTH_REACH);
+    const warmFire = offGround ? null : campfires.near(x, z, WARMTH_REACH);
     const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
-    const wet = world.terrain.waterDepth(x, z) > WET_DEPTH;
-    const cold = world.terrain.coldAt(x, z); // up the mountains
+    const wet = !player.cave && world.terrain.waterDepth(x, z) > WET_DEPTH;
+    const cold = player.cave ? 0 : world.terrain.coldAt(x, z); // up the mountains (not down a cave)
     return { drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, cold, outfit: inventory.outfit, prompt, progress };
   };
 }

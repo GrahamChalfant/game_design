@@ -19,6 +19,9 @@ const GRAVEL = new THREE.Color(0x9a948a);
 const WATER_BED = new THREE.Color(0x3c5c55);
 const TORN_SOIL = new THREE.Color(0xb8a285);
 const DARK_SOIL = new THREE.Color(0x9c8973);
+const ROAD = new THREE.Color(0xa8916c); // the old fire road's packed dirt...
+const RUT = new THREE.Color(0x8a7556); // ...its wheel ruts...
+const ROAD_GRASS = new THREE.Color(0x8f9a5c); // ...and the grass growing back down the middle
 
 const GROUND_CELL = 0.5; // meters along each side of a ground square: bigger gives bigger facets
 const GROUND_BUDGET_MS = 3; // the most time per frame spent building ground
@@ -187,6 +190,32 @@ export function createTerrain(random, noise, size) {
   // How cold the air is up the mountains: 0 in the lowlands, rising to 1 above the snowline.
   const coldAt = (x, z) => smoothstep(mountainAt(x, z), MOUNTAINS.coldFrom, MOUNTAINS.coldFull);
 
+  // Roads, added with setRoads once the map knows where they go: segments sorted into cells.
+  const ROAD_CELL = 16;
+  const roadCells = new Map();
+  let roadHalf = 0;
+  const roadAt = (x, z) => {
+    if (!roadCells.size) return null;
+    const list = roadCells.get(`${Math.floor(x / ROAD_CELL)},${Math.floor(z / ROAD_CELL)}`);
+    if (!list) return null;
+    let best = null;
+    for (const { ax, az, bx, bz } of list) {
+      const dx = bx - ax;
+      const dz = bz - az;
+      const len2 = dx * dx + dz * dz;
+      const t = clamp(((x - ax) * dx + (z - az) * dz) / len2, 0, 1);
+      const px = ax + dx * t;
+      const pz = az + dz * t;
+      const distance = Math.hypot(x - px, z - pz);
+      if (!best || distance < Math.abs(best.offset)) {
+        // Which side of the middle (for the ruts).
+        const side = Math.sign(dx * (z - az) - dz * (x - ax)) || 1;
+        best = { offset: distance * side, half: roadHalf };
+      }
+    }
+    return best && Math.abs(best.offset) < roadHalf + 1 ? best : null;
+  };
+
   const color = new THREE.Color();
   const tint = new THREE.Color();
   // What the ground looks like at (x, z). The returned colour is reused: copy it if you keep it.
@@ -233,6 +262,21 @@ export function createTerrain(random, noise, size) {
       color.lerp(tint, scar.dirt);
       if (scar.dirt > 0.4) kind = 'dirt';
     }
+    // The old fire road (see roads.js): packed dirt with two wheel ruts and grass coming back
+    // up the middle, its edges blending into the land.
+    const road = roadAt(x, z);
+    if (road) {
+      const across = Math.abs(road.offset);
+      const edge = 1 - smoothstep(across, road.half - 0.6, road.half + 0.5);
+      if (edge > 0) {
+        tint.copy(ROAD);
+        if (Math.abs(across - 0.8) < 0.3) tint.lerp(RUT, 0.8);
+        else if (across < 0.4) tint.lerp(ROAD_GRASS, 0.6);
+        tint.lerp(OCHRE, clamp(noise(x * 0.5, z * 0.5) * 0.4, 0, 0.3));
+        color.lerp(tint, edge);
+        if (edge > 0.5) kind = 'road';
+      }
+    }
     // Muddy lake shores, gravelly river banks, and the beds under the water.
     const near = nearestLake(x, z);
     const byLake = near && near.distance < 1.6;
@@ -261,6 +305,25 @@ export function createTerrain(random, noise, size) {
     crashTrail,
     groundAt,
     riverPoints: river.points, // the river's path, from the lake outwards
+    roadAt,
+    // Lays roads (each a list of { x, z } points) `width` meters wide into the ground. Call
+    // before the ground is drawn.
+    setRoads(paths, width) {
+      roadHalf = width / 2;
+      for (const path of paths) {
+        for (let i = 1; i < path.length; i++) {
+          const [a, b] = [path[i - 1], path[i]];
+          const pad = roadHalf + 1;
+          for (let cx = Math.floor((Math.min(a.x, b.x) - pad) / ROAD_CELL); cx <= Math.floor((Math.max(a.x, b.x) + pad) / ROAD_CELL); cx++) {
+            for (let cz = Math.floor((Math.min(a.z, b.z) - pad) / ROAD_CELL); cz <= Math.floor((Math.max(a.z, b.z) + pad) / ROAD_CELL); cz++) {
+              const key = `${cx},${cz}`;
+              if (!roadCells.has(key)) roadCells.set(key, []);
+              roadCells.get(key).push({ ax: a.x, az: a.z, bx: b.x, bz: b.z });
+            }
+          }
+        }
+      }
+    },
     // True if the ground is dry everywhere within `radius` of (x, z), and at least `margin`
     // meters from the water's edge. Used to check a new map's crash site and start.
     isDry(x, z, radius, margin) {

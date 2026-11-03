@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { CRASH } from './crashTrail.js';
 import { Cutaway } from './cutaway.js';
 import { createRandom } from './random.js';
-import { CABIN, CAVE, CAVE_ROCKS, STAND, barrel, cabin, cave, huntingStand } from './poiModels.js';
+import { CABIN, CAMP, LEAN_TO, STAND, TRUCK, barrel, cabin, campsite, huntingStand, leanTo, rustedTruck } from './poiModels.js';
+import { ENTRANCE, buildUnderground, caveEntrance, entranceRocks } from './caves.js';
 
 // Places to find around the map, so there's something to explore between the woods and
 // meadows: abandoned log cabins, caves in the hillsides, and hunters' stands at the edges of
@@ -14,6 +15,9 @@ export const POIS = {
   cabin: { count: 12, spacing: 110, clearing: 10 },
   cave: { count: 9, spacing: 90, clearing: 8 },
   stand: { count: 26, spacing: 55, clearing: 3 },
+  camp: { count: 18, spacing: 60, clearing: 4.5 }, // abandoned campsites
+  leanto: { count: 10, spacing: 80, clearing: 5 }, // trappers' lean-tos
+  truck: { count: 0, spacing: 20, clearing: 4 }, // (left on the fire road: see roads.js)
 };
 const CRASH_GAP = 80; // meters from the crash
 const LOOKOUT_GAP = 45;
@@ -32,6 +36,21 @@ const LOOT = {
     ['bandage', [1, 2], 2], ['rope', [1, 3], 2], ['torch', [1, 3], 3], ['hide', [1, 3], 2],
     ['arrow', [2, 4], 1], ['flask', [1, 1], 0.7], ['lighter', [1, 1], 0.6], ['cookedMeat', [1, 2], 1],
   ],
+  // A miner's chest deep in a cave: the best finds on the map.
+  deepCave: [
+    ['bow', [1, 1], 1.2], ['knife', [1, 1], 1.2], ['lighter', [1, 1], 1], ['flask', [1, 1], 1],
+    ['bandage', [2, 4], 2], ['arrow', [4, 8], 1.5], ['torch', [2, 3], 1.5], ['map', [1, 1], 0.5], ['hide', [2, 4], 1],
+  ],
+  camp: [
+    ['cookedMeat', [1, 2], 2], ['berries', [3, 6], 2], ['rope', [1, 2], 2], ['bandage', [1, 2], 1.5],
+    ['torch', [1, 2], 1.5], ['arrow', [1, 3], 1], ['flask', [1, 1], 0.4], ['lighter', [1, 1], 0.3],
+  ],
+  trapper: [
+    ['trap', [1, 2], 3], ['rope', [2, 3], 2], ['hide', [2, 3], 2], ['knife', [1, 1], 1], ['cookedMeat', [1, 3], 1.5], ['gut', [1, 2], 1],
+  ],
+  truck: [
+    ['bandage', [2, 3], 2], ['flare', [1, 1], 1], ['lighter', [1, 1], 1], ['map', [1, 1], 0.8], ['torch', [1, 2], 1], ['rope', [1, 2], 1],
+  ],
   stand: [
     ['arrow', [3, 6], 4], ['cookedMeat', [1, 2], 2], ['rope', [1, 2], 1.5], ['bandage', [1, 2], 1],
     ['bow', [1, 1], 0.5], ['torch', [1, 1], 1],
@@ -39,7 +58,7 @@ const LOOT = {
 };
 // How many different things each container holds: [fewest, most]. A stand's ammo box is
 // sometimes empty.
-const ROLLS = { cupboard: [2, 3], chest: [1, 3], stash: [2, 3], ammo: [0, 2] };
+const ROLLS = { cupboard: [2, 3], chest: [1, 3], stash: [2, 3], ammo: [0, 2], deepCave: [2, 4], camp: [0, 2], trapper: [2, 3], truck: [1, 3] };
 
 // ---------------------------------------------------------------------------------------
 // Choosing where they go (before trees and rocks, so those keep clear).
@@ -69,6 +88,12 @@ export function choosePois(random, terrain, worldSize, lookout) {
       const rocky = terrain.mountainAt(x, z) > 0.04 || terrain.groundAt(x, z).kind === 'rock';
       return rocky && terrain.mountainAt(x, z) < 0.5 && terrain.isDry(x, z, 6, 1) && slope(terrain, x, z) > 0.12 && slope(terrain, x, z) < 0.38;
     },
+    // Campsites by the water or at the edges of the woods.
+    camp: (x, z) => terrain.mountainAt(x, z) < 0.2 && terrain.isDry(x, z, 4, 1) && flatness(x, z, 2.5) < 0.8 &&
+      (terrain.nearWater(x, z, 30) || Math.abs(terrain.forest(x, z)) < 0.3),
+    // Trappers worked in the woods.
+    leanto: (x, z) => terrain.forest(x, z) > 0 && terrain.mountainAt(x, z) < 0.3 && terrain.isDry(x, z, 4, 1) && flatness(x, z, 3) < 0.9,
+    truck: () => false,
     // Stands at the edges of the woods, where the deer come out to graze.
     stand: (x, z) => {
       const forest = terrain.forest(x, z);
@@ -91,8 +116,10 @@ export function choosePois(random, terrain, worldSize, lookout) {
         const { dx, dz } = gradient(terrain, x, z);
         heading = Math.atan2(-dx, -dz);
         base = terrain.heightAt(x, z);
-      } else {
+      } else if (kind === 'stand') {
         base = Math.min(...heightsAround(x, z, 1.1)) - 0.05;
+      } else {
+        base = terrain.heightAt(x, z);
       }
       chosen.push({ kind, x, z, heading, base, seed: Math.floor(random.next() * 1e9) });
       placed++;
@@ -167,22 +194,26 @@ export function poiObstacles(poi) {
     ];
   }
   if (poi.kind === 'cave') {
-    const { radius: R, mouth } = CAVE;
-    const out = [];
-    // Round the chamber's wall, leaving the mouth open; and round the outside of the mound.
-    for (const [r, size] of [[R - 0.05, 0.35], [R + 1.0, 0.6]]) {
-      const steps = Math.ceil((2 * Math.PI * r) / (size * 1.7));
-      for (let i = 0; i < steps; i++) {
-        const a = (i / steps) * Math.PI * 2; // 0 = the mouth (+z)
-        if (Math.abs(Math.atan2(Math.sin(a), Math.cos(a))) < mouth + 0.05) continue;
-        out.push(at(Math.sin(a) * r, Math.cos(a) * r, size));
-      }
-    }
-    // The boulders either side of the mouth.
-    for (const side of [-1, 1]) out.push(at(Math.sin(side * mouth) * (R + 0.6), Math.cos(mouth) * (R + 0.6), 0.9));
-    for (const [x, z] of CAVE_ROCKS) out.push(at(x, z, 0.3));
-    out.push(at(-1.9, -1.7, 0.35)); // the old pack
-    return out;
+    // The rocks round the hole, and the slab leaning over its back. (Underground, the cave has
+    // its own walls: see caves.js.)
+    return [...entranceRocks().map(([x, z, size]) => at(x, z, size * 0.9)), at(0, -1.6, 1.1)];
+  }
+  if (poi.kind === 'camp') {
+    return [at(0, 0, 0.6), at(-1.4, 0.3, 0.45), at(-1.2, -2.0, 0.9), at(...CAMP.pack, 0.35)];
+  }
+  if (poi.kind === 'leanto') {
+    const { half, depth, crate, rack, block } = LEAN_TO;
+    return [
+      at(-half, depth / 2, 0.15), at(half, depth / 2, 0.15),
+      ...wallLine(poi, [-half, -depth / 2 - 0.3], [half, -depth / 2 - 0.3], 0.25), // the roof comes down to the ground at the back
+      ...wallLine(poi, [-half, depth / 2], [-half, -depth / 2 - 0.3], 0.15),
+      ...wallLine(poi, [half, depth / 2], [half, -depth / 2 - 0.3], 0.15),
+      at(...crate, 0.4), at(rack[0], rack[1] - 0.7, 0.12), at(rack[0], rack[1] + 0.7, 0.12), at(...block, 0.3),
+    ];
+  }
+  if (poi.kind === 'truck') {
+    const [hx, hz] = TRUCK.half;
+    return wallLine(poi, [0, -hz], [0, hz], hx);
   }
   // A hunting stand: its legs (down on the ground) and its rail (up on the platform).
   const { height: P, half, box } = STAND;
@@ -201,7 +232,7 @@ export function poiObstacles(poi) {
 
 // The floors the player can stand on, and whether they're under a roof. See world.structures.
 export function poiStructure(poi) {
-  const reach = poi.kind === 'cave' ? CAVE.radius + 2 : poi.kind === 'cabin' ? CABIN.halfWidth + 2 : STAND.ladderFoot + 1;
+  const reach = poi.kind === 'cabin' ? CABIN.halfWidth + 2 : STAND.ladderFoot + 1;
   const near = (x, z) => Math.abs(x - poi.x) < reach && Math.abs(z - poi.z) < reach;
   return {
     poi,
@@ -225,12 +256,9 @@ export function poiStructure(poi) {
       return y <= maxY ? y : -Infinity;
     },
     roofOver(x, z, feet) {
-      if (!near(x, z) || poi.kind === 'stand') return false;
+      if (poi.kind !== 'cabin' || !near(x, z)) return false;
       const p = toPoi(poi, x, z);
-      if (poi.kind === 'cabin') {
-        return Math.abs(p.x) <= CABIN.halfWidth + ROOF_MARGIN && Math.abs(p.z) <= CABIN.halfDepth + ROOF_MARGIN && feet > poi.base - 0.5;
-      }
-      return Math.hypot(p.x, p.z) < CAVE.radius - ROOF_MARGIN;
+      return Math.abs(p.x) <= CABIN.halfWidth + ROOF_MARGIN && Math.abs(p.z) <= CABIN.halfDepth + ROOF_MARGIN && feet > poi.base - 0.5;
     },
   };
 }
@@ -250,6 +278,7 @@ export function buildPois(scene, world) {
       containers.push({ ...fromPoi(poi, lx, lz), y, label, object, loot: rollLoot(random, LOOT[table], rolls), searched: false, ...options });
     };
     let model;
+    let underground = null;
     if (poi.kind === 'cabin') {
       model = cabin(random);
       add(model.userData.cupboard, 'the cupboard', -2.3, 0.55, poi.base, ROLLS.cupboard, 'cabin', { standing: true });
@@ -261,9 +290,26 @@ export function buildPois(scene, world) {
       woodPiles.push({ ...fromPoi(poi, -CABIN.halfWidth - 1.2, -0.8), count: 4 + Math.floor(random.next() * 5) });
       world.grass.clear(poi.x, poi.z, CABIN.halfWidth + 1.2);
     } else if (poi.kind === 'cave') {
-      model = cave(random, (lx, lz) => groundY(world, poi, lx, lz));
-      add(model.userData.stash, 'the old pack', -1.9, -1.7, poi.base, ROLLS.stash, 'cave');
-      world.grass.clear(poi.x, poi.z, CAVE.radius + 1);
+      model = caveEntrance(random, (lx, lz) => groundY(world, poi, lx, lz));
+      underground = buildUnderground(scene, poi, random, (x, z) => fromPoi(poi, x, z), (x, z) => toPoi(poi, x, z));
+      for (const c of underground.containers) {
+        containers.push({ ...c, loot: rollLoot(random, LOOT[c.table], c.table === 'deepCave' ? ROLLS.deepCave : ROLLS.stash), searched: false });
+      }
+      world.grass.clear(poi.x, poi.z, ENTRANCE.ring + 1);
+    } else if (poi.kind === 'camp') {
+      model = campsite(random, (lx, lz) => groundY(world, poi, lx, lz));
+      // Some campers left their pack behind; others took it with them.
+      const packAt = fromPoi(poi, ...CAMP.pack);
+      if (random.next() < 0.7) add(model.userData.pack, 'the abandoned pack', ...CAMP.pack, world.terrain.heightAt(packAt.x, packAt.z), ROLLS.camp, 'camp');
+      else model.userData.pack.visible = false;
+      world.grass.clear(poi.x, poi.z, 2.5);
+    } else if (poi.kind === 'leanto') {
+      model = leanTo(random, (lx, lz) => groundY(world, poi, lx, lz));
+      add(model.userData.crate, "the trapper's crate", ...LEAN_TO.crate, poi.base, ROLLS.trapper, 'trapper');
+      world.grass.clear(poi.x, poi.z, 2.5);
+    } else if (poi.kind === 'truck') {
+      model = rustedTruck(random);
+      add(model.userData.glovebox, 'the glovebox', ...TRUCK.door, poi.base, ROLLS.truck, 'truck', { standing: true });
     } else {
       model = huntingStand(random);
       add(model.userData.box, 'the ammo box', ...STAND.box, poi.base + STAND.height, ROLLS.ammo, 'stand');
@@ -272,9 +318,7 @@ export function buildPois(scene, world) {
     group.add(model);
     group.visible = false;
     scene.add(group);
-    // (Containers in a cave sit on its sloping floor.)
-    for (const c of containers) if (poi.kind === 'cave') c.y = world.terrain.heightAt(c.x, c.z);
-    return { poi, group, containers, cutaway: new Cutaway(group), seen: false };
+    return { poi, group, containers, underground, cutaway: new Cutaway(group), seen: false };
   });
 
   const setOpen = (c, open) => {
@@ -291,9 +335,18 @@ export function buildPois(scene, world) {
     // Shows the ones near the player (or within `range`, e.g. through binoculars), and fades
     // whatever's between the camera and the player. Returns a place you've just come across
     // for the first time (within 15 m), if any.
-    update(dt, camera, feet, position, range = SHOW_DISTANCE) {
+    // `cave` is the cave you're down in, if any: only it is drawn then.
+    update(dt, camera, feet, position, range = SHOW_DISTANCE, cave = null) {
       let found = null;
       for (const place of all) {
+        if (place.underground) {
+          place.underground.group.visible = place.underground === cave;
+          if (place.underground === cave) cave.update(dt, camera, feet, position);
+        }
+        if (cave) {
+          place.group.visible = false;
+          continue;
+        }
         const distance = Math.hypot(place.poi.x - position.x, place.poi.z - position.z);
         place.group.visible = distance < range;
         if (!place.group.visible) continue;
@@ -309,7 +362,7 @@ export function buildPois(scene, world) {
     near(x, z, reach, feet) {
       let best = null;
       for (const place of all) {
-        if (Math.abs(place.poi.x - x) > 8 || Math.abs(place.poi.z - z) > 8) continue;
+        if (Math.abs(place.poi.x - x) > 25 || Math.abs(place.poi.z - z) > 25) continue; // (caves reach a way)
         for (const c of place.containers) {
           const distance = Math.hypot(c.x - x, c.z - z);
           if (distance < reach && Math.abs(feet - c.y) < SEARCH_HEIGHT) [best, reach] = [c, distance];
@@ -322,11 +375,30 @@ export function buildPois(scene, world) {
       return c.loot;
     },
     // The cabin or cave you're inside (warm, and somewhere to sleep), or null.
-    shelterAt(x, z, feet) {
+    shelterAt(x, z, feet, cave = null) {
+      if (cave) return cave.poi;
+      // Under a lean-to's roof.
+      for (const poi of world.pois) {
+        if (poi.kind !== 'leanto' || Math.abs(poi.x - x) > 4 || Math.abs(poi.z - z) > 4) continue;
+        const p = toPoi(poi, x, z);
+        if (Math.abs(p.x) < LEAN_TO.half && p.z < LEAN_TO.depth / 2 && p.z > -LEAN_TO.depth / 2 - 0.3) return poi;
+      }
       for (const structure of world.structures) {
         if (structure.poi && structure.roofOver(x, z, feet)) return structure.poi;
       }
       return null;
+    },
+    // The cave whose way in you're stepping into at (x, z), if any.
+    caveEntranceAt(x, z) {
+      for (const place of all) {
+        if (!place.underground) continue;
+        if (Math.hypot(place.poi.x - x, place.poi.z - z) < ENTRANCE.trigger) return place.underground;
+      }
+      return null;
+    },
+    // Just outside a cave's way in, facing out: where you come back up.
+    outside(cave) {
+      return { ...fromPoi(cave.poi, 0, ENTRANCE.ring + 0.8), facing: cave.poi.heading };
     },
     // True if you're up a hunting stand (where animals don't notice you).
     upAStand(x, z, feet) {

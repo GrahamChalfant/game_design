@@ -39,6 +39,7 @@ export class Player {
     this.limit = worldSize / 2 - 1;
     this.spawn = spawn.clone();
     this.alive = true;
+    this.cave = null; // the cave you're down in (see caves.js), or null on the surface
 
     this.object = new THREE.Group();
     this.body = placeholders.survivor();
@@ -323,7 +324,7 @@ export class Player {
 
     const { x, z } = input.moveAxis();
     const moving = x !== 0 || z !== 0;
-    const depth = world.terrain.waterDepth(this.position.x, this.position.z);
+    const depth = this.cave ? 0 : world.terrain.waterDepth(this.position.x, this.position.z);
     this.swimming = depth > SWIM_DEPTH;
     // Wading slows you down the deeper you go; swimming is slower still.
     // Press C to crouch or stand back up, or hold Shift: slower, and animals don't notice you
@@ -347,8 +348,9 @@ export class Player {
       this.walkTime += dt;
     }
 
-    const ground = world.terrain.heightAt(this.position.x, this.position.z);
-    this.position.y = Math.max(ground, world.terrain.waterLevelAt(this.position.x, this.position.z) - SWIM_DEPTH);
+    // Underground you walk on the cave's floor; on the surface, the land (or swim).
+    const ground = this.cave ? this.cave.floorAt(this.position.x, this.position.z) : world.terrain.heightAt(this.position.x, this.position.z);
+    this.position.y = this.cave ? ground : Math.max(ground, world.terrain.waterLevelAt(this.position.x, this.position.z) - SWIM_DEPTH);
 
     // Space to jump (not while swimming or wading deep). The jump only lifts the body:
     // `position` stays on the ground, so the camera doesn't bob.
@@ -392,6 +394,7 @@ export class Player {
 
   // True when standing in, or facing, water close enough to drink.
   canDrink(world) {
+    if (this.cave) return false;
     const { x, z } = this.ahead(1.2);
     return (
       world.terrain.waterDepth(this.position.x, this.position.z) > 0.02 || world.terrain.waterDepth(x, z) > 0.02
@@ -410,6 +413,7 @@ export class Player {
 
   reset() {
     this.alive = true;
+    this.cave = null;
     this.position.copy(this.spawn);
     this.facing = this.spawnFacing;
     this.jumpHeight = this.jumpSpeed = this.standingHeight = 0;
@@ -450,6 +454,13 @@ export class Player {
   tryMove(dx, dz, world) {
     const x = THREE.MathUtils.clamp(this.position.x + dx, -this.limit, this.limit);
     const z = THREE.MathUtils.clamp(this.position.z + dz, -this.limit, this.limit);
+    if (this.cave) {
+      // Underground: the cave's own walls (you can always move out of one, in case).
+      if (this.cave.blocked(x, z) && !this.cave.blocked(this.position.x, this.position.z)) return;
+      this.position.x = x;
+      this.position.z = z;
+      return;
+    }
     const feet = this.position.y + this.jumpHeight;
     for (const o of world.obstacles.near(x, z, RADIUS)) {
       if (o.top !== undefined && feet >= o.top - TOP_MARGIN) continue; // high enough to pass over it

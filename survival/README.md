@@ -86,12 +86,35 @@ roof turns see-through when you step inside, like the lookout's.
 - **Abandoned cabins** (about a dozen), on flat ground by the water or the woods. Inside are a
   bed, a stove, a table, and a cupboard and an old chest to search. There's split wood stacked by
   the wall outside. A cabin is warm shelter: at night, press E inside to sleep until morning.
-- **Caves** (about nine), dug into the hillsides on rocky ground and up the mountains, their
-  mouths facing downhill. Inside is an old fire ring and a weathered pack to search. Caves are
-  shelter too, which helps a lot up in the cold.
+- **Caves** (about nine), on rocky hillsides and up the mountains: a dark hole ringed by rocks.
+  They go underground. Walk into the hole holding a **lit torch** and the screen fades: you're
+  in a cave system 30 m down, a few rooms joined by narrow passages. It's dark but for your
+  torch, and the view closes in round you. There's an old camp with a pack to search, a miner's
+  chest in the furthest room (the best finds on the map), glowing crystals, and bats. Climb the
+  steps where you came in to go back up. Without a lit torch you won't go in. A cave is shelter
+  too: warm, out of the mountain cold, and somewhere to sleep.
+- **Abandoned campsites** (about 18): a fire ring, log seats, a collapsed tent, and sometimes a
+  pack left behind.
+- **Trappers' lean-tos** (about 10) in the woods: a bark roof to shelter under, hides on a
+  drying rack, and a crate (often with a trap or two in it).
 - **Hunting stands** (about 25), at the edges of the woods. Climb the ladder onto the platform,
   3 m up: from there, animals don't notice you, so it's a good spot to shoot from. There's often
   an ammo box with arrows or dried meat up there (and once in a while a bow).
+
+An **old fire road** runs from the lookout tower out to the nearest cabins: a dirt track with
+wheel ruts and grass coming back down the middle. It's long abandoned: the gate by the tower
+hangs open, fallen trees lie across it, and a rusted forest service truck or two sits by the
+side (search the glovebox). It's marked on the map as a dashed line.
+
+**Fallen trees** lie about in the woods (jump over them, or onto them), and **old split-rail
+fences** run across the meadows and round some of the cabins' yards, with rails down and gaps
+to slip through.
+
+Birds fly over by day, butterflies flutter over the meadows, and fireflies blink at night. You
+can hear the wind (louder up the mountains), birdsong, crickets and the odd owl at night,
+water nearby, a campfire's crackle, and dripping and bats down a cave. All the sounds are made
+by the game itself; to use recordings instead, see `public/sounds/README.md`. Press N to turn
+the sound off and on.
 
 What's in each is decided by the map's seed. The first time you come across each kind of place,
 you'll say so. Cabins and caves are marked on the map. All the numbers are at the top of
@@ -257,8 +280,13 @@ src/survival.js       Hunger, thirst, temperature, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
 src/input.js          Keyboard and mouse handling
 src/blood.js          Blood spatter on the ground when you're hurt
-src/pois.js           Cabins, caves and hunting stands: where they go, loot, floors and shelter
-src/poiModels.js      Stand-in models for the cabins, caves and hunting stands
+src/pois.js           Cabins, caves, stands, campsites, lean-tos: where they go, loot, floors and shelter
+src/caves.js          Cave entrances, and the cave systems underground
+src/roads.js          The old fire road: where it goes, and the gate, signs and fallen trees on it
+src/details.js        Fallen trees and old fences
+src/ambientLife.js    Birds, butterflies and fireflies
+src/sounds.js         All the sounds (made with Web Audio; recordings in public/sounds/ replace them)
+src/poiModels.js      Stand-in models for the cabins, stands, campsites, lean-tos, truck, logs and fences
 src/cutaway.js        Fades the parts of a building between the camera and the player
 src/models.js         Loads Blender models and draws many copies efficiently
 src/placeholders.js   Simple stand-in shapes used until Blender models exist

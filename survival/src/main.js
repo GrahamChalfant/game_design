@@ -23,6 +23,9 @@ import { Traps } from './traps.js';
 import { buildWreck, START_ITEMS } from './wreck.js';
 import { buildLookout } from './lookout.js';
 import { buildPois } from './pois.js';
+import { AmbientLife } from './ambientLife.js';
+import { Sound } from './sounds.js';
+import { isNight } from './daylight.js';
 import { MapView } from './mapView.js';
 import { FarView } from './farView.js';
 import { CRASH } from './crashTrail.js';
@@ -124,6 +127,27 @@ arrows.onLand = (x, z) => pickups.drop('arrow', 1, x, z);
 const pickups = new Pickups(scene, world);
 // Abandoned cabins, caves and hunting stands around the map (see pois.js).
 const pois = buildPois(scene, world);
+// Birds, butterflies and fireflies about the place, and the sounds of it all.
+const ambientLife = new AmbientLife(scene, world);
+const sound = new Sound();
+// What the sounds need to know about where you are.
+function updateSound(dt, paused) {
+  const { x, z } = player.position;
+  const { terrain } = world;
+  const fire = campfires.fires.reduce((loudest, f) => {
+    if (!campfires.isBurning(f)) return loudest;
+    return Math.max(loudest, 1 - Math.hypot(f.x - x, f.z - z) / 9);
+  }, 0);
+  sound.update(dt, {
+    paused,
+    night: isNight(survival.hourOfDay),
+    underground,
+    cold: player.cave ? 0 : terrain.coldAt(x, z),
+    water: player.cave ? 0 : terrain.nearWater(x, z, 3) ? 1 : terrain.nearWater(x, z, 12) ? 0.45 : 0,
+    fire: player.cave ? 0 : fire,
+    woods: Math.min(1, Math.max(0, terrain.forest(x, z) + 0.3)),
+  });
+}
 // The axe and backpack lie around the wreckage at the start of every game.
 const placeStartItems = () => {
   for (const { item, x, z } of START_ITEMS) pickups.drop(item, 1, x, z);
@@ -160,6 +184,11 @@ const hud = new Hud({
     world.drawAround(player.position.x, player.position.z);
     animals.reset(player.position);
     if (hud.inventoryOpen) hud.toggleInventory();
+    caveMove = null;
+    underground = 0;
+    saidDeep = false;
+    fade.style.opacity = 0;
+    caveDark.style.opacity = 0;
     hud.forgetRecipes();
     hud.hideSpeech();
     warnedDay = 0;
@@ -190,6 +219,7 @@ const hud = new Hud({
       inventory.outfit = null;
       return;
     }
+    if (player.cave) return hud.toast("Better not leave anything down here");
     const spots = [player.ahead(1.2), player.position];
     const put = (item, extra) => spots.some(({ x, z }) => pickups.drop(item, 1, x, z, extra));
     if (kind === 'outfit') {
@@ -202,6 +232,7 @@ const hud = new Hud({
   },
   // Dragged off the menu: drop it in front of the player, or at their feet if that's water.
   onDropItem: (i) => {
+    if (player.cave) return hud.toast("Better not leave anything down here");
     const { item, count } = inventory.slots[i];
     const { x, z } = player.ahead(1.2);
     if (pickups.drop(item, count, x, z) || pickups.drop(item, count, player.position.x, player.position.z)) {
@@ -289,11 +320,94 @@ const speechPoint = new THREE.Vector3();
 // What the player says on coming across the first of each kind of place.
 const FIRST_SIGHT = {
   cabin: "An old cabin… nobody's lived here for years. Maybe there's something useful inside.",
-  cave: "A cave. It'd keep the wind off: somewhere to shelter for the night.",
+  cave: "A hole in the hillside… a cave. I'll need a lit torch to go down there.",
   stand: "A hunting stand. From up there, the animals wouldn't notice me.",
+  camp: "Someone camped here… a long time ago, by the look of it.",
+  leanto: "A trapper's lean-to. They'd have known how to live out here.",
+  truck: "An old forest service truck. Rusted solid, but maybe the cab's worth a look.",
 };
 const saidAbout = new Set();
 const SPOTTING_SHOW = 900; // through the binoculars, places this far away are drawn
+
+// --- Caves (see caves.js) ---
+// Walking into a cave's hole with a lit torch in hand fades the screen to black and back,
+// and you're down in the cave; at the top of its first passage, the same takes you back up.
+// Down there it's dark but for your torch, and the view closes in round you.
+const CAVE_FADE = 0.4; // seconds to fade out, and the same to fade back in
+const CAVE_ZOOM = 11; // the camera comes in this close underground
+const CAVE_FOG = [3, 16]; // and you can't see further than this
+const BLACK = new THREE.Color(0);
+let caveMove = null; // { target: the cave you're going down (or null, going up), t, moved }
+let underground = 0; // how far the darkness has closed in: 0 on the surface, 1 down a cave
+let noTorchWait = 0; // seconds before you'll say you need a torch again
+let saidDeep = false;
+const fade = document.getElementById('fade');
+const caveDark = document.getElementById('cave-dark');
+function updateCaves(dt) {
+  noTorchWait = Math.max(0, noTorchWait - dt);
+  if (caveMove) {
+    caveMove.t += dt;
+    if (!caveMove.moved && caveMove.t >= CAVE_FADE) {
+      // Fully black: move the player down (or up).
+      caveMove.moved = true;
+      const { target } = caveMove;
+      const spot = target ? target.start : pois.outside(player.cave);
+      player.cave = target;
+      player.position.set(spot.x, target ? target.floorAt(spot.x, spot.z) : world.terrain.heightAt(spot.x, spot.z), spot.z);
+      player.facing = spot.facing;
+      player.jumpHeight = player.standingHeight = player.jumpSpeed = 0;
+      underground = target ? 1 : 0;
+      cameraTarget.copy(player.position);
+      world.drawAround(spot.x, spot.z);
+      if (target && !saidDeep) {
+        saidDeep = true;
+        hud.say('It goes deep… I need to keep this torch lit.', 5);
+      }
+    }
+    const t = caveMove.t / CAVE_FADE;
+    fade.style.opacity = t < 1 ? t : Math.max(0, 2 - t);
+    if (caveMove.t >= CAVE_FADE * 2) caveMove = null;
+  } else if (survival.alive) {
+    const { x, z } = player.position;
+    if (player.cave) {
+      if (Math.hypot(player.cave.exit.x - x, player.cave.exit.z - z) < 1) caveMove = { target: null, t: 0, moved: false };
+    } else {
+      const cave = pois.caveEntranceAt(x, z);
+      if (cave && inventory.selectedItem === 'litTorch') caveMove = { target: cave, t: 0, moved: false };
+      else if (cave) {
+        // Too dark to go in: step back out of the hole.
+        const out = pois.outside(cave);
+        const dx = x - cave.poi.x || out.x - cave.poi.x;
+        const dz = z - cave.poi.z || out.z - cave.poi.z;
+        const d = Math.hypot(dx, dz);
+        player.position.x = cave.poi.x + (dx / d) * 1.1;
+        player.position.z = cave.poi.z + (dz / d) * 1.1;
+        if (noTorchWait === 0) {
+          noTorchWait = 8;
+          hud.say(inventory.count('litTorch') > 0
+            ? "It's pitch black down there. I'll hold my torch up first."
+            : "It's pitch black down there. I'm not going in without a lit torch.", 5);
+        }
+      }
+    }
+  }
+  underground += ((player.cave ? 1 : 0) - underground) * Math.min(1, dt * 3);
+  caveDark.style.opacity = underground;
+}
+// Darkens the light and closes in the fog underground (after Daylight has set them).
+function darkenUnderground() {
+  if (underground < 0.001) return;
+  const k = underground;
+  sun.intensity *= 1 - k;
+  ambient.intensity *= 1 - 0.92 * k;
+  // Your torch lights the rock round you brightly (it's all you've got).
+  player.torchLight.intensity *= 1 + 1.5 * k;
+  player.torchLight.distance = 14 + 6 * k;
+  scene.background.lerp(BLACK, k);
+  scene.fog.color.copy(scene.background);
+  scene.fog.near = THREE.MathUtils.lerp(scene.fog.near, CAVE_FOG[0], k);
+  scene.fog.far = THREE.MathUtils.lerp(scene.fog.far, CAVE_FOG[1], k);
+}
 
 // The compass strip (#94): which way the player faces, and which way the crash is. Bearings
 // are degrees clockwise from north, and north is -z (up the screen).
@@ -377,7 +491,8 @@ function updateCamera(dt) {
   // Inside a roofed building (like the lookout's cab), zoom in.
   const { x, z } = player.position;
   const inside = world.structures.some((structure) => structure.roofOver(x, z, player.feet));
-  shownZoom += ((inside ? Math.min(zoom, INSIDE_ZOOM) : zoom) - shownZoom) * Math.min(1, dt * 4);
+  const closest = player.cave ? CAVE_ZOOM : inside ? INSIDE_ZOOM : Infinity;
+  shownZoom += (Math.min(zoom, closest) - shownZoom) * Math.min(1, dt * 4);
   // Follow the player up stairs and onto rocks (but not their jumps, so it doesn't bob).
   cameraGoal.set(x, player.standingOn, z);
   cameraTarget.lerp(cameraGoal, Math.min(1, dt * 6));
@@ -390,7 +505,7 @@ function updateCamera(dt) {
   camera.updateMatrixWorld();
   // Fade whatever part of a building is between the camera and the player.
   lookout.update(dt, camera, player.feet, player.position);
-  const found = pois.update(dt, camera, player.feet, player.position);
+  const found = pois.update(dt, camera, player.feet, player.position, undefined, player.cave);
   if (found && !saidAbout.has(found.kind)) {
     saidAbout.add(found.kind);
     hud.say(FIRST_SIGHT[found.kind], 6);
@@ -424,6 +539,8 @@ renderer.setAnimationLoop(() => {
     world.update(0, clock.elapsedTime, player.position); // keeps the scenery around the player drawn
     pickups.update(clock.elapsedTime, player.position.x, player.position.z);
     daylight.update(survival.hourOfDay, cameraTarget);
+    darkenUnderground();
+    updateSound(dt, true);
     input.endFrame();
     draw();
     return;
@@ -434,6 +551,7 @@ renderer.setAnimationLoop(() => {
   }
   if (hud.inventoryOpen) characterView.update(dt, inventory.hasBackpack, inventory.outfit);
 
+  if (input.wasPressed('KeyN')) hud.toast(sound.toggleMute() ? 'Sound off (N)' : 'Sound on (N)');
   if (input.wasPressed('KeyM')) {
     if (inventory.count('map') > 0) mapView.toggle();
     else hud.toast("You don't have a map");
@@ -460,17 +578,19 @@ renderer.setAnimationLoop(() => {
   updateCompass();
   mapView.explore(player.position.x, player.position.z);
   mapView.update(inventory.count('map') > 0);
-  mapView.draw({ player, lookout, pois: world.pois, campfires, shelters });
+  mapView.draw({ player, lookout, pois: world.pois, roads: world.roads, campfires, shelters });
   // Keep the speech bubble above the player's head.
   speechPoint.copy(player.position).setY(player.feet + 2.1).project(camera);
   hud.placeSpeech((speechPoint.x * 0.5 + 0.5) * innerWidth, (-speechPoint.y * 0.5 + 0.5) * innerHeight);
 
-  player.update(dt, spotting ? stillInput : input, world);
+  updateCaves(dt);
+  player.update(dt, spotting || caveMove ? stillInput : input, world);
   updateCamera(dt);
   farView.update();
   world.update(dt, clock.elapsedTime, player.position);
-  // Up a hunting stand, animals don't notice you, as if you were sneaking.
-  animals.update(dt, player.position, player.sneaking || pois.upAStand(player.position.x, player.position.z, player.feet));
+  // Up a hunting stand, animals don't notice you, as if you were sneaking. (While you're down
+  // a cave, they wait for you.)
+  if (!player.cave) animals.update(dt, player.position, player.sneaking || pois.upAStand(player.position.x, player.position.z, player.feet));
   arrows.update(dt);
   traps.update();
   bushes.update(survival.minutesSurvived);
@@ -489,9 +609,12 @@ renderer.setAnimationLoop(() => {
   }
   wreck.update(dt);
   blood.update(dt);
+  ambientLife.update(dt, survival.hourOfDay, player.position, Boolean(player.cave));
+  updateSound(dt, !survival.alive);
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);
+  darkenUnderground();
   // Through the binoculars you can see a long way: push the haze right back.
   if (spotting) {
     scene.fog.near = 600;
