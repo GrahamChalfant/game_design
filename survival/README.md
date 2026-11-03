@@ -121,7 +121,7 @@ Hides and intestines can be crafted into rope (intestines give 1 rope, a hide gi
 it (3 drinks), then click anywhere to take a drink. Bigger animals give more meat, hide and
 intestines.
 To hunt deer, make a bow. Stones lie in little groups by the rocks and the lake shore (press E
-to pick them up); a taken stone comes back a day later. A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
+to pick them up); a taken stone comes back three days later, so once you've picked an area clean you'll need to look further afield. A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
 (3 wood, 2 bowstrings), and once you hold a bow, arrows (1 wood and 1 stone make 3). Select the
 bow and click on the ground where you want to shoot: you turn and loose an arrow that way. One hit kills a deer or a rabbit; hold E next to
 it to butcher it (a deer takes 4 s and gives 6 raw meat, 2 hides and 2 intestines). The bow
