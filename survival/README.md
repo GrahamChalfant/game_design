@@ -156,7 +156,7 @@ Nights are dark away from a fire. Craft a torch (2 wood), hold it at a burning c
 to light it. A lit torch lights up the ground around you and burns for 3 in-game hours (about 75
 real seconds), whether you hold it or not; its slot shows how long it has left.
 Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows in your Outfit
-slot and on your character. It keeps out most of the mountain cold, so you can climb up there by
+slot, and on your character as a knee-length hide coat with a fur-trimmed hood. It keeps out most of the mountain cold, so you can climb up there by
 day, and halves the chill of a night outdoors. Nights up the mountains still need a fire.
 Hold raw meat at a burning fire and click and hold to cook it, then click away from
 the fire to eat. Eating meat raw works in a pinch, but it makes you sick.
