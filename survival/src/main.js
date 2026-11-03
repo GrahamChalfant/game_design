@@ -350,9 +350,15 @@ renderer.setAnimationLoop(() => {
     else hud.toast("You don't have a map");
   }
   // Looking through the binoculars, the player stands still; E stops.
-  if (spotting && (input.wasPressed('KeyE') || !survival.alive)) stopSpotting();
-  const actions = spotting
-    ? { prompt: 'Binoculars · WASD to look around · scroll to zoom · E to stop', cold: world.terrain.coldAt(player.position.x, player.position.z) }
+  // (On the frame you stop, E mustn't also count as pressing E at the binoculars again.)
+  const stopped = spotting && (input.wasPressed('KeyE') || !survival.alive);
+  if (stopped) stopSpotting();
+  const actions = spotting || stopped
+    ? {
+        prompt: 'Binoculars · WASD to look around · scroll to zoom · E to stop',
+        cold: world.terrain.coldAt(player.position.x, player.position.z),
+        outfit: inventory.outfit,
+      }
     : updateActions(dt);
   player.wear(inventory.outfit);
   // Lit torches burn down, whether they're in your hand or not.

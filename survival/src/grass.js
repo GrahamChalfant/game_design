@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SpatialGrid } from './grid.js';
 import { loadModel } from './models.js';
 import { createRandom } from './random.js';
-import { CHUNK_SIZE, chunkOf, chunkSeed, chunksAround } from './stream.js';
+import { CHUNK_SIZE, chunkKey, chunkOf, chunkSeed, chunksAround } from './stream.js';
 
 const FOREST_THINNING = 0.75; // the share of tufts left out where trees grow
 const TUFT_BRIGHTNESS = 1.5;
@@ -191,12 +191,20 @@ export function createGrass(seed, terrain, area) {
     // Removes the grass within `radius` of (x, z), e.g. under a campfire.
     clear(x, z, radius) {
       cleared.add({ x, z, radius });
-      for (const tufts of chunks.values()) {
-        for (const name in tufts) {
-          tufts[name] = tufts[name].filter((tuft) => Math.hypot(tuft.x - x, tuft.z - z) > radius);
+      // Only the chunks the circle touches (usually just one).
+      const [minX, minZ] = chunkOf(x - radius, z - radius);
+      const [maxX, maxZ] = chunkOf(x + radius, z + radius);
+      for (let cx = minX; cx <= maxX; cx++) {
+        for (let cz = minZ; cz <= maxZ; cz++) {
+          const key = chunkKey(cx, cz);
+          const tufts = chunks.get(key);
+          if (!tufts) continue;
+          for (const name in tufts) {
+            tufts[name] = tufts[name].filter((tuft) => Math.hypot(tuft.x - x, tuft.z - z) > radius);
+          }
+          if (shownKeys.includes(key)) dirty = true;
         }
       }
-      dirty = true;
     },
     // Grows back all cleared grass, for a new game.
     restore() {

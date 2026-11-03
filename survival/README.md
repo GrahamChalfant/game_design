@@ -70,7 +70,8 @@ pick them up. The backpack gives you 12 extra slots.
 Somewhere on high ground, a few hundred meters from the crash, stands a fire lookout tower. Walk
 onto the stairs at its foot and follow the flights up past the landings to the cab, 12 m up: a
 6 m square room with the lookout's fire-finder table, a cot, a supply crate and a ranger's locker.
-Hold E at the crate or the locker to search it. On most maps (about 3 in 5) the crate has a map
+Hold E at the crate or the locker to search it. (Up the tower, things on the ground below are out
+of reach, and you can't put down a campfire, shelter or trap.) On most maps (about 3 in 5) the crate has a map
 in it.
 
 A doorway leads out onto a balcony that runs all the way round the cab. Out there, binoculars

@@ -179,8 +179,13 @@ export class Animals {
 
   update(dt, playerPosition, sneaking) {
     for (const animal of this.all) if (!animal.dead) this.updateAnimal(animal, dt, playerPosition, sneaking);
+    // (Rabbits drawn to a set trap stay, so traps keep working while you're away.)
+    const lures = this.lures();
     for (const animal of [...this.all]) {
       if (Math.hypot(animal.position.x - playerPosition.x, animal.position.z - playerPosition.z) < WANDERED_OFF) continue;
+      const lured = animal.config.lureRange && !animal.dead &&
+        lures.some((lure) => Math.hypot(lure.x - animal.position.x, lure.z - animal.position.z) < animal.config.lureRange);
+      if (lured) continue;
       if (animal.dead) this.remove(animal); // a carcass left far behind
       else this.relocate(animal, playerPosition);
     }
