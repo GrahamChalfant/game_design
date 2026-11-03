@@ -121,13 +121,13 @@ Hides and intestines can be crafted into rope (intestines give 1 rope, a hide gi
 it (3 drinks), then click anywhere to take a drink. Bigger animals give more meat, hide and
 intestines.
 To hunt deer, make a bow. Stones lie in little groups by the rocks and the lake shore (press E
-to pick them up). A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
+to pick them up); a taken stone comes back a day later. A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
 (3 wood, 2 bowstrings), and once you hold a bow, arrows (1 wood and 1 stone make 3). Select the
-bow and click to shoot the way you're facing. One hit kills a deer or a rabbit; hold E next to
+bow and click on the ground where you want to shoot: you turn and loose an arrow that way. One hit kills a deer or a rabbit; hold E next to
 it to butcher it (a deer takes 4 s and gives 6 raw meat, 2 hides and 2 intestines). The bow
 breaks after 30 shots and arrows are lost once shot. All the numbers are in `src/hunting.js`.
 Craft a shelter (20 wood, 6 rope, 4 hides), select it and click to build it a few steps
-ahead. Its open front always faces the camera, so you can see inside it. Under its roof you stay warm, like standing at a
+ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
 Hold raw meat at a burning fire and click and hold to cook it, then click away from
@@ -220,7 +220,8 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `backpack.glb` | Backpack lying in the grass | ~0.5 m tall |
 | `axe-ground.glb` | Axe lying on the ground | ~0.75 m long |
 | `logs.glb` | Pile of logs lying on the ground | ~0.7 m long |
-| `trap.glb` | Snare trap | ~0.7 m across |
+| `trap.glb` | Spring-pole snare (rebuilt by `blender/camp_props.py`) | ~0.7 m across |
+| `boar.glb` | Rigged wild boar with idle, walk, run and graze clips (rebuilt by `blender/boar.py`) | ~1.4 m long, 0.9 m tall |
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
 | `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |

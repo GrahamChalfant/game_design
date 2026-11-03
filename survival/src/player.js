@@ -43,9 +43,6 @@ export class Player {
     this.object.add(this.axe);
     loadModel('axe').then((model) => {
       if (!model) return;
-      // axe.glb's root node carries a leftover offset of (-1.2, 0.8, 0) from Blender, which put
-      // the axe well over a metre from the hand (#65). Zero it so the grip sits in the hand.
-      model.traverse((child) => { if (child.name === 'axe') child.position.set(0, 0, 0); });
       this.axe.clear();
       this.axe.add(model);
     });

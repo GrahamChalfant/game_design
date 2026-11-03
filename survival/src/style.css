@@ -733,3 +733,43 @@ canvas {
 
 .condition.wet { color: #8fd3ff; }
 .condition.freezing { color: #bfe8ff; animation: pulse 0.8s ease-in-out infinite alternate; }
+
+/* --- The player's speech bubble --- */
+
+#speech {
+  position: fixed;
+  z-index: 4;
+  max-width: 260px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  color: #2d2824;
+  background: #f4ead2;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.3;
+  text-align: center;
+  pointer-events: none;
+  /* Sits centred above the point it's placed at, with its tail pointing down at the head. */
+  transform: translate(-50%, calc(-100% - 10px));
+  animation: speech-in 0.25s ease-out;
+}
+
+#speech[hidden] {
+  display: none;
+}
+
+#speech::after {
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  border: 7px solid transparent;
+  border-top-color: #f4ead2;
+  border-bottom: 0;
+  transform: translateX(-50%);
+  content: '';
+}
+
+@keyframes speech-in {
+  from { opacity: 0; transform: translate(-50%, calc(-100% - 2px)); }
+}

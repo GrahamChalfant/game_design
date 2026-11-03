@@ -4,6 +4,7 @@ import { Daylight } from './daylight.js';
 import { createPainterlyRenderer } from './painterly.js';
 import { Animals } from './animals.js';
 import { Arrows } from './arrows.js';
+import { respawnStones } from './hunting.js';
 import { Campfires } from './campfires.js';
 import { Shelters } from './shelters.js';
 import { CharacterView } from './characterView.js';
@@ -81,7 +82,7 @@ const bushes = new Bushes(scene, world, createRandom(SEED + 3));
 const animals = new Animals(scene, world, SEED + 2);
 // A charging boar gores the player (#76).
 animals.onAttack = (animal, damage) => {
-  survival.eat(0, -damage);
+  survival.hurt(damage);
   hud.toast(`The ${animal.kind} gores you! (-${damage} health)`);
 };
 animals.spawnAll(player.position);
@@ -92,8 +93,11 @@ const pickups = new Pickups(scene, world);
 // The axe and backpack lie around the wreckage at the start of every game.
 const placeStartItems = () => {
   for (const { item, x, z } of START_ITEMS) pickups.drop(item, 1, x, z);
-  // Loose stones by the rocks and lake shore (they don't come back once taken, for now).
-  for (const { x, z } of world.stones) pickups.drop('stone', 1, x, z);
+  // Loose stones by the rocks and lake shore. Taken ones come back a day later (see below).
+  for (const spot of world.stones) {
+    pickups.drop('stone', 1, spot.x, spot.z);
+    spot.emptySince = null;
+  }
 };
 placeStartItems();
 const hud = new Hud({
@@ -113,6 +117,8 @@ const hud = new Hud({
     animals.reset(player.position);
     if (hud.inventoryOpen) hud.toggleInventory();
     hud.forgetRecipes();
+    hud.hideSpeech();
+    warnedDay = 0;
     hud.hideGameOver();
   },
   onSlotClick: (i) => {
@@ -144,7 +150,37 @@ const sleep = () => {
   const { day } = survival.clock;
   hud.showSleep(`Day ${day} · 0${WAKE_HOUR}:00`);
 };
-const updateActions = createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep });
+// The point on the ground under the mouse (for aiming the bow), or null if it's off the ground.
+const aimRay = new THREE.Raycaster();
+const aimNdc = new THREE.Vector2();
+const aimPoint = () => {
+  aimNdc.set((input.pointer.x / innerWidth) * 2 - 1, -(input.pointer.y / innerHeight) * 2 + 1);
+  aimRay.setFromCamera(aimNdc, camera);
+  return aimRay.intersectObject(world.terrain.ground, false)[0]?.point ?? null;
+};
+const updateActions = createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, aimPoint });
+
+// The player says things out loud when they're in trouble, in a speech bubble.
+// Each line is said at most once per evening/cold spell.
+const DUSK_WARNING_HOUR = 18.5; // a while before sunset at 20:00
+let warnedDay = 0; // the last day the dusk warning was given
+let saidFreezing = false;
+function thinkAloud({ fire, shelter }) {
+  if (!survival.alive) return;
+  const warm = fire || shelter;
+  const { day } = survival.clock;
+  const hour = survival.hourOfDay;
+  if (hour >= DUSK_WARNING_HOUR && hour < 21 && warnedDay !== day && !warm) {
+    warnedDay = day;
+    hud.say("It's getting cold… maybe I should build a fire.", 6);
+  }
+  if (survival.isFreezing && !warm && !saidFreezing) {
+    saidFreezing = true;
+    hud.say("I'm freezing… I need a fire or some shelter.", 6);
+  }
+  if (!survival.isFreezing) saidFreezing = false;
+}
+const speechPoint = new THREE.Vector3();
 
 // --- Top-down camera that follows the player ---
 let zoom = 20; // distance from the player
@@ -193,9 +229,13 @@ renderer.setAnimationLoop(() => {
 
   const actions = updateActions(dt);
   survival.update(dt, actions, TIME_SPEED);
+  thinkAloud(actions);
   campfires.update(survival.alive ? dt * GAME_MINUTES_PER_SECOND * TIME_SPEED : 0, clock.elapsedTime);
   if (!survival.alive && player.alive) player.die();
   hud.update(survival, inventory, actions);
+  // Keep the speech bubble above the player's head.
+  speechPoint.copy(player.position).setY(player.position.y + 2.1).project(camera);
+  hud.placeSpeech((speechPoint.x * 0.5 + 0.5) * innerWidth, (-speechPoint.y * 0.5 + 0.5) * innerHeight);
 
   player.update(dt, input, world);
   updateCamera(dt);
@@ -205,6 +245,13 @@ renderer.setAnimationLoop(() => {
   traps.update();
   bushes.update(survival.minutesSurvived);
   pickups.update(clock.elapsedTime);
+  respawnStones(
+    world.stones,
+    survival.minutesSurvived,
+    (x, z) => pickups.piles.some((p) => p.item === 'stone' && Math.hypot(p.x - x, p.z - z) < 0.3),
+    (spot) => pickups.drop('stone', 1, spot.x, spot.z),
+    player.position,
+  );
   wreck.update(dt);
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.

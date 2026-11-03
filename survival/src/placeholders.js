@@ -382,21 +382,47 @@ export function campfire() {
   return group;
 }
 
-// Flickering flames. They glow by themselves (not lit by the sun), base at the origin.
+// Flickering flames: a cluster of low-poly flame tongues leaning out at different heights, red
+// at the edges and yellow at the hot core, over a bed of glowing embers. They glow by themselves
+// (not lit by the sun). Base at the origin; campfires.js flickers each child separately.
 export function flames() {
   const group = new THREE.Group();
-  const layers = [
-    [0.32, 0.9, 0xff6a1f, 0.85],
-    [0.22, 0.75, 0xffa53a, 0.9],
-    [0.12, 0.55, 0xffe08a, 0.95],
+  const tongues = [
+    // [x, z, height, radius, lean (radians), colour]
+    [0, 0, 0.62, 0.13, 0, 0xffc04a],
+    [0.1, 0.05, 0.46, 0.1, 0.25, 0xff8a2e],
+    [-0.09, 0.07, 0.42, 0.1, -0.3, 0xff8a2e],
+    [0.03, -0.11, 0.38, 0.09, 0.3, 0xf2652a],
+    [-0.11, -0.06, 0.32, 0.08, -0.35, 0xf2652a],
+    [0.13, -0.06, 0.28, 0.07, 0.4, 0xe8562a],
+    [-0.02, 0.12, 0.3, 0.07, -0.2, 0xe8562a],
+    [0.01, 0.0, 0.36, 0.06, 0.05, 0xffe08a], // the bright core
   ];
-  for (const [radius, height, color, opacity] of layers) {
-    const geometry = new THREE.ConeGeometry(radius, height, 12, 1, true).translate(0, height / 2, 0);
-    const flame = new THREE.Mesh(
-      geometry,
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }),
+  tongues.forEach(([x, z, height, radius, lean, color], i) => {
+    // A 5-sided teardrop: widest a little above the base, drawn to a point.
+    const points = [
+      new THREE.Vector2(0, 0),
+      new THREE.Vector2(radius * 0.7, height * 0.08),
+      new THREE.Vector2(radius, height * 0.3),
+      new THREE.Vector2(radius * 0.55, height * 0.65),
+      new THREE.Vector2(0, height),
+    ];
+    const tongue = new THREE.Mesh(
+      new THREE.LatheGeometry(points, 5, i * 0.7),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.92, depthWrite: false }),
     );
-    group.add(flame);
+    tongue.position.set(x, 0, z);
+    tongue.rotation.set(Math.sin(i * 2.1) * lean, i * 1.3, Math.cos(i * 2.1) * lean);
+    group.add(tongue);
+  });
+  // Embers: a few glowing chunks in the middle of the pit, under the flames.
+  const ember = new THREE.MeshBasicMaterial({ color: 0xff5a1f });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const chunk = new THREE.Mesh(new THREE.DodecahedronGeometry(0.045, 0), ember);
+    chunk.position.set(Math.cos(a) * 0.12, 0.02, Math.sin(a) * 0.12);
+    chunk.userData.ember = true; // campfires.js leaves embers alone when it flickers the flames
+    group.add(chunk);
   }
   return group;
 }

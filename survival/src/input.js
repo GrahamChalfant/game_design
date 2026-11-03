@@ -1,11 +1,12 @@
-// Tracks which keys are held, which were just pressed, the mouse button, and how far
-// the mouse wheel scrolled since the last frame.
+// Tracks which keys are held, which were just pressed, the mouse button and where the mouse
+// is, and how far the mouse wheel scrolled since the last frame.
 export class Input {
   constructor(element) {
     this.keys = new Set();
     this.pressed = new Set();
     this.scroll = 0;
     this.mouseDown = false;
+    this.pointer = { x: 0, y: 0 }; // the mouse, in pixels from the top left of the window
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
@@ -16,8 +17,15 @@ export class Input {
     window.addEventListener('blur', () => {
       this.keys.clear();
       this.mouseDown = false;
+    this.pointer = { x: 0, y: 0 }; // the mouse, in pixels from the top left of the window
     });
+    const track = (e) => {
+      this.pointer.x = e.clientX;
+      this.pointer.y = e.clientY;
+    };
+    element.addEventListener('pointermove', track);
     element.addEventListener('pointerdown', (e) => {
+      track(e);
       if (e.button !== 0) return;
       this.mouseDown = true;
       this.pressed.add('MouseLeft');

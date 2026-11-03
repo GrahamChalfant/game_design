@@ -6,6 +6,27 @@ export const STONE_AREA_PER_STONE = 400; // about 1 stone per this many square m
 export const STONE_CLUSTER_SIZE = [2, 4]; // stones lie in little groups of 2 to 4
 export const STONE_CLUSTER_SPREAD = 1.4; // meters between stones in a group
 export const STONE_STACK = 20;
+export const STONE_RESPAWN_MINUTES = 24 * 60; // a taken stone is back one in-game day later...
+export const STONE_RESPAWN_CLEARANCE = 12; // ...unless you're standing this close to the spot
+
+// Brings stones back to spots that have been empty long enough. Each spot is { x, z } and
+// gets an `emptySince` (game minutes). `hasStone(x, z)` says whether a stone lies there now;
+// `restock(spot)` puts one back. `now` is game minutes, so sleeping counts as time passing.
+export function respawnStones(spots, now, hasStone, restock, player) {
+  for (const spot of spots) {
+    if (hasStone(spot.x, spot.z)) {
+      spot.emptySince = null;
+    } else if (spot.emptySince == null) {
+      spot.emptySince = now;
+    } else if (
+      now - spot.emptySince >= STONE_RESPAWN_MINUTES &&
+      Math.hypot(spot.x - player.x, spot.z - player.z) > STONE_RESPAWN_CLEARANCE
+    ) {
+      restock(spot);
+      spot.emptySince = null;
+    }
+  }
+}
 
 // --- Bow and arrows ---
 export const BOW_DURABILITY = 30; // shots before the bow breaks

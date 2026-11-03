@@ -23,7 +23,7 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `campfire.glb` | Ring of 15 nearly-touching stones built from `rock-small`/`rock` (mossy vertex paint), log teepee, embers, crossed-blade flame, ~0.95 m across | 861 | camp_props.py |
 | `log-pile.glb` | 4-3-2 stack of 1.2 m logs with two stakes | 204 | camp_props.py |
 | `stump.glb` | Tree stump with root flares, ~0.45 m tall | 90 | camp_props.py |
-| `trap.glb` | Simple snare: wooden stake with a short arm and a hanging rope noose facing -Y, ~0.5 m tall | 128 | camp_props.py |
+| `trap.glb` | Spring-pole snare: stake, bent sapling with needle tufts, cord and a wide noose lying open in front (-Y), ~0.7 m across | 336 | camp_props.py |
 | `pine.glb`, `pine-small.glb`, `pine-skinny.glb`, `pine-tall.glb`, `pine-wide.glb` | Pines | 188–448 | trees.blend |
 | `pine-snow.glb`, `pine-small-snow.glb` | Snowy pines | 1,124 / 548 | trees.blend |
 | `sapling-pine.glb`, `sapling-broadleaf.glb` | Saplings | 144 / 288 | trees.blend |
@@ -34,12 +34,12 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `berry-bush.glb` | Berry bush, rust berry clusters; origin base centre | 258 | food_props.py |
 | `berry.glb` | Berry pickup (3 berries + leaf) | 25 | food_props.py |
 | `knife.glb` | Stone knife, wood handle, slate blade; origin at the guard (top of the handle wrap), blade along +Z Blender / +Y glTF (like axe), edge toward -Y | 76 | food_props.py |
-| `boar.glb` | Boar (reworked: hooves grounded, 3 mane tufts, thicker legs, bigger tusks, 462 tris), static (unrigged), faces -Y, origin at feet | 422 | food_props.py |
+| `boar.glb` | Wild boar: rigged, with `boar-idle`, `boar-walk`, `boar-run`, `boar-graze` clips; wedge body with a dark mane that reads from above; faces -Y, origin at feet | 472 | boar.py |
 
 **Wanted (placeholders in code until these land):**
 - `berry-bush.glb` — low bush ~0.9 m, origin base centre; berries as a child node named `berries` (hidden when picked).
 - `knife.glb` — landed; origin at the guard, blade +Y, on `hand_R` (code nudges it 1 cm so the fist holds the handle).
-- `boar.glb` — landed (reworked). Was: boar ~0.8 m at shoulder, facing +Z; optional clips `boar-idle`, `boar-graze`, `boar-walk`, `boar-run` (same naming as deer/rabbit).
+- `boar.glb` — rebuilt by `boar.py`: rigged and animated, so it walks, runs (charges) and roots in the ground.
 
 Style, palette and poly budgets: `survival/blender/STYLE_GUIDE.md`.
 See "Adding models from Blender" in `survival/README.md` for sizes and orientation.

@@ -96,6 +96,7 @@ export class Campfires {
 
       fire.flames.visible = burning;
       fire.flames.children.forEach((flame, i) => {
+        if (flame.userData.ember) return;
         const wobble = 1 + Math.sin(t * 1.3 + i * 2.1) * 0.15;
         flame.scale.set(strength, strength * flicker * wobble, strength);
       });
