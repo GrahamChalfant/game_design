@@ -36,7 +36,7 @@ export function scatterDetails(scene, { random, terrain, obstacles, isFree, pois
     for (let t = -length / 2 + radius; t <= length / 2 - radius + 0.01; t += 0.8) {
       const ox = x + dx * t;
       const oz = z + dz * t;
-      obstacles.add({ x: ox, z: oz, radius: radius + 0.05, top: terrain.heightAt(ox, oz) + radius * 1.9 }); // you can jump onto it
+      obstacles.add({ x: ox, z: oz, radius: radius + 0.05, top: terrain.heightAt(ox, oz) + radius * 1.9, log: true }); // you can jump onto it
     }
     logs.push({ x, z, heading, length, radius });
   };

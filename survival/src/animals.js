@@ -83,6 +83,8 @@ export class Animals {
     this.lures = () => [];
     // Called with (animal, damage) when a charging boar gores the player.
     this.onAttack = () => {};
+    // Called with (animal) when a boar starts to charge.
+    this.onCharge = () => {};
     for (const kind of Object.keys(KINDS)) {
       loadModel(kind).then((model) => {
         if (!model) return;
@@ -258,7 +260,10 @@ export class Animals {
     let speed = 0;
     if (config.aggressive) {
       animal.attackCooldown = Math.max(0, (animal.attackCooldown ?? 0) - dt);
-      if (playerDistance < chargeDistance(sneaking) || (animal.hits && playerDistance < config.calmDistance)) animal.state = 'charge';
+      if (playerDistance < chargeDistance(sneaking) || (animal.hits && playerDistance < config.calmDistance)) {
+        if (animal.state !== 'charge') this.onCharge(animal);
+        animal.state = 'charge';
+      }
       if (animal.state === 'charge' && playerDistance > config.calmDistance) this.rest(animal);
       if (animal.state === 'charge' && playerDistance < BOAR_ATTACK_REACH + animal.radius) {
         // Close enough: gore the player, then stand its ground until it can again.

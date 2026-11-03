@@ -108,6 +108,8 @@ const animals = new Animals(scene, world, SEED + 2);
 const blood = new Blood(scene, world);
 animals.onAttack = (animal, damage) => {
   survival.hurt(damage);
+  sound.play('hit');
+  sound.play('hurt');
   player.hit(animal.position.x, animal.position.z);
   const away = new THREE.Vector2(player.position.x - animal.position.x, player.position.z - animal.position.z).normalize();
   blood.spill(player.position.x, player.position.z, away.x, away.y);
@@ -117,13 +119,22 @@ animals.onAttack = (animal, damage) => {
 animals.spawnAll(player.position);
 const traps = new Traps(scene, world, animals);
 const arrows = new Arrows(scene, world, animals);
+// A boar squeals as it charges.
+animals.onCharge = (animal) => sound.play('boar-charge', animal.position);
 arrows.onKill = (animal) => {
+  sound.play('arrow-hit', animal.position);
   blood.splat(animal.position.x, animal.position.z, animal.radius * 0.9);
   hud.toast(`You shot a ${animal.kind}! Hold E next to it to butcher it`);
 };
-arrows.onHit = (animal) => blood.splat(animal.position.x, animal.position.z, animal.radius * 0.6);
+arrows.onHit = (animal) => {
+  sound.play('arrow-hit', animal.position);
+  blood.splat(animal.position.x, animal.position.z, animal.radius * 0.6);
+};
 // An arrow that hits nothing comes down in the ground, where you can pick it up again.
-arrows.onLand = (x, z) => pickups.drop('arrow', 1, x, z);
+arrows.onLand = (x, z) => {
+  sound.play('arrow-land', { x, z });
+  pickups.drop('arrow', 1, x, z);
+};
 const pickups = new Pickups(scene, world);
 // Abandoned cabins, caves and hunting stands around the map (see pois.js).
 const pois = buildPois(scene, world);
@@ -131,7 +142,7 @@ const pois = buildPois(scene, world);
 const ambientLife = new AmbientLife(scene, world);
 const sound = new Sound();
 // What the sounds need to know about where you are.
-function updateSound(dt, paused) {
+function updateSound(dt, paused, busy = {}) {
   const { x, z } = player.position;
   const { terrain } = world;
   const fire = campfires.fires.reduce((loudest, f) => {
@@ -146,7 +157,56 @@ function updateSound(dt, paused) {
     water: player.cave ? 0 : terrain.nearWater(x, z, 3) ? 1 : terrain.nearWater(x, z, 12) ? 0.45 : 0,
     fire: player.cave ? 0 : fire,
     woods: Math.min(1, Math.max(0, terrain.forest(x, z) + 0.3)),
+    listener: { x, z },
+    cooking: !paused && busy.cooking,
+    eating: !paused && busy.eating,
+    drinking: !paused && busy.drinking,
+    searching: !paused && busy.searching,
+    bandaging: !paused && busy.bandaging,
   });
+}
+
+// --- Footsteps ---
+// A step every stride, sounding like whatever's underfoot (quieter while sneaking), a thump
+// when you land from a jump, strokes while swimming, and a splash as you wade in deep.
+const STRIDE = { walk: 0.8, sneak: 0.55, swim: 1.6 };
+const GROUND_SOUNDS = { grass: 'grass', rock: 'rock', snow: 'snow', dirt: 'dirt', road: 'dirt', shore: 'gravel', water: 'water' };
+let stride = 0;
+const lastStep = { x: 0, z: 0 };
+let wasAirborne = false;
+let wasDeep = false;
+function underfoot() {
+  const { x, z } = player.position;
+  if (player.cave) return 'rock';
+  if (world.terrain.waterDepth(x, z) > 0.08) return 'water';
+  if (player.standingHeight > 0.05) {
+    for (const o of world.obstacles.near(x, z, 0.4)) {
+      if (o.top !== undefined && Math.abs(o.top - player.feet) < 0.2 && Math.hypot(o.x - x, o.z - z) < o.radius + 0.3) return o.log ? 'wood' : 'rock';
+    }
+    return 'wood'; // a floor: a cabin, the tower, a hunting stand
+  }
+  return GROUND_SOUNDS[world.terrain.groundAt(x, z).kind] ?? 'grass';
+}
+function updateFootsteps() {
+  const { x, z } = player.position;
+  const moved = Math.hypot(x - lastStep.x, z - lastStep.z);
+  lastStep.x = x;
+  lastStep.z = z;
+  if (!player.alive || caveMove || moved > 2) return; // (not after a jump to somewhere else)
+  const deep = !player.cave && world.terrain.waterDepth(x, z) > 0.6;
+  if (deep && !wasDeep) sound.play('splash');
+  wasDeep = deep;
+  if (wasAirborne && !player.airborne) {
+    sound.play('land');
+    sound.play(`step-${underfoot()}`, null, 1.3);
+  }
+  wasAirborne = player.airborne;
+  if (player.airborne) return;
+  stride += moved;
+  const length = player.swimming ? STRIDE.swim : player.sneaking ? STRIDE.sneak : STRIDE.walk;
+  if (stride < length) return;
+  stride = 0;
+  sound.play(player.swimming ? 'swim' : `step-${underfoot()}`, null, player.sneaking ? 0.45 : 1);
 }
 // The axe and backpack lie around the wreckage at the start of every game.
 const placeStartItems = () => {
@@ -268,7 +328,7 @@ const aimPoint = () => {
 const onDressed = (outfit) => {
   if (outfit === 'jacket') hud.say("That's better. I'll warm up in no time.", 5);
 };
-const updateActions = createActions({ input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: () => startSpotting(), onDressed, aimPoint });
+const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: () => startSpotting(), onDressed, aimPoint });
 
 // The player says things out loud when they're in trouble, in a speech bubble.
 // Each line is said at most once per evening/cold spell.
@@ -585,6 +645,7 @@ renderer.setAnimationLoop(() => {
 
   updateCaves(dt);
   player.update(dt, spotting || caveMove ? stillInput : input, world);
+  updateFootsteps();
   updateCamera(dt);
   farView.update();
   world.update(dt, clock.elapsedTime, player.position);
@@ -610,7 +671,7 @@ renderer.setAnimationLoop(() => {
   wreck.update(dt);
   blood.update(dt);
   ambientLife.update(dt, survival.hourOfDay, player.position, Boolean(player.cave));
-  updateSound(dt, !survival.alive);
+  updateSound(dt, !survival.alive, actions);
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);

@@ -19,6 +19,15 @@ export const SOUNDS = {
   owl: 'once', // at night, now and then
   drip: 'once', // underground
   bat: 'once', // underground
+  sizzle: 'loop', // meat cooking on a fire
+  // Footsteps, one per step, by what's underfoot:
+  'step-grass': 'once', 'step-dirt': 'once', 'step-gravel': 'once', 'step-rock': 'once',
+  'step-snow': 'once', 'step-wood': 'once', 'step-water': 'once', 'swim': 'once',
+  // Things happening (see Sound.play):
+  'boar-charge': 'once', hit: 'once', hurt: 'once', chop: 'once', 'tree-creak': 'once', 'tree-fall': 'once',
+  'bow-draw': 'once', 'bow-shoot': 'once', 'arrow-hit': 'once', 'arrow-land': 'once', stab: 'once',
+  chew: 'once', gulp: 'once', rummage: 'once', bandage: 'once', pickup: 'once', 'fire-light': 'once',
+  'add-wood': 'once', 'trap-set': 'once', 'cloth': 'once', splash: 'once', land: 'once',
 };
 const FORMATS = ['mp3', 'ogg', 'wav'];
 const VOLUME = 0.7;
@@ -28,9 +37,11 @@ export class Sound {
     this.ctx = null;
     this.files = {}; // name → AudioBuffer, for any recordings found in public/sounds/
     this.loops = {};
-    this.timers = { birds: 1, owl: 8, drip: 1, bat: 5, crackle: 0 };
+    this.timers = { birds: 1, owl: 8, drip: 1, bat: 5, crackle: 0, busy: 0 };
     this.muted = readMuted();
     this.time = 0;
+    this.listener = { x: 0, z: 0 };
+    this.cave = false;
     const start = () => {
       if (this.ctx) return;
       try {
@@ -65,6 +76,7 @@ export class Sound {
     this.loops.water = this.noiseLoop('lowpass', 520, 0.5);
     this.loops.fire = this.noiseLoop('bandpass', 1800, 1.2);
     this.loops.cave = this.noiseLoop('lowpass', 140, 0.7);
+    this.loops.sizzle = this.noiseLoop('highpass', 3200, 0.5);
     this.loops.crickets = this.cricketLoop();
     for (const name of Object.keys(SOUNDS)) this.load(name);
   }
@@ -153,9 +165,12 @@ export class Sound {
   }
 
   // Call every frame. `env`: { paused, night, underground, cold (0–1), water (0–1: how close
-  // the water is), fire (0–1), woods (0–1) }.
+  // the water is), fire (0–1), woods (0–1), listener: { x, z } (the player), and what the
+  // player's busy with: cooking, eating, drinking, searching, bandaging }.
   update(dt, env) {
     if (!this.ctx) return;
+    if (env.listener) this.listener = env.listener;
+    this.cave = env.underground > 0.5;
     this.time += dt;
     const now = this.ctx.currentTime;
     const set = (name, level) => this.loops[name]?.gain.gain.setTargetAtTime(env.paused ? 0 : level, now, 0.4);
@@ -166,6 +181,8 @@ export class Sound {
     set('fire', outside * 0.35 * env.fire);
     set('cave', env.underground * 0.45);
     set('crickets', outside * (env.night ? 0.035 * (1 - env.cold) : 0));
+    // Meat sizzling on the fire, crackling a little.
+    set('sizzle', env.cooking ? 0.12 * (0.7 + 0.3 * Math.sin(this.time * 17) * Math.sin(this.time * 5)) : 0);
     this.echoOut.gain.setTargetAtTime(env.underground ? 0.7 : 0, now, 0.3);
     if (env.paused) return;
 
@@ -187,20 +204,91 @@ export class Sound {
       this.timers.bat = rand(4, 12);
       this.bat();
     }
+    // Busy hands: chewing, gulping, rummaging, winding a bandage.
+    const busy = env.eating ? ['chew', 0.22, 0.32] : env.drinking ? ['gulp', 0.5, 0.65]
+      : env.searching ? ['rummage', 0.18, 0.35] : env.bandaging ? ['bandage', 0.3, 0.5] : null;
+    if (busy && this.timers.busy <= 0) {
+      this.timers.busy = rand(busy[1], busy[2]);
+      this.play(busy[0]);
+    }
     if (env.fire > 0 && this.timers.crackle <= 0) {
       this.timers.crackle = rand(0.04, 0.3);
       this.crackle(env.fire);
     }
   }
 
+  // Plays sound effect `name` (see EFFECTS), from world position `at` ({ x, z }, or the
+  // player's own if left out): further away is quieter, and off to the side is panned.
+  // `volume` scales it (e.g. quieter footsteps while sneaking).
+  play(name, at = null, volume = 1) {
+    if (!this.ctx || this.muted) return;
+    let pan = 0;
+    let gain = volume;
+    if (at) {
+      const dx = at.x - this.listener.x;
+      const distance = Math.hypot(dx, at.z - this.listener.z);
+      if (distance > 50) return;
+      pan = Math.max(-1, Math.min(1, dx / 14));
+      gain *= 1 / (1 + distance / 9);
+    }
+    const echo = this.cave;
+    if (this.playFile(name, gain * 0.6, pan, echo)) return;
+    EFFECTS[name]?.(this, gain, pan, echo);
+  }
+
+  // A burst of filtered noise: the building block of footsteps, thuds, rustles and crashes.
+  // `at` delays it (seconds).
+  burst({ type = 'bandpass', freq = 1000, q = 1, attack = 0.005, decay = 0.08, gain = 0.1, pan = 0, echo = false, at = 0, sweep = null }) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime + at;
+    const source = ctx.createBufferSource();
+    source.buffer = this.noise;
+    const filter = ctx.createBiquadFilter();
+    filter.type = type;
+    filter.frequency.setValueAtTime(freq, t);
+    if (sweep) filter.frequency.exponentialRampToValueAtTime(sweep, t + attack + decay);
+    filter.Q.value = q;
+    const amp = ctx.createGain();
+    amp.gain.setValueAtTime(0.0001, t);
+    amp.gain.linearRampToValueAtTime(gain, t + attack);
+    amp.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
+    source.connect(filter).connect(amp).connect(this.voice(1, pan, echo));
+    source.start(t, Math.random() * 1.5, attack + decay + 0.05);
+  }
+
+  // A tone that slides from one pitch to another and dies away: knocks, thuds, twangs, cries.
+  tone({ type = 'sine', from = 200, to = from, attack = 0.005, decay = 0.1, gain = 0.1, pan = 0, echo = false, at = 0, filter = null }) {
+    const ctx = this.ctx;
+    const t = ctx.currentTime + at;
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, t);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), t + attack + decay);
+    const amp = ctx.createGain();
+    amp.gain.setValueAtTime(0.0001, t);
+    amp.gain.linearRampToValueAtTime(gain, t + attack);
+    amp.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
+    let out = osc.connect(amp);
+    if (filter) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = filter;
+      f.Q.value = 1.5;
+      out = out.connect(f);
+    }
+    out.connect(this.voice(1, pan, echo));
+    osc.start(t);
+    osc.stop(t + attack + decay + 0.05);
+  }
+
   // Plays a recording of `name` if there is one; returns false if there isn't.
-  playFile(name, volume, pan = 0) {
+  playFile(name, volume, pan = 0, echo = false) {
     const buffer = this.files[name];
     if (!buffer) return false;
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
     source.playbackRate.value = rand(0.9, 1.1);
-    source.connect(this.voice(volume, pan, name === 'drip' || name === 'bat'));
+    source.connect(this.voice(volume, pan, echo || name === 'drip' || name === 'bat'));
     source.start();
     return true;
   }
@@ -323,6 +411,98 @@ export class Sound {
 }
 
 const rand = (min, max) => min + Math.random() * (max - min);
+
+// The made-up sound effects. Each is (sound, volume, pan, echo) → plays it.
+const EFFECTS = {
+  // Footsteps.
+  'step-grass': (s, v, pan, echo) => s.burst({ freq: rand(1500, 2200), q: 0.7, attack: 0.015, decay: 0.07, gain: 0.07 * v, pan, echo }),
+  'step-dirt': (s, v, pan, echo) => {
+    s.burst({ type: 'lowpass', freq: rand(700, 1000), attack: 0.004, decay: 0.06, gain: 0.09 * v, pan, echo });
+    s.tone({ from: rand(85, 100), to: 60, decay: 0.05, gain: 0.08 * v, pan, echo });
+  },
+  'step-gravel': (s, v, pan, echo) => {
+    for (let i = 0; i < 4; i++) s.burst({ freq: rand(2200, 3500), q: 1.2, attack: 0.002, decay: 0.02, gain: 0.05 * v, pan, echo, at: i * rand(0.01, 0.025) });
+  },
+  'step-rock': (s, v, pan, echo) => {
+    s.burst({ type: 'highpass', freq: 2500, attack: 0.001, decay: 0.015, gain: 0.06 * v, pan, echo });
+    s.tone({ from: rand(380, 460), to: 300, decay: 0.03, gain: 0.05 * v, pan, echo });
+  },
+  'step-snow': (s, v, pan, echo) => {
+    for (let i = 0; i < 6; i++) s.burst({ freq: rand(900, 1500), q: 1, attack: 0.004, decay: 0.025, gain: 0.05 * v, pan, echo, at: i * 0.02 });
+  },
+  'step-wood': (s, v, pan, echo) => {
+    s.tone({ from: rand(150, 175), to: 110, decay: 0.09, gain: 0.12 * v, pan, echo, filter: 300 });
+    s.burst({ freq: 600, q: 1.5, attack: 0.002, decay: 0.03, gain: 0.05 * v, pan, echo });
+  },
+  'step-water': (s, v, pan, echo) => {
+    s.burst({ freq: 900, q: 0.8, attack: 0.03, decay: 0.15, gain: 0.08 * v, pan, echo, sweep: 1800 });
+    s.burst({ type: 'highpass', freq: 3500, attack: 0.02, decay: 0.08, gain: 0.03 * v, pan, echo, at: 0.03 });
+  },
+  swim: (s, v, pan, echo) => s.burst({ type: 'lowpass', freq: 400, attack: 0.12, decay: 0.3, gain: 0.08 * v, pan, echo, sweep: 1400 }),
+  splash: (s, v, pan, echo) => {
+    s.burst({ freq: 700, q: 0.6, attack: 0.01, decay: 0.35, gain: 0.18 * v, pan, echo, sweep: 2500 });
+    s.burst({ type: 'highpass', freq: 3000, attack: 0.02, decay: 0.25, gain: 0.06 * v, pan, echo, at: 0.05 });
+  },
+  land: (s, v, pan, echo) => s.tone({ from: 90, to: 50, decay: 0.08, gain: 0.12 * v, pan, echo }),
+  // A boar charging: a grunt rising into a squeal.
+  'boar-charge': (s, v, pan, echo) => {
+    s.tone({ type: 'sawtooth', from: 110, to: 180, attack: 0.03, decay: 0.25, gain: 0.08 * v, pan, echo, filter: 600 });
+    s.tone({ type: 'sawtooth', from: 520, to: 900, attack: 0.05, decay: 0.45, gain: 0.07 * v, pan, echo, filter: 1400, at: 0.2 });
+    s.burst({ freq: 400, q: 2, attack: 0.02, decay: 0.15, gain: 0.08 * v, pan, echo });
+  },
+  // Getting hit: a heavy thud, and the player's grunt.
+  hit: (s, v, pan, echo) => {
+    s.tone({ from: 110, to: 45, decay: 0.2, gain: 0.25 * v, pan, echo });
+    s.burst({ type: 'lowpass', freq: 1200, attack: 0.003, decay: 0.12, gain: 0.15 * v, pan, echo });
+  },
+  hurt: (s, v, pan, echo) => s.tone({ type: 'sawtooth', from: 190, to: 120, attack: 0.02, decay: 0.28, gain: 0.07 * v, pan, echo, filter: 750, at: 0.04 }),
+  // The axe biting into a trunk.
+  chop: (s, v, pan, echo) => {
+    s.tone({ from: rand(230, 270), to: 140, decay: 0.12, gain: 0.16 * v, pan, echo, filter: 400 });
+    s.burst({ freq: 1400, q: 1, attack: 0.002, decay: 0.05, gain: 0.1 * v, pan, echo });
+  },
+  // A tree giving way: a long creak, then the crash as it hits the ground.
+  'tree-creak': (s, v, pan, echo) => {
+    s.tone({ type: 'sawtooth', from: 70, to: 45, attack: 0.3, decay: 0.9, gain: 0.05 * v, pan, echo, filter: 260 });
+    s.burst({ freq: 500, q: 4, attack: 0.4, decay: 0.7, gain: 0.04 * v, pan, echo, sweep: 300 });
+  },
+  'tree-fall': (s, v, pan, echo) => {
+    s.burst({ type: 'lowpass', freq: 900, attack: 0.01, decay: 1.1, gain: 0.3 * v, pan, echo, sweep: 200 });
+    s.burst({ freq: 2500, q: 0.6, attack: 0.02, decay: 0.6, gain: 0.08 * v, pan, echo }); // branches snapping
+    s.tone({ from: 70, to: 35, decay: 0.5, gain: 0.3 * v, pan, echo });
+  },
+  // The bow: a creak as it bends, then the string's twang and the arrow's whoosh.
+  'bow-draw': (s, v, pan, echo) => s.burst({ freq: 300, q: 6, attack: 0.25, decay: 0.3, gain: 0.05 * v, pan, echo, sweep: 520 }),
+  'bow-shoot': (s, v, pan, echo) => {
+    s.tone({ type: 'triangle', from: 140, to: 110, attack: 0.002, decay: 0.25, gain: 0.14 * v, pan, echo });
+    s.burst({ freq: 2500, q: 0.8, attack: 0.02, decay: 0.2, gain: 0.06 * v, pan, echo, sweep: 900 });
+  },
+  'arrow-hit': (s, v, pan, echo) => {
+    s.tone({ from: 160, to: 90, decay: 0.08, gain: 0.15 * v, pan, echo });
+    s.burst({ freq: 900, q: 1, attack: 0.002, decay: 0.05, gain: 0.08 * v, pan, echo });
+  },
+  'arrow-land': (s, v, pan, echo) => s.burst({ type: 'lowpass', freq: 800, attack: 0.002, decay: 0.06, gain: 0.08 * v, pan, echo }),
+  stab: (s, v, pan, echo) => s.burst({ freq: 1800, q: 0.7, attack: 0.03, decay: 0.08, gain: 0.07 * v, pan, echo, sweep: 600 }),
+  // Busy hands.
+  chew: (s, v, pan, echo) => s.burst({ freq: rand(1200, 1800), q: 1.5, attack: 0.01, decay: 0.05, gain: 0.05 * v, pan, echo }),
+  gulp: (s, v, pan, echo) => s.tone({ from: 260, to: 520, attack: 0.02, decay: 0.08, gain: 0.07 * v, pan, echo }),
+  rummage: (s, v, pan, echo) => s.burst({ freq: rand(1500, 3000), q: 0.8, attack: 0.02, decay: 0.07, gain: 0.05 * v, pan, echo }),
+  bandage: (s, v, pan, echo) => s.burst({ freq: rand(3000, 4500), q: 1, attack: 0.06, decay: 0.12, gain: 0.04 * v, pan, echo }),
+  cloth: (s, v, pan, echo) => s.burst({ freq: 2200, q: 0.6, attack: 0.08, decay: 0.25, gain: 0.06 * v, pan, echo, sweep: 1200 }),
+  pickup: (s, v, pan, echo) => {
+    s.burst({ freq: 1600, q: 1, attack: 0.01, decay: 0.06, gain: 0.05 * v, pan, echo });
+    s.tone({ from: 600, to: 900, decay: 0.06, gain: 0.03 * v, pan, echo, at: 0.03 });
+  },
+  'fire-light': (s, v, pan, echo) => s.burst({ type: 'lowpass', freq: 300, attack: 0.15, decay: 0.6, gain: 0.15 * v, pan, echo, sweep: 1500 }),
+  'add-wood': (s, v, pan, echo) => {
+    s.tone({ from: 180, to: 120, decay: 0.08, gain: 0.08 * v, pan, echo, filter: 300 });
+    s.burst({ freq: 2500, q: 0.8, attack: 0.05, decay: 0.3, gain: 0.04 * v, pan, echo, at: 0.05 });
+  },
+  'trap-set': (s, v, pan, echo) => {
+    s.tone({ type: 'square', from: 1800, to: 1200, decay: 0.02, gain: 0.03 * v, pan, echo });
+    s.burst({ freq: 900, q: 1, attack: 0.01, decay: 0.08, gain: 0.05 * v, pan, echo, at: 0.04 });
+  },
+};
 
 // Two seconds of white noise, to filter into wind, water and fire.
 function makeNoise(ctx) {

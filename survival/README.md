@@ -112,7 +112,11 @@ to slip through.
 
 Birds fly over by day, butterflies flutter over the meadows, and fireflies blink at night. You
 can hear the wind (louder up the mountains), birdsong, crickets and the odd owl at night,
-water nearby, a campfire's crackle, and dripping and bats down a cave. All the sounds are made
+water nearby, a campfire's crackle, and dripping and bats down a cave. Your footsteps sound
+like what's underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things
+you do have a sound: chopping and trees crashing down, the bow, arrows landing, eating,
+drinking, cooking, searching, bandaging, lighting a fire; a boar squeals as it charges, and
+you'll hear it when you're hit. All the sounds are made
 by the game itself; to use recordings instead, see `public/sounds/README.md`. Press N to turn
 the sound off and on.
 
