@@ -2,9 +2,10 @@
 // big map costs about the same to draw as a small one. Everything that streams uses these.
 
 export const CHUNK_SIZE = 32; // meters along each side of a chunk
-// How many chunks out from the player's chunk are drawn, in each direction. The camera sees
-// about 50 m around the player at its widest zoom, so 3 chunks (at least 96 m) is plenty.
-export const DRAW_CHUNKS = 3;
+// How many chunks out from the player's chunk are drawn, in each direction. At its widest
+// zoom the camera sees at most about 52 m from the player (even the tops of tall trees further
+// away are off the top of the screen), so 2 chunks (at least 64 m) is enough.
+export const DRAW_CHUNKS = 2;
 
 export function chunkOf(x, z) {
   return [Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE)];

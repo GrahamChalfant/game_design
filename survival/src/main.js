@@ -103,7 +103,7 @@ const pickups = new Pickups(scene, world);
 // The axe and backpack lie around the wreckage at the start of every game.
 const placeStartItems = () => {
   for (const { item, x, z } of START_ITEMS) pickups.drop(item, 1, x, z);
-  // Loose stones by the rocks and lake shore. Taken ones come back a day later (see below).
+  // Loose stones by the rocks and lake shore. Taken ones come back three days later (see below).
   for (const spot of world.stones) {
     pickups.drop('stone', 1, spot.x, spot.z);
     spot.emptySince = null;
@@ -220,6 +220,7 @@ const draw = () => (painter ? painter.render() : renderer.render(scene, camera))
 
 // --- Main loop ---
 const clock = new THREE.Clock();
+let stoneCheckTimer = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05); // avoid huge jumps after a tab switch
 
@@ -260,13 +261,18 @@ renderer.setAnimationLoop(() => {
   traps.update();
   bushes.update(survival.minutesSurvived);
   pickups.update(clock.elapsedTime, player.position.x, player.position.z);
-  respawnStones(
-    world.stones,
-    survival.minutesSurvived,
-    (x, z) => pickups.find('stone', x, z, 0.3) !== null,
-    (spot) => pickups.drop('stone', 1, spot.x, spot.z),
-    player.position,
-  );
+  // Stones take days to come back, so once a second is plenty (there are thousands of spots).
+  stoneCheckTimer -= dt;
+  if (stoneCheckTimer <= 0) {
+    stoneCheckTimer = 1;
+    respawnStones(
+      world.stones,
+      survival.minutesSurvived,
+      (x, z) => pickups.find('stone', x, z, 0.3) !== null,
+      (spot) => pickups.drop('stone', 1, spot.x, spot.z),
+      player.position,
+    );
+  }
   wreck.update(dt);
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.

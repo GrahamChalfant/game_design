@@ -108,7 +108,7 @@ place it on open ground. Stand next to it and press E to light it (you need the 
 A fire burns for 2 in-game hours; stand next to it and press E to add a log
 (1 more hour each). A fire that's gone out needs more wood (E) and lighting again.
 
-Rabbits and deer roam the map, but there aren't many of them. They graze and wander
+Rabbits and deer live around you wherever you go, but there aren't many of them. They graze and wander
 until you get too close, then bolt. Both run faster than you, and deer spook from much
 farther away (12 m standing, 5 m crouched), so you won't catch them by chasing. Press C to
 crouch: animals notice you much later.
@@ -149,6 +149,8 @@ index.html            Page shell and HUD
 src/main.js           Renderer, lighting, camera and the main game loop
 src/daylight.js       Day and night: the sun and moon, light colours, sky and fog
 src/world.js          Builds the map from a seed: places trees, rocks and grass
+src/stream.js         Splits the map into chunks; only the ones around the player are drawn
+src/grid.js           Finds things near a spot quickly (trees, rocks, items on the ground)
 src/terrain.js        The land: gentle hills, the lake, the river and the ground colours
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
 src/water.js          The lake and the flowing river, and ripples around the player
@@ -188,6 +190,13 @@ address, for example http://localhost:8000/?seed=479583. The wreck and the start
 every map; the lake is always beside the plane, on its open side, with the river flowing away.
 If a seed would put water where the crash or the start should be, the next seed in line is used
 instead (see `chooseTerrain` in `src/world.js`).
+
+The map is 1.4 km across (`WORLD_SIZE` in `src/world.js`), about 5 minutes' walk from edge to
+edge. Only the 32 m chunks around the player are drawn: the ground, grass, trees and rocks are
+built as you come near and dropped once you're well away, and items on the ground only get their
+3D objects within 70 m. Animals live in a ring around you, and ones you leave far behind turn up
+somewhere new around you. How thickly trees and rocks grow is set per hectare at the top of
+`src/world.js`, so changing the map's size keeps the same density.
 
 ## Adding models from Blender
 

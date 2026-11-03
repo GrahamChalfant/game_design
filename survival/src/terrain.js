@@ -180,7 +180,7 @@ function createRiver(random, noise, lakeAngle, lakeCenter, radiusAt, lakeDistanc
   const points = [];
   let level = lakeLevel;
   const STEP = 2.5;
-  for (let i = 0; i < 200 && Math.max(Math.abs(x), Math.abs(z)) < size / 2 + 5; i++) {
+  for (let i = 0; i < 2000 && Math.max(Math.abs(x), Math.abs(z)) < size / 2 + 5; i++) {
     const halfWidth = 1.5 + Math.min(1.2, i * 0.02); // widens as it goes
     // The surface sits below the lowest ground across the channel, and never rises.
     const across = [-1, 0, 1].map((s) => heightAt(x - Math.sin(heading) * s * (halfWidth + 1), z + Math.cos(heading) * s * (halfWidth + 1)));

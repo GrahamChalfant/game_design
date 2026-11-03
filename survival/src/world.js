@@ -9,10 +9,15 @@ import { stoneSpots } from './hunting.js';
 import { CRASH, trailPoint } from './crashTrail.js';
 import { SpatialGrid } from './grid.js';
 
-export const WORLD_SIZE = 140; // meters across; the playable area is a square centred on 0,0
+// Meters across; the playable area is a square centred on the crash, at 0,0. Only the chunks
+// around the player are drawn (see stream.js), so a big map costs little more than a small one.
+export const WORLD_SIZE = 1400;
 const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into the haze
-const FOREST_COUNT = 300;
-const BROADLEAF_COUNT = 25;
+const HECTARES = ((WORLD_SIZE - 4) / 100) ** 2; // the area things are scattered over
+// How many of each thing to scatter, per hectare (100 m × 100 m).
+const FOREST_PER_HECTARE = 160;
+const BROADLEAF_PER_HECTARE = 13;
+const ROCKS_PER_HECTARE = 140;
 // Each forest tree's collision radius.
 const FOREST_RADIUS = {
   birch: 0.2,
@@ -35,7 +40,6 @@ const FOREST_MIX = [
   'birch', 'birch', 'tree-dead', 'birch', 'birch', 'pine-skinny', 'birch', 'birch',
 ];
 const FOREST_SPACING = 2.4; // meters of open ground kept between forest trees
-const ROCK_COUNT = 260;
 // Each rock shape: its collision radius, how tall it stands, and how much it can be scaled.
 const ROCK_SHAPES = {
   rock: { radius: 0.55, height: 0.77, scale: [0.5, 1.6] },
@@ -82,7 +86,7 @@ export function buildWorld(scene, seed) {
   // Open birch woods grow in clumps across the valley...
   const forest = Object.fromEntries(Object.keys(FOREST_RADIUS).map((kind) => [kind, []]));
   let placedTrees = 0;
-  scatter(random, FOREST_COUNT, (x, z) => {
+  scatter(random, Math.round(FOREST_PER_HECTARE * HECTARES), (x, z) => {
     if (terrain.forest(x, z) < random.range(-0.15, 0.45) || !isFree(x, z, FOREST_SPACING)) return null;
     const kind = FOREST_MIX[placedTrees++ % FOREST_MIX.length];
     const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
@@ -94,7 +98,7 @@ export function buildWorld(scene, seed) {
   }
 
   // ...while round leafy trees stand alone or in small groups out in the fields.
-  const broadleaves = scatter(random, BROADLEAF_COUNT, (x, z) => {
+  const broadleaves = scatter(random, Math.round(BROADLEAF_PER_HECTARE * HECTARES), (x, z) => {
     if (terrain.forest(x, z) > 0 || !isFree(x, z, 4)) return null;
     return place(x, z, 0.45, random.range(0.8, 1.25));
   });
@@ -104,7 +108,7 @@ export function buildWorld(scene, seed) {
   // squashed or stretched a little differently.
   const rocks = Object.fromEntries(Object.keys(ROCK_SHAPES).map((name) => [name, []]));
   let placedRocks = 0;
-  scatter(random, ROCK_COUNT, (x, z) => {
+  scatter(random, Math.round(ROCKS_PER_HECTARE * HECTARES), (x, z) => {
     if (terrain.groundAt(x, z).kind !== 'rock' && random.next() > 0.08) return null;
     if (!isFree(x, z, 0.3)) return null;
     const name = ROCK_MIX[placedRocks++ % ROCK_MIX.length];
