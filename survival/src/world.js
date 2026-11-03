@@ -165,6 +165,28 @@ export function buildWorld(scene, seed) {
     rocks[name].push(rock);
     return rock;
   });
+  // Stones along the creeks: half-sunk in the water and lying on the banks.
+  for (const { points } of terrain.creeks) {
+    for (let i = 1; i < points.length - 1; i++) {
+      if (random.next() > 0.45) continue;
+      const p = points[i];
+      const q = points[i + 1];
+      const along = Math.atan2(q.z - p.z, q.x - p.x);
+      const out = random.range(-1, 1) * (p.halfWidth + 1.2);
+      const x = p.x - Math.sin(along) * out + random.range(-1, 1);
+      const z = p.z + Math.cos(along) * out + random.range(-1, 1);
+      if (!clearings.isClear(x, z, 0) || !obstacles.isClear(x, z, 0.2) || Math.hypot(x, z) < CRASH_CLEARING) continue;
+      const name = random.next() < 0.6 ? 'rock-small' : random.next() < 0.6 ? 'rock-flat' : 'rock';
+      const shape = ROCK_SHAPES[name];
+      const scale = random.range(0.6, 1.1) * (name === 'rock' ? 0.6 : 1);
+      const obstacle = { x, z, radius: shape.radius * scale };
+      obstacles.add(obstacle);
+      const y = terrain.heightAt(x, z) - 0.08;
+      const stretch = [random.range(0.9, 1.5), random.range(0.5, 0.9), random.range(0.9, 1.3)];
+      obstacle.top = y + shape.height * ROCK_TOP * scale * stretch[1];
+      rocks[name].push(transform(x, y, z, random.range(0, Math.PI * 2), scale, stretch));
+    }
+  }
   for (const [name, transforms] of Object.entries(rocks)) {
     scene.add(instancedModel(name, placeholders.rock(), transforms));
   }
@@ -202,6 +224,7 @@ export function buildWorld(scene, seed) {
     lookout,
     pois,
     roads: roads.paths,
+    creeks: terrain.creeks,
     structures,
     size: WORLD_SIZE,
     spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),

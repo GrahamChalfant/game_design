@@ -87,7 +87,7 @@ vs = [bm.verts.new(p) for p in ((-HW, D/2-0.05, 0), (HW, D/2-0.05, 0), (0, D/2-0
 bm.faces.new(vs); bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.03)
 obj('hide_back', bm, mat('hide_back', 0x7f6044))
 # spruce bough bed: a mound of flat low-poly bough tufts
-greens = [mat('bough_a', 0x3f5c34), mat('bough_b', 0x4d6e3c), mat('bough_c', 0x56743f)]
+greens = [mat('bough_a', 0x34493f), mat('bough_b', 0x3f5646), mat('bough_c', 0x4a5f4a)]
 for i in range(18):
     bm = bmesh.new()
     bmesh.ops.create_cone(bm, cap_ends=True, segments=5, radius1=0.35, radius2=0.12, depth=0.09)

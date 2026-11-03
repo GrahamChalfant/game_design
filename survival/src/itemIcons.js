@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import * as placeholders from './placeholders.js';
 
-// Inventory icons: each item is a tiny low-poly model, rendered once into a picture when the
-// game loads, so the icons match the look of the game. Change a model below to change its icon.
+// Inventory icons. Each item's picture is rendered in Blender (blender/icons.py) into
+// public/icons/<item>.png. If a picture is missing (or fails to load), the item is drawn here
+// instead: a tiny low-poly model rendered into a picture. To add an item, add it to
+// blender/icons.py and, as a fallback, to MODELS below.
 
 const SIZE = 128; // pixels (drawn at 2x, so they're crisp on high-res screens)
 
@@ -292,16 +294,45 @@ const MODELS = {
   },
 };
 
-const icons = renderAll();
+// Each item's icon: a canvas (for drawing into other canvases) and an image URL (for the HUD).
+// The canvas starts blank and is filled once the picture loads.
+const icons = {};
+for (const item of Object.keys(MODELS)) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = SIZE * 2;
+  const icon = { canvas, url: `icons/${item}.png`, ready: false, waiting: [] };
+  icons[item] = icon;
+  const done = () => {
+    icon.ready = true;
+    for (const callback of icon.waiting.splice(0)) callback(canvas);
+  };
+  const picture = new Image();
+  picture.onload = () => {
+    canvas.getContext('2d').drawImage(picture, 0, 0, canvas.width, canvas.height);
+    done();
+  };
+  picture.onerror = () => {
+    // No picture: draw the model instead, and show that wherever this icon is already up.
+    drawFallback(item, canvas);
+    icon.url = canvas.toDataURL('image/png');
+    for (const element of document.querySelectorAll(`[data-item="${item}"]`)) element.style.backgroundImage = `url(${icon.url})`;
+    done();
+  };
+  picture.src = icon.url;
+}
 
 // The icon picture for an item, as an image URL (for the HUD).
 export function itemIconUrl(item) {
   return icons[item]?.url ?? '';
 }
 
-// The icon picture for an item, as a canvas (for drawing into other canvases).
-export function itemIconCanvas(item) {
-  return icons[item]?.canvas;
+// Calls `callback(canvas)` with the item's icon picture as a canvas (for drawing into other
+// canvases), as soon as it's loaded.
+export function whenIconReady(item, callback) {
+  const icon = icons[item];
+  if (!icon) return;
+  if (icon.ready) callback(icon.canvas);
+  else icon.waiting.push(callback);
 }
 
 // Shows `item`'s icon on an element (or clears it with null). Does nothing if it already shows it.
@@ -312,37 +343,30 @@ export function showItemIcon(element, item) {
   element.style.backgroundImage = item ? `url(${itemIconUrl(item)})` : '';
 }
 
-function renderAll() {
-  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-  renderer.setPixelRatio(2);
-  renderer.setSize(SIZE, SIZE, false);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+let fallback = null; // the renderer and scene for drawing fallback icons, made when first needed
 
-  const scene = new THREE.Scene();
-  scene.add(new THREE.HemisphereLight(0xeef2ff, 0x5c5446, 1.6));
-  const sun = new THREE.DirectionalLight(0xfff1dc, 2.4);
-  sun.position.set(-2, 4, 3);
-  scene.add(sun);
-  const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 50);
-
-  const result = {};
-  for (const [item, build] of Object.entries(MODELS)) {
-    const model = build();
-    scene.add(model);
-    // Frame the model: look at it from slightly above and in front, filling the picture.
-    const sphere = new THREE.Box3().setFromObject(model).getBoundingSphere(new THREE.Sphere());
-    const distance = (sphere.radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.02;
-    camera.position.copy(sphere.center).add(new THREE.Vector3(0.35, 0.75, 1).normalize().multiplyScalar(distance));
-    camera.lookAt(sphere.center);
-    renderer.render(scene, camera);
-
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = SIZE * 2;
-    canvas.getContext('2d').drawImage(renderer.domElement, 0, 0);
-    result[item] = { canvas, url: canvas.toDataURL('image/png') };
-    scene.remove(model);
+function drawFallback(item, canvas) {
+  if (!fallback) {
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(2);
+    renderer.setSize(SIZE, SIZE, false);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xeef2ff, 0x5c5446, 1.6));
+    const sun = new THREE.DirectionalLight(0xfff1dc, 2.4);
+    sun.position.set(-2, 4, 3);
+    scene.add(sun);
+    fallback = { renderer, scene, camera: new THREE.PerspectiveCamera(28, 1, 0.1, 50) };
   }
-  renderer.dispose();
-  renderer.forceContextLoss();
-  return result;
+  const { renderer, scene, camera } = fallback;
+  const model = MODELS[item]();
+  scene.add(model);
+  // Frame the model: look at it from slightly above and in front, filling the picture.
+  const sphere = new THREE.Box3().setFromObject(model).getBoundingSphere(new THREE.Sphere());
+  const distance = (sphere.radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.02;
+  camera.position.copy(sphere.center).add(new THREE.Vector3(0.35, 0.75, 1).normalize().multiplyScalar(distance));
+  camera.lookAt(sphere.center);
+  renderer.render(scene, camera);
+  canvas.getContext('2d').drawImage(renderer.domElement, 0, 0);
+  scene.remove(model);
 }

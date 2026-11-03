@@ -23,8 +23,8 @@ const uniforms = {
 
 // The water material, with moving light on the surface. In the river (`flows`) it slides
 // downstream as soft patches; on the lake it drifts slowly as thin ripple lines.
-function waterMaterial(flows) {
-  const material = new THREE.MeshStandardMaterial(WATER);
+function waterMaterial(flows, look = {}) {
+  const material = new THREE.MeshStandardMaterial({ ...WATER, ...look });
   material.defines = { RIPPLES, RIPPLE_LIFE: RIPPLE_LIFE.toFixed(1), RIPPLE_SPEED: RIPPLE_SPEED.toFixed(1) };
   if (flows) material.defines.FLOWS = '';
   material.onBeforeCompile = (shader) => {
@@ -101,14 +101,15 @@ function waterMaterial(flows) {
   return material;
 }
 
-// The lakes (each a flat sheet a bit bigger than it; the shore hides the edges) and a ribbon
-// of water following the river down its channel.
-export function createWater(lakes, river) {
+// The lakes (each a flat sheet a bit bigger than it; the shore hides the edges), a ribbon of
+// water following the river down its channel, and narrower, clearer ones down the creeks.
+export function createWater(lakes, river, creeks = []) {
   const lakeMaterial = waterMaterial(false);
   const sheets = lakes.map((lake) => {
     const shape = new THREE.Shape();
-    for (let i = 0; i <= 96; i++) {
-      const angle = (i / 96) * Math.PI * 2;
+    const sides = lake.big ? 240 : 96;
+    for (let i = 0; i <= sides; i++) {
+      const angle = (i / sides) * Math.PI * 2;
       const r = lake.radiusAt(angle) * 1.4;
       if (i === 0) shape.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
       else shape.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
@@ -121,36 +122,14 @@ export function createWater(lakes, river) {
     return sheet;
   });
 
-  const { points } = river;
-  const vertices = [];
-  const flow = [];
-  const indices = [];
-  let along = 0;
-  points.forEach((p, i) => {
-    const next = points[Math.min(i + 1, points.length - 1)];
-    const prev = points[Math.max(i - 1, 0)];
-    const angle = Math.atan2(next.z - prev.z, next.x - prev.x);
-    const w = p.halfWidth + 0.5;
-    const sx = -Math.sin(angle) * w;
-    const sz = Math.cos(angle) * w;
-    vertices.push(p.x + sx, p.level, p.z + sz, p.x - sx, p.level, p.z - sz);
-    if (i > 0) along += Math.hypot(p.x - prev.x, p.z - prev.z);
-    flow.push(along, 1, along, -1);
-    if (i > 0) {
-      const a = (i - 1) * 2;
-      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-    }
-  });
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  const stream = new THREE.Mesh(geometry, waterMaterial(true));
-  stream.receiveShadow = true;
+  const stream = ribbon(river.points, 0.5, 0, waterMaterial(true));
+  // Creek water is thin and clear: you see the pebbles through it. (Its streaks start
+  // straight away: the river's fade in only as it leaves its lake.)
+  const creekMaterial = waterMaterial(true, { color: 0x6f9a94, opacity: 0.38 });
+  const creekRibbons = creeks.map(({ points }) => ribbon(points, 0.25, 14, creekMaterial));
 
   const mesh = new THREE.Group();
-  mesh.add(...sheets, stream);
+  mesh.add(...sheets, stream, ...creekRibbons);
 
   let next = 0; // the ring to reuse next
   let lastRipple = new THREE.Vector2(Infinity, Infinity);
@@ -169,4 +148,37 @@ export function createWater(lakes, river) {
       lastTime = time;
     },
   };
+}
+
+// A strip of water following `points` ({ x, z, level, halfWidth }), `overhang` meters wider
+// than the channel on each side (the banks hide its edges). Its `flow` attribute is meters
+// along it (starting from `start`) and -1 to 1 across it.
+function ribbon(points, overhang, start, material) {
+  const vertices = [];
+  const flow = [];
+  const indices = [];
+  let along = start;
+  points.forEach((p, i) => {
+    const next = points[Math.min(i + 1, points.length - 1)];
+    const prev = points[Math.max(i - 1, 0)];
+    const angle = Math.atan2(next.z - prev.z, next.x - prev.x);
+    const w = p.halfWidth + overhang;
+    const sx = -Math.sin(angle) * w;
+    const sz = Math.cos(angle) * w;
+    vertices.push(p.x + sx, p.level, p.z + sz, p.x - sx, p.level, p.z - sz);
+    if (i > 0) along += Math.hypot(p.x - prev.x, p.z - prev.z);
+    flow.push(along, 1, along, -1);
+    if (i > 0) {
+      const a = (i - 1) * 2;
+      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  });
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('flow', new THREE.Float32BufferAttribute(flow, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.receiveShadow = true;
+  return mesh;
 }

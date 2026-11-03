@@ -131,10 +131,12 @@ player must notice. Keep colours muted: the lighting (golden sun, blue night) ad
 
 ## 7. UI icons
 
-- Render from the in-game GLB (same palette), 3/4 view from upper left, warm key light
-  from the upper left, soft fill, no hard drop shadow.
-- 128 × 128 PNG master (export 64 and 32), transparent background, object fills ~80%.
-- Add a 2 px outline in `#2D2824` (dark umber, not black) for readability on any panel.
+- Rendered by `blender/icons.py` into `public/icons/<item>.png`: from the in-game GLB where
+  there is one (same palette), otherwise modelled in that script in the same style. 3/4 view
+  from upper right, orthographic, warm key light from the upper left, cool sky fill and a
+  rim light from behind, no drop shadow.
+- 256 × 256 PNG (shown at 128 on high-res screens), transparent background, object fills ~85%.
+- A 3 px outline in `#2D2824` (dark umber, not black) for readability on any panel (icons.py adds it).
 - Panels/backgrounds use dark slate `rgb(20 30 40)` at 55–85% opacity, as the HUD does; text in white or bone `#D8C49A`.
 - Item rarity/state uses value, not neon colour: rust red for danger/broken, sage green for edible/ready.
 - One idea per icon; no text inside icons.

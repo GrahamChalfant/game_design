@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
-import { itemIconCanvas } from './itemIcons.js';
+import { whenIconReady } from './itemIcons.js';
 import { SpatialGrid } from './grid.js';
 
 // Items that lie in the world like any other prop, with no floating icon above them.
@@ -161,10 +161,12 @@ function iconSprite(item) {
   ctx.beginPath();
   ctx.arc(64, 64, 60, 0, Math.PI * 2);
   ctx.fill();
-  const icon = itemIconCanvas(item);
-  if (icon) ctx.drawImage(icon, 18, 18, 92, 92);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  whenIconReady(item, (icon) => {
+    ctx.drawImage(icon, 18, 18, 92, 92);
+    texture.needsUpdate = true;
+  });
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthWrite: false }));
   sprite.scale.setScalar(0.7);
   return sprite;

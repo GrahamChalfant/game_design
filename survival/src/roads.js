@@ -61,7 +61,8 @@ function findWay(terrain, a, b) {
       const angle = want + turn;
       const nx = x + Math.cos(angle) * STEP;
       const nz = z + Math.sin(angle) * STEP;
-      if (terrain.waterDepth(nx, nz) > 0 || terrain.nearWater(nx, nz, 3)) continue;
+      const ford = terrain.creekOnly(nx, nz); // (creeks are shallow: the road fords them)
+      if (!ford && (terrain.waterDepth(nx, nz) > 0 || terrain.nearWater(nx, nz, 3))) continue;
       const climb = Math.abs(terrain.heightAt(nx, nz) - terrain.heightAt(x, z)) / STEP;
       const cost = Math.abs(turn) * 2 + climb * 8 + terrain.mountainAt(nx, nz) * 10;
       if (!best || cost < best.cost) best = { angle, nx, nz, cost };
