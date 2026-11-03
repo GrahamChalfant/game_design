@@ -519,6 +519,7 @@ export function lookoutTower(layout) {
   const board = (x0, x1, z0, z1, y, mat = plank) => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.1, z1 - z0), mat);
     mesh.position.set((x0 + x1) / 2, y - 0.05, (z0 + z1) / 2);
+    mesh.userData.floor = true; // fades when it's between the camera and the player
     return add(mesh);
   };
   const { storey, flights, stairEnd, lane, laneHalf, landing, landingHalf, cab, balcony, door, cabFloor, legSpread } = layout;
@@ -544,10 +545,12 @@ export function lookoutTower(layout) {
     const slope = new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(run, storey), 0.08, laneHalf * 2), dark);
     slope.position.set((from + to) / 2, y0 + storey / 2 - 0.06, z);
     slope.rotation.z = Math.atan2(storey, run);
+    slope.userData.floor = true;
     add(slope);
     for (let t = 0; t < 1; t += 1 / 12) {
       const tread = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, laneHalf * 2), plank);
       tread.position.set(from + run * (t + 1 / 24), y0 + storey * (t + 1 / 24), z);
+      tread.userData.floor = true;
       add(tread);
     }
     const rail = z + Math.sign(z) * laneHalf;
@@ -582,8 +585,8 @@ export function lookoutTower(layout) {
   for (const [sx, sz] of corners) beam([sx * spread(cabFloor - 2.5), cabFloor - 2.5, sz * spread(cabFloor - 2.5)], [sx * (balcony - 0.2), cabFloor - 0.1, sz * (balcony - 0.2)], 0.12, dark);
 
   // Waist-high walls, then windows and a roof, with a doorway out onto the balcony in the +x
-  // wall. While you're inside, the roof fades away, and so do the walls, windows and railing
-  // on the camera's side (`cutaway`).
+  // wall. Walls, windows and the roof (`cutaway`, `roof`) fade when they're between the camera
+  // and the player.
   const wallMat = material(0x8a6a45);
   const glassMat = new THREE.MeshStandardMaterial({ color: 0x2a3a44, roughness: 0.2, transparent: true, opacity: 0.55 });
   const cutaway = (mesh) => {
@@ -611,11 +614,10 @@ export function lookoutTower(layout) {
   }
   for (const [sx, sz] of corners) cutaway(beam([sx * cab, cabFloor, sz * cab], [sx * cab, cabFloor + 2.3, sz * cab], 0.16));
   for (const s of [-1, 1]) cutaway(beam([cab, cabFloor, s * door], [cab, cabFloor + 2.2, s * door], 0.12)); // the door frame
-  for (const rail of railing) cutaway(rail);
-  // The roof reaches out over the balcony.
-  const roof = new THREE.Mesh(new THREE.ConeGeometry((balcony + 0.4) * Math.SQRT2, 2.2, 4), material(0x5a5148));
+  // The roof, with short eaves (the balcony is open to the sky).
+  const roof = new THREE.Mesh(new THREE.ConeGeometry((cab + 0.6) * Math.SQRT2, 1.9, 4), material(0x5a5148));
   roof.rotation.y = Math.PI / 4;
-  roof.position.y = cabFloor + 3.35;
+  roof.position.y = cabFloor + 3.2;
   roof.userData.roof = true;
   add(roof);
   group.traverse((child) => {

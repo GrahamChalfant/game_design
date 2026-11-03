@@ -284,16 +284,15 @@ function updateSpottingCamera(dt) {
     cameraTarget.z + Math.cos(SPOTTING.angle) * shownZoom,
   );
   camera.lookAt(cameraTarget);
-  lookout.update(dt, true);
+  lookout.update(dt, null); // (nothing is in the way of the view)
 }
 
 function updateCamera(dt) {
   if (spotting) return updateSpottingCamera(dt);
   zoom = THREE.MathUtils.clamp(zoom + input.scroll * 0.02, 8, 40);
-  // Inside a roofed building (like the lookout's cab), zoom in and see through the roof.
+  // Inside a roofed building (like the lookout's cab), zoom in.
   const { x, z } = player.position;
   const inside = world.structures.some((structure) => structure.roofOver(x, z, player.feet));
-  lookout.update(dt, inside);
   shownZoom += ((inside ? Math.min(zoom, INSIDE_ZOOM) : zoom) - shownZoom) * Math.min(1, dt * 4);
   // Follow the player up stairs and onto rocks (but not their jumps, so it doesn't bob).
   cameraGoal.set(x, player.standingOn, z);
@@ -304,6 +303,9 @@ function updateCamera(dt) {
     cameraTarget.z + Math.cos(CAMERA_ANGLE) * shownZoom,
   );
   camera.lookAt(cameraTarget);
+  camera.updateMatrixWorld();
+  // Fade whatever part of a building is between the camera and the player.
+  lookout.update(dt, camera, player.feet, player.position);
 
   // Keep the player visible through any trees in the way.
   updateSeeThrough(camera, renderer, player.position.clone().setY(player.feet + 1));

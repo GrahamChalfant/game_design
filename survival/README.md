@@ -82,9 +82,10 @@ Press M to look at the map: it shows the whole area (lakes, the river, woods, th
 the lookout), where you are, the crash, your campfires and shelters, and a pale trail over the
 ground you've already covered.
 
-Inside a roofed building like the cab, the camera moves in closer and the building is cut away
-so you can see in: the roof fades, and so do the walls and windows on the camera's side, while
-the far walls and windows stay.
+Inside the cab, the camera moves in closer. Whenever part of the tower is between the camera and
+you (the roof, a wall or window, or the floor above you on the stairs), just that part turns
+see-through so you can always see yourself; everything else stays solid. Out on the balcony on
+the camera's side, nothing is in the way, so the tower looks as it always does.
 
 Your compass fell out of your pocket a couple of steps north of where you start (E to pick it
 up). While you carry it, a compass strip at the top of the screen shows which way you're facing,
@@ -264,7 +265,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink`, `jump` and `die`. | ~1.8 m tall |
 | `birch.glb` | Birch: thin, pale trunk with dark marks and a narrow crown. Most of the forest is birch | ~8 m tall |
 | `pine.glb` | Tall conifer mixed into the forests | ~9 m tall |
-| `lookout.glb` | The fire lookout tower: four timber legs, stairs, and a cab with windows on top. The stairs, landings and cab floor need to match where the player can walk (`TOWER` in `src/lookout.js`), and while the player's inside, meshes with `roof` in their names fade away, and so do ones with `wall` or `window` in their names on the camera's side | ~15 m tall, ~4 m across at the foot |
+| `lookout.glb` | The fire lookout tower: four timber legs, stairs, and a cab with windows on top. The stairs, landings and cab floor need to match where the player can walk (`TOWER` in `src/lookout.js`), and meshes with `roof`, `wall`, `window`, `floor` or `stair` in their names turn see-through whenever they're between the camera and the player | ~15 m tall, ~4 m across at the foot |
 | `pine-small.glb` | Young pine | ~3.5 m tall |
 | `pine-skinny.glb` | Narrow pine | ~10 m tall, ~2 m across |
 | `pine-tall.glb` | Big old pine | ~14 m tall |
