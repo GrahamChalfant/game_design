@@ -67,15 +67,17 @@ so water is never far away. Your axe and backpack were thrown
 clear in the crash: look around the wreckage (they have floating icons) and press E to
 pick them up. The backpack gives you 12 extra slots.
 
-Somewhere on high ground, a few hundred meters from the crash, stands a fire lookout tower.
-Hold E at the supply crate at its foot to search it: on most maps (about 3 in 5) there's a map
-inside. Press M to look at it: it shows the whole area (lakes, the river, woods, the mountains
-and the lookout), where you are, the crash, your campfires and shelters, and a pale trail over
-the ground you've already covered.
+Somewhere on high ground, a few hundred meters from the crash, stands a fire lookout tower. Walk
+onto the stairs at its foot and follow the flights up past the landings to the cab, 12 m up: a
+6 m square room with the lookout's fire-finder table, a cot, a supply crate and a ranger's locker.
+Hold E at the crate or the locker to search it. On most maps (about 3 in 5) the crate has a map
+in it. Press M to look at it: it shows the whole area (lakes, the river, woods, the mountains and
+the lookout), where you are, the crash, your campfires and shelters, and a pale trail over the
+ground you've already covered.
 
-You can climb the lookout tower: walk onto the stairs at the bottom and follow the flights up
-past the landings to the cab, 12 m up. Inside a roofed building like the cab, the camera moves
-in closer and the roof and windows fade away so you can see inside.
+Inside a roofed building like the cab, the camera moves in closer and the building is cut away
+so you can see in: the roof fades, and so do the walls and windows on the camera's side, while
+the far walls and windows stay.
 
 Your compass fell out of your pocket a couple of steps north of where you start (E to pick it
 up). While you carry it, a compass strip at the top of the screen shows which way you're facing,
@@ -254,7 +256,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink`, `jump` and `die`. | ~1.8 m tall |
 | `birch.glb` | Birch: thin, pale trunk with dark marks and a narrow crown. Most of the forest is birch | ~8 m tall |
 | `pine.glb` | Tall conifer mixed into the forests | ~9 m tall |
-| `lookout.glb` | The fire lookout tower: four timber legs, stairs, and a cab with windows on top. The stairs, landings and cab floor need to match where the player can walk (`TOWER` in `src/lookout.js`), and the roof and windows need `roof` in their names to fade away while the player's inside | ~15 m tall, ~4 m across at the foot |
+| `lookout.glb` | The fire lookout tower: four timber legs, stairs, and a cab with windows on top. The stairs, landings and cab floor need to match where the player can walk (`TOWER` in `src/lookout.js`), and while the player's inside, meshes with `roof` in their names fade away, and so do ones with `wall` or `window` in their names on the camera's side | ~15 m tall, ~4 m across at the foot |
 | `pine-small.glb` | Young pine | ~3.5 m tall |
 | `pine-skinny.glb` | Narrow pine | ~10 m tall, ~2 m across |
 | `pine-tall.glb` | Big old pine | ~14 m tall |

@@ -59,7 +59,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     const trap = traps.near(x, z, 1.3);
     const pile = pickups.near(x, z, 1.3);
     // Somewhere to search: a suitcase at the wreck, or the lookout tower's supply crate.
-    const crate = lookout.near(x, z, 1.8);
+    const crate = lookout.near(x, z, 1.8, player.feet);
     const container = crate ?? wreck.near(x, z, 1.8);
     const carcass = animals.carcassNear(x, z, 1.8);
     let searchingNow = false;
