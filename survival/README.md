@@ -82,8 +82,15 @@ Your stats are the icons at the bottom right. They're white, turn yellow when lo
 you're about to run out. Temperature falls at night and in the water, and rises near a burning
 fire. If it reaches zero, you start losing health.
 
+The land around the crash is open birch woods, meadows and lakes. Further out are snowy
+mountains. Spruce grow on their lower slopes, then scree and bare rock, then snow. The air gets
+colder the higher you climb: above the snowline you lose warmth even in the daytime, and you'll
+freeze in under a minute unless you have a fire or a shelter (warmer clothes are coming). The
+mountains are rocky, so they're a good place to find stones.
+
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
-you start losing health. Drink from the lake to stay hydrated. While you're well fed and
+you start losing health. Drink from a lake or the river to stay hydrated. There are lakes all
+over the map. While you're well fed and
 watered, your health slowly recovers. One in-game day lasts 10 real minutes.
 
 Days are long, like a northern summer: the sun rises around 05:00 and sets around 20:00.
@@ -151,7 +158,7 @@ src/daylight.js       Day and night: the sun and moon, light colours, sky and fo
 src/world.js          Builds the map from a seed: places trees, rocks and grass
 src/stream.js         Splits the map into chunks; only the ones around the player are drawn
 src/grid.js           Finds things near a spot quickly (trees, rocks, items on the ground)
-src/terrain.js        The land: gentle hills, the lake, the river and the ground colours
+src/terrain.js        The land: hills, mountains, lakes, the river, the ground colours and how cold it is
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
 src/water.js          The lake and the flowing river, and ripples around the player
 src/grass.js          Swaying grass tufts
@@ -197,6 +204,13 @@ built as you come near and dropped once you're well away, and items on the groun
 3D objects within 70 m. Animals live in a ring around you, and ones you leave far behind turn up
 somewhere new around you. How thickly trees and rocks grow is set per hectare at the top of
 `src/world.js`, so changing the map's size keeps the same density.
+
+Each map has three snowy mountains, at least 180 m from the crash and clear of the river, and
+about 20 lakes around the lowlands. To change how many there are, how big and tall the mountains
+are, and where the snow and the cold start, edit `MOUNTAINS` and `LAKES` at the top of
+`src/terrain.js`. How fast the mountain cold chills you is `MOUNTAIN_CHILL_PER_HOUR` in
+`src/survival.js`. Which trees grow up the slopes, and where the treeline is, is at the top of
+`src/world.js`.
 
 ## Adding models from Blender
 

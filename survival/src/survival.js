@@ -30,6 +30,10 @@ const SHELTER_WARMING_PER_HOUR = 15;
 const SHELTER_MAX = 85;
 const FIRE_WARMING_PER_HOUR = 35;
 const FIRE_MAX = 100; // a fire is the only way above SHELTER_MAX
+// Up the mountains the air is cold even by day: out in the open you lose this much more per
+// in-game hour at the coldest (see coldAt in terrain.js). A fire or a shelter still warms you.
+// About 1.5 in-game hours (under a minute) takes you from 60 to Freezing.
+export const MOUNTAIN_CHILL_PER_HOUR = 30;
 export const FREEZING = 15; // at or below this you're Freezing
 const FREEZING_DAMAGE_PER_HOUR = 10;
 const FROZEN_DAMAGE_PER_HOUR = 25; // at temperature 0
@@ -37,8 +41,8 @@ const COSY = 80; // healing needs this temperature (a shelter or a fire gets you
 const COSY_HOURS = 1; // ...held for this many in-game hours in a row
 
 // One step of the temperature model. Pure, so it can be simulated outside the game.
-// state: { temperature, wetHours }; env: { submerged, fire, shelter, night }.
-export function stepTemperature(state, { submerged, fire, shelter, night }, hours) {
+// state: { temperature, wetHours }; env: { submerged, fire, shelter, night, cold (0–1) }.
+export function stepTemperature(state, { submerged, fire, shelter, night, cold = 0 }, hours) {
   let t = state.temperature;
   let wetHours = state.wetHours;
   if (submerged) {
@@ -50,6 +54,7 @@ export function stepTemperature(state, { submerged, fire, shelter, night }, hour
     else if (shelter) [rate, max] = [SHELTER_WARMING_PER_HOUR, SHELTER_MAX];
     else if (night) [rate, max] = [-NIGHT_CHILL_PER_HOUR, 100];
     else [rate, max] = [OUTDOOR_WARMING_PER_HOUR, DAY_TEMPERATURE];
+    if (!fire && !shelter) rate -= MOUNTAIN_CHILL_PER_HOUR * cold;
     if (wetHours > 0) rate = Math.min(rate, WET_WARMING_PER_HOUR);
     if (rate > 0) {
       if (t < max) t = Math.min(max, t + rate * hours); // a source never pushes you past its cap
@@ -77,7 +82,7 @@ export class Survival {
   }
 
   // `speed` makes time pass faster for testing (see README).
-  update(dt, { drinking, working, fire, shelter, wet }, speed = 1) {
+  update(dt, { drinking, working, fire, shelter, wet, cold }, speed = 1) {
     if (!this.alive) return;
     const minutes = dt * GAME_MINUTES_PER_SECOND * speed;
     const hours = minutes / 60;
@@ -87,7 +92,7 @@ export class Survival {
     this.thirst = clamp(this.thirst - THIRST_PER_HOUR * hours);
     if (drinking) this.thirst = clamp(this.thirst + DRINK_PER_SECOND * dt * speed);
 
-    const next = stepTemperature(this, { submerged: wet, fire, shelter, night: isNight(this.hourOfDay) }, hours);
+    const next = stepTemperature(this, { submerged: wet, fire, shelter, night: isNight(this.hourOfDay), cold }, hours);
     this.temperature = next.temperature;
     this.wetHours = next.wetHours;
     this.cosyHours = this.temperature >= COSY ? this.cosyHours + hours : 0;

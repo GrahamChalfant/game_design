@@ -8,6 +8,7 @@ const FOREST_THINNING = 0.75; // the share of tufts left out where trees grow
 const TUFT_BRIGHTNESS = 1.5;
 const TRIES_PER_CHUNK = 900; // spots tried per chunk; the ones on grassy ground get a tuft
 const GRASS_CHUNKS = 2; // grass is small, so it's only drawn this many chunks out from the player
+const GRASS_BUDGET_MS = 2; // the most time per frame spent growing grass
 const UP = new THREE.Vector3(0, 1, 0);
 // Each tuft picks a model from this list at random, so repeating a name makes it more common.
 const TUFT_MIX = [
@@ -65,10 +66,13 @@ export function createGrass(seed, terrain, area) {
   const half = area / 2;
   const cleared = new SpatialGrid(); // circles where the grass was cleared, e.g. under a campfire
   const chunks = new Map(); // chunk key → { [model name]: [tuft] }
-  const growChunk = (cx, cz) => {
+  // Grows one chunk a little at a time: it pauses (yields) every so often, so the work can be
+  // spread over several frames. Returns the chunk's tufts, by model.
+  function* growChunk(cx, cz) {
     const random = createRandom(chunkSeed(seed, cx, cz));
     const tufts = Object.fromEntries(TUFT_MIX.map((name) => [name, []]));
     for (let tries = 0; tries < TRIES_PER_CHUNK; tries++) {
+      if (tries % 100 === 99) yield;
       const x = (cx + random.next()) * CHUNK_SIZE;
       const z = (cz + random.next()) * CHUNK_SIZE;
       const name = random.pick(TUFT_MIX);
@@ -93,8 +97,10 @@ export function createGrass(seed, terrain, area) {
       const matrix = new THREE.Matrix4().compose(new THREE.Vector3(x, terrain.heightAt(x, z), z), rotation, scale);
       tufts[name].push({ x, z, matrix, color });
     }
+    // (Grass may have been cleared while this chunk was growing.)
+    for (const name in tufts) tufts[name] = tufts[name].filter((tuft) => cleared.isClear(tuft.x, tuft.z, 0));
     return tufts;
-  };
+  }
 
   // One InstancedMesh per tuft model, holding the tufts of the chunks around the player.
   const group = new THREE.Group();
@@ -137,28 +143,50 @@ export function createGrass(seed, terrain, area) {
 
   let currentChunk = null;
   let dirty = true;
-  const drawAround = (x, z) => {
+  const jobs = new Map(); // chunk key → its growing, part done
+  // Grows the chunks around (x, z), nearest first, plus one more ring ahead of the ones drawn
+  // so they're ready before you get there. Works for at most GRASS_BUDGET_MS per frame, unless
+  // `now` (then it grows the drawn chunks right away).
+  const drawAround = (x, z, now) => {
     const chunk = chunkOf(x, z).join();
-    if (chunk === currentChunk && !dirty) return;
-    currentChunk = chunk;
+    if (chunk !== currentChunk) {
+      currentChunk = chunk;
+      shownKeys = chunksAround(x, z, GRASS_CHUNKS).map((c) => c.key);
+      // Forget chunks well out of sight.
+      const keep = new Set(chunksAround(x, z, GRASS_CHUNKS + 2).map((c) => c.key));
+      for (const key of chunks.keys()) if (!keep.has(key)) chunks.delete(key);
+      for (const key of jobs.keys()) if (!keep.has(key)) jobs.delete(key);
+      dirty = true;
+    }
+    const deadline = now ? Infinity : performance.now() + GRASS_BUDGET_MS;
+    for (const { cx, cz, key } of chunksAround(x, z, now ? GRASS_CHUNKS : GRASS_CHUNKS + 1)) {
+      if (chunks.has(key)) continue;
+      if (!jobs.has(key)) jobs.set(key, growChunk(cx, cz));
+      const job = jobs.get(key);
+      while (performance.now() < deadline) {
+        const step = job.next();
+        if (step.done) {
+          chunks.set(key, step.value);
+          jobs.delete(key);
+          if (shownKeys.includes(key)) dirty = true;
+          break;
+        }
+      }
+      if (performance.now() >= deadline) break;
+    }
+    if (!dirty) return;
     dirty = false;
-    const around = chunksAround(x, z, GRASS_CHUNKS);
-    for (const { cx, cz, key } of around) if (!chunks.has(key)) chunks.set(key, growChunk(cx, cz));
-    shownKeys = around.map((c) => c.key);
-    // Forget chunks well out of sight.
-    const keep = new Set(chunksAround(x, z, GRASS_CHUNKS + 2).map((c) => c.key));
-    for (const key of chunks.keys()) if (!keep.has(key)) chunks.delete(key);
     draw();
   };
   let last = { x: 0, z: 0 };
 
   return {
     group,
-    // Sways the grass, and grows the grass around (x, z).
-    update(time, x = last.x, z = last.z) {
+    // Sways the grass, and grows the grass around (x, z) (right away if `now`).
+    update(time, x = last.x, z = last.z, now = false) {
       uniforms.uTime.value = time;
       last = { x, z };
-      drawAround(x, z);
+      drawAround(x, z, now);
     },
     // Removes the grass within `radius` of (x, z), e.g. under a campfire.
     clear(x, z, radius) {
@@ -174,6 +202,7 @@ export function createGrass(seed, terrain, area) {
     restore() {
       cleared.clear();
       chunks.clear();
+      jobs.clear();
       dirty = true;
     },
   };

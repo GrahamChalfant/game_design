@@ -40,6 +40,13 @@ const FOREST_MIX = [
   'birch', 'birch', 'tree-dead', 'birch', 'birch', 'pine-skinny', 'birch', 'birch',
 ];
 const FOREST_SPACING = 2.4; // meters of open ground kept between forest trees
+// Up the mountains, dark spruce grow on the lower slopes and snowy ones higher up, thinning
+// out to nothing at the treeline (see mountainAt in terrain.js: 0 at a mountain's foot, 1 at the top).
+const SPRUCE = ['pine', 'pine-tall', 'pine-skinny', 'pine-small', 'pine-wide', 'sapling-pine', 'pine', 'tree-dead'];
+const SNOWY_SPRUCE = ['pine-snow', 'pine-small-snow', 'pine-snow', 'pine-skinny'];
+const SPRUCE_PER_HECTARE = 110;
+const SNOWY_ABOVE = 0.35;
+const TREELINE = 0.55;
 // Each rock shape: its collision radius, how tall it stands, and how much it can be scaled.
 const ROCK_SHAPES = {
   rock: { radius: 0.55, height: 0.77, scale: [0.5, 1.6] },
@@ -93,13 +100,25 @@ export function buildWorld(scene, seed) {
     forest[kind].push(tree);
     return tree;
   });
+  for (const massif of terrain.massifs) {
+    const hectares = Math.PI * (massif.radius / 100) ** 2;
+    scatterAround(random, massif, Math.round(SPRUCE_PER_HECTARE * hectares), (x, z) => {
+      const up = terrain.mountainAt(x, z);
+      // Thinner the higher you go, and none above the treeline.
+      if (up < 0.02 || up > TREELINE * random.range(0.8, 1.05) || !isFree(x, z, FOREST_SPACING * 0.75)) return null;
+      const kind = random.pick(up > SNOWY_ABOVE ? SNOWY_SPRUCE : SPRUCE);
+      const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
+      forest[kind].push(tree);
+      return tree;
+    });
+  }
   for (const [kind, spots] of Object.entries(forest)) {
     trees.add(kind, kind === 'birch' ? placeholders.birch() : placeholders.conifer(), spots);
   }
 
   // ...while round leafy trees stand alone or in small groups out in the fields.
   const broadleaves = scatter(random, Math.round(BROADLEAF_PER_HECTARE * HECTARES), (x, z) => {
-    if (terrain.forest(x, z) > 0 || !isFree(x, z, 4)) return null;
+    if (terrain.forest(x, z) > 0 || terrain.mountainAt(x, z) > 0.02 || !isFree(x, z, 4)) return null;
     return place(x, z, 0.45, random.range(0.8, 1.25));
   });
   trees.add('broadleaf', placeholders.broadleaf(), broadleaves);
@@ -141,6 +160,7 @@ export function buildWorld(scene, seed) {
   );
 
   const grass = createGrass(mapSeed, terrain, WORLD_SIZE + 10);
+  grass.update(0, SPAWN.x, SPAWN.z, true);
   scene.add(grass.group);
 
   return {
@@ -155,7 +175,7 @@ export function buildWorld(scene, seed) {
     drawAround(x, z) {
       drawModelsAround(x, z);
       terrain.drawAround(x, z, Infinity);
-      grass.update(0, x, z);
+      grass.update(0, x, z, true);
     },
     update(dt, time, player) {
       drawModelsAround(player.x, player.z);
@@ -203,6 +223,22 @@ function scatter(random, count, place) {
     if (result) transforms.push(result);
   }
   return transforms;
+}
+
+// Like scatter, but only tries spots within `radius` of { x, z } (and inside the map).
+function scatterAround(random, { x: cx, z: cz, radius }, count, place) {
+  const half = WORLD_SIZE / 2 - 2;
+  const placed = [];
+  for (let tries = 0; placed.length < count && tries < count * 40; tries++) {
+    const angle = random.range(0, Math.PI * 2);
+    const r = radius * 1.3 * Math.sqrt(random.next());
+    const x = cx + Math.cos(angle) * r;
+    const z = cz + Math.sin(angle) * r;
+    if (Math.abs(x) > half || Math.abs(z) > half) continue;
+    const result = place(x, z);
+    if (result) placed.push(result);
+  }
+  return placed;
 }
 
 // `stretch` optionally squashes or stretches it along each axis: [x, y, z].

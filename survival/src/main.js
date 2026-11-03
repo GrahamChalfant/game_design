@@ -178,7 +178,8 @@ const updateActions = createActions({ input, inventory, player, world, wreck, ca
 const DUSK_WARNING_HOUR = 18.5; // a while before sunset at 20:00
 let warnedDay = 0; // the last day the dusk warning was given
 let saidFreezing = false;
-function thinkAloud({ fire, shelter }) {
+let saidMountainCold = false; // said again each time you head back up
+function thinkAloud({ fire, shelter, cold = 0 }) {
   if (!survival.alive) return;
   const warm = fire || shelter;
   const { day } = survival.clock;
@@ -192,6 +193,11 @@ function thinkAloud({ fire, shelter }) {
     hud.say("I'm freezing… I need a fire or some shelter.", 6);
   }
   if (!survival.isFreezing) saidFreezing = false;
+  if (cold > 0.3 && !saidMountainCold) {
+    saidMountainCold = true;
+    hud.say("The air's bitter up here… I won't last long without warmer clothes.", 6);
+  }
+  if (cold === 0) saidMountainCold = false;
 }
 const speechPoint = new THREE.Vector3();
 

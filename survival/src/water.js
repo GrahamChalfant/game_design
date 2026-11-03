@@ -101,21 +101,25 @@ function waterMaterial(flows) {
   return material;
 }
 
-// The lake (a flat sheet a bit bigger than it; the shore hides the edges) and a ribbon
+// The lakes (each a flat sheet a bit bigger than it; the shore hides the edges) and a ribbon
 // of water following the river down its channel.
-export function createWater(center, radiusAt, level, river) {
-  const shape = new THREE.Shape();
-  for (let i = 0; i <= 96; i++) {
-    const angle = (i / 96) * Math.PI * 2;
-    const r = radiusAt(angle) * 1.4;
-    if (i === 0) shape.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
-    else shape.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
-  }
-  const lake = new THREE.Mesh(new THREE.ShapeGeometry(shape, 4), waterMaterial(false));
-  // Shapes are drawn on the x/y plane; tip it over so the shape's y becomes the world's z.
-  lake.rotation.x = Math.PI / 2;
-  lake.position.set(center.x, level, center.y);
-  lake.receiveShadow = true;
+export function createWater(lakes, river) {
+  const lakeMaterial = waterMaterial(false);
+  const sheets = lakes.map((lake) => {
+    const shape = new THREE.Shape();
+    for (let i = 0; i <= 96; i++) {
+      const angle = (i / 96) * Math.PI * 2;
+      const r = lake.radiusAt(angle) * 1.4;
+      if (i === 0) shape.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
+      else shape.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+    }
+    const sheet = new THREE.Mesh(new THREE.ShapeGeometry(shape, 4), lakeMaterial);
+    // Shapes are drawn on the x/y plane; tip it over so the shape's y becomes the world's z.
+    sheet.rotation.x = Math.PI / 2;
+    sheet.position.set(lake.x, lake.level, lake.z);
+    sheet.receiveShadow = true;
+    return sheet;
+  });
 
   const { points } = river;
   const vertices = [];
@@ -146,7 +150,7 @@ export function createWater(center, radiusAt, level, river) {
   stream.receiveShadow = true;
 
   const mesh = new THREE.Group();
-  mesh.add(lake, stream);
+  mesh.add(...sheets, stream);
 
   let next = 0; // the ring to reuse next
   let lastRipple = new THREE.Vector2(Infinity, Infinity);

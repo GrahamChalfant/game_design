@@ -344,6 +344,7 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     const warmFire = campfires.near(x, z, WARMTH_REACH);
     const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
     const wet = world.terrain.waterDepth(x, z) > WET_DEPTH;
-    return { drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, prompt, progress };
+    const cold = world.terrain.coldAt(x, z); // up the mountains
+    return { drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, cold, prompt, progress };
   };
 }

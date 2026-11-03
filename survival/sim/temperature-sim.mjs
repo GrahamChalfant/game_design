@@ -40,4 +40,11 @@ ok(s.isFreezing && s.health < 100, `4 night 20:00->05:00 ends at temp ${s.temper
 
 // 5) HUD flags
 ok(typeof s.isWet === 'boolean' && s.isFreezing === true, '5 isWet / isFreezing flags drive HUD indicators');
+// 6) mountain cold (#87): freezing by day up high, unless there's a fire or a shelter
+s = new Survival(); setHour(s, 10); s.temperature = 60;
+t = 0; while (s.temperature > FREEZING && t < 600) { s.update(dt, { cold: 1 }); t += dt; }
+ok(t > 30 && t < 60, `6 daytime at the coldest: 60 -> freezing in ${t.toFixed(1)} real s`);
+ok(capAfter({ cold: 1, fire: true }) === 100 && capAfter({ cold: 1, shelter: true }) === 85, '6 a fire or shelter still warms you up the mountains');
+ok(capAfter({ cold: 0 }) === 60, '6 no change in the lowlands');
+ok(rise({ cold: 0.5 }) < 0, `6 halfway up, you cool by day (${rise({ cold: 0.5 })} per hour)`);
 console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

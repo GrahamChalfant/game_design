@@ -198,7 +198,7 @@ export class Player {
     }
 
     const ground = world.terrain.heightAt(this.position.x, this.position.z);
-    this.position.y = Math.max(ground, world.terrain.waterLevel - SWIM_DEPTH);
+    this.position.y = Math.max(ground, world.terrain.waterLevelAt(this.position.x, this.position.z) - SWIM_DEPTH);
 
     // Space to jump (not while swimming or wading deep). The jump only lifts the body:
     // `position` stays on the ground, so the camera doesn't bob.
