@@ -1,37 +1,55 @@
-# Art Style Guide: Survival (Shipwreck)
+# Art Style Guide: Northern Survival
 
-Painterly low-poly with a cold northern coast feel, in the spirit of Vinland Saga:
-muted, overcast, wind-worn. Big, readable shapes, flat facets, and colour that does
-the job of texture. Nothing glossy or saturated except rare signal colours.
+**The setting:** a small bush plane has crashed in an inland northern valley (think northern
+Canada in a short summer). Golden-green meadows, dark spruce forest, grey boulders, a lake
+and a winding river, a little lingering snow. No coast, no sea.
+
+**The look:** painterly low-poly, in the spirit of the farmland in *Vinland Saga* season 2
+and the hand-painted valley reference: soft, natural, a little nostalgic. Warm low sunlight
+and long shadows, bluish haze in the distance, muted colour with a few warm accents. The
+game draws everything through a painterly (Kuwahara) filter, so models should rely on big
+flat colour areas and clear shapes; fine detail is lost.
+
+**The camera:** a top-down, three-quarter view. Most things are seen from **above and
+slightly in front**, so silhouettes and colours must read from that angle (tops of trees,
+the backs of animals, the roof of the shelter). The mouse is reserved for aiming, so the
+camera never rotates: models are always seen from the same side.
 
 ## 1. Palette
 
 Use these as base colours. Vary each one by ±5–8% value/hue per face or part to get the
-"painted" look; never use pure black (#000) or pure white (#fff) in albedo.
+painted look; never use pure black (#000) or pure white (#fff) in albedo.
 
 | Family | Swatch | Hex | Use |
 | --- | --- | --- | --- |
-| Weathered wood | wood-dark | `#54392A` | lashings, end grain, shadowed logs |
-| | wood | `#6B4A32` | poles, handles, trunks (`#5B4130` in trees) |
-| | driftwood | `#7A7067` | dead trees, sea-bleached planks |
-| Sea / slate | slate-dark | `#3E4A52` | wet rock, deep water, iron |
-| | slate | `#626260` | rocks (existing rock range `#5B5B5B`–`#6C6C68`) |
-| | sea-grey | `#6F8790` | shallows, foam shadow, cold metal |
-| Moss / foliage | moss-dark | `#3D5739` | conifer needles, boughs (`#3F5C34`) |
-| | moss | `#56743F` | broadleaf, bough highlights |
-| | lichen | `#738D4E` | tips, sunlit edges, moss on rock (`#848266`) |
-| Bone | bone | `#D8C49A` | stitching, antler, bone tools |
-| | snow | `#E3E9EA` | snow caps (the one near-white allowed) |
-| Hide | hide-dark | `#7A5C40` | hide panels, rabbit shadow |
-| | hide | `#8A6A4A` | shelter hide, axe grip, rabbit `#8A7A67` |
+| Meadow (the ground the game paints) | sage | `#8AA660` | grass, the main field colour |
+| | olive | `#A4A659` | drier grass |
+| | ochre | `#BFAE72` | dry patches, sunlit edges, straw |
+| | moss | `#688841` | dark grass blotches, moss on wood |
+| | forest floor | `#4C6334` | under trees, bough beds |
+| Spruce | needles-dark | `#1F3A2A` | inside of spruce tiers |
+| | needles | `#2E5E38` | conifer needles, bough highlights |
+| | needle-tip | `#46684A` | tier edges, sunlit tips |
+| Stone | stone | `#86877F` | boulders, scree, the ground's rocky patches |
+| | stone-dark | `#58585A` | shadowed faces, flint, wet rock |
+| | lichen | `#949266` | tops of rocks and old wood |
+| Wood | wood-dark | `#54392A` | end grain, lashings, bark in shade |
+| | wood | `#6B4A32` | poles, handles, trunks, logs |
+| | driftwood | `#7A7067` | dead trees, dry snags |
+| | cut wood | `#D9B98A` | fresh cut ends, stumps |
+| Hide and bone | hide-dark | `#7A5C40` | hide panels, boar back |
+| | hide | `#8A6A4A` | shelter hide, grips, rabbit |
 | | hide-red | `#8C5B3F` | deer coat |
-| Rust / signal | rust | `#A4442F` | player coat, wreck paint, danger |
-| | ochre | `#B88A2E` | wreck livery (plane) |
-| Overcast sky | sky | `#AEB6B8` | sky dome, fog colour, UI background tint |
-| | sky-low | `#8E989C` | horizon, distant haze |
+| | bone | `#D8C49A` | stitching, cord, rope, tusks, bone tools |
+| Snow and water | snow | `#EEF2F4` | the odd lingering snow patch |
+| | water | `#4A7D9C` | lake and river |
+| Warm accents | wreck yellow | `#D9A52B` | the plane |
+| | rust red | `#A83A2A` | plane stripes, the player's coat, danger |
+| | ember | `#FF7A2A` | fire (with `#FFD36A` cores); the only emissive colour |
 
-Rule of thumb: ≥80% of any scene is wood/slate/moss/sky; hide and bone are accents;
-rust/ochre is reserved for the player, the wreck, and things the player must notice.
+Rule of thumb: ≥80% of any scene is meadow, spruce, stone and wood; hide and bone are
+accents; yellow, red and fire are reserved for the wreck, the player, fires and things the
+player must notice. Keep colours muted: the lighting (golden sun, blue night) adds the mood.
 
 ## 2. Materials
 
@@ -47,10 +65,13 @@ rust/ochre is reserved for the player, the wreck, and things the player must not
 - Flat shading (`use_smooth = False`) everywhere; the facets are the brushwork.
 - Colours are authored in sRGB hex and converted to linear (`x ** 2.2`) in scripts.
 - Grass tufts are painted in **greys only**; the game tints them from the ground.
+- Avoid thin parts that vanish from above (e.g. a snare's noose seen edge-on): make the
+  shape that matters face up, or thicken it.
 
 ## 3. Silhouette
 
-- Read at 30 m and at thumbnail size: one primary mass, one or two secondary shapes.
+- Read from the game camera (above and in front, ~20 m away) and at thumbnail size: one
+  primary mass, one or two secondary shapes. Check the top view, not just the front view.
 - Exaggerate key features ~10–20%: antlers, ears, axe head, shelter A-frame, pack.
 - Slight asymmetry and lean (2–6°) on natural and hand-built things; nothing perfectly
   straight except wreck metal.
@@ -79,7 +100,9 @@ rust/ochre is reserved for the player, the wreck, and things the player must not
 - Front of the model faces Blender **-Y** (Front view) → +Z in three.js.
 - Reference sizes: player ~1.8 m, deer ~1.8 m at shoulder/head, rabbit ~0.5 m,
   shelter 3.2 × 2.8 × 2.3 m, pine ~9 m. See `survival/README.md` for the full table.
-- Apply all transforms before export (scale 1, rotation 0).
+- Apply all transforms before export (scale 1, rotation 0), **and keep each exported object
+  at the world origin in its .blend**: a stray location becomes a stray offset in the GLB
+  (this is what put the axe a metre from the hand, #65, and the wing off its collider, #66).
 - Export: glTF 2.0, **GLB**, `use_selection=True`, `export_apply=True`, +Y up (default),
   include vertex colours, no images, animations only for rigged assets.
 - **Delete helper/default objects** (the default `Cube`, `Camera`, `Light` still sit in several .blend files) before export,
@@ -102,8 +125,8 @@ rust/ochre is reserved for the player, the wreck, and things the player must not
   from the upper left, soft fill, no hard drop shadow.
 - 128 × 128 PNG master (export 64 and 32), transparent background, object fills ~80%.
 - Add a 2 px outline in `#2D2824` (dark umber, not black) for readability on any panel.
-- Panels/backgrounds use sky `#AEB6B8` / slate-dark `#3E4A52` at 85% opacity; text in bone `#D8C49A`.
-- Item rarity/state uses value, not neon colour: rust for danger/broken, lichen for edible/ready.
+- Panels/backgrounds use dark slate `rgb(20 30 40)` at 55–85% opacity, as the HUD does; text in white or bone `#D8C49A`.
+- Item rarity/state uses value, not neon colour: rust red for danger/broken, sage green for edible/ready.
 - One idea per icon; no text inside icons.
 
 ## 8. Checklist before committing an asset

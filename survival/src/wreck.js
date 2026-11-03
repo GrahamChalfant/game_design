@@ -63,12 +63,7 @@ export function buildWreck(scene, world) {
   };
 
   place(withModel('plane', placeholders.crashedPlane()), PLANE);
-  // plane-wing.glb's root node is offset 7 m along -z, so the visible wing sat away from its
-  // collider, leaving an invisible blocker at the back left of the plane (#66). Zero it so the
-  // wing is drawn where its collider is.
-  place(withModel('plane-wing', placeholders.brokenWing(), (model) => {
-    model.traverse((child) => { if (child.name === 'plane-wing') child.position.set(0, 0, 0); });
-  }), WING);
+  place(withModel('plane-wing', placeholders.brokenWing()), WING);
   for (const [x, z, heading] of [[3.5, -8.5, 0.4], [-1.8, -2.4, 2.1], [4.6, -5, 1.2]]) {
     place(placeholders.debris(), { x, z, heading });
   }

@@ -33,7 +33,7 @@ const FIRE_MAX = 100; // a fire is the only way above SHELTER_MAX
 export const FREEZING = 15; // at or below this you're Freezing
 const FREEZING_DAMAGE_PER_HOUR = 10;
 const FROZEN_DAMAGE_PER_HOUR = 25; // at temperature 0
-const COSY = 90; // healing needs this temperature...
+const COSY = 80; // healing needs this temperature (a shelter or a fire gets you there)...
 const COSY_HOURS = 1; // ...held for this many in-game hours in a row
 
 // One step of the temperature model. Pure, so it can be simulated outside the game.
@@ -124,6 +124,12 @@ export class Survival {
 
   drink(amount) {
     this.thirst = clamp(this.thirst + amount);
+  }
+
+  // Takes `amount` health (e.g. a boar's gore).
+  hurt(amount) {
+    this.health = clamp(this.health - amount);
+    if (this.health === 0) this.alive = false;
   }
 
   eat(hunger, health) {

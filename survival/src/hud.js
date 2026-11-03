@@ -241,6 +241,28 @@ export class Hud {
   }
 
   // Fades to black and back, showing what time you woke up.
+  // A speech bubble over the player's head, for `seconds`. Call placeSpeech() every frame.
+  say(text, seconds = 5) {
+    const speech = document.getElementById('speech');
+    speech.textContent = text;
+    speech.hidden = false;
+    clearTimeout(this.speechTimer);
+    this.speechTimer = setTimeout(() => (speech.hidden = true), seconds * 1000);
+  }
+
+  // Moves the speech bubble to (x, y) on screen: the point just above the player's head.
+  placeSpeech(x, y) {
+    const speech = document.getElementById('speech');
+    if (speech.hidden) return;
+    speech.style.left = `${x}px`;
+    speech.style.top = `${y}px`;
+  }
+
+  hideSpeech() {
+    clearTimeout(this.speechTimer);
+    document.getElementById('speech').hidden = true;
+  }
+
   showSleep(wakeText) {
     const sleep = document.getElementById('sleep');
     sleep.querySelector('strong').textContent = wakeText;

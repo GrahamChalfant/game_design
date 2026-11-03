@@ -19,7 +19,7 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep }) {
+export function createActions({ input, inventory, player, world, wreck, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, aimPoint }) {
   let cooking = 0;
   let searching = 0;
   let butchering = 0;
@@ -175,12 +175,14 @@ export function createActions({ input, inventory, player, world, wreck, campfire
           give('trap', 1);
         }
       }
-    } else if (!fire && tree && held !== 'axe') {
+    } else if (!fire && tree && !held) {
+      // Empty-handed at a tree: say how to chop it. (Holding something else, that item wins,
+      // so you can still shoot, eat or bandage up next to a tree.)
       const axeSlot = inventory.slotOf('axe');
       if (axeSlot === -1) prompt = 'You need an axe to chop trees';
       else if (axeSlot >= HOTBAR_SIZE) prompt = 'Move the axe from your backpack to the hotbar to use it';
       else prompt = `Press ${axeSlot + 1} to take out your axe`;
-    } else if (!fire && tree) {
+    } else if (!fire && tree && held === 'axe') {
       prompt = chopping ? 'Chopping…' : 'Click and hold to chop';
       progress = world.trees.progress(tree);
     } else if (!fire && held === 'campfire') {
@@ -256,10 +258,13 @@ export function createActions({ input, inventory, player, world, wreck, campfire
       if (arrowsLeft === 0) {
         prompt = 'No arrows · craft them from wood and stone (Tab)';
       } else {
-        prompt = `Bow ${bow.durability}/${ITEMS.bow.durability} · ${arrowsLeft} arrows · click to shoot`;
+        prompt = `Bow ${bow.durability}/${ITEMS.bow.durability} · ${arrowsLeft} arrows · click where to shoot`;
         if (input.startedUsingTool() && bowReady === 0 && !player.swimming) {
           bowReady = BOW_COOLDOWN;
           inventory.remove('arrow', 1);
+          // Shoot toward the spot on the ground under the mouse, turning to face it.
+          const target = aimPoint();
+          if (target) player.facing = Math.atan2(target.x - x, target.z - z);
           const from = player.ahead(0.5);
           arrows.fire(from.x, from.z, player.facing);
           bow.durability -= 1;

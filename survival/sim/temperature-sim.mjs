@@ -22,14 +22,16 @@ ok(rise({ fire: true }, 1) === 5 && rise({ shelter: true }, 1) === 5, '2 while W
 s = new Survival(); setHour(s, 10); run(s, { wet: true }, 1); run(s, {}, SEC_PER_HOUR * 0.99); ok(s.isWet, '2 Wet still on just under 1 h after leaving water');
 run(s, {}, SEC_PER_HOUR * 0.02); ok(!s.isWet, '2 Wet clears after 1 game hour');
 
-// 3) regen only after 1 h at >=90 with hunger & thirst >=25
+// 3) regen only after 1 h at >=80 with hunger & thirst >=25
 s = new Survival(); setHour(s, 10); s.temperature = 95; s.health = 50; s.hunger = 30; s.thirst = 30;
-run(s, { fire: true }, SEC_PER_HOUR * 0.95); ok(s.health === 50, '3 no regen before 1 h at >=90');
-run(s, { fire: true }, SEC_PER_HOUR * 0.5); ok(s.health > 50, `3 regen after 1 h at >=90 (${s.health.toFixed(2)})`);
+run(s, { fire: true }, SEC_PER_HOUR * 0.95); ok(s.health === 50, '3 no regen before 1 h at >=80');
+run(s, { fire: true }, SEC_PER_HOUR * 0.5); ok(s.health > 50, `3 regen after 1 h at >=80 (${s.health.toFixed(2)})`);
 s = new Survival(); setHour(s, 10); s.temperature = 95; s.health = 50; s.hunger = 22; s.thirst = 80;
 run(s, { fire: true }, SEC_PER_HOUR * 2); ok(s.health === 50, '3 no regen when hunger < 25');
 s = new Survival(); setHour(s, 10); s.temperature = 85; s.health = 50;
-run(s, { shelter: true }, SEC_PER_HOUR * 3); ok(s.health === 50, '3 no regen at 85 (shelter)');
+run(s, { shelter: true }, SEC_PER_HOUR * 3); ok(s.health > 50, `3 a shelter (85) heals too (${s.health.toFixed(2)})`);
+s = new Survival(); setHour(s, 10); s.temperature = 60; s.health = 50;
+run(s, {}, SEC_PER_HOUR * 3); ok(s.health === 50, '3 no regen outdoors by day (60)');
 
 // 4) full night outdoors from full temp
 s = new Survival(); setHour(s, 20); s.temperature = 100; s.health = 100;

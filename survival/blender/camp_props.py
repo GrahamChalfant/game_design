@@ -173,21 +173,37 @@ for a in (0.0, math.pi/2):
     b.add(pts, [(0, 2, 1), (0, 3, 2), (3, 4, 2)], col('rust', 0.0))
 models.append((ground(build('campfire', b, material('campfire', 0.9))), 'campfire.glb'))
 
-# ---------------- trap: simple snare (stake + rope noose facing -Y) ----------------
+# ---------------- trap: spring-pole snare, sized to read from the top-down camera ----------------
+# About 0.9 m across. A stout stake holds a bent sapling down with a trigger peg; a cord runs
+# from the sapling's tip to a wide noose lying on the ground in front (-Y), propped open by
+# two little forked twigs. The noose faces up, so the loop is what you see from above.
 random.seed(404); b = Builder()
-log(b, (0, 0, 0), (0.01, 0, 0.5), 0.018, 6, lambda: col('wood', 0.05), col('end_grain'), 0.8)     # stake
-log(b, (0.005, 0, 0.45), (0.005, -0.12, 0.47), 0.009, 5, lambda: col('wood', 0.05), col('end_grain'))  # arm
-log(b, (0.005, -0.12, 0.465), (0.005, -0.12, 0.31), 0.005, 4, col('bone'), col('bone'))            # hanging cord
-# noose: a low-poly ring in the XZ plane so the opening faces the camera (-Y)
-C = Vector((0.005, -0.12, 0.205)); R, r, S, T = 0.1, 0.008, 10, 4
+wood = lambda: col('wood', 0.06)
+log(b, (0.24, 0.02, 0), (0.25, 0.02, 0.42), 0.035, 6, wood, col('end_grain'), 0.85)            # stake
+log(b, (0.25, 0.02, 0.33), (0.08, 0.0, 0.32), 0.016, 5, wood, col('end_grain'))                # trigger peg
+# The bent sapling: rooted behind (+Y), arching up and over, its tip pulled down to the peg.
+arch = [(-0.42, 0.22, 0.0), (-0.36, 0.17, 0.28), (-0.2, 0.1, 0.52), (0.0, 0.05, 0.62), (0.16, 0.02, 0.55), (0.24, 0.0, 0.42)]
+for i in range(len(arch) - 1):
+    r = 0.032 - i * 0.004
+    log(b, arch[i], arch[i + 1], r, 6, lambda: col('wood_dark', 0.06), col('wood_dark'), 0.9)
+for p in [(-0.25, 0.14, 0.5), (-0.08, 0.1, 0.63), (0.07, 0.06, 0.62)]:                         # needle tufts on the sapling
+    rock(b, p, (0.07, 0.05, 0.04), 7, lambda: col(random.choice(('moss', 'moss_dark')), 0.06))
+# Cord from the peg down to the noose.
+log(b, (0.1, 0.0, 0.32), (0.0, -0.16, 0.06), 0.012, 4, col('bone'), col('bone'))
+# The noose: a wide loop of cord lying just above the ground, tilted a little toward the front.
+C = Vector((-0.02, -0.3, 0.07)); R, r, S, T = 0.17, 0.016, 14, 4
+tilt = Matrix.Rotation(math.radians(-18), 3, 'X')
 verts = []
 for i in range(S):
-    a = math.tau * i / S; d = Vector((math.sin(a), 0, math.cos(a)))
+    a = math.tau * i / S; d = Vector((math.cos(a), math.sin(a), 0))
     for k in range(T):
         t = math.tau * k / T + math.pi / 4
-        verts.append(C + d * (R + r * math.cos(t)) + Vector((0, r * math.sin(t), 0)))
-faces = [(i*T + k, i*T + (k+1) % T, ((i+1) % S)*T + (k+1) % T, ((i+1) % S)*T + k) for i in range(S) for k in range(T)]
-b.add(verts, faces, lambda: col('bone', 0.06))
+        verts.append(C + tilt @ (d * (R + r * math.cos(t)) + Vector((0, 0, r * math.sin(t)))))
+faces = [(i*T + k, ((i+1) % S)*T + k, ((i+1) % S)*T + (k+1) % T, i*T + (k+1) % T) for i in range(S) for k in range(T)]
+b.add(verts, faces, lambda: col('bone', 0.05))
+for x in (-0.2, 0.16):                                                                           # forked twigs propping it open
+    log(b, (x, -0.3, 0), (x * 1.05, -0.3, 0.13), 0.012, 4, wood, col('end_grain'))
+    log(b, (x * 1.05, -0.3, 0.1), (x * 1.2, -0.31, 0.16), 0.008, 4, wood, col('end_grain'))
 models.append((ground(build('trap', b, material('trap', 0.95))), 'trap.glb'))
 
 for o, f in models: export(o, f)
