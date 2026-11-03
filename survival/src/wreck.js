@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CRASH as PLANE, trailPoint } from './crashTrail.js';
-import { instancedModel, loadModel } from './models.js';
+import { instancedModel, loadModel, swappable } from './models.js';
 import * as placeholders from './placeholders.js';
 
 // Where the plane came down: around (0, 0), in a clearing. The player starts about 20 m
@@ -68,14 +68,14 @@ export function buildWreck(scene, world) {
   place(withModel('plane', placeholders.crashedPlane()), PLANE);
   place(withModel('plane-wing', placeholders.brokenWing()), WING);
   for (const [x, z, heading] of [[3.5, -8.5, 0.4], [-1.8, -2.4, 2.1], [4.6, -5, 1.2]]) {
-    place(placeholders.debris(), { x, z, heading });
+    place(swappable('debris', placeholders.debris()), { x, z, heading });
   }
 
   // Scraps and a landing wheel shed along the skid: [meters behind the plane, meters off the trail].
   for (const [back, side] of [[9, 2.8], [15, -3.1], [21, 3.4], [25, -2.6], [34, 2.2]]) {
-    place(placeholders.debris(), { ...trailPoint(back, side), heading: back });
+    place(swappable('debris', placeholders.debris()), { ...trailPoint(back, side), heading: back });
   }
-  place(placeholders.landingWheel(), { ...trailPoint(29, 3.4), heading: 1.1 });
+  place(swappable('landing-wheel', placeholders.landingWheel()), { ...trailPoint(29, 3.4), heading: 1.1 });
 
   // Clods of soil thrown out along both sides of the skid.
   const clods = [];

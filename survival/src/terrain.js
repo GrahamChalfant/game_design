@@ -5,23 +5,25 @@ import { CHUNK_SIZE, DRAW_CHUNKS, chunksAround } from './stream.js';
 
 const { smoothstep, clamp } = THREE.MathUtils;
 
-// A painted-landscape palette: muted sage and olive grass, ochre dry patches, mossy
-// blotches, grey stone and scree.
-const SAGE = new THREE.Color(0x8aa660);
-const OLIVE = new THREE.Color(0xa4a659);
-const OCHRE = new THREE.Color(0xbfae72);
-const MOSS = new THREE.Color(0x688841);
-const FOREST_FLOOR = new THREE.Color(0x4c6334);
-const STONE = new THREE.Color(0x86877f);
-const SNOW = new THREE.Color(0xeef2f4);
-const MUD = new THREE.Color(0x7a6a50);
-const GRAVEL = new THREE.Color(0x9a948a);
-const WATER_BED = new THREE.Color(0x3c5c55);
-const TORN_SOIL = new THREE.Color(0xb8a285);
-const DARK_SOIL = new THREE.Color(0x9c8973);
-const ROAD = new THREE.Color(0xa8916c); // the old fire road's packed dirt...
-const RUT = new THREE.Color(0x8a7556); // ...its wheel ruts...
-const ROAD_GRASS = new THREE.Color(0x8f9a5c); // ...and the grass growing back down the middle
+// A muted, cool northern palette (after an autumn morning in the Rockies): sage and olive
+// grass, rusty-orange patches of autumn shrubs, ochre dry ground, mossy blotches, cool grey
+// stone and scree.
+const SAGE = new THREE.Color(0x7d8f5e);
+const OLIVE = new THREE.Color(0x948f58);
+const OCHRE = new THREE.Color(0xae8d58);
+const RUST = new THREE.Color(0xa0643a); // autumn shrubs: willow and dwarf birch turned orange
+const MOSS = new THREE.Color(0x5e7444);
+const FOREST_FLOOR = new THREE.Color(0x435440);
+const STONE = new THREE.Color(0x8a8c8e);
+const SNOW = new THREE.Color(0xe8eef2);
+const MUD = new THREE.Color(0x6e6352);
+const GRAVEL = new THREE.Color(0x8e8e8a);
+const WATER_BED = new THREE.Color(0x3e5a5c);
+const TORN_SOIL = new THREE.Color(0xa89880);
+const DARK_SOIL = new THREE.Color(0x8c806e);
+const ROAD = new THREE.Color(0x9a8668); // the old fire road's packed dirt...
+const RUT = new THREE.Color(0x7e6c54); // ...its wheel ruts...
+const ROAD_GRASS = new THREE.Color(0x848e5c); // ...and the grass growing back down the middle
 
 const GROUND_CELL = 0.5; // meters along each side of a ground square: bigger gives bigger facets
 const GROUND_BUDGET_MS = 3; // the most time per frame spent building ground
@@ -224,6 +226,9 @@ export function createTerrain(random, noise, size) {
     color.copy(SAGE).lerp(OLIVE, clamp(noise(x * 0.025 + 300, z * 0.025) + 0.5, 0, 1));
     color.lerp(OCHRE, smoothstep(noise(x * 0.07 + 600, z * 0.07) + noise(x * 0.3, z * 0.3) * 0.25, 0.15, 0.6) * 0.7);
     color.lerp(MOSS, smoothstep(noise(x * 0.18 + 800, z * 0.18), 0.1, 0.5) * 0.5);
+    // Patches of autumn shrubs in the open (not under the trees or up the mountains).
+    const shrubs = smoothstep(noise(x * 0.045 + 1500, z * 0.045) + noise(x * 0.22 + 1600, z * 0.22) * 0.3, 0.1, 0.55);
+    color.lerp(RUST, shrubs * 0.45 * (1 - smoothstep(forest(x, z), -0.1, 0.4)) * (1 - smoothstep(mountainAt(x, z), 0.05, 0.3)));
     color.lerp(FOREST_FLOOR, smoothstep(forest(x, z), 0.05, 0.5) * 0.7);
 
     let kind = 'grass';

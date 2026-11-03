@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CRASH } from './crashTrail.js';
 import { Cutaway } from './cutaway.js';
-import { loadModel } from './models.js';
+import { loadModel, swappable } from './models.js';
 import * as placeholders from './placeholders.js';
 
 // A fire lookout tower (#90, #94): a tall timber tower on high ground that you can climb.
@@ -191,14 +191,14 @@ export function buildLookout(scene, world) {
     tower.add(object);
     return object;
   };
-  place(placeholders.fireFinder(), CAB.fireFinder);
-  place(placeholders.cot(), [-1.5, 2.35]);
+  place(swappable('fire-finder', placeholders.fireFinder()), CAB.fireFinder);
+  place(swappable('cot', placeholders.cot()), [-1.5, 2.35]);
   // Binoculars on a pole at the balcony rail, looking out (+x).
-  place(placeholders.mountedBinoculars(), CAB.binoculars);
+  place(swappable('binoculars', placeholders.mountedBinoculars()), CAB.binoculars);
   const binoculars = { ...fromTower(spot, CAB.binoculars[0], CAB.binoculars[1]), y: spot.base + TOWER.cabFloor };
   const outward = fromTower(spot, 1, 0); // they look out along the tower's +x
-  const crateObject = place(placeholders.supplyCrate(), CAB.crate, Math.PI);
-  const lockerObject = place(placeholders.locker(), CAB.locker);
+  const crateObject = place(swappable('supply-crate', placeholders.supplyCrate(), [{ node: 'supply-crate-lid', axis: 'x', angle: -1.9 }]), CAB.crate, Math.PI);
+  const lockerObject = place(swappable('locker', placeholders.locker(), [{ node: 'locker-door', axis: 'y', angle: -1.9 }]), CAB.locker);
 
   const container = (label, [x, z], loot, object, note = null) => ({
     ...fromTower(spot, x, z),

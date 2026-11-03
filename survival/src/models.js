@@ -139,3 +139,39 @@ export function drawModelsAround(x, z) {
 
 // A transform that hides a copy.
 export const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
+
+// Shows `placeholder` until public/models/<name>.glb loads, then a copy of that in its place.
+// Returns a group to put in the scene; anything else added to it (a torch's flame) stays.
+// `hinges` lists the model's parts that open, and how: [{ node: 'chest-lid', axis: 'x',
+// angle: -1.8 }] (the parts' origins are their hinges: see blender/props.py). The group's
+// `userData.open(open)` swings them (or the stand-in's own parts) open or shut.
+const swapModels = new Map(); // name → promise of the loaded model, loaded once
+export function swappable(name, placeholder, hinges = []) {
+  const holder = new THREE.Group();
+  holder.add(placeholder);
+  let model = null;
+  let isOpen = false;
+  holder.userData.open = (open) => {
+    isOpen = open;
+    if (!model) return placeholder.userData.open?.(open);
+    for (const { node, axis, angle } of hinges) {
+      const part = model.getObjectByName(node);
+      if (!part) continue;
+      part.userData.rest ??= part.rotation[axis];
+      part.rotation[axis] = part.userData.rest + (open ? angle : 0);
+    }
+  };
+  if (!swapModels.has(name)) swapModels.set(name, loadModel(name));
+  swapModels.get(name).then((loaded) => {
+    if (!loaded) return;
+    model = loaded.clone();
+    model.traverse((child) => {
+      if (child.isMesh) child.castShadow = child.receiveShadow = true;
+    });
+    holder.remove(placeholder);
+    holder.add(model);
+    holder.userData.open(isOpen);
+    holder.userData.onSwap?.(model);
+  });
+  return holder;
+}

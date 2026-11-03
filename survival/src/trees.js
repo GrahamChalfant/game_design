@@ -21,7 +21,8 @@ const KINDS = {
   birch: { wood: 2, chopTime: 1.5, stump: 0.5 },
 };
 // Each tree is multiplied by one of these, so the forest isn't all one green.
-const TREE_TINTS = [0xffffff, 0xe3f2c0, 0xb9d9c6, 0xf0e29a, 0xbdcc9c, 0xa8c9ae].map((hex) => new THREE.Color(hex));
+// Cool blue-greens, mostly, and the odd warmer one.
+const TREE_TINTS = [0xffffff, 0xd6e4d2, 0xb2cac6, 0xc2d2cc, 0xa6c0b8, 0xe2e2c6].map((hex) => new THREE.Color(hex));
 const UNTINTED = new Set(['tree-dead']); // bare wood stays its own colour
 const STUMP_RADIUS = 0.35;
 const STUMP_HEIGHT = 0.45;

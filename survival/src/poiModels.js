@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { cot } from './placeholders.js';
+import { swappable } from './models.js';
 
 // Stand-in models for the places to find around the map (see pois.js): abandoned log cabins
 // and hunters' tree stands. (Caves are in caves.js.) Each is built in its own space: x and z
@@ -244,6 +245,12 @@ export function cabin(random) {
 // A tall wooden cupboard, base at the origin, doors facing +z. `userData.open(true)` swings
 // them open.
 export function woodenCupboard() {
+  return swappable('cupboard', cupboardStandIn(), [
+    { node: 'cupboard-door-left', axis: 'y', angle: -1.8 },
+    { node: 'cupboard-door-right', axis: 'y', angle: 1.8 },
+  ]);
+}
+function cupboardStandIn() {
   const group = new THREE.Group();
   group.add(box(0.8, 1.7, 0.45, LOG_DARK, 0, 0.85, 0));
   const doors = [-1, 1].map((side) => {
@@ -262,6 +269,9 @@ export function woodenCupboard() {
 
 // A wooden chest with iron bands, base at the origin, lid hinged at the back (-z).
 export function woodenChest() {
+  return swappable('chest', chestStandIn(), [{ node: 'chest-lid', axis: 'x', angle: -1.8 }]);
+}
+function chestStandIn() {
   const group = new THREE.Group();
   group.add(box(0.9, 0.45, 0.55, PLANK, 0, 0.225, 0));
   for (const x of [-0.32, 0.32]) group.add(box(0.06, 0.47, 0.57, IRON, x, 0.225, 0));
@@ -275,6 +285,9 @@ export function woodenChest() {
 
 // An old canvas pack slumped on the ground. "Opening" it flops the flap back.
 export function weatheredPack() {
+  return swappable('weathered-pack', packStandIn(), [{ node: 'weathered-pack-flap', axis: 'x', angle: -2.2 }]);
+}
+function packStandIn() {
   const group = new THREE.Group();
   group.add(box(0.55, 0.45, 0.35, mat(0x6b6a45), 0, 0.22, 0));
   const flap = new THREE.Group();
@@ -333,6 +346,9 @@ export function huntingStand(random) {
 
 // A small olive ammo box with a lid hinged at the back.
 export function ammoBox() {
+  return swappable('ammo-box', ammoStandIn(), [{ node: 'ammo-box-lid', axis: 'x', angle: -1.9 }]);
+}
+function ammoStandIn() {
   const group = new THREE.Group();
   const olive = mat(0x4f5b3a, { roughness: 0.7 });
   group.add(box(0.5, 0.28, 0.3, olive, 0, 0.14, 0));
@@ -347,6 +363,9 @@ export function ammoBox() {
 
 // An old rain barrel, base at the origin.
 export function barrel() {
+  return swappable('barrel', barrelStandIn());
+}
+function barrelStandIn() {
   const group = new THREE.Group();
   group.add(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.27, 0.85, 12), LOG_DARK).translateY(0.43));
   for (const y of [0.15, 0.7]) group.add(new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.05, 12), IRON).translateY(y));

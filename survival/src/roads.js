@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { swappable } from './models.js';
 
 // An old fire road: a dirt track from the lookout tower out to a few of the cabins, long
 // abandoned. Trees keep off it, but it's ruined in places: fallen trees lie across it, a
@@ -122,7 +123,9 @@ export function ruinRoads(scene, random, terrain, { paths, stops }, addLog, obst
   const at = path[Math.min(4, path.length - 2)];
   const next = path[Math.min(5, path.length - 1)];
   const along = Math.atan2(next.z - at.z, next.x - at.x);
-  const gate = fireGate(random);
+  const swing = random.range(1.3, 1.7);
+  const gate = swappable('fire-gate', fireGate(swing), [{ node: 'fire-gate-gate', axis: 'y', angle: -swing }]);
+  gate.userData.open(true); // (swung open, off the road)
   gate.position.set(at.x, terrain.heightAt(at.x, at.z), at.z);
   gate.rotation.y = Math.PI / 2 - along; // the road runs through between its posts
   scene.add(gate);
@@ -131,7 +134,8 @@ export function ruinRoads(scene, random, terrain, { paths, stops }, addLog, obst
   }
   // Signposts at each cabin's end of the road.
   for (const stop of stops.slice(1)) {
-    const sign = signpost(random);
+    const sign = swappable('signpost', signpost(random));
+    sign.rotation.z = random.range(-0.1, 0.1); // leaning
     const x = stop.x + 2.6;
     const z = stop.z + 1;
     sign.position.set(x, terrain.heightAt(x, z), z);
@@ -144,7 +148,7 @@ export function ruinRoads(scene, random, terrain, { paths, stops }, addLog, obst
 const mat = (color, options = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, ...options });
 
 // A rusted pipe gate between two posts, hanging open (the road runs along local z).
-function fireGate(random) {
+function fireGate(swing) {
   const group = new THREE.Group();
   const rust = mat(0x8a4a2a, { roughness: 0.7 });
   const half = ROAD_WIDTH / 2 + 0.3;
@@ -165,7 +169,7 @@ function fireGate(random) {
   const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2, 6).rotateZ(1.35), rust);
   brace.position.set(ROAD_WIDTH / 2, 0.78, 0);
   hinge.add(brace);
-  hinge.rotation.y = -random.range(1.3, 1.7); // swung open, off the road
+  hinge.rotation.y = -swing; // swung open, off the road
   group.add(hinge);
   // A faded sign wired to it.
   const sign = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.03), mat(0xb8a040));

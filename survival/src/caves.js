@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Cutaway } from './cutaway.js';
 import { weatheredPack, woodenChest } from './poiModels.js';
-import { loadModel } from './models.js';
+import { loadModel, swappable } from './models.js';
 
 // Caves go underground. On the surface there's only a ring of rocks round a dark hole in the
 // hillside. Walk into it holding a lit torch and the screen fades: you come out in a cave
@@ -90,6 +90,7 @@ export function caveEntrance(random, groundAt) {
   slab.position.set(0, groundAt(0, -1.6) + 0.9, -1.6);
   slab.scale.set(1.6, 0.7, 0.9);
   slab.rotation.set(0.3, 0, 0.1);
+  slab.userData.boulder = 1.4;
   group.add(slab);
   // The hole: black in the middle, shading out to dark earth, with worn steps going down.
   const y = groundAt(0, 0);
@@ -136,6 +137,7 @@ export function caveEntrance(random, groundAt) {
   return group;
 }
 const boulders = loadModel('rock-large');
+const tallRock = loadModel('rock-tall');
 
 // ---------------------------------------------------------------------------------------
 // Underground.
@@ -191,23 +193,49 @@ export function buildUnderground(scene, poi, random, toWorld, toLocal) {
       if (edge > -0.2 || edge < -1.6) continue;
       if (Math.hypot(x - EXIT.x, z - EXIT.z - 1.5) < 1.6) continue; // (the way out stays open)
       const size = random.range(0.8, 1.4);
-      const rock = new THREE.IcosahedronGeometry(size, 0)
-        .scale(random.range(0.9, 1.3), random.range(2, 3.4), random.range(0.9, 1.3))
-        .rotateY(random.range(0, 3))
-        .translate(x + random.range(-0.3, 0.3), size * 1.2, z + random.range(-0.3, 0.3))
-        .toNonIndexed();
+      // Where each rock goes (kept, to rebuild the walls from the game's boulders below).
+      const place = new THREE.Matrix4().compose(
+        new THREE.Vector3(x + random.range(-0.3, 0.3), 0, z + random.range(-0.3, 0.3)),
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), random.range(0, Math.PI * 2)),
+        new THREE.Vector3(size * random.range(0.9, 1.3), size * random.range(2, 3.4), size * random.range(0.9, 1.3)),
+      );
+      const rock = new THREE.IcosahedronGeometry(1, 0).translate(0, 1.2, 0).applyMatrix4(place).toNonIndexed();
       const key = `${Math.floor(x / WALL_TILE)},${Math.floor(z / WALL_TILE)}`;
-      if (!tiles.has(key)) tiles.set(key, []);
-      tiles.get(key).push(rock);
+      if (!tiles.has(key)) tiles.set(key, { pieces: [], places: [] });
+      tiles.get(key).pieces.push(rock);
+      tiles.get(key).places.push(place);
     }
   }
   const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x4a4540, roughness: 0.95, flatShading: true });
-  for (const pieces of tiles.values()) {
+  const walls = [];
+  for (const { pieces, places } of tiles.values()) {
     const wall = new THREE.Mesh(mergeGeometries(pieces), wallMaterial);
     wall.userData.cutaway = true; // fades when it's between the camera and you
+    wall.userData.places = places;
     wall.castShadow = wall.receiveShadow = true;
     group.add(wall);
+    walls.push(wall);
   }
+  // Once rock-tall.glb has loaded, rebuild each tile of wall from copies of it (stretched
+  // tall, dark and damp), in place of the plain stand-in rocks.
+  tallRock.then((model) => {
+    let source = null;
+    model?.traverse((child) => {
+      if (child.isMesh && !source) source = child;
+    });
+    if (!source) return;
+    source.updateWorldMatrix(true, false);
+    const base = source.geometry.clone().applyMatrix4(source.matrixWorld);
+    const stretch = new THREE.Matrix4().makeScale(2.4, 1.9, 2.4);
+    const material = source.material.clone();
+    material.color.setRGB(0.55, 0.55, 0.58); // (darker and cooler underground)
+    for (const wall of walls) {
+      wall.geometry.dispose();
+      wall.geometry = mergeGeometries(wall.userData.places.map((place) => base.clone().applyMatrix4(stretch).applyMatrix4(place)));
+      wall.material = material.clone();
+    }
+    cutaway.refresh();
+  });
 
   // The way out: worn steps climbing toward a faint grey glow of daylight.
   for (let i = 0; i < 5; i++) {
@@ -234,8 +262,9 @@ export function buildUnderground(scene, poi, random, toWorld, toLocal) {
     ring.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 0), wallMaterial).translateX(Math.cos(a) * 0.45).translateZ(Math.sin(a) * 0.45));
   }
   for (const [a, b] of [[[-0.3, 0.06, -0.1], [0.3, 0.06, 0.12]], [[-0.1, 0.06, 0.25], [0.15, 0.06, -0.3]]]) ring.add(log(a, b, 0.1, mat(0x1e1a18)));
-  add(ring, 1.4, 1.0, 0.6);
-  add(log([0, 0.1, 0], [0.9, 0.1, 0.6], 0.22, mat(0x55603a)), -2.4, 1.3); // an old bedroll
+  add(swappable('fire-ring', ring), 1.4, 1.0, 0.6);
+  const roll = add(swappable('bedroll', log([-0.5, 0.1, 0], [0.5, 0.1, 0], 0.22, mat(0x55603a))), -2.1, 1.6); // an old bedroll
+  roll.rotation.y = -0.6;
   const pack = add(weatheredPack(), -2.2, -1.6, 0.4);
   pack.rotation.y = 0.7;
   const containers = [{ object: pack, label: 'the old pack', lx: -2.2, lz: -1.6, table: 'cave' }];
@@ -249,14 +278,24 @@ export function buildUnderground(scene, poi, random, toWorld, toLocal) {
   // Glowing crystals in one of the side rooms, giving off a faint blue light.
   const glowRoom = layout.rooms[1];
   const crystal = mat(0x7fd4ff, { emissive: 0x2a8fd0, emissiveIntensity: 1.4, roughness: 0.3, flatShading: true });
-  for (let i = 0; i < 9; i++) {
+  const glowing = (color, strength) => (model) => model.traverse((child) => {
+    if (!child.isMesh) return;
+    child.material = child.material.clone();
+    child.material.emissive.set(color);
+    child.material.emissiveIntensity = strength;
+    child.castShadow = false;
+  });
+  for (let i = 0; i < 6; i++) {
     const a = random.range(0, Math.PI * 2);
     const r = glowRoom.r * random.range(0.65, 0.9);
     const x = glowRoom.x + Math.cos(a) * r;
     const z = glowRoom.z + Math.sin(a) * r;
-    const shard = new THREE.Mesh(new THREE.OctahedronGeometry(random.range(0.12, 0.3), 0).scale(0.6, 2.2, 0.6), crystal);
-    shard.rotation.set(random.range(-0.4, 0.4), random.range(0, 3), random.range(-0.4, 0.4));
-    add(shard, x, z).position.y += 0.25;
+    const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.25, 0).scale(0.6, 2.2, 0.6).translate(0, 0.25, 0), crystal);
+    const cluster = swappable('crystals', shard);
+    cluster.userData.onSwap = glowing(0x2a8fd0, 0.9);
+    cluster.scale.setScalar(random.range(0.8, 1.6));
+    cluster.rotation.set(random.range(-0.3, 0.3), random.range(0, 3), random.range(-0.3, 0.3));
+    add(cluster, x, z);
   }
   const glow = new THREE.PointLight(0x5ab8ff, 4, 8, 1.5);
   glow.position.set(glowRoom.x, 1.5, glowRoom.z);
@@ -271,8 +310,11 @@ export function buildUnderground(scene, poi, random, toWorld, toLocal) {
     const z = room.z + Math.sin(a) * r;
     if (!free(x, z, 0.9)) continue;
     const h = random.range(0.6, 1.8);
-    const spike = new THREE.Mesh(new THREE.ConeGeometry(random.range(0.2, 0.35), h, 6), wallMaterial);
-    add(spike, x, z, 0.32).position.y += h / 2 - 0.05;
+    const width = random.range(0.7, 1.1);
+    const spike = swappable('stalagmite', new THREE.Mesh(new THREE.ConeGeometry(0.3, 1, 6).translate(0, 0.5, 0), wallMaterial));
+    spike.scale.set(width, h, width);
+    spike.rotation.y = random.range(0, Math.PI * 2);
+    add(spike, x, z, 0.32).position.y -= 0.05;
   }
   for (let i = 0; i < 4; i++) {
     const room = random.pick(layout.rooms);
@@ -287,15 +329,18 @@ export function buildUnderground(scene, poi, random, toWorld, toLocal) {
   bones.add(log([-0.3, 0.05, 0], [0.3, 0.05, 0.1], 0.06, bone), log([0, 0.05, -0.25], [0.15, 0.05, 0.25], 0.05, bone));
   bones.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.12, 1), bone).translateX(0.4).translateY(0.1));
   const boneRoom = layout.rooms[layout.rooms.length - 1];
-  add(bones, boneRoom.x - 1, boneRoom.z + 0.5);
+  add(swappable('bones', bones), boneRoom.x - 1, boneRoom.z + 0.5);
   const fungus = mat(0xc8f0a0, { emissive: 0x6fa040, emissiveIntensity: 0.9 });
   for (let i = 0; i < 18; i++) {
     const room = random.pick(layout.rooms);
     const a = random.range(0, Math.PI * 2);
     const x = room.x + Math.cos(a) * room.r * 0.95;
     const z = room.z + Math.sin(a) * room.r * 0.95;
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(random.range(0.05, 0.1), 8, 4, 0, Math.PI * 2, 0, Math.PI / 2), fungus);
-    add(cap, x, z).position.y += 0.08;
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(random.range(0.05, 0.1), 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.08, 0), fungus);
+    const caps = swappable('glow-fungus', cap);
+    caps.userData.onSwap = glowing(0x6fa040, 0.7);
+    caps.rotation.y = random.range(0, Math.PI * 2);
+    add(caps, x, z);
   }
 
   // Bats hanging about near the ceiling, which take off and flit round when you come near.

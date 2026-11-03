@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { loadModel } from './models.js';
+import { loadModel, swappable } from './models.js';
 import { dressModel } from './outfits.js';
 import * as placeholders from './placeholders.js';
 
 const TORCH_LIGHT = 7; // how bright a lit torch is (a campfire is 18): about an 8 m pool of light at night
 const TORCH_LIGHT_RANGE = 14; // meters its light reaches
+const TORCH_TIP = 0.52; // the top of the torch (where the flame goes), above the hand
 const TORCH_HOLD_TILT = -Math.PI / 2 + 0.35; // turns the torch in the hand: upright, leaning a little forward
 const RADIUS = 0.4;
 const WALK_SPEED = 5;
@@ -95,7 +96,8 @@ export class Player {
 
     // A torch (#94), in the right hand while selected. Lit, it has a flame and lights up the
     // dark around the player.
-    this.torch = placeholders.torch();
+    this.torch = swappable('torch', placeholders.torch());
+    this.torch.userData.tip = TORCH_TIP;
     this.torchFlame = placeholders.flames();
     this.torchFlame.scale.setScalar(0.32);
     this.torchFlame.position.y = this.torch.userData.tip;
