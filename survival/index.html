@@ -42,6 +42,7 @@
           <tr><th>Esc</th><td>Pause and show this menu</td></tr>
         </table>
         <button id="resume">Play</button>
+        <p class="seed">Map <span class="map-seed"></span> · add <code>?seed=<span class="map-seed"></span></code> to the address to play this map again</p>
       </div>
     </div>
     <div id="clock"></div>
@@ -101,7 +102,11 @@
       <div class="panel">
         <h1>You didn't make it</h1>
         <p id="survived"></p>
-        <button id="restart">Try again</button>
+        <div class="buttons">
+          <button id="restart">Try again</button>
+          <button id="new-map">New map</button>
+        </div>
+        <p class="seed">Map <span class="map-seed"></span></p>
       </div>
     </div>
     <script type="module" src="src/main.js"></script>

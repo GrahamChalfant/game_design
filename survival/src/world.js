@@ -6,13 +6,15 @@ import { createNoise, createRandom } from './random.js';
 import { createTerrain } from './terrain.js';
 import { Trees } from './trees.js';
 import { stoneSpots } from './hunting.js';
+import { CRASH, trailPoint } from './crashTrail.js';
 
 export const WORLD_SIZE = 140; // meters across; the playable area is a square centred on 0,0
 const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into the haze
-const CONIFER_COUNT = 300;
+const FOREST_COUNT = 300;
 const BROADLEAF_COUNT = 25;
 // Each forest tree's collision radius.
 const FOREST_RADIUS = {
+  birch: 0.2,
   pine: 0.5,
   'pine-small': 0.3,
   'pine-skinny': 0.35,
@@ -25,10 +27,13 @@ const FOREST_RADIUS = {
   'tree-dead': 0.4,
 };
 // Forest trees take their kind from this list in turn, so anything listed once is the rarest.
+// The forest is mostly birch: thin trunks with room between them, so you can walk through
+// it. A few spruce and the odd dead tree are mixed in for colour.
 const FOREST_MIX = [
-  'pine', 'pine-small', 'sapling-pine', 'pine-skinny', 'pine', 'pine-snow', 'pine-small', 'pine-tall',
-  'sapling-broadleaf', 'pine', 'tree-dead', 'pine-small-snow', 'pine-wide', 'sapling-pine', 'pine', 'pine-small',
+  'birch', 'birch', 'pine-small', 'birch', 'sapling-broadleaf', 'birch', 'birch', 'pine',
+  'birch', 'birch', 'tree-dead', 'birch', 'birch', 'pine-skinny', 'birch', 'birch',
 ];
+const FOREST_SPACING = 2.4; // meters of open ground kept between forest trees
 const ROCK_COUNT = 260;
 // Each rock shape: its collision radius, how tall it stands, and how much it can be scaled.
 const ROCK_SHAPES = {
@@ -48,10 +53,8 @@ const SPAWN_CLEARING = 4;
 
 // Builds the map from a seed: the same seed always gives the same world.
 export function buildWorld(scene, seed) {
-  const random = createRandom(seed);
-  const noise = createNoise(seed + 1);
-
-  const terrain = createTerrain(random, noise, GROUND_SIZE);
+  const { random, noise, terrain } = chooseTerrain(seed);
+  terrain.build();
   scene.add(terrain.ground, terrain.water.mesh);
 
   // Obstacles are circles on the ground the player can't walk into: { x, z, radius }.
@@ -72,17 +75,19 @@ export function buildWorld(scene, seed) {
 
   const trees = new Trees(scene);
 
-  // Dark spruce grow together in forests...
+  // Open birch woods grow in clumps across the valley...
   const forest = Object.fromEntries(Object.keys(FOREST_RADIUS).map((kind) => [kind, []]));
   let placedTrees = 0;
-  scatter(random, CONIFER_COUNT, (x, z) => {
-    if (terrain.forest(x, z) < random.range(-0.15, 0.45) || !isFree(x, z, 1.4)) return null;
+  scatter(random, FOREST_COUNT, (x, z) => {
+    if (terrain.forest(x, z) < random.range(-0.15, 0.45) || !isFree(x, z, FOREST_SPACING)) return null;
     const kind = FOREST_MIX[placedTrees++ % FOREST_MIX.length];
     const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
     forest[kind].push(tree);
     return tree;
   });
-  for (const [kind, spots] of Object.entries(forest)) trees.add(kind, placeholders.conifer(), spots);
+  for (const [kind, spots] of Object.entries(forest)) {
+    trees.add(kind, kind === 'birch' ? placeholders.birch() : placeholders.conifer(), spots);
+  }
 
   // ...while round leafy trees stand alone or in small groups out in the fields.
   const broadleaves = scatter(random, BROADLEAF_COUNT, (x, z) => {
@@ -145,6 +150,33 @@ export function buildWorld(scene, seed) {
       trees.update(dt);
     },
   };
+}
+
+// Some seeds put water where the crash or the start should be. Those try the next seed in
+// line, so a seed still always gives the same map.
+const MAX_TRIES = 50;
+function chooseTerrain(seed) {
+  for (let i = 0; ; i++) {
+    const trySeed = seed + i * 7919;
+    const random = createRandom(trySeed);
+    const noise = createNoise(trySeed + 1);
+    const terrain = createTerrain(random, noise, GROUND_SIZE);
+    if (startIsDry(terrain) || i === MAX_TRIES) return { random, noise, terrain };
+  }
+}
+
+// The wreck, the skid trail, where you start and the walk between them all need dry ground.
+export function startIsDry(terrain) {
+  const dry = (x, z, radius) => terrain.isDry(x, z, radius, 1);
+  if (!dry(CRASH.x, CRASH.z, 6.5) || !dry(-5.5, -9, 2.5)) return false; // the plane and its wing
+  for (let back = 0; back <= 48; back += 4) {
+    const { x, z } = trailPoint(back, 0);
+    if (!dry(x, z, 5)) return false;
+  }
+  for (let t = 0; t <= 1; t += 0.25) {
+    if (!dry(SPAWN.x + (CRASH.x - SPAWN.x) * t, SPAWN.z + (CRASH.z - SPAWN.z) * t, 4)) return false;
+  }
+  return true;
 }
 
 // Tries random spots until `count` of them are accepted by `place`.

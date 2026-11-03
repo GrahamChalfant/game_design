@@ -45,6 +45,57 @@ export function conifer() {
   return tree;
 }
 
+// Birch, about 8 m tall, base at the origin: a thin, pale trunk with dark bark marks and a
+// narrow, airy crown held up high, so you can see and walk between them.
+export function birch() {
+  const parts = [];
+  const bark = new THREE.Color(0xe4ddcc);
+  const mark = new THREE.Color(0x3a3430);
+  const trunk = new THREE.CylinderGeometry(0.09, 0.17, 6.6, 7, 22).translate(0, 3.3, 0);
+  // Dark horizontal marks (lenticels) in bands up the trunk, and a darker, rougher base.
+  paint(trunk, (x, y, z) => {
+    const band = Math.sin(y * 9.1 + Math.sin(Math.atan2(z, x) * 3) * 1.2) > 0.82;
+    return bark.clone().lerp(mark, y < 0.5 ? 0.6 : band ? 0.85 : 0);
+  });
+  parts.push(trunk);
+
+  // A couple of thin limbs reaching up into the crown.
+  for (const [angle, height] of [[0.6, 3.9], [2.6, 4.4], [4.4, 3.6]]) {
+    const limb = new THREE.CylinderGeometry(0.03, 0.05, 1.5, 5)
+      .translate(0, 0.75, 0)
+      .rotateZ(0.7)
+      .rotateY(angle)
+      .translate(0, height, 0);
+    paint(limb, () => bark.clone().lerp(mark, 0.3));
+    parts.push(limb);
+  }
+
+  // Small, loose clusters of light leaves, mostly in the top third.
+  const leaf = new THREE.Color(0x8ea84e);
+  const leafLight = new THREE.Color(0xb3bf62);
+  const clusters = [
+    [0, 7.2, 0, 0.95], [0.75, 6.4, 0.25, 0.75], [-0.7, 6.2, -0.2, 0.8], [0.2, 6.6, -0.75, 0.7],
+    [-0.25, 5.6, 0.7, 0.7], [0.9, 5.2, -0.5, 0.55], [-0.85, 4.9, 0.35, 0.55], [0.1, 8.0, 0.15, 0.6],
+  ];
+  clusters.forEach(([x, y, z, r], i) => {
+    const cluster = new THREE.IcosahedronGeometry(r, 1);
+    const position = cluster.attributes.position;
+    for (let v = 0; v < position.count; v++) {
+      position.setY(v, position.getY(v) * 0.8); // a little flattened
+    }
+    cluster.translate(x, y, z);
+    paint(cluster, (px, py) => leaf.clone().lerp(leafLight, Math.min(1, Math.max(0, (py - y) / r + 0.4)) * (0.6 + (i % 3) * 0.2)));
+    parts.push(cluster);
+  });
+
+  const tree = new THREE.Mesh(
+    mergeGeometries(parts.map((part) => (part.index ? part.toNonIndexed() : part))),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true }),
+  );
+  tree.castShadow = true;
+  return tree;
+}
+
 // Gives every vertex of `geometry` the colour returned by colorAt(x, y, z).
 function paint(geometry, colorAt) {
   const position = geometry.attributes.position;

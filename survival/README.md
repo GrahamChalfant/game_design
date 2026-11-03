@@ -1,6 +1,6 @@
 # Northern Survival
 
-A top-down survival game set in a northern landscape of golden meadows, pine forests and
+A top-down survival game set in a northern landscape of golden meadows, open birch woods and
 lingering snow, built with [Three.js](https://threejs.org/). The goal is to see how long you can survive.
 
 Everything for this game lives in this `survival` folder. Ideas and planned features are tracked
@@ -61,7 +61,8 @@ automatically whenever you save a file.
 The game starts paused on a menu listing the controls. Press Esc at any time to see it again.
 
 You start hurt (35 health) and empty-handed, a short walk south of your crashed bush
-plane. It's just out of sight, so head north to find it. Your axe and backpack were thrown
+plane. It's just out of sight, so head north to find it. The plane came down beside a lake,
+so water is never far away. Your axe and backpack were thrown
 clear in the crash: look around the wreckage (they have floating icons) and press E to
 pick them up. The backpack gives you 12 extra slots.
 
@@ -180,7 +181,13 @@ src/random.js         Seeded random numbers and noise (same seed = same map)
 public/models/        3D models exported from Blender (.glb)
 ```
 
-To get a different map, change `SEED` in `src/main.js`.
+Every game is on a new map, grown from a random number (the seed). The map's seed is shown
+under the Play button and on the game-over screen, where **Try again** replays the same map and
+**New map** starts a fresh one. To play a particular map again, or share it, add its seed to the
+address, for example http://localhost:8000/?seed=479583. The wreck and the start are the same on
+every map; the lake is always beside the plane, on its open side, with the river flowing away.
+If a seed would put water where the crash or the start should be, the next seed in line is used
+instead (see `chooseTerrain` in `src/world.js`).
 
 ## Adding models from Blender
 
@@ -195,7 +202,8 @@ The next time you load the game, your model replaces the stand-in automatically.
 | File | What it is | Size |
 | --- | --- | --- |
 | `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink`, `jump` and `die`. | ~1.8 m tall |
-| `pine.glb` | Tall conifer that grows in the forests | ~9 m tall |
+| `birch.glb` | Birch: thin, pale trunk with dark marks and a narrow crown. Most of the forest is birch | ~8 m tall |
+| `pine.glb` | Tall conifer mixed into the forests | ~9 m tall |
 | `pine-small.glb` | Young pine | ~3.5 m tall |
 | `pine-skinny.glb` | Narrow pine | ~10 m tall, ~2 m across |
 | `pine-tall.glb` | Big old pine | ~14 m tall |

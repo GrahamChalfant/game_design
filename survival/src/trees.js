@@ -17,6 +17,7 @@ const KINDS = {
   'sapling-broadleaf': { wood: 1, chopTime: 0.8, stump: 0.25 },
   'tree-dead': { wood: 3, chopTime: 2, stump: 0.9 },
   broadleaf: { wood: 3, chopTime: 2, stump: 1 },
+  birch: { wood: 2, chopTime: 1.5, stump: 0.5 },
 };
 // Each tree is multiplied by one of these, so the forest isn't all one green.
 const TREE_TINTS = [0xffffff, 0xe3f2c0, 0xb9d9c6, 0xf0e29a, 0xbdcc9c, 0xa8c9ae].map((hex) => new THREE.Color(hex));

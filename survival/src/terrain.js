@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createCrashTrail } from './crashTrail.js';
+import { CRASH, createCrashTrail } from './crashTrail.js';
 import { createWater } from './water.js';
 
 const { smoothstep, clamp } = THREE.MathUtils;
@@ -20,13 +20,24 @@ const TORN_SOIL = new THREE.Color(0xb8a285);
 const DARK_SOIL = new THREE.Color(0x9c8973);
 
 const GROUND_CELLS = 440; // grid squares along each side of the ground: fewer gives bigger facets
+const LAKE_GAP = [12, 18]; // meters from the plane to the lake's shore
 
 // The land: gently rolling ground, a lake, and a river running out of it. Everything is worked out from (x, z) so other code can ask "what's here?".
+// Call build() to make its meshes once you've decided to keep it (see isDry).
 export function createTerrain(random, noise, size) {
-  const lakeCenter = new THREE.Vector2(random.range(18, 32), random.range(-30, -14));
   const lakeRadius = random.range(11, 15);
   const radiusAt = (angle) =>
     lakeRadius * (1 + 0.28 * noise(Math.cos(angle) * 1.5 + 20, Math.sin(angle) * 1.5 + 20));
+  // The plane came down beside the lake, so you always start near water. The lake lies on
+  // the crash's open side: the skid trail runs back to the north-west and you start to the
+  // south, so it goes somewhere from north-east (-60°) round to south-east (40°), with its
+  // shore LAKE_GAP meters from the plane.
+  const lakeAngle = random.range(-1.05, 0.7);
+  const lakeReach = random.range(...LAKE_GAP) + radiusAt(lakeAngle + Math.PI);
+  const lakeCenter = new THREE.Vector2(
+    CRASH.x + Math.cos(lakeAngle) * lakeReach,
+    CRASH.z + Math.sin(lakeAngle) * lakeReach,
+  );
   // Below 1 inside the lake's outline, 1 on it, above 1 outside.
   const lakeDistance = (x, z) => {
     const dx = x - lakeCenter.x;
@@ -53,7 +64,7 @@ export function createTerrain(random, noise, size) {
     return lakeBed + (h - lakeBed) * smoothstep(d, 0.7, 1.35);
   };
 
-  const river = createRiver(random, noise, lakeCenter, radiusAt, lakeDistance, waterLevel, lakeHeightAt, size);
+  const river = createRiver(random, noise, lakeAngle, lakeCenter, radiusAt, lakeDistance, waterLevel, lakeHeightAt, size);
 
   const crashTrail = createCrashTrail(noise);
 
@@ -124,7 +135,7 @@ export function createTerrain(random, noise, size) {
     return { color, kind };
   };
 
-  return {
+  const terrain = {
     heightAt,
     waterLevel,
     waterDepth,
@@ -132,17 +143,33 @@ export function createTerrain(random, noise, size) {
     forest,
     crashTrail,
     groundAt,
-    ground: createGroundMesh(size, heightAt, groundAt, noise),
-    water: createWater(lakeCenter, radiusAt, waterLevel, river),
     riverPoints: river.points, // the river's path, from the lake outwards
+    // True if the ground is dry everywhere within `radius` of (x, z), and at least `margin`
+    // meters from the water's edge. Used to check a new map's crash site and start.
+    isDry(x, z, radius, margin) {
+      for (let dx = -radius; dx <= radius; dx += 1.5) {
+        for (let dz = -radius; dz <= radius; dz += 1.5) {
+          if (dx * dx + dz * dz > radius * radius) continue;
+          if (waterDepth(x + dx, z + dz) > 0 || nearWater(x + dx, z + dz, margin)) return false;
+        }
+      }
+      return true;
+    },
+    // Makes the ground and water meshes (slow, so only for the map you keep).
+    build() {
+      terrain.ground = createGroundMesh(size, heightAt, groundAt, noise);
+      terrain.water = createWater(lakeCenter, radiusAt, waterLevel, river);
+      return terrain;
+    },
   };
+  return terrain;
 }
 
 // A river winding out of the lake to the edge of the map. It flows downhill: its surface
 // never rises, and it carves a channel through anything in the way.
-function createRiver(random, noise, lakeCenter, radiusAt, lakeDistance, lakeLevel, heightAt, size) {
-  // Leave the lake heading north-east, away from the crash site.
-  const direction = -Math.PI / 4 + random.range(-0.3, 0.3);
+function createRiver(random, noise, lakeAngle, lakeCenter, radiusAt, lakeDistance, lakeLevel, heightAt, size) {
+  // Leave the lake on its far side, flowing away from the crash site.
+  const direction = lakeAngle + random.range(-0.4, 0.4);
   let heading = direction;
   const start = radiusAt(heading) * 0.9;
   let x = lakeCenter.x + Math.cos(heading) * start;

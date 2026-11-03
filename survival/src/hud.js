@@ -18,7 +18,7 @@ function unfocusable(button) {
 
 // Shows the survival stats, clock, prompts and game-over screen.
 export class Hud {
-  constructor({ onRestart, onSlotClick, onSlotDrop, onDropItem, onCraft }) {
+  constructor({ seed, onNewMap, onRestart, onSlotClick, onSlotDrop, onDropItem, onCraft }) {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
@@ -34,6 +34,9 @@ export class Hud {
     this.wet = document.getElementById('cond-wet');
     this.freezing = document.getElementById('cond-freezing');
     unfocusable(document.getElementById('restart')).addEventListener('click', onRestart);
+    unfocusable(document.getElementById('new-map')).addEventListener('click', onNewMap);
+    // The map's seed, so a good map can be played again (?seed=… in the address).
+    for (const label of document.querySelectorAll('.map-seed')) label.textContent = seed;
 
     // The pause menu with the controls. It's open when the game starts.
     this.menu = document.getElementById('menu');

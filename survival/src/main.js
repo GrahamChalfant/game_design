@@ -23,8 +23,18 @@ import { buildWreck, START_ITEMS } from './wreck.js';
 import { GAME_MINUTES_PER_SECOND, Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
 
-// Change this number for a different map. Later, a daily challenge can use the date.
-const SEED = 20261030;
+// Each game grows a new map from a random seed. Add ?seed=1234 to the address to play (or
+// share) a particular map: the same seed always gives the same map.
+const SEED = parseInt(new URLSearchParams(location.search).get('seed'), 10) || newSeed();
+function newSeed() {
+  return 1 + Math.floor(Math.random() * 999999);
+}
+// Starts a new game on a fresh map (reloads the page with a new seed in the address).
+function playNewMap() {
+  const url = new URL(location.href);
+  url.searchParams.set('seed', newSeed());
+  location.href = url;
+}
 // Add ?speed=20 to the URL to make time pass 20x faster (handy for testing hunger and thirst).
 const TIME_SPEED = Number(new URLSearchParams(location.search).get('speed')) || 1;
 // Add ?classic to the URL to turn off the painterly filter (e.g. to compare, or on a slow computer).
@@ -101,6 +111,8 @@ const placeStartItems = () => {
 };
 placeStartItems();
 const hud = new Hud({
+  seed: SEED,
+  onNewMap: playNewMap,
   onRestart: () => {
     survival.reset();
     inventory.reset();
