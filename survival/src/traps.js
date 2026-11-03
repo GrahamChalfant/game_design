@@ -1,9 +1,30 @@
 import * as THREE from 'three';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 
 const CATCH_RADIUS = 0.6; // a rabbit this close to a set trap gets caught
 const SPACING = 1.5; // traps can't be placed closer together than this
+// Where a caught rabbit's body lies, in the trap's own space: just past the noose (about 0.3 m out),
+// so its head rests in the loop.
+const CATCH_SPOT = new THREE.Vector3(0, 0, 0.5);
+
+// The rabbit model, loaded once and copied for each trap that catches one.
+let rabbitModel = null;
+const rabbitLoaded = () => (rabbitModel ??= loadModel('rabbit'));
+
+// Lays a rabbit on its side, head towards the trap, resting on the ground at the catch spot.
+function lyingRabbit(body) {
+  const holder = new THREE.Group();
+  body.rotation.set(0, Math.PI, Math.PI / 2);
+  holder.add(body);
+  holder.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(body);
+  const center = box.getCenter(new THREE.Vector3());
+  body.position.set(-center.x, -box.min.y, -center.z);
+  holder.position.copy(CATCH_SPOT);
+  return holder;
+}
 
 // Snare traps the player sets on the ground to catch rabbits.
 export class Traps {
@@ -39,9 +60,19 @@ export class Traps {
     });
 
     // A caught rabbit lies in the trap until it's collected.
-    const catchShown = placeholders.rabbit();
-    catchShown.rotation.z = Math.PI / 2;
-    catchShown.position.set(0.15, 0.2, 0);
+    // It starts as the stand-in and swaps to the Blender model once that loads.
+    const catchShown = new THREE.Group();
+    catchShown.add(lyingRabbit(placeholders.rabbit()));
+    rabbitLoaded().then((model) => {
+      if (!model) return;
+      const body = cloneSkinned(model);
+      body.traverse((child) => {
+        child.castShadow = true;
+        child.frustumCulled = false;
+      });
+      catchShown.clear();
+      catchShown.add(lyingRabbit(body));
+    });
     catchShown.visible = false;
     object.add(snare, catchShown);
     this.scene.add(object);
