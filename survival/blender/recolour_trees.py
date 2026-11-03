@@ -55,6 +55,11 @@ for name in TREES:
     bpy.ops.object.select_all(action='DESELECT')
     o.select_set(True)
     bpy.context.view_layer.objects.active = o
+    # The trees stand in a row in trees.blend, but the game puts each one where it's told,
+    # so export it from the origin (its trunk base) or it lands metres off to the side.
+    where = o.location.copy()
+    o.location = (0, 0, 0)
     bpy.ops.export_scene.gltf(filepath=os.path.abspath(os.path.join(OUT, f'{name}.glb')), export_format='GLB',
                               use_selection=True, export_apply=True, export_animations=False)
+    o.location = where
     print(f'@@ {name}.glb')
