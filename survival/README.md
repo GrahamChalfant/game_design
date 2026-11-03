@@ -369,6 +369,14 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `truck.glb` | Rusted forest service pickup, passenger door open | 1.9 × 5.1 m |
 | `fallen-log.glb` | Fallen trunk, 1 m long and 1 m thick (stretched per copy) | 1 × 1 m |
 | `fence.glb`, `fence-broken.glb` | One 2.5 m length of split-rail fence, whole or with a rail down | 2.5 m long |
+| `birch.glb` | The woods' birch: white trunk with dark marks, loose olive-gold leaf clumps (rebuilt by `blender/props.py`, as are the rest below unless noted) | ~8 m tall |
+| `lookout.glb` | The fire lookout tower: frame, four flights of stairs, landings, cab with windows, balcony and railing, metal roof. Stairs, floors, walls, windows and roof are separate parts that fade when in the way (rebuilt by `blender/lookout.py`) | ~16 m tall |
+| `logs.glb`, `axe-ground.glb`, `clod.glb`, `debris.glb`, `landing-wheel.glb` | Things lying about: dropped firewood, the axe, crash clods, a panel of plane skin, a torn-off wheel | small |
+| `torch.glb` | The torch, held by the grip (origin); the flame sits 0.52 m up | 0.7 m |
+| `barrel.glb`, `ammo-box.glb`, `weathered-pack.glb`, `cupboard.glb`, `chest.glb`, `locker.glb`, `supply-crate.glb` | Things you search; lids and doors (`*-lid`, `*-door…`, `*-flap`) are hinged parts the game swings open | 0.3–1.8 m |
+| `cot.glb`, `fire-finder.glb`, `binoculars.glb` | The lookout cab's furniture | |
+| `fire-gate.glb`, `signpost.glb` | The fire road's rusted gate (`fire-gate-gate` swings) and its signposts | |
+| `crystals.glb`, `stalagmite.glb`, `bones.glb`, `fire-ring.glb`, `bedroll.glb`, `glow-fungus.glb` | Cave props (the crystals and fungus glow: the game adds that) | small |
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
 | `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |
