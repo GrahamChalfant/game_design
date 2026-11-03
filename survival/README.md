@@ -85,7 +85,7 @@ fire. If it reaches zero, you start losing health.
 The land around the crash is open birch woods, meadows and lakes. Further out are snowy
 mountains. Spruce grow on their lower slopes, then scree and bare rock, then snow. The air gets
 colder the higher you climb: above the snowline you lose warmth even in the daytime, and you'll
-freeze in under a minute unless you have a fire or a shelter (warmer clothes are coming). The
+freeze in under a minute unless you have a fire or a shelter (or a hide parka: see below). The
 mountains are rocky, so they're a good place to find stones.
 
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
@@ -138,6 +138,9 @@ Craft a shelter (20 wood, 6 rope, 4 hides), select it and click to build it a fe
 ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
+Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows in your Outfit
+slot and on your character. It keeps out most of the mountain cold, so you can climb up there by
+day, and halves the chill of a night outdoors. Nights up the mountains still need a fire.
 Hold raw meat at a burning fire and click and hold to cook it, then click away from
 the fire to eat. Eating meat raw works in a pinch, but it makes you sick.
 

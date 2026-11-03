@@ -48,7 +48,9 @@ export class Hud {
     this.stashHotbar = document.getElementById('stash-hotbar');
     this.noBackpack = document.getElementById('no-backpack');
     this.equippedBackpack = document.querySelector('#equip-backpack .icon');
-    showItemIcon(document.querySelector('#equip-outfit .icon'), 'outfit');
+    this.equippedOutfit = document.querySelector('#equip-outfit .icon');
+    showItemIcon(this.equippedOutfit, 'outfit');
+    this.shownOutfit = null;
 
     // Hotbar slots (numbered 1–6) at the bottom, then the backpack's slots in the menu.
     this.hotbar = document.getElementById('hotbar');
@@ -143,6 +145,10 @@ export class Hud {
     this.backpack.hidden = !inventory.hasBackpack;
     this.noBackpack.hidden = inventory.hasBackpack;
     showItemIcon(this.equippedBackpack, inventory.hasBackpack ? 'backpack' : null);
+    if (this.shownOutfit !== inventory.outfit) {
+      this.shownOutfit = inventory.outfit;
+      showItemIcon(this.equippedOutfit, inventory.outfit ?? 'outfit');
+    }
 
     this.slots.forEach((slot, i) => {
       const contents = inventory.slots[i];

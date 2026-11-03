@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { loadModel } from './models.js';
+import { dressModel } from './outfits.js';
 import * as placeholders from './placeholders.js';
 
 const RADIUS = 0.4;
@@ -124,6 +125,11 @@ export class Player {
 
   // What the player holds ('axe', 'wood', null), whether they're chopping or drinking,
   // and whether they've found the backpack yet.
+  // Shows what the player is wearing over their coat (see outfits.js). Call every frame.
+  wear(outfit) {
+    dressModel(this.body, outfit);
+  }
+
   setAction(heldItem, chopping, drinking, hasBackpack) {
     this.axe.visible = heldItem === 'axe' && !this.swimming && !drinking; // put away when the hands are busy
     this.bow.visible = heldItem === 'bow' && !this.swimming && !drinking;

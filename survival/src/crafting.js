@@ -15,6 +15,13 @@ export const RECIPES = [
     description: 'A hide-covered shelter. Keeps you warm, and you can sleep in it at night',
   },
   {
+    item: 'parka',
+    name: 'Hide parka',
+    count: 1,
+    cost: { hide: 6, rope: 3 },
+    description: 'Warm hides stitched into a coat. Wear it to brave the cold up the mountains',
+  },
+  {
     item: 'trap',
     count: 1,
     cost: { wood: 3, rope: 1 },

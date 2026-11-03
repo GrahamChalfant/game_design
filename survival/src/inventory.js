@@ -29,6 +29,8 @@ export const ITEMS = {
   berries: { name: 'Berries', stack: BERRY_STACK },
   rawMeat: { name: 'Raw meat', stack: 10 },
   cookedMeat: { name: 'Cooked meat', stack: 10 },
+  // Warm hides to wear over your coat (#88). Select it and click to put it on.
+  parka: { name: 'Hide parka', stack: 1 },
   // Not kept in a slot: picking it up unlocks the backpack's slots.
   backpack: { name: 'Backpack', stack: 1 },
 };
@@ -46,6 +48,7 @@ export class Inventory {
     this.selected = 0;
     // You start with nothing: the axe and backpack are found at the crash site.
     this.hasBackpack = false;
+    this.outfit = null; // what you're wearing over your coat ('parka'), or null
     this.found = new Set(); // every item picked up this game, even if it's since been used
   }
 

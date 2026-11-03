@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { loadModel } from './models.js';
+import { dressModel } from './outfits.js';
 import * as placeholders from './placeholders.js';
 
 const DRAG_TURN = 0.012; // radians the character turns per pixel dragged
@@ -62,8 +63,9 @@ export class CharacterView {
     this.turntable.rotation.y = 0;
   }
 
-  update(dt, hasBackpack) {
+  update(dt, hasBackpack, outfit) {
     this.character.getObjectByName('player-pack').visible = hasBackpack;
+    dressModel(this.character, outfit);
     this.mixer?.update(dt);
     this.renderer.render(this.scene, this.camera);
   }

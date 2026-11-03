@@ -229,6 +229,13 @@ export function createActions({ input, inventory, player, world, wreck, campfire
           hud.toast('You patch yourself up');
         }
       }
+    } else if (!fire && held === 'parka') {
+      prompt = 'Click to put on the hide parka';
+      if (input.startedUsingTool()) {
+        inventory.remove('parka', 1);
+        inventory.outfit = 'parka';
+        hud.toast('You pull on the hide parka. Much warmer.');
+      }
     } else if (!fire && held === 'lighter') {
       prompt = 'Keep it on you to light campfires (E next to one)';
     } else if (!fire && held === 'flask') {
@@ -345,6 +352,6 @@ export function createActions({ input, inventory, player, world, wreck, campfire
     const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
     const wet = world.terrain.waterDepth(x, z) > WET_DEPTH;
     const cold = world.terrain.coldAt(x, z); // up the mountains
-    return { drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, cold, prompt, progress };
+    return { drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, cold, outfit: inventory.outfit, prompt, progress };
   };
 }

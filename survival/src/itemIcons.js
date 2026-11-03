@@ -221,6 +221,21 @@ const MODELS = {
     return group(body, ...sleeves, hood, zip, ...pockets);
   },
 
+  // A heavy coat of stitched hides with a fur-trimmed hood (#88).
+  parka: () => {
+    const hide = flat(0x8a6a4a);
+    const dark = flat(0x6e5238);
+    const fur = flat(0xd8c49a);
+    const body = mesh(new THREE.BoxGeometry(0.85, 1.05, 0.42), hide, [0, 0.5, 0]);
+    const sleeves = [-1, 1].map((s) => mesh(new THREE.BoxGeometry(0.24, 0.88, 0.28), dark, [s * 0.55, 0.55, 0], [0, 0, s * 0.12]));
+    const hood = mesh(new THREE.BoxGeometry(0.56, 0.24, 0.4), fur, [0, 1.1, -0.02]);
+    const hem = mesh(new THREE.BoxGeometry(0.88, 0.1, 0.45), fur, [0, 0.02, 0]);
+    const cuffs = [-1, 1].map((s) => mesh(new THREE.BoxGeometry(0.26, 0.08, 0.3), fur, [s * 0.6, 0.12, 0], [0, 0, s * 0.12]));
+    const stitch = mesh(new THREE.BoxGeometry(0.03, 0.9, 0.02), flat(0xd8c49a), [0, 0.52, 0.22]);
+    const toggles = [0.3, 0.55, 0.8].map((y) => mesh(new THREE.BoxGeometry(0.12, 0.04, 0.04), flat(0x54392a), [0.06, y, 0.23]));
+    return group(body, ...sleeves, hood, hem, ...cuffs, stitch, ...toggles);
+  },
+
   backpack: () => {
     const canvas = flat(0x4f6b45);
     const darker = flat(0x3f5737);

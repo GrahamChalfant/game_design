@@ -47,4 +47,8 @@ ok(t > 30 && t < 60, `6 daytime at the coldest: 60 -> freezing in ${t.toFixed(1)
 ok(capAfter({ cold: 1, fire: true }) === 100 && capAfter({ cold: 1, shelter: true }) === 85, '6 a fire or shelter still warms you up the mountains');
 ok(capAfter({ cold: 0 }) === 60, '6 no change in the lowlands');
 ok(rise({ cold: 0.5 }) < 0, `6 halfway up, you cool by day (${rise({ cold: 0.5 })} per hour)`);
+// 7) the hide parka (#88) keeps most of the mountain cold and half the night's chill out
+ok(rise({ cold: 1, outfit: 'parka' }) >= 0, `7 in a parka, daytime at the coldest no longer chills you (${rise({ cold: 1, outfit: 'parka' })} per hour)`);
+const night = (outfit) => stepTemperature({ temperature: 60, wetHours: 0 }, { night: true, outfit }, 1).temperature - 60;
+ok(night('parka') === night(null) / 2, `7 a night outdoors chills half as fast (${night('parka')} vs ${night(null)} per hour)`);
 console.log(fails ? `${fails} FAILED` : 'ALL PASS'); process.exit(fails ? 1 : 0);

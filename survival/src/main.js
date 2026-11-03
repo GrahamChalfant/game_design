@@ -247,9 +247,10 @@ renderer.setAnimationLoop(() => {
     hud.toggleInventory();
     if (hud.inventoryOpen) characterView.faceForward();
   }
-  if (hud.inventoryOpen) characterView.update(dt, inventory.hasBackpack);
+  if (hud.inventoryOpen) characterView.update(dt, inventory.hasBackpack, inventory.outfit);
 
   const actions = updateActions(dt);
+  player.wear(inventory.outfit);
   survival.update(dt, actions, TIME_SPEED);
   thinkAloud(actions);
   campfires.update(survival.alive ? dt * GAME_MINUTES_PER_SECOND * TIME_SPEED : 0, clock.elapsedTime);
