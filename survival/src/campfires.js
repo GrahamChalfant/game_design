@@ -3,9 +3,9 @@ import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 
 // Fuel is measured in in-game minutes of burning.
-const START_FUEL = 120; // a new fire has wood for 2 in-game hours (it needs lighting first)...
-const FUEL_PER_WOOD = 60; // ...and each extra log adds 1 hour
-const MAX_FUEL = 8 * 60;
+const START_FUEL = 6 * 60; // a new fire has wood for 6 in-game hours (it needs lighting first)...
+const FUEL_PER_WOOD = 2 * 60; // ...and each extra log adds 2 hours
+const MAX_FUEL = 16 * 60;
 const RADIUS = 0.7; // the player can't walk through a fire
 
 // Campfires the player has built: placing them, burning fuel, flames and firelight.

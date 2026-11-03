@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CRASH } from './crashTrail.js';
+import { Cutaway } from './cutaway.js';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 
@@ -223,57 +224,16 @@ export function buildLookout(scene, world) {
     c.object.userData.open(open);
   };
 
-  // Whatever part of the tower is between the camera and the player (the roof, a wall, a
-  // window, the floor above you on the stairs) fades to a ghost, so you can always see
-  // yourself; everything else stays solid. Parts that can fade are the stand-in's marked
-  // `userData.roof` / `cutaway` / `floor`, or lookout.glb's meshes with "roof", "wall",
-  // "window", "floor" or "stair" in their names. (The railing never fades.)
-  const GHOST = 0.08; // how much of a part in the way still shows
-  const FADE_SPEED = 5; // per second
-  let parts = [];
-  const findFading = () => {
-    parts = [];
-    structure.traverse((child) => {
-      if (!child.isMesh) return;
-      const { roof, cutaway, floor } = child.userData;
-      if (!roof && !cutaway && !floor && !/roof|wall|window|floor|stair/i.test(child.name)) return;
-      child.material = child.material.clone();
-      child.material.transparent = true;
-      child.material.userData.opacity = child.material.opacity;
-      parts.push({ mesh: child, shown: 1, blocking: false });
-    });
-  };
-  findFading();
-  tower.updateMatrixWorld(true); // (the rays need its parts' positions straight away)
+  // Whatever part of the tower is between the camera and the player fades (see cutaway.js).
+  // (The railing never fades.)
+  const cutaway = new Cutaway(structure);
   loadModel('lookout').then((model) => {
     if (!model) return;
     model.traverse((child) => (child.castShadow = child.receiveShadow = true));
     structure.clear();
     structure.add(model);
-    tower.updateMatrixWorld(true);
-    findFading();
+    cutaway.refresh();
   });
-
-  // Rays from the camera to a few points on the player: what they pass through is in the way.
-  const ray = new THREE.Raycaster();
-  const meshes = () => parts.map((part) => part.mesh);
-  const point = new THREE.Vector3();
-  const side = new THREE.Vector3();
-  const findBlocking = (camera, feet, position) => {
-    for (const part of parts) part.blocking = false;
-    side.set(1, 0, 0).applyQuaternion(camera.quaternion).multiplyScalar(0.35);
-    const list = meshes();
-    for (const [up, across] of [[0.2, 0], [0.9, 0], [1.7, 0], [0.9, 1], [0.9, -1]]) {
-      point.set(position.x, feet + up, position.z).addScaledVector(side, across);
-      const toPoint = point.clone().sub(camera.position);
-      const distance = toPoint.length();
-      ray.set(camera.position, toPoint.normalize());
-      ray.far = distance - 0.2;
-      for (const hit of ray.intersectObjects(list, false)) {
-        parts.find((part) => part.mesh === hit.object).blocking = true;
-      }
-    }
-  };
 
   return {
     x: spot.x,
@@ -281,15 +241,8 @@ export function buildLookout(scene, world) {
     // Fades whatever is between the camera and the player. Pass no camera (e.g. while looking
     // through the binoculars) to bring everything back.
     update(dt, camera, feet, position) {
-      const close = camera && Math.hypot(position.x - spot.x, position.z - spot.z) < TOWER.balcony + 6;
-      if (close) findBlocking(camera, feet, position);
-      for (const part of parts) {
-        const target = close && part.blocking ? GHOST : 1;
-        if (part.shown === target) continue;
-        part.shown = target > part.shown ? Math.min(target, part.shown + dt * FADE_SPEED) : Math.max(target, part.shown - dt * FADE_SPEED);
-        part.mesh.material.opacity = part.mesh.material.userData.opacity * part.shown;
-        part.mesh.material.depthWrite = part.shown > 0.99;
-      }
+      const close = Boolean(position) && Math.hypot(position.x - spot.x, position.z - spot.z) < TOWER.balcony + 6;
+      cutaway.update(dt, camera, feet, position, close);
     },
     // Where the binoculars are, and which way they look (a unit vector on the ground).
     binoculars,

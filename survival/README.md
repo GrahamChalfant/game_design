@@ -80,6 +80,50 @@ stand on a pole by the railing: press E next to them to look through them. The v
 back so you can see far across the land. WASD looks around, scrolling zooms in and out, and E or
 Esc stops.
 
+Out across the map are places worth finding. Each has something to search (hold E), and its
+roof turns see-through when you step inside, like the lookout's.
+
+- **Abandoned cabins** (about a dozen), on flat ground by the water or the woods. Inside are a
+  bed, a stove, a table, and a cupboard and an old chest to search. There's split wood stacked by
+  the wall outside. A cabin is warm shelter: at night, press E inside to sleep until morning.
+- **Caves** (about nine), on rocky hillsides and up the mountains: a dark hole ringed by rocks.
+  They go underground. Walk into the hole holding a **lit torch** and the screen fades: you're
+  in a cave system 30 m down, a few rooms joined by narrow passages. It's dark but for your
+  torch, and the view closes in round you. There's an old camp with a pack to search, a miner's
+  chest in the furthest room (the best finds on the map), glowing crystals, and bats. Climb the
+  steps where you came in to go back up. Without a lit torch you won't go in. A cave is shelter
+  too: warm, out of the mountain cold, and somewhere to sleep.
+- **Abandoned campsites** (about 18): a fire ring, log seats, a collapsed tent, and sometimes a
+  pack left behind.
+- **Trappers' lean-tos** (about 10) in the woods: a bark roof to shelter under, hides on a
+  drying rack, and a crate (often with a trap or two in it).
+- **Hunting stands** (about 25), at the edges of the woods. Climb the ladder onto the platform,
+  3 m up: from there, animals don't notice you, so it's a good spot to shoot from. There's often
+  an ammo box with arrows or dried meat up there (and once in a while a bow).
+
+An **old fire road** runs from the lookout tower out to the nearest cabins: a dirt track with
+wheel ruts and grass coming back down the middle. It's long abandoned: the gate by the tower
+hangs open, fallen trees lie across it, and a rusted forest service truck or two sits by the
+side (search the glovebox). It's marked on the map as a dashed line.
+
+**Fallen trees** lie about in the woods (jump over them, or onto them), and **old split-rail
+fences** run across the meadows and round some of the cabins' yards, with rails down and gaps
+to slip through.
+
+Birds fly over by day, butterflies flutter over the meadows, and fireflies blink at night. You
+can hear the wind (louder up the mountains), birdsong, crickets and the odd owl at night,
+water nearby, a campfire's crackle, and dripping and bats down a cave. Your footsteps sound
+like what's underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things
+you do have a sound: chopping and trees crashing down, the bow, arrows landing, eating,
+drinking, cooking, searching, bandaging, lighting a fire; a boar squeals as it charges, and
+you'll hear it when you're hit. All the sounds are made
+by the game itself; to use recordings instead, see `public/sounds/README.md`. Press N to turn
+the sound off and on.
+
+What's in each is decided by the map's seed. The first time you come across each kind of place,
+you'll say so. Cabins and caves are marked on the map. All the numbers are at the top of
+`src/pois.js`, and the stand-in models are in `src/poiModels.js`.
+
 Press M to look at the map: it shows the whole area (lakes, the river, woods, the mountains and
 the lookout), where you are, the crash, your campfires and shelters, and a pale trail over the
 ground you've already covered.
@@ -132,7 +176,7 @@ mountains are rocky, so they're a good place to find stones.
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
 you start losing health. Drink from a lake or the river to stay hydrated. There are lakes all
 over the map. While you're well fed and
-watered, your health slowly recovers. One in-game day lasts 10 real minutes.
+watered, your health slowly recovers. The clock runs slower by day: the 15 daylit hours (05:00–20:00) last 12.5 real minutes, and the night about 5.5.
 
 Days are long, like a northern summer: the sun rises around 05:00 and sets around 20:00.
 Nights are dark, so keep a campfire going if you want to see what you're doing.
@@ -153,8 +197,8 @@ you need (like 2/3 wood): red until you have enough, then green.
 
 To make a campfire, press Tab and craft one (5 wood), then select it and click to
 place it on open ground. Stand next to it and press E to light it (you need the lighter).
-A fire burns for 2 in-game hours; stand next to it and press E to add a log
-(1 more hour each). A fire that's gone out needs more wood (E) and lighting again.
+A fire burns for 6 in-game hours; stand next to it and press E to add a log
+(2 more hours each, up to 16). A fire that's gone out needs more wood (E) and lighting again.
 
 Rabbits and deer live around you wherever you go, but there aren't many of them. They graze and wander
 until you get too close, then bolt. Both run faster than you, and deer spook from much
@@ -183,8 +227,8 @@ ahead. Its open front always faces the camera, so you can see inside it. Under i
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
 Nights are dark away from a fire. Craft a torch (2 wood), hold it at a burning campfire and click
-to light it. A lit torch lights up the ground around you and burns for 3 in-game hours (about 75
-real seconds) while you hold it, with your arm bent up in front of you; put away in your inventory, it
+to light it. A lit torch lights up the ground around you and burns for 8 in-game hours (about 5 real
+minutes at night) while you hold it, with your arm bent up in front of you; put away in your inventory, it
 keeps. Its slot shows how long it has left.
 Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows in your Outfit
 slot, and on your character as a knee-length hide coat with a fur-trimmed hood. It keeps out most of the mountain cold, so you can climb up there by
@@ -240,6 +284,14 @@ src/survival.js       Hunger, thirst, temperature, health and the survival clock
 src/hud.js            On-screen stats, clock, prompts and game-over screen
 src/input.js          Keyboard and mouse handling
 src/blood.js          Blood spatter on the ground when you're hurt
+src/pois.js           Cabins, caves, stands, campsites, lean-tos: where they go, loot, floors and shelter
+src/caves.js          Cave entrances, and the cave systems underground
+src/roads.js          The old fire road: where it goes, and the gate, signs and fallen trees on it
+src/details.js        Fallen trees and old fences
+src/ambientLife.js    Birds, butterflies and fireflies
+src/sounds.js         All the sounds (made with Web Audio; recordings in public/sounds/ replace them)
+src/poiModels.js      Stand-in models for the cabins, stands, campsites, lean-tos, truck, logs and fences
+src/cutaway.js        Fades the parts of a building between the camera and the player
 src/models.js         Loads Blender models and draws many copies efficiently
 src/placeholders.js   Simple stand-in shapes used until Blender models exist
 src/random.js         Seeded random numbers and noise (same seed = same map)
@@ -310,6 +362,13 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `logs.glb` | Pile of logs lying on the ground | ~0.7 m long |
 | `trap.glb` | Spring-pole snare (rebuilt by `blender/camp_props.py`) | ~0.7 m across |
 | `boar.glb` | Rigged wild boar with idle, walk, run and graze clips (rebuilt by `blender/boar.py`) | ~1.4 m long, 0.9 m tall |
+| `cabin.glb` | Abandoned log cabin: walls (`cabin-wall-*`) and roof fade when in the way; the cupboard and chest stay in code (rebuilt by `blender/places.py`, as are the rest below) | 5.9 × 4.9 m, 3.6 m tall |
+| `hunting-stand.glb` | Hunter's stand, platform 3 m up; `hunting-stand-roof` is the canopy (hidden on stands without one) | 2.7 m square, 5 m tall |
+| `lean-to.glb` | Trapper's lean-to with a bark roof (`lean-to-roof`), drying rack and chopping block | ~6 m across |
+| `campsite.glb` | Abandoned campsite: fire ring, tripod and pot, log seats, collapsed tent | ~4 m across |
+| `truck.glb` | Rusted forest service pickup, passenger door open | 1.9 × 5.1 m |
+| `fallen-log.glb` | Fallen trunk, 1 m long and 1 m thick (stretched per copy) | 1 × 1 m |
+| `fence.glb`, `fence-broken.glb` | One 2.5 m length of split-rail fence, whole or with a rail down | 2.5 m long |
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
 | `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |

@@ -24,7 +24,7 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ input, inventory, player, world, wreck, lookout, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, aimPoint }) {
+export function createActions({ sfx = () => {}, input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, aimPoint }) {
   let cooking = 0;
   let searching = 0;
   let using = 0; // seconds spent eating or bandaging so far
@@ -32,6 +32,8 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
   let butchering = 0;
   let bowReady = 0; // seconds until the bow can shoot again
   let drawing = 0; // seconds the bow has been drawn for (0 when not drawing)
+  let chopBeat = 0; // seconds into the current axe swing (for the sound of it biting)
+  const CHOP_BEAT = 0.83; // one swing of player.glb's chop animation
   let knifeReady = 0; // seconds until the knife can stab again
 
   // Adds items to the inventory. Anything that doesn't fit is dropped on the ground at
@@ -63,15 +65,18 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     const pressedE = input.wasPressed('KeyE');
     // Up the lookout tower, the ground (and everything on it) is out of reach.
     const upHigh = player.feet - world.terrain.heightAt(x, z) > UP_HIGH;
-    const onGround = (thing) => (upHigh ? null : thing);
-    const canDrink = !upHigh && player.canDrink(world);
+    // Up there, or down in a cave, things on the land around are out of reach.
+    const offGround = upHigh || Boolean(player.cave);
+    const onGround = (thing) => (offGround ? null : thing);
+    const canDrink = !offGround && player.canDrink(world);
     const drinking = canDrink && input.isDown('KeyE');
     const fire = onGround(campfires.near(x, z, 1.2));
     const trap = onGround(traps.near(x, z, 1.3));
     const pile = onGround(pickups.near(x, z, 1.3));
     // Somewhere to search: a suitcase at the wreck, or the lookout tower's supply crate.
     const crate = lookout.near(x, z, 1.8, player.feet);
-    const container = crate ?? onGround(wreck.near(x, z, 1.8));
+    const poiContainer = crate ? null : pois.near(x, z, 1.4, player.feet); // in a cabin, a cave or up a stand
+    const container = crate ?? poiContainer ?? onGround(wreck.near(x, z, 1.8));
     const carcass = onGround(animals.carcassNear(x, z, 1.8));
     let searchingNow = false;
     let butcheringNow = false;
@@ -107,9 +112,11 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
       const needsLighting = !campfires.isBurning(fire) && fire.fuel > 0;
       if (pressedE && needsLighting && hasLighter) {
         campfires.light(fire);
+        sfx('fire-light', fire);
         hud.toast('The fire catches');
       } else if (pressedE && !needsLighting && wood > 0 && campfires.addWood(fire)) {
         inventory.remove('wood', 1);
+        sfx('add-wood', fire);
         hud.toast('-1 Wood');
       }
       const burning = campfires.isBurning(fire);
@@ -160,9 +167,11 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
         // whatever was in it when you put it down.
         pickups.remove(pile);
         inventory.putOnBackpack(pile.contents);
+        sfx('cloth');
         hud.toast(pile.contents ? 'You put your backpack back on' : 'Found a backpack! Press Tab to open it');
       } else if (pressedE) {
         const taken = pickups.pickUp(pile, inventory);
+        if (taken > 0) sfx('pickup');
         hud.toast(taken > 0 ? `+${taken} ${name}` : 'Inventory full');
       }
     } else if (!fire && bush && hasBerries(bush, now)) {
@@ -197,7 +206,11 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
       if (searching >= SEARCH_TIME) {
         searching = 0;
         if (container.note) hud.toast(`You found ${container.note}`);
-        for (const [item, count] of (crate ? lookout : wreck).search(container)) give(item, count, container.x, container.z);
+        const source = crate ? lookout : poiContainer ? pois : wreck;
+        const loot = source.search(container);
+        sfx('pickup');
+        if (loot.length === 0) hud.toast(`${container.label[0].toUpperCase()}${container.label.slice(1)} is empty`);
+        for (const [item, count] of loot) give(item, count, container.x, container.z);
       }
     } else if (!fire && trap) {
       // At a trap: E takes the catch out, or picks the empty trap back up.
@@ -227,8 +240,10 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     } else if (!fire && tree && held === 'axe') {
       prompt = chopping ? 'Chopping…' : 'Click and hold to chop';
       progress = world.trees.progress(tree);
-    } else if (upHigh && (held === 'campfire' || held === 'shelter' || held === 'trap')) {
-      prompt = "You can't put that down up here";
+    } else if (offGround && (held === 'campfire' || held === 'shelter' || held === 'trap')) {
+      prompt = player.cave ? "You can't put that down in here" : "You can't put that down up here";
+    } else if (player.cave && held === 'bow') {
+      prompt = 'No room to shoot down here';
     } else if (!fire && held === 'campfire') {
       // A crafted campfire: place it on open ground in front of you.
       const spot = player.ahead(1.6);
@@ -258,6 +273,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
       } else if (input.startedUsingTool()) {
         inventory.remove('trap', 1);
         traps.place(spot.x, spot.z, player.facing);
+        sfx('trap-set', spot);
         hud.toast('Trap set. Rabbits nearby will be drawn to it.');
       } else {
         prompt = 'Click to set the trap';
@@ -291,6 +307,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
         inventory.slots[inventory.selected] = old ? { item: old, count: 1 } : null;
         inventory.outfit = held;
         hud.toast(held === 'parka' ? 'You pull on the hide parka. Much warmer.' : `You put on the ${name}`);
+        sfx('cloth');
         onDressed(held);
       }
     } else if (!fire && held === 'lighter') {
@@ -303,6 +320,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
         prompt = `Water flask ${flask.water}/${holds} · click to fill it · hold E to drink`;
         if (input.startedUsingTool()) {
           flask.water = holds;
+          sfx('step-water');
           hud.toast('Flask filled');
         }
       } else if (flask.water === 0) {
@@ -312,6 +330,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
         if (input.startedUsingTool()) {
           flask.water -= 1;
           survival.drink(FLASK_DRINK);
+          sfx('gulp');
           hud.toast('Refreshing');
         }
       }
@@ -325,6 +344,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
         prompt = 'No arrows · craft them from wood and stone (Tab)';
       } else if (input.usingTool() && bowReady === 0 && !player.swimming) {
         drawingNow = true;
+        if (drawing === 0) sfx('bow-draw');
         drawing = Math.min(BOW_DRAW_TIME, drawing + dt);
         const draw = drawing / BOW_DRAW_TIME;
         if (target) player.facing = Math.atan2(target.x - x, target.z - z);
@@ -343,6 +363,7 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
           const from = player.ahead(0.5);
           const aim = target ?? player.ahead(30);
           arrows.fire(from.x, from.z, aim.x, aim.z, draw);
+          sfx('bow-shoot');
           bow.durability -= 1;
           if (bow.durability <= 0) {
             inventory.slots[inventory.selected] = null;
@@ -391,7 +412,8 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     if (held === 'knife' && input.usingTool() && knifeReady === 0 && !player.swimming && !player.airborne) {
       knifeReady = KNIFE_COOLDOWN;
       player.stab();
-      const target = upHigh ? null : knifeHitTest(x, z, player.facing, animals.all);
+      sfx('stab');
+      const target = offGround ? null : knifeHitTest(x, z, player.facing, animals.all);
       if (target) {
         const knife = inventory.slots[inventory.selected];
         if (hitAnimal(target, 'knife')) {
@@ -411,7 +433,15 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     if (!usingNow) using = 0;
     if (!drawingNow) drawing = 0;
     if (!butcheringNow) butchering = 0;
+    // The axe bites once per swing, partway through it.
+    const beat = chopBeat;
+    chopBeat = chopping ? (chopBeat + dt) % CHOP_BEAT : 0;
+    if (chopping && beat < CHOP_BEAT * 0.45 && chopBeat >= CHOP_BEAT * 0.45) sfx('chop', tree.spot);
     if (chopping && world.trees.chop(tree, dt, x, z)) {
+      // It creaks, then crashes down (see Trees: FALL_TIME).
+      const at = { x: tree.spot.x, z: tree.spot.z };
+      sfx('tree-creak', at);
+      setTimeout(() => sfx('tree-fall', at), 1150);
       // Wood that doesn't fit lands where the tree fell, a little beyond the stump.
       const away = Math.atan2(tree.spot.x - x, tree.spot.z - z);
       give('wood', tree.wood, tree.spot.x + Math.sin(away) * 1.6, tree.spot.z + Math.cos(away) * 1.6);
@@ -420,18 +450,25 @@ export function createActions({ input, inventory, player, world, wreck, lookout,
     if (canDrink && !(held === 'flask' && !drinking)) prompt = drinking ? 'Drinking…' : 'Hold E to drink';
 
     // Under a shelter you're warm, and at night E sleeps until morning.
-    const shelter = shelters.around(x, z);
+    // So are you inside a cabin or a cave.
+    const place = pois.shelterAt(x, z, player.feet, player.cave);
+    const shelter = shelters.around(x, z) ?? place;
     if (shelter && !prompt) {
       const night = isNight(survival.hourOfDay);
-      prompt = night ? "Shelter · warmer here · E to sleep until morning" : "Shelter · warmer here";
+      const name = { cabin: 'Cabin', cave: 'Cave', leanto: 'Lean-to' }[place?.kind] ?? 'Shelter';
+      prompt = night ? `${name} · warmer in here · E to sleep until morning` : `${name} · warmer in here`;
       if (night && pressedE) onSleep();
     }
 
     player.setAction(inventory.selectedItem, chopping, drinking, inventory.hasBackpack, busy);
-    const warmFire = upHigh ? null : campfires.near(x, z, WARMTH_REACH);
+    const warmFire = offGround ? null : campfires.near(x, z, WARMTH_REACH);
     const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
-    const wet = world.terrain.waterDepth(x, z) > WET_DEPTH;
-    const cold = world.terrain.coldAt(x, z); // up the mountains
-    return { drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, cold, outfit: inventory.outfit, prompt, progress };
+    const wet = !player.cave && world.terrain.waterDepth(x, z) > WET_DEPTH;
+    const cold = player.cave ? 0 : world.terrain.coldAt(x, z); // up the mountains (not down a cave)
+    return {
+      drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, cold, outfit: inventory.outfit, prompt, progress,
+      // (What the player's busy with, for the sounds.)
+      cooking: cookingNow, eating: busy === 'eat', searching: searchingNow, bandaging: busy === 'bandage',
+    };
   };
 }

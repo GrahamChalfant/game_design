@@ -9,6 +9,9 @@ import { stoneSpots } from './hunting.js';
 import { CRASH, trailPoint } from './crashTrail.js';
 import { SpatialGrid } from './grid.js';
 import { LOOKOUT, chooseLookout, lookoutBase, lookoutObstacles, lookoutStructure } from './lookout.js';
+import { choosePois, poiClearing, poiObstacles, poiStructure } from './pois.js';
+import { ROAD_WIDTH, alongRoads, layRoads, ruinRoads } from './roads.js';
+import { scatterDetails } from './details.js';
 
 // Meters across; the playable area is a square centred on the crash, at 0,0. Only the chunks
 // around the player are drawn (see stream.js), so a big map costs little more than a small one.
@@ -69,9 +72,6 @@ export function buildWorld(scene, seed) {
   const { random, noise, terrain, seed: mapSeed } = chooseTerrain(seed);
   terrain.build();
   scene.add(terrain.ground, terrain.water.mesh);
-  // Everything is drawn around the player as they move: start where they spawn.
-  drawModelsAround(SPAWN.x, SPAWN.z);
-  terrain.drawAround(SPAWN.x, SPAWN.z, Infinity);
 
   // Obstacles are circles on the ground the player can't walk into: { x, z, radius }.
   const obstacles = new SpatialGrid();
@@ -81,9 +81,27 @@ export function buildWorld(scene, seed) {
   for (const o of lookoutObstacles(lookout, lookout.base)) obstacles.add(o);
   // Buildings you can walk up into: each has floorAt(x, z, maxY) and roofOver(x, z, feet).
   const structures = [lookoutStructure(lookout, lookout.base)];
+  // Then the cabins, caves and hunting stands (see pois.js), each with a clearing round it.
+  const pois = choosePois(createRandom(mapSeed + 13), terrain, WORLD_SIZE, lookout);
+  // The old fire road from the tower out to the nearest cabins (painted into the ground, so
+  // before any of the ground is drawn), with a truck or two left on it.
+  const roads = layRoads(createRandom(mapSeed + 17), terrain, lookout, pois);
+  terrain.setRoads(roads.paths, ROAD_WIDTH);
+  pois.push(...roads.trucks);
+  // Everything is drawn around the player as they move: start where they spawn.
+  drawModelsAround(SPAWN.x, SPAWN.z);
+  terrain.drawAround(SPAWN.x, SPAWN.z, Infinity);
+  const clearings = new SpatialGrid();
+  for (const { x, z } of alongRoads(roads.paths, 3)) clearings.add({ x, z, radius: ROAD_WIDTH / 2 + 1.2 });
+  for (const poi of pois) {
+    clearings.add(poiClearing(poi));
+    for (const o of poiObstacles(poi)) obstacles.add(o);
+    structures.push(poiStructure(poi));
+  }
   const isFree = (x, z, spacing) =>
     Math.hypot(x, z) > CRASH_CLEARING &&
     Math.hypot(x - lookout.x, z - lookout.z) > LOOKOUT.clearing &&
+    clearings.isClear(x, z, 0) &&
     Math.hypot(x - SPAWN.x, z - SPAWN.z) > SPAWN_CLEARING &&
     !terrain.nearWater(x, z, 2) &&
     !terrain.crashTrail.near(x, z, 2) &&
@@ -151,6 +169,10 @@ export function buildWorld(scene, seed) {
     scene.add(instancedModel(name, placeholders.rock(), transforms));
   }
 
+  // Fallen trees, old fences, and the ruin of the fire road.
+  const details = scatterDetails(scene, { random, terrain, obstacles, isFree, pois, worldSize: WORLD_SIZE, hectares: HECTARES });
+  ruinRoads(scene, random, terrain, roads, details.addLog, obstacles);
+
   // Loose stones (for arrowheads) lie in small groups by the rocks and the lake shore,
   // never deep in the forest. They're picked up like any other item (see main.js).
   const stones = stoneSpots(
@@ -178,6 +200,8 @@ export function buildWorld(scene, seed) {
     grass,
     stones,
     lookout,
+    pois,
+    roads: roads.paths,
     structures,
     size: WORLD_SIZE,
     spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),

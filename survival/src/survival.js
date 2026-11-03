@@ -3,8 +3,11 @@ import { isNight } from './daylight.js';
 // Hunger, thirst, temperature, health and the survival clock. All the numbers to tune the
 // difficulty are here at the top.
 
-// One in-game day lasts 10 real minutes at normal speed.
-export const GAME_MINUTES_PER_SECOND = 2.4;
+// How fast the clock runs, in in-game minutes per real second: slower by day, so the 15 daylit
+// hours (05:00–20:00) last 12.5 real minutes and the 9 hours of night 5.6 real minutes.
+export const DAY_MINUTES_PER_SECOND = 1.2;
+export const NIGHT_MINUTES_PER_SECOND = 1.6;
+export const gameMinutesPerSecond = (hour) => (isNight(hour) ? NIGHT_MINUTES_PER_SECOND : DAY_MINUTES_PER_SECOND);
 const START_HOUR = 8; // the first day starts at 8 in the morning
 
 // Drain rates, in points (out of 100) per in-game hour.
@@ -94,7 +97,7 @@ export class Survival {
   // `speed` makes time pass faster for testing (see README).
   update(dt, { drinking, working, fire, shelter, wet, cold, outfit }, speed = 1) {
     if (!this.alive) return;
-    const minutes = dt * GAME_MINUTES_PER_SECOND * speed;
+    const minutes = dt * this.clockSpeed * speed;
     const hours = minutes / 60;
     this.minutesSurvived += minutes;
 
@@ -151,6 +154,11 @@ export class Survival {
     this.hunger = clamp(this.hunger + hunger);
     this.health = clamp(this.health + health);
     if (this.health === 0) this.alive = false;
+  }
+
+  // In-game minutes per real second right now (see gameMinutesPerSecond).
+  get clockSpeed() {
+    return gameMinutesPerSecond(this.hourOfDay);
   }
 
   // Time of day as hours from 0 to 24, e.g. 13.5 for half past one in the afternoon.

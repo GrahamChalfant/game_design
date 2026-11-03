@@ -1,7 +1,7 @@
 import { BOW_DURABILITY, KNIFE_DURABILITY, STONE_STACK } from './hunting.js';
 import { BERRY_STACK } from './foraging.js';
 
-export const TORCH_MINUTES = 3 * 60; // a lit torch burns for 3 in-game hours (about 75 real seconds)
+export const TORCH_MINUTES = 8 * 60; // a lit torch burns for 8 in-game hours (about 5 real minutes at night)
 
 // What the player is carrying: a hotbar of slots, plus a backpack with more slots.
 // Each item's icon is a small 3D model, drawn in itemIcons.js.
