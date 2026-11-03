@@ -111,8 +111,11 @@ fences** run across the meadows and round some of the cabins' yards, with rails 
 to slip through.
 
 Birds fly over by day, butterflies flutter over the meadows, and fireflies blink at night. You
-can hear the wind (louder up the mountains), birdsong, crickets and the odd owl at night,
-water nearby, a campfire's crackle, and dripping and bats down a cave. Your footsteps sound
+can hear the wind (louder up the mountains) and the birds of the northern woods by day
+(white-throated sparrows, boreal chickadees, Canada jays, ravens, a ruffed grouse drumming);
+owls, wolves far off and loons on the lake at night; mosquitoes by the water; deer walking,
+bleating, and snorting as they bolt from you; water nearby, a campfire's crackle, and
+dripping and bats down a cave. Your footsteps sound
 like what's underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things
 you do have a sound: chopping and trees crashing down, the bow, arrows landing, eating,
 drinking, cooking, searching, bandaging, lighting a fire; a boar squeals as it charges, and

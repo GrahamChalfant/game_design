@@ -121,6 +121,9 @@ const traps = new Traps(scene, world, animals);
 const arrows = new Arrows(scene, world, animals);
 // A boar squeals as it charges.
 animals.onCharge = (animal) => sound.play('boar-charge', animal.position);
+animals.onFlee = (animal) => {
+  if (animal.kind === 'deer') sound.play('deer-snort', animal.position);
+};
 arrows.onKill = (animal) => {
   sound.play('arrow-hit', animal.position);
   blood.splat(animal.position.x, animal.position.z, animal.radius * 0.9);
@@ -158,6 +161,7 @@ function updateSound(dt, paused, busy = {}) {
     fire: player.cave ? 0 : fire,
     woods: Math.min(1, Math.max(0, terrain.forest(x, z) + 0.3)),
     listener: { x, z },
+    animals: animals.all,
     cooking: !paused && busy.cooking,
     eating: !paused && busy.eating,
     drinking: !paused && busy.drinking,

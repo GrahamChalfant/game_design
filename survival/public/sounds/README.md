@@ -7,12 +7,16 @@ To use a recording instead, put a file here named after the sound, as `.mp3`, `.
 | File name | When it plays | How |
 | --- | --- | --- |
 | `wind` | Always outdoors; louder up the mountains | Looping |
-| `crickets` | At night, outdoors | Looping |
 | `water` | Near a lake or the river | Looping |
 | `fire` | Near a burning campfire | Looping |
 | `cave` | Down a cave (a low hum) | Looping |
-| `birds` | By day, now and then | Played once each time, a little higher or lower (every one-off sound is) |
-| `owl` | At night, now and then | Played once |
+| `sparrow`, `chickadee`, `jay`, `raven`, `grouse` | By day, now and then: a white-throated sparrow, a boreal chickadee, a Canada jay, a common raven, or a ruffed grouse drumming (more often deep in the trees) | Played once each time, from somewhere around you, a little higher or lower (every one-off sound is) |
+| `birds` | If there's a recording called this, it's played in place of all five birds above | Played once |
+| `owl` | At night, now and then (a great horned or a boreal owl) | Played once |
+| `wolf` | At night, now and then, far off | Played once |
+| `loon` | A common loon on the lake, mostly at night; more often near the water | Played once |
+| `mosquito` | One flying past your ear, by the water and at night, unless it's cold | Played once |
+| `deer-snort`, `deer-bleat`, `deer-step`, `deer-run` | A deer nearby: snorting as it spots you and bolts, bleating now and then while it grazes, walking, and galloping off | Played once, from where the deer is |
 | `drip` | Down a cave, now and then (with an echo) | Played once |
 | `bat` | Down a cave, now and then | Played once |
 | `sizzle` | Meat cooking on a fire | Looping |
