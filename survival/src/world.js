@@ -51,14 +51,17 @@ const SNOWY_SPRUCE = ['pine-snow', 'pine-small-snow', 'pine-snow', 'pine-skinny'
 const SPRUCE_PER_HECTARE = 110;
 const SNOWY_ABOVE = 0.35;
 const TREELINE = 0.55;
-// Each rock shape: its collision radius, how tall it stands, and how much it can be scaled.
+// Each rock shape: its collision radius, how far its widest side reaches from the middle (in
+// the model, before stretching), how tall it stands, and how much it can be scaled.
 const ROCK_SHAPES = {
-  rock: { radius: 0.55, height: 0.77, scale: [0.5, 1.6] },
-  'rock-small': { radius: 0.25, height: 0.3, scale: [0.7, 1.6] },
-  'rock-flat': { radius: 0.7, height: 0.29, scale: [0.7, 1.4] },
-  'rock-tall': { radius: 0.35, height: 1.17, scale: [0.7, 1.4] },
-  'rock-large': { radius: 0.95, height: 1.28, scale: [0.8, 1.4] },
+  rock: { radius: 0.55, reach: 0.59, height: 0.77, scale: [0.5, 1.6] },
+  'rock-small': { radius: 0.25, reach: 0.33, height: 0.3, scale: [0.7, 1.6] },
+  'rock-flat': { radius: 0.7, reach: 0.97, height: 0.29, scale: [0.7, 1.4] },
+  'rock-tall': { radius: 0.35, reach: 0.51, height: 1.17, scale: [0.7, 1.4] },
+  'rock-large': { radius: 0.95, reach: 1.18, height: 1.28, scale: [0.8, 1.4] },
 };
+// How far a rock, scaled and stretched, reaches out from its middle.
+const rockReach = (shape, scale, stretch) => shape.reach * scale * Math.max(stretch[0], stretch[2]);
 const ROCK_TOP = 0.9; // rocks taper, so the player stands a little below the very top
 // Rocks take their shape from this list in turn, so small ones are common and large ones rare.
 const ROCK_MIX = ['rock', 'rock-small', 'rock-flat', 'rock-small', 'rock', 'rock-tall', 'rock-small', 'rock-large'];
@@ -155,11 +158,14 @@ export function buildWorld(scene, seed) {
   let placedRocks = 0;
   scatter(random, Math.round(ROCKS_PER_HECTARE * HECTARES), (x, z) => {
     if (terrain.groundAt(x, z).kind !== 'rock' && random.next() > 0.08) return null;
-    if (!isFree(x, z, 0.3)) return null;
-    const name = ROCK_MIX[placedRocks++ % ROCK_MIX.length];
+    const name = ROCK_MIX[placedRocks % ROCK_MIX.length];
     const shape = ROCK_SHAPES[name];
-    const { y, rotation, scale, obstacle } = place(x, z, shape.radius, random.range(...shape.scale));
+    const size = random.range(...shape.scale);
     const stretch = [random.range(0.8, 1.5), random.range(0.6, 1.1), random.range(0.8, 1.3)];
+    // No tree growing out of it: clear of trunks under the whole rock, not just its collision circle.
+    if (!isFree(x, z, 0.3) || !trees.grid.isClear(x, z, rockReach(shape, size, stretch) + 0.1)) return null;
+    placedRocks++;
+    const { y, rotation, scale, obstacle } = place(x, z, shape.radius, size);
     obstacle.top = y + shape.height * ROCK_TOP * scale * stretch[1]; // the player can jump onto it
     const rock = transform(x, y, z, rotation, scale, stretch);
     rocks[name].push(rock);
@@ -175,14 +181,15 @@ export function buildWorld(scene, seed) {
       const out = random.range(-1, 1) * (p.halfWidth + 1.2);
       const x = p.x - Math.sin(along) * out + random.range(-1, 1);
       const z = p.z + Math.cos(along) * out + random.range(-1, 1);
-      if (!clearings.isClear(x, z, 0) || !obstacles.isClear(x, z, 0.2) || Math.hypot(x, z) < CRASH_CLEARING) continue;
+      if (!clearings.isClear(x, z, 0) || Math.hypot(x, z) < CRASH_CLEARING) continue;
       const name = random.next() < 0.6 ? 'rock-small' : random.next() < 0.6 ? 'rock-flat' : 'rock';
       const shape = ROCK_SHAPES[name];
       const scale = random.range(0.6, 1.1) * (name === 'rock' ? 0.6 : 1);
+      const stretch = [random.range(0.9, 1.5), random.range(0.5, 0.9), random.range(0.9, 1.3)];
+      if (!obstacles.isClear(x, z, 0.2) || !trees.grid.isClear(x, z, rockReach(shape, scale, stretch) + 0.1)) continue;
       const obstacle = { x, z, radius: shape.radius * scale };
       obstacles.add(obstacle);
       const y = terrain.heightAt(x, z) - 0.08;
-      const stretch = [random.range(0.9, 1.5), random.range(0.5, 0.9), random.range(0.9, 1.3)];
       obstacle.top = y + shape.height * ROCK_TOP * scale * stretch[1];
       rocks[name].push(transform(x, y, z, random.range(0, Math.PI * 2), scale, stretch));
     }
