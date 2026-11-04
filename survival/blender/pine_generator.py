@@ -109,7 +109,7 @@ def build_tier(b, z_tip, R, t, missing):
     rise = 0.45 + 0.45 * R                               # apex height above the branch ends
     apex = axis(z_tip + rise)
     under = axis(z_tip - 0.15 - 0.1 * R)                 # the skirt's underside meets the trunk here
-    droop, upturn = 0.12 + 0.1 * R, 0.06 + 0.06 * R
+    droop, upturn = 0.12 + 0.1 * R, 0.04 + 0.04 * R
     lobes = LOBES if t < 0.4 else LOBES - 1
     phase = random.uniform(0, math.tau)
     rings = ([], [], [])                                 # mid (0.5), outer (0.85) and rim (1.0) of the reach
@@ -133,12 +133,13 @@ def build_tier(b, z_tip, R, t, missing):
     for j in range(n):
         k = (j + 1) % n
         lobe = kind[j] == 'lobe' and kind[k] == 'lobe'
-        top = mix(hexcol('needles', 0.05, lift=young), hexcol('needles_dark'), shade)
+        top = mix(hexcol('needles', 0.05, lift=young + 0.12), hexcol('needles_dark'), shade)
         b.face((apex, rings[0][j], rings[0][k]), top, up=1.0)
-        b.face((rings[0][j], rings[1][j], rings[1][k], rings[0][k]), hexcol('needles', 0.06, lift=young + 0.15), up=1.0)
-        # rule 5: the branch ends are the lightest part of the tree
+        b.face((rings[0][j], rings[1][j], rings[1][k], rings[0][k]), hexcol('needles', 0.06, lift=young + 0.1), up=1.0)
+        # rule 5, kept subtle: branch ends are only a shade lighter than the rest of the tier.
+        # (They already face up and catch the most light, so a strong tip colour reads as a pale outline.)
         b.face((rings[1][j], rings[2][j], rings[2][k], rings[1][k]),
-               hexcol('needle_tip', 0.06, lift=young) if lobe else hexcol('needles', 0.06, lift=young + 0.3), up=0.6)
+               hexcol('needles', 0.06, lift=young + (0.04 if lobe else 0.0)), up=0.6)
         # underside: in its own shadow, which draws a dark band under every tier
         b.face((rings[2][k], rings[2][j], under), hexcol('needles_dark', 0.05), up=-1.0)
 
