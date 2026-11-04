@@ -802,6 +802,10 @@ canvas {
   display: block;
 }
 
+.unlock strong {
+  max-width: 340px; /* (several recipes on one card wrap onto a second line) */
+}
+
 .unlock small {
   color: #e8d9a8;
   font-size: 11px;

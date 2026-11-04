@@ -30,7 +30,7 @@ COAT = (0.36, 0.05, 0.025)  # (like the coat)
 COAT_DARK = (0.22, 0.032, 0.018)
 BUTTON = (0.03, 0.025, 0.02)
 GLOVE = (0.06, 0.045, 0.03)
-SOLE = (0.12, 0.11, 0.1)
+SOLE = (0.035, 0.03, 0.027)  # near black: paler, lit from above, the soles read as a grey plate under the feet
 BOOT = (0.07, 0.045, 0.028)
 
 bpy.ops.wm.open_mainfile(filepath=os.path.join(HERE, 'player.blend'))
@@ -142,9 +142,9 @@ for side, x in (('L', 0.305), ('R', -0.305)):
     # Thumbs on the gloves (on the inside of each hand, towards the front).
     box((x * 0.93, -0.055, 0.745), (0.04, 0.04, 0.07), GLOVE, f'hand_{side}', Matrix.Rotation(0.3 if side == 'L' else -0.3, 3, 'Y'))
 
-# ---- Boots: a thick sole sticking out a little all round, and a padded cuff at the top.
+# ---- Boots: a thick sole, just proud of the boot, and a padded cuff at the top.
 for side, x in (('L', 0.12), ('R', -0.12)):
-    box((x, -0.05, 0.018), (0.2, 0.36, 0.036), SOLE, f'shin_{side}')
+    box((x, -0.05, 0.018), (0.18, 0.31, 0.036), SOLE, f'shin_{side}')
     ring((x, -0.01, 0.2), (0.09, 0.1), 0.05, 0.025, BOOT, f'shin_{side}')
 
 me = bpy.data.meshes.new('player-details')

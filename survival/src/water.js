@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
 const WATER = {
-  color: 0x5b8a8e, // pale glacial teal-grey
-  roughness: 0.08,
+  color: 0x3e6066, // deep slate teal (paler and it glows turquoise in daylight)
+  roughness: 0.2,
   metalness: 0.1,
   transparent: true,
   opacity: 0.85,

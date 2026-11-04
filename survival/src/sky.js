@@ -13,11 +13,13 @@ const RADIUS = 600; // meters: the dome (inside the camera's far plane, 650)
 const CLOUDS = {
   count: 60,
   tile: 1300, // meters: clouds are scattered over a square this big, which moves with you
-  height: [150, 230], // meters up (the highest peaks reach about 90)
-  scale: [2.2, 4.0], // the models are about 40 m across
+  // High and not too big, so from the ground they're up in the sky rather than a ceiling just
+  // over the trees (the highest peaks reach about 90 m).
+  height: [240, 320], // meters up
+  scale: [1.5, 2.6], // the models are about 40 m across
   wind: new THREE.Vector2(2.2, 0.9), // meters a second
-  hazeFrom: 300, // meters away where clouds start fading into the sky...
-  hazeTo: 590, // ...and where they're gone
+  hazeFrom: 280, // meters away (across the ground) where clouds start fading into the sky...
+  hazeTo: 500, // ...and where they're gone (before the camera's far plane, high as they are)
 };
 const NIGHT_SKY = new THREE.Color(0x1b2440);
 const DAY_DEEP = new THREE.Color(0x6f8fb8); // overhead, the sky deepens towards this blue

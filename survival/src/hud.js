@@ -266,12 +266,30 @@ export class Hud {
     setTimeout(() => toast.remove(), 1600);
   }
 
-  // A card at the top of the screen saying a new recipe can be crafted.
+  // A card at the top of the screen saying a new recipe can be crafted. Several at once (like
+  // the half dozen that open up when you butcher your first animal) share two cards: the first
+  // recipe, and the rest named on one, so they don't stack down the middle of the screen.
   announceRecipe(recipe) {
+    this.newRecipes = [...(this.newRecipes ?? []), recipe];
+    if (this.newRecipes.length > 1) return;
+    setTimeout(() => {
+      const [first, ...rest] = this.newRecipes;
+      this.newRecipes = [];
+      const name = (r) => r.name ?? ITEMS[r.item].name;
+      this.showUnlock(first.item, 'New recipe', name(first));
+      if (rest.length) {
+        const named = rest.slice(0, 3).map(name).join(', ');
+        const text = rest.length > 3 ? `${named} and ${rest.length - 3} more` : named;
+        this.showUnlock(rest[0].item, `+${rest.length} more new recipe${rest.length > 1 ? 's' : ''}`, text);
+      }
+    }, 0);
+  }
+
+  showUnlock(item, title, text) {
     const card = document.createElement('div');
     card.className = 'unlock';
-    card.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(recipe.item)})"></span>
-      <span><small>New recipe</small><strong>${recipe.name ?? ITEMS[recipe.item].name}</strong><em>Press Tab to craft</em></span>`;
+    card.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(item)})"></span>
+      <span><small>${title}</small><strong>${text}</strong><em>Press Tab to craft</em></span>`;
     this.unlocks.append(card);
     setTimeout(() => card.remove(), 5000);
   }
@@ -279,6 +297,7 @@ export class Hud {
   // Forgets which recipes have been announced, for a new game.
   forgetRecipes() {
     this.knownRecipes.clear();
+    this.newRecipes = [];
     this.unlocks.replaceChildren();
   }
 

@@ -287,8 +287,30 @@ function useModel(place, model) {
       if (/roof/.test(child.name) && place.poi.kind === 'stand' && !model.userData.canopy) child.visible = false;
     });
     model.add(copy);
+    if (place.poi.kind === 'cabin') model.add(roofBoards());
     place.cutaway.refresh();
   });
+}
+
+// Boards under a cabin's shingles. From inside (in the close-up views) the gaps between the
+// rows of shingles would show slivers of sky; with these the ceiling is solid. Their name has
+// "roof" in it, so they fade with the roof from above.
+function roofBoards() {
+  const { halfWidth: W, halfDepth: D, wall, peak, eave } = CABIN;
+  const run = D + wall + 0.5;
+  const rise = peak - eave;
+  const group = new THREE.Group();
+  // (Facing down, they only get the dim light bounced up off the ground, so they're lighter than
+  // the logs and glow a little, or the ceiling reads as a black hole.)
+  const material = new THREE.MeshLambertMaterial({ color: 0x7a5a40, emissive: 0x2a1c12, side: THREE.DoubleSide });
+  for (const side of [1, -1]) {
+    const boards = new THREE.Mesh(new THREE.PlaneGeometry(2 * (W + wall + 0.45), Math.hypot(run, rise)), material);
+    boards.name = 'cabin-roof-boards';
+    boards.rotation.x = -Math.PI / 2 + side * Math.atan2(rise, run);
+    boards.position.set(0, (peak + eave) / 2 - 0.04, (side * run) / 2);
+    group.add(boards);
+  }
+  return group;
 }
 
 export function buildPois(scene, world) {

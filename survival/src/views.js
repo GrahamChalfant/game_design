@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CHUNK_SIZE, chunkOf, setDrawChunks } from './stream.js';
 import { redrawModels } from './models.js';
 import { createSky } from './sky.js';
+import { setNearFade } from './seeThrough.js';
 
 // The three ways of looking at the game, switched with V:
 // - 'top': the usual camera, looking down on the player from above and behind.
@@ -20,14 +21,22 @@ const CROUCHED_EYE = 1.1; // ...and crouched
 const SHOULDER = { back: 4.2, up: 1.75, side: 0.55 }; // where the over-the-shoulder camera sits
 const NEAR_CHUNKS = 3; // detailed chunks out from the player in these views (2 from above)
 const FOG_REACH = 2.6; // the haze is pushed this much further back in these views
+// In these views: how dark sun shadows are (1 = as from above), how much more sky light, and a
+// little more exposure. From the ground most of what you see is ground, much of it in shade
+// under the trees: without these the forest floor is close to black.
+const SHADE = { shadow: 0.55, fill: 1.6, exposure: 1.12 };
+// How close to the camera trees fade out (dotted, like the see-through hole), so branches don't
+// fill the view when you stand under a spruce or the camera backs into one.
+const NEAR_FADE = { top: 0, third: 3.2, first: 0.9 };
 const FAR = 650; // meters the camera draws to in these views (300 from above): past the haze on the clearest day
 
-export function createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, hour, start = 'top' }) {
+export function createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour, start = 'top' }) {
   const sky = createSky(scene, ambient, hour);
   let view = VIEWS.includes(start) ? start : 'top';
   let yaw = player.facing + Math.PI; // 0 looks north (-z), like the top-down camera
   let pitch = -0.08;
   const canvas = renderer.domElement;
+  const exposure = renderer.toneMappingExposure; // (as set up for the view from above)
   const locked = () => document.pointerLockElement === canvas;
   const lookDir = new THREE.Vector3();
   const pivot = new THREE.Vector3();
@@ -51,7 +60,9 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     camera.far = looking ? FAR : 300;
     camera.fov = view === 'first' ? 70 : view === 'third' ? 60 : 45;
     camera.updateProjectionMatrix();
-    player.object.visible = view !== 'first';
+    player.hideFromCamera(view === 'first');
+    setNearFade(NEAR_FADE[view]);
+    renderer.toneMappingExposure = exposure * (looking ? SHADE.exposure : 1);
     sky.visible = looking;
     input.yaw = looking ? yaw : 0;
     if (!looking && locked()) document.exitPointerLock();
@@ -108,7 +119,11 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     // Pushes the haze back (after Daylight sets it), so you can see across the valley.
     widenFog() {
       sky.visible = view !== 'top' && !player.cave;
+      // From the ground you mostly see the ground, and under the trees most of it is in shade:
+      // fill the shade in more than from above, so the forest floor isn't near black.
+      if (sun) sun.shadow.intensity = sky.visible ? SHADE.shadow : 1;
       if (!sky.visible) return;
+      ambient.intensity *= SHADE.fill;
       scene.fog.far *= FOG_REACH;
       scene.fog.near = scene.fog.far * 0.35;
     },
@@ -121,6 +136,7 @@ export function createViews({ camera, renderer, input, player, world, farView, h
       if (view === 'first') {
         // You face where you look.
         player.facing = yaw + Math.PI;
+        player.hideFromCamera(true);
         player.object.rotation.y = player.facing;
         camera.position.set(body.x, body.y + (player.sneaking ? CROUCHED_EYE : EYE), body.z);
         camera.position.addScaledVector(lookDir.clone().setY(0).normalize(), 0.15);

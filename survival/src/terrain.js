@@ -32,6 +32,7 @@ export const MAX_CLIMB = THREE.MathUtils.degToRad(40);
 export const MOUNTAIN_FOOT = 0.02;
 
 const GROUND_CELL = 0.5; // meters along each side of a ground square: bigger gives bigger facets
+const FACET = 0.5; // how much each ground triangle is lit as its own flat facet (1) or with the land's smooth slope (0)
 const GROUND_BUDGET_MS = 3; // the most time per frame spent building ground
 const LAKE_GAP = [12, 18]; // meters from the plane to the crash lake's shore
 // More lakes around the lowlands: how many, how big (meters), and how far apart.
@@ -359,9 +360,11 @@ export function createTerrain(random, noise, size) {
       const across = Math.abs(road.offset);
       const edge = 1 - smoothstep(across, road.half - 0.6, road.half + 0.5);
       if (edge > 0) {
+        // (Blended in and out, not hard bands: they're about as wide as the ground's squares,
+        // and hard edges come out as a zigzag checkerboard of triangles.)
         tint.copy(ROAD);
-        if (Math.abs(across - 0.8) < 0.3) tint.lerp(RUT, 0.8);
-        else if (across < 0.4) tint.lerp(ROAD_GRASS, 0.6);
+        tint.lerp(RUT, 0.7 * (1 - smoothstep(Math.abs(across - 0.8), 0.1, 0.5)));
+        tint.lerp(ROAD_GRASS, 0.5 * (1 - smoothstep(across, 0.15, 0.55)));
         tint.lerp(OCHRE, clamp(noise(x * 0.5, z * 0.5) * 0.4, 0, 0.3));
         color.lerp(tint, edge);
         if (edge > 0.5) kind = 'road';
@@ -681,10 +684,40 @@ function createGround(size, heightAt, groundAt, noise) {
       if (i % 100 === 99) yield;
     }
     yield;
-    // Triangles that don't share corners get hard edges between them.
-    const geometry = grid.toNonIndexed();
+    // The ground's colour at every corner of the grid: each triangle is the average of its
+    // three. (Coloured from one point in the middle instead, wherever the ground changes colour
+    // sharply the two triangles of a square land either side of the change, and the road and
+    // yards come out as a checkerboard of brown and green.)
+    const cornerColors = new Float32Array(corners.count * 3);
+    for (let i = 0; i < corners.count; i++) {
+      const { color } = groundAt(corners.getX(i), corners.getZ(i));
+      cornerColors[i * 3] = color.r;
+      cornerColors[i * 3 + 1] = color.g;
+      cornerColors[i * 3 + 2] = color.b;
+      if (i % 100 === 99) yield;
+    }
+    const cornerOf = grid.index.array; // (each corner of each triangle, in the order toNonIndexed lays them out)
+    // Triangles that don't share corners get hard edges between them. Their lighting is half
+    // each facet's own and half the land's smooth slope: fully flat facets, side by side at
+    // slightly different tilts, light up as a checkerboard of diamonds from the ground.
+    grid.computeVertexNormals();
     yield;
-    geometry.computeVertexNormals();
+    const geometry = grid.toNonIndexed(); // (keeps the smooth normals, one per corner)
+    yield;
+    const normals = geometry.attributes.normal;
+    const p = geometry.attributes.position;
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+    for (let i = 0; i < p.count; i += 3) {
+      a.fromBufferAttribute(p, i);
+      b.fromBufferAttribute(p, i + 1);
+      c.fromBufferAttribute(p, i + 2);
+      const facet = b.sub(a).cross(c.sub(a)).normalize();
+      for (let k = 0; k < 3; k++) {
+        n.fromBufferAttribute(normals, i + k).lerp(facet, FACET).normalize();
+        normals.setXYZ(i + k, n.x, n.y, n.z);
+      }
+      if (i % 600 === 597) yield;
+    }
     yield;
 
     const position = geometry.attributes.position;
@@ -693,9 +726,17 @@ function createGround(size, heightAt, groundAt, noise) {
     for (let i = 0; i < position.count; i += 3) {
       const x = (position.getX(i) + position.getX(i + 1) + position.getX(i + 2)) / 3;
       const z = (position.getZ(i) + position.getZ(i + 1) + position.getZ(i + 2)) / 3;
-      const { color } = groundAt(x, z);
-      const speckle = noise(x * 1.3, z * 1.3) * 0.08 + noise(x * 7.3, z * 7.3) * 0.1;
-      shade.setRGB(color.r, color.g, color.b, THREE.SRGBColorSpace).multiplyScalar(1 + speckle);
+      let r = 0, gr = 0, bl = 0;
+      for (let k = 0; k < 3; k++) {
+        const corner = cornerOf[i + k] * 3;
+        r += cornerColors[corner];
+        gr += cornerColors[corner + 1];
+        bl += cornerColors[corner + 2];
+      }
+      // (The fine speckle is kept small: from the ground, neighbouring triangles flipping
+      // lighter and darker read as a checkerboard.)
+      const speckle = noise(x * 1.3, z * 1.3) * 0.08 + noise(x * 7.3, z * 7.3) * 0.045;
+      shade.setRGB(r / 3, gr / 3, bl / 3, THREE.SRGBColorSpace).multiplyScalar(1 + speckle);
       for (let corner = 0; corner < 3; corner++) shade.toArray(colors, (i + corner) * 3);
       if (i % 300 === 297) yield;
     }
