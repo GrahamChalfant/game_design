@@ -3,10 +3,17 @@ import { SpatialGrid } from './grid.js';
 import { loadModel } from './models.js';
 import { createRandom } from './random.js';
 import { CHUNK_SIZE, chunkKey, chunkOf, chunkSeed, chunksAround } from './stream.js';
+import { COVER_KINDS, coverParts, pickCover, placeCover, rootsFor } from './groundCover.js';
 
 const FOREST_THINNING = 0.75; // the share of tufts left out where trees grow
 const TUFT_BRIGHTNESS = 1.5;
 const TRIES_PER_CHUNK = 900; // spots tried per chunk; the ones on grassy ground get a tuft
+const COVER_TRIES_PER_CHUNK = 650; // ...and for the moss, ferns, shrubs and so on (see groundCover.js)
+const COVER_GROUND = new Set(['grass', 'dirt']); // what ground they grow on
+// The road's verges: from this far inside its edge to this far outside it, the grass grows
+// long and thick, from these tufts.
+const VERGE = [0.35, 1.1];
+const VERGE_MIX = ['grass-tall', 'grass-tall', 'grass-wide', 'grass-clump', 'grass-seed', 'grass-wisp'];
 const GRASS_CHUNKS = 2; // grass is small, so it's only drawn this many chunks out from the player
 const GRASS_BUDGET_MS = 2; // the most time per frame spent growing grass
 const UP = new THREE.Vector3(0, 1, 0);
@@ -24,8 +31,9 @@ function faceUp(geometry) {
 
 // Thousands of chunky grass tufts that sway in the wind, drawn with one InstancedMesh per
 // tuft model, grown chunk by chunk around the player. Each tuft is a single blade until its
-// model loads.
-export function createGrass(seed, terrain, area) {
+// model loads. The forest floor's moss, ferns, shrubs, branches and so on (groundCover.js)
+// grow with them, kept clear of `obstacles` (trunks, rocks), with roots round the `trees`.
+export function createGrass(seed, terrain, area, { trees = null, obstacles = null } = {}) {
   const geometry = new THREE.PlaneGeometry(0.2, 1, 1, 4).translate(0, 0.5, 0);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i++) {
@@ -75,17 +83,25 @@ export function createGrass(seed, terrain, area) {
       if (tries % 40 === 39) yield;
       const x = (cx + random.next()) * CHUNK_SIZE;
       const z = (cz + random.next()) * CHUNK_SIZE;
-      const name = random.pick(TUFT_MIX);
+      let name = random.pick(TUFT_MIX);
       const shade = random.range(0.85, 1.15);
       const hue = random.range(-0.015, 0.015);
       const width = random.range(0.8, 1.3);
-      const height = random.range(0.3, 0.7);
+      let height = random.range(0.3, 0.7);
       const spin = random.range(0, Math.PI * 2);
       const thin = random.next();
       if (Math.abs(x) > half || Math.abs(z) > half) continue;
       const ground = terrain.groundAt(x, z);
-      if (ground.kind !== 'grass') continue;
-      if (terrain.forest(x, z) > 0.1 && thin < FOREST_THINNING) continue;
+      // Along the fire road's edges the grass grows long and thick (the verges).
+      const road = terrain.roadAt(x, z);
+      const verge = road && Math.abs(road.offset) > road.half - VERGE[0] && Math.abs(road.offset) < road.half + VERGE[1] && ground.kind !== 'snow';
+      if (verge) {
+        name = random.pick(VERGE_MIX);
+        height *= 1.5;
+      } else {
+        if (ground.kind !== 'grass') continue;
+        if (terrain.forest(x, z) > 0.1 && thin < FOREST_THINNING) continue;
+      }
       if (!cleared.isClear(x, z, 0)) continue;
       // The same colour the ground is drawn in, a little brighter so tufts stand out from it.
       const { r, g, b } = ground.color;
@@ -97,6 +113,21 @@ export function createGrass(seed, terrain, area) {
       const matrix = new THREE.Matrix4().compose(new THREE.Vector3(x, terrain.heightAt(x, z), z), rotation, scale);
       tufts[name].push({ x, z, matrix, color });
     }
+    // The forest floor.
+    for (const kind of COVER_KINDS) tufts[kind] = [];
+    for (let tries = 0; tries < COVER_TRIES_PER_CHUNK; tries++) {
+      if (tries % 40 === 39) yield;
+      const x = (cx + random.next()) * CHUNK_SIZE;
+      const z = (cz + random.next()) * CHUNK_SIZE;
+      if (Math.abs(x) > half || Math.abs(z) > half) continue;
+      const kind = pickCover(random, Math.max(0, terrain.forest(x, z)));
+      if (!kind) continue;
+      if (!COVER_GROUND.has(terrain.groundAt(x, z).kind) || terrain.waterDepth(x, z) > 0) continue;
+      if (!cleared.isClear(x, z, 0) || (obstacles && !obstacles.isClear(x, z, 0.12))) continue;
+      tufts[kind].push(placeCover(kind, x, z, random, terrain));
+    }
+    if (trees) tufts.roots = rootsFor(trees, cx, cz, CHUNK_SIZE, terrain, random);
+    yield;
     // (Grass may have been cleared while this chunk was growing.)
     for (const name in tufts) tufts[name] = tufts[name].filter((tuft) => cleared.isClear(tuft.x, tuft.z, 0));
     return tufts;
@@ -116,6 +147,8 @@ export function createGrass(seed, terrain, area) {
     });
     return kind;
   });
+  const cover = coverParts();
+  for (const name of COVER_KINDS) kinds.push({ name, geometry: cover.shapes[name], material: cover.material, mesh: null });
   let shownKeys = [];
   const draw = () => {
     for (const kind of kinds) {
@@ -125,7 +158,7 @@ export function createGrass(seed, terrain, area) {
           group.remove(kind.mesh);
           kind.mesh.dispose();
         }
-        kind.mesh = new THREE.InstancedMesh(kind.geometry, material, Math.max(64, Math.ceil(tufts.length * 1.5)));
+        kind.mesh = new THREE.InstancedMesh(kind.geometry, kind.material ?? material, Math.max(64, Math.ceil(tufts.length * 1.5)));
         kind.mesh.receiveShadow = true;
         kind.mesh.frustumCulled = false;
         kind.mesh.setColorAt(0, new THREE.Color());
