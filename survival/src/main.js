@@ -28,6 +28,7 @@ import { Sound } from './sounds.js';
 import { isNight } from './daylight.js';
 import { MapView } from './mapView.js';
 import { FarView } from './farView.js';
+import { createViews } from './views.js';
 import { CRASH } from './crashTrail.js';
 import { Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
@@ -345,7 +346,7 @@ const sleep = () => {
 const aimRay = new THREE.Raycaster();
 const aimNdc = new THREE.Vector2();
 const aimPoint = () => {
-  aimNdc.set((input.pointer.x / innerWidth) * 2 - 1, -(input.pointer.y / innerHeight) * 2 + 1);
+  views.aim(aimNdc);
   aimRay.setFromCamera(aimNdc, camera);
   return aimRay.intersectObject(world.terrain.ground, true)[0]?.point ?? null;
 };
@@ -506,6 +507,10 @@ function updateCompass() {
   );
 }
 
+// --- The camera: top-down, over the shoulder or first person (V switches; see views.js) ---
+// Add ?view=third or ?view=first to the URL to start in one of the others.
+const views = createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, start: new URLSearchParams(location.search).get('view') });
+
 // --- Top-down camera that follows the player ---
 const MAX_ZOOM = 30; // the furthest the camera pulls back, in meters
 let zoom = 20; // distance from the player (scroll to change it)
@@ -540,9 +545,7 @@ function startSpotting() {
 function stopSpotting() {
   spotting = null;
   farView.show(false);
-  camera.near = 0.1;
-  camera.far = 300;
-  camera.updateProjectionMatrix();
+  views.restoreCamera();
 }
 function updateSpottingCamera(dt) {
   spotting.zoom = THREE.MathUtils.clamp(spotting.zoom * (1 + input.scroll * 0.001), ...SPOTTING.zoom);
@@ -569,8 +572,7 @@ function updateSpottingCamera(dt) {
   pois.update(dt, null, 0, spotting.target, SPOTTING_SHOW); // far-off cabins and stands show too
 }
 
-function updateCamera(dt) {
-  if (spotting) return updateSpottingCamera(dt);
+function updateTopCamera(dt) {
   zoom = THREE.MathUtils.clamp(zoom + input.scroll * 0.02, 8, MAX_ZOOM);
   // Inside a roofed building (like the lookout's cab), zoom in.
   const { x, z } = player.position;
@@ -586,6 +588,12 @@ function updateCamera(dt) {
     cameraTarget.z + Math.cos(CAMERA_ANGLE) * shownZoom,
   );
   camera.lookAt(cameraTarget);
+}
+
+function updateCamera(dt) {
+  if (spotting) return updateSpottingCamera(dt);
+  if (views.looking) views.place(dt, cameraTarget);
+  else updateTopCamera(dt);
   camera.updateMatrixWorld();
   // Fade whatever part of a building is between the camera and the player.
   lookout.update(dt, camera, player.feet, player.position);
@@ -601,7 +609,11 @@ function updateCamera(dt) {
 }
 
 const painter = PAINTERLY ? createPainterlyRenderer(renderer, scene, camera) : null;
-const draw = () => (painter ? painter.render() : renderer.render(scene, camera));
+const draw = () => {
+  views.updateFar();
+  if (painter) painter.render();
+  else renderer.render(scene, camera);
+};
 
 // --- Main loop ---
 const clock = new THREE.Clock();
@@ -616,6 +628,7 @@ renderer.setAnimationLoop(() => {
     else if (mapView.isOpen) mapView.close();
     else hud.escape();
   }
+  views.setPanelOpen(hud.menuOpen || hud.inventoryOpen || mapView.isOpen);
   if (hud.menuOpen) {
     // Paused: keep drawing the scene, but nothing moves or uses up time.
     hud.update(survival, inventory, { prompt: null });
@@ -623,6 +636,7 @@ renderer.setAnimationLoop(() => {
     world.update(0, clock.elapsedTime, player.position); // keeps the scenery around the player drawn
     pickups.update(clock.elapsedTime, player.position.x, player.position.z);
     daylight.update(survival.hourOfDay, cameraTarget);
+    views.widenFog();
     darkenUnderground();
     updateSound(dt, true);
     input.endFrame();
@@ -635,6 +649,7 @@ renderer.setAnimationLoop(() => {
   }
   if (hud.inventoryOpen) characterView.update(dt, inventory.hasBackpack, inventory.outfit);
 
+  if (input.wasPressed('KeyV') && !spotting) views.cycle();
   if (input.wasPressed('KeyN')) hud.toast(sound.toggleMute() ? 'Sound off (N)' : 'Sound on (N)');
   if (input.wasPressed('KeyM')) {
     if (inventory.count('map') > 0) mapView.toggle();
@@ -668,6 +683,7 @@ renderer.setAnimationLoop(() => {
   hud.placeSpeech((speechPoint.x * 0.5 + 0.5) * innerWidth, (-speechPoint.y * 0.5 + 0.5) * innerHeight);
 
   updateCaves(dt);
+  views.beforeMove();
   player.update(dt, spotting || caveMove ? stillInput : input, world);
   updateFootsteps();
   updateCamera(dt);
@@ -699,6 +715,7 @@ renderer.setAnimationLoop(() => {
   snow.update(dt, clock.elapsedTime, cameraTarget);
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);
+  views.widenFog();
   darkenUnderground();
   // Through the binoculars you can see a long way: push the haze right back.
   if (spotting) {

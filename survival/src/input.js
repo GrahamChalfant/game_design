@@ -5,6 +5,7 @@ export class Input {
     this.keys = new Set();
     this.pressed = new Set();
     this.scroll = 0;
+    this.yaw = 0; // which way is forward (see moveAxis)
     this.mouseDown = false;
     this.pointer = { x: 0, y: 0 }; // the mouse, in pixels from the top left of the window
 
@@ -60,11 +61,16 @@ export class Input {
     return this.wasPressed('MouseLeft');
   }
 
-  // Movement on the ground: x is east (right on screen), z is south (down on screen). Range -1..1.
+  // Movement on the ground: x is east, z is south. Range -1..1. From above, W is up the screen
+  // (north); in the views that look around with the mouse, `yaw` turns it to where you look
+  // (0 = north, see views.js).
   moveAxis() {
-    const x = (this.isDown('KeyD', 'ArrowRight') ? 1 : 0) - (this.isDown('KeyA', 'ArrowLeft') ? 1 : 0);
-    const z = (this.isDown('KeyS', 'ArrowDown') ? 1 : 0) - (this.isDown('KeyW', 'ArrowUp') ? 1 : 0);
-    return { x, z };
+    const right = (this.isDown('KeyD', 'ArrowRight') ? 1 : 0) - (this.isDown('KeyA', 'ArrowLeft') ? 1 : 0);
+    const back = (this.isDown('KeyS', 'ArrowDown') ? 1 : 0) - (this.isDown('KeyW', 'ArrowUp') ? 1 : 0);
+    if (!this.yaw) return { x: right, z: back };
+    const c = Math.cos(this.yaw);
+    const s = Math.sin(this.yaw);
+    return { x: right * c + back * s, z: -right * s + back * c };
   }
 
   // Call once per frame after reading input.

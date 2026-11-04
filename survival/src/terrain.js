@@ -661,13 +661,17 @@ function channelIndex(courses, reach) {
 function createGround(size, heightAt, groundAt, noise) {
   const group = new THREE.Group();
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
-  const built = new Map(); // chunk key → mesh
-  const cells = Math.round(CHUNK_SIZE / GROUND_CELL);
+  const built = new Map(); // chunk key → mesh (its `userData.cell` is the size of its squares)
   const half = size / 2;
+  // Chunks more than 2 out from the player's (only drawn in the views that look out across the
+  // land) are built in squares twice the size: a quarter of the triangles, and far enough off
+  // that it doesn't show.
+  const cellFor = (chunk) => (chunk.order > 2 && DRAW_CHUNKS > 2 ? GROUND_CELL * 2 : GROUND_CELL);
 
   // Builds one chunk a little at a time: it pauses (yields) every so often, so the work can
   // be spread over several frames.
-  function* buildChunk({ cx, cz, key }) {
+  function* buildChunk({ cx, cz, key }, cell) {
+    const cells = Math.round(CHUNK_SIZE / cell);
     const grid = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, cells, cells)
       .rotateX(-Math.PI / 2)
       .translate((cx + 0.5) * CHUNK_SIZE, 0, (cz + 0.5) * CHUNK_SIZE);
@@ -700,6 +704,12 @@ function createGround(size, heightAt, groundAt, noise) {
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.receiveShadow = true;
+    mesh.userData.cell = cell;
+    const old = built.get(key); // (the same chunk at another size, until now)
+    if (old) {
+      group.remove(old);
+      old.geometry.dispose();
+    }
     built.set(key, mesh);
     group.add(mesh);
   }
@@ -718,9 +728,10 @@ function createGround(size, heightAt, groundAt, noise) {
       const now = budgetMs === Infinity;
       const deadline = performance.now() + budgetMs;
       for (const chunk of chunksAround(x, z, now ? DRAW_CHUNKS : DRAW_CHUNKS + 1)) {
-        if (built.has(chunk.key) || !onMap(chunk)) continue;
-        if (!jobs.has(chunk.key)) jobs.set(chunk.key, buildChunk(chunk));
-        const job = jobs.get(chunk.key);
+        const cell = cellFor(chunk);
+        if (built.get(chunk.key)?.userData.cell === cell || !onMap(chunk)) continue;
+        if (jobs.get(chunk.key)?.cell !== cell) jobs.set(chunk.key, { cell, steps: buildChunk(chunk, cell) });
+        const job = jobs.get(chunk.key).steps;
         while (performance.now() < deadline) {
           if (job.next().done) {
             jobs.delete(chunk.key);
