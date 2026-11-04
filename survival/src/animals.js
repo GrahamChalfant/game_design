@@ -306,10 +306,11 @@ export class Animals {
 
     let moved = false;
     if (direction) {
-      // If the way is blocked, try veering left or right.
+      // If the way is blocked (or too steep to climb), try veering left or right.
       for (const angle of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8]) {
         const step = direction.clone().rotateAround(new THREE.Vector2(), angle).multiplyScalar(speed * dt);
-        if (this.isFree(position.x + step.x, position.z + step.y, config.radius, animal.kind)) {
+        const [x, z] = [position.x + step.x, position.z + step.y];
+        if (this.isFree(x, z, config.radius, animal.kind) && this.world.terrain.canClimb(x, z, step.x, step.y)) {
           position.x += step.x;
           position.z += step.y;
           this.turnToward(animal, Math.atan2(step.x, step.y), dt);

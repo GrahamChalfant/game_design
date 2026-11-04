@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { loadModel, swappable } from './models.js';
 import { dressModel } from './outfits.js';
 import * as placeholders from './placeholders.js';
+import { MAX_CLIMB } from './terrain.js';
 
 const TORCH_LIGHT = 7; // how bright a lit torch is (a campfire is 18): about an 8 m pool of light at night
 const TORCH_LIGHT_RANGE = 14; // meters its light reaches
@@ -20,6 +21,12 @@ const TOP_MARGIN = 0.1; // feet this close below the top of a rock or stump stil
 const TOP_OVERHANG = 0.25; // how far past a rock's edge the player can stand on it
 const STEP = 0.6; // the most you can step up or down onto a floor (stairs, the tower) without jumping
 const STEP_OVER = 0.35; // low rocks and thin logs this far above your feet you just walk up onto (hidden in grass, they'd snag you)
+// Steep ground: from STEEP_FROM you slow down, up or down it, until at MAX_CLIMB (in
+// terrain.js) you're scrambling. Steeper than that you can't climb at all, and can't keep
+// your footing either: you slide slowly down it, so getting down a rock face takes a while.
+const STEEP_FROM = THREE.MathUtils.degToRad(25);
+const SCRAMBLE_SPEED = 1.2;
+const SLIDE_SPEED = 0.6;
 const KNIFE_GRIP_OFFSET = 0.01; // nudge so the middle of knife.glb's handle (1 cm below its origin) sits in the fist
 const STAB_TIME = 0.32; // seconds a knife jab lasts: a quick thrust, then the arm comes back
 const STAB_THRUST = 0.3; // the share of the jab spent thrusting forward
@@ -348,10 +355,20 @@ export class Player {
     this.sneaking = (this.crouched || input.isDown('ShiftLeft', 'ShiftRight')) && !this.swimming;
     const aiming = this.busy === 'draw'; // drawing a bow: walk slowly, still facing the aim
     const landSpeed = this.sneaking || aiming ? SNEAK_SPEED : WALK_SPEED;
-    const speed = THREE.MathUtils.lerp(landSpeed, SWIM_SPEED, Math.min(1, depth / SWIM_DEPTH));
+    let speed = THREE.MathUtils.lerp(landSpeed, SWIM_SPEED, Math.min(1, depth / SWIM_DEPTH));
+    // How steep the ground underfoot is (not up on a rock or a floor, or in the water).
+    const onGround = !this.cave && !this.airborne && this.standingHeight < 0.05 && depth === 0;
+    const { x: rise, z: riseZ } = onGround ? world.terrain.slopeAt(this.position.x, this.position.z) : { x: 0, z: 0 };
+    const grade = Math.hypot(rise, riseZ);
+    const tooSteep = grade > Math.tan(MAX_CLIMB);
 
     if (moving) {
-      const step = new THREE.Vector2(x, z).normalize().multiplyScalar(speed * dt);
+      const way = new THREE.Vector2(x, z).normalize();
+      // Steep ground slows you to a scramble the steeper it is the way you're going.
+      const along = Math.abs(way.x * rise + way.y * riseZ);
+      const steepness = tooSteep ? 1 : THREE.MathUtils.smoothstep(along, Math.tan(STEEP_FROM), Math.tan(MAX_CLIMB));
+      speed = THREE.MathUtils.lerp(speed, Math.min(speed, SCRAMBLE_SPEED), steepness);
+      const step = way.multiplyScalar(speed * dt);
       // Move one axis at a time so the player slides along trees and the shore.
       this.tryMove(step.x, 0, world);
       this.tryMove(0, step.y, world);
@@ -361,6 +378,11 @@ export class Player {
       const diff = Math.atan2(Math.sin(target - this.facing), Math.cos(target - this.facing));
       this.facing += diff * Math.min(1, TURN_SPEED * dt);
       this.walkTime += dt;
+    }
+    // Too steep to stand on: slide down it.
+    if (tooSteep) {
+      this.tryMove((-rise / grade) * SLIDE_SPEED * dt, 0, world);
+      this.tryMove(0, (-riseZ / grade) * SLIDE_SPEED * dt, world);
     }
 
     // Underground you walk on the cave's floor; on the surface, the land (or swim).
@@ -476,6 +498,9 @@ export class Player {
       this.position.z = z;
       return;
     }
+    // Ground too steep to walk up (see MAX_CLIMB) stops you, jumping or not, unless you're
+    // up on a rock or a floor.
+    if (this.standingHeight < 0.05 && !world.terrain.canClimb(x, z, dx, dz)) return;
     const feet = this.position.y + this.jumpHeight;
     for (const o of world.obstacles.near(x, z, RADIUS)) {
       if (o.top !== undefined && feet >= o.top - STEP_OVER) continue; // high enough to pass over it, or low enough to step up onto
