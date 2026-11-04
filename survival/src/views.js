@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CHUNK_SIZE, chunkOf, setDrawChunks } from './stream.js';
 import { redrawModels } from './models.js';
+import { createSky } from './sky.js';
 
 // The three ways of looking at the game, switched with V:
 // - 'top': the usual camera, looking down on the player from above and behind.
@@ -21,47 +22,8 @@ const NEAR_CHUNKS = 3; // detailed chunks out from the player in these views (2 
 const FOG_REACH = 2.6; // the haze is pushed this much further back in these views
 const FAR = 650; // meters the camera draws to in these views (300 from above): past the haze on the clearest day
 
-// A sky for looking at the horizon: the haze colour at the horizon (matching the fog, so the
-// far land fades into it), deepening to the sky's colour overhead. From above it's never seen.
-function createSky(scene, ambient) {
-  const uniforms = { uHorizon: { value: new THREE.Color() }, uZenith: { value: new THREE.Color() } };
-  const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(600, 32, 16),
-    new THREE.ShaderMaterial({
-      uniforms,
-      side: THREE.BackSide,
-      depthWrite: false,
-      fog: false,
-      vertexShader: `varying vec3 vDir;
-        void main() {
-          vDir = position;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }`,
-      fragmentShader: `uniform vec3 uHorizon; uniform vec3 uZenith; varying vec3 vDir;
-        void main() {
-          float up = normalize(vDir).y;
-          gl_FragColor = vec4(mix(uHorizon, uZenith, smoothstep(0.0, 0.5, up)), 1.0);
-          #include <colorspace_fragment>
-        }`,
-    }),
-  );
-  sky.renderOrder = -1;
-  sky.frustumCulled = false;
-  sky.visible = false;
-  scene.add(sky);
-  return {
-    mesh: sky,
-    update(camera) {
-      sky.position.copy(camera.position);
-      uniforms.uHorizon.value.copy(scene.fog.color);
-      // Overhead: the sky light's colour, a little deeper and bluer.
-      uniforms.uZenith.value.copy(ambient.color).multiplyScalar(0.82).lerp(new THREE.Color(0x6f8fb8), 0.35);
-    },
-  };
-}
-
-export function createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, start = 'top' }) {
-  const sky = createSky(scene, ambient);
+export function createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, hour, start = 'top' }) {
+  const sky = createSky(scene, ambient, hour);
   let view = VIEWS.includes(start) ? start : 'top';
   let yaw = player.facing + Math.PI; // 0 looks north (-z), like the top-down camera
   let pitch = -0.08;
@@ -90,7 +52,7 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     camera.fov = view === 'first' ? 70 : view === 'third' ? 60 : 45;
     camera.updateProjectionMatrix();
     player.object.visible = view !== 'first';
-    sky.mesh.visible = looking;
+    sky.visible = looking;
     input.yaw = looking ? yaw : 0;
     if (!looking && locked()) document.exitPointerLock();
   }
@@ -129,7 +91,7 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     },
     // Keeps the rough far view out of the detailed chunks round the player.
     updateFar() {
-      if (sky.mesh.visible) sky.update(camera);
+      if (sky.visible) sky.update(camera, performance.now() / 1000);
       const [cx, cz] = chunkOf(player.position.x, player.position.z);
       const n = view === 'top' ? 2 : NEAR_CHUNKS;
       farView.setNear((cx - n) * CHUNK_SIZE, (cz - n) * CHUNK_SIZE, (cx + n + 1) * CHUNK_SIZE, (cz + n + 1) * CHUNK_SIZE);
@@ -145,8 +107,8 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     },
     // Pushes the haze back (after Daylight sets it), so you can see across the valley.
     widenFog() {
-      sky.mesh.visible = view !== 'top' && !player.cave;
-      if (!sky.mesh.visible) return;
+      sky.visible = view !== 'top' && !player.cave;
+      if (!sky.visible) return;
       scene.fog.far *= FOG_REACH;
       scene.fog.near = scene.fog.far * 0.35;
     },

@@ -509,7 +509,7 @@ function updateCompass() {
 
 // --- The camera: top-down, over the shoulder or first person (V switches; see views.js) ---
 // Add ?view=third or ?view=first to the URL to start in one of the others.
-const views = createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, start: new URLSearchParams(location.search).get('view') });
+const views = createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, hour: () => survival.hourOfDay, start: new URLSearchParams(location.search).get('view') });
 
 // --- Top-down camera that follows the player ---
 const MAX_ZOOM = 30; // the furthest the camera pulls back, in meters

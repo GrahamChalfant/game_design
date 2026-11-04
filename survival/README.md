@@ -384,6 +384,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `cot.glb`, `fire-finder.glb`, `binoculars.glb` | The lookout cab's furniture | |
 | `fire-gate.glb`, `signpost.glb` | The fire road's rusted gate (`fire-gate-gate` swings) and its signposts | |
 | `crystals.glb`, `stalagmite.glb`, `bones.glb`, `fire-ring.glb`, `bedroll.glb`, `glow-fungus.glb` | Cave props (the crystals and fungus glow: the game adds that) | small |
+| `clouds.glb` | Six low-poly cumulus clouds (`cloud-1` … `cloud-6`) for the sky in the over-the-shoulder and first-person views; the game scales them up and drifts them on the wind (rebuilt by `blender/sky.py`) | ~25–60 m across |
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
 | `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |

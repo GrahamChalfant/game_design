@@ -62,11 +62,7 @@ export class Daylight {
     this.snow.points.material.color.setScalar(0.25 + 0.75 * Math.min(1, this.ambient.intensity / 1.7));
 
     // The sun crosses from east to west during the day; the moon does the same at night.
-    const isDay = hour >= SUNRISE && hour < SUNSET;
-    const progress = isDay
-      ? (hour - SUNRISE) / (SUNSET - SUNRISE)
-      : (((hour - SUNSET + 24) % 24) / (24 - SUNSET + SUNRISE));
-    const angle = progress * Math.PI;
+    const { angle } = skyPath(hour);
     this.sun.position.set(
       center.x + Math.cos(angle) * 45,
       center.y + 28 + Math.sin(angle) * 25, // never low on the horizon, so shadows don't cover everything
@@ -74,6 +70,16 @@ export class Daylight {
     );
     this.sun.target.position.copy(center);
   }
+}
+
+// Where the sun (by day) or the moon (by night) is on its way across the sky: `angle` runs
+// from 0 as it rises in the east to π as it sets in the west.
+export function skyPath(hour) {
+  const isDay = hour >= SUNRISE && hour < SUNSET;
+  const progress = isDay
+    ? (hour - SUNRISE) / (SUNSET - SUNRISE)
+    : (((hour - SUNSET + 24) % 24) / (24 - SUNSET + SUNRISE));
+  return { angle: progress * Math.PI, isDay };
 }
 
 export function isNight(hour) {
