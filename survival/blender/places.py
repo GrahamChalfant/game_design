@@ -19,11 +19,11 @@ OUT = os.path.join(HERE, '..', 'public', 'models')
 PAL = dict(
     wood=0x6b4a32, wood_dark=0x54392a, driftwood=0x7a7067, cut=0xd9b98a, end_grain=0x9c7a56,
     weathered=0x8a7a68, plank=0x7d6243, chink=0x9c8f78, shingle=0x4a4139, shingle_dark=0x3a332d,
-    moss=0x688841, moss_dark=0x4c6334, stone=0x86877f, stone_dark=0x58585a, lichen=0x949266,
+    moss=0x5e7444, moss_dark=0x435440, stone=0x86877f, stone_dark=0x58585a, lichen=0x949266,
     iron=0x2e2c2a, rust=0x8a4a2a, rust_dark=0x6a3a24, paint=0x5a6a4a, paint_pale=0x7a8a68,
     glass=0x2a3a44, chrome=0x9aa0a6, tyre=0x23211f, hide=0x8a6a4a, hide_pale=0xb08a5a,
     bone=0xd8c49a, wool=0x8c3a2a, straw=0xbfae72, canvas=0x6b6a45, tarp=0x3d5a78, camo=0x4d5a3a,
-    camo_dark=0x3a4530, needles=0x2e5e38, needles_dark=0x1f3a2a, ash=0x3a3633, char=0x2d2824,
+    camo_dark=0x3a4530, needles=0x2f4a40, needles_dark=0x1f3530, ash=0x3a3633, char=0x2d2824,
     ember=0x7a3a20, lamp=0xd9a52b, ochre=0xbfae72,
 )
 
@@ -162,11 +162,11 @@ LOG_R, ROW, OVER = 0.15, 0.28, 0.32
 
 
 def log_x(b, x0, x1, y, z):
-    b.pole((x0, y, z), (x1, y, z), LOG_R * random.uniform(0.92, 1.06), weathered, n=6, cap=lambda: col('end_grain', 0.07), wobble=0.05)
+    b.pole((x0, y, z), (x1, y, z), LOG_R * random.uniform(0.92, 1.06), weathered, n=8, taper=random.uniform(0.9, 1.0), cap=lambda: col('end_grain', 0.07), wobble=0.06)
 
 
 def log_z(b, z0, z1, y, x):
-    b.pole((x, y, z0), (x, y, z1), LOG_R * random.uniform(0.92, 1.06), weathered, n=6, cap=lambda: col('end_grain', 0.07), wobble=0.05)
+    b.pole((x, y, z0), (x, y, z1), LOG_R * random.uniform(0.92, 1.06), weathered, n=8, taper=random.uniform(0.9, 1.0), cap=lambda: col('end_grain', 0.07), wobble=0.06)
 
 
 def spans(a, b, gaps):
@@ -229,31 +229,56 @@ for name, center, size in (('back', (1.05, 1.22, -D - WALL), (1.2, 0.08, 0.32)),
         b.box((center[0], 1.22, center[2]), (0.1, 0.74, 0.06), lambda: col('wood_dark'))
 walls['right'].box((W + WALL + 0.3, 1.0, 0.75), (0.05, 0.75, 0.5), lambda: col('plank', 0.08), turn=0.4, roll=0.25)
 
-# Roof: rows of shingles on both slopes, mossy in places, boards along the gables, a ridge cap.
+# Roof: rows of split cedar shakes on both slopes, each row overlapping the one below, the
+# shakes of uneven widths and a little askew; moss creeping over them in soft patches (more
+# on the shady back slope), a few gaps where shakes have blown off, boards along the gables,
+# a ridge cap and the stove pipe with its rain cap.
 roof = Builder()
 run = D + WALL + 0.55
 rise = PEAK - EAVE
 slope = math.atan2(rise, run)
 length = math.hypot(run, rise)
-rows = 7
+rows = 13
+half_x = W + WALL + 0.55
+moss_spots = [(random.uniform(-half_x, half_x), random.uniform(0.25, 1.0), (1, -1)[k % 2], random.uniform(0.6, 1.2)) for k in range(10)]
+
+
+def mossiness(x, t, side):
+    m = 0.0
+    for mx, mt, ms, mr in moss_spots:
+        if ms == side:
+            m = max(m, 1 - math.hypot((x - mx) / mr, (t - mt) * length / mr))
+    return m
+
+
 for side in (1, -1):
     for r in range(rows):
         t = (r + 0.5) / rows
         zc = side * run * t
-        yc = PEAK - rise * t + 0.1
-        across = -W - WALL - 0.55
-        while across < W + WALL + 0.55:
-            w = random.uniform(1.0, 1.8)
-            w = min(w, W + WALL + 0.55 - across)
-            mossy = random.random() < (0.25 if side == 1 else 0.1) * (0.4 + t)
-            c = (lambda: col('moss_dark', 0.08)) if mossy else (lambda: col(random.choice(('shingle', 'shingle', 'shingle_dark')), 0.08))
-            roof.box((across + w / 2, yc + random.uniform(0, 0.02), zc), (w - 0.02, 0.05, length / rows + 0.1), c, tilt=side * slope)
+        yc = PEAK - rise * t + 0.1 + (r % 2) * 0.012
+        across = -half_x + (0.12 if r % 2 else 0)  # (rows staggered)
+        while across < half_x - 0.05:
+            w = min(random.uniform(0.22, 0.42), half_x - across)
+            x = across + w / 2
             across += w
+            if random.random() < 0.025 and 0.2 < t < 0.9:
+                continue  # a missing shake
+            m = mossiness(x, t, side) + random.uniform(-0.15, 0.15)
+            shade = 'moss_dark' if m > 0.6 else 'moss' if m > 0.35 else 'driftwood' if random.random() < 0.06 else random.choice(('shingle', 'shingle', 'shingle_dark'))
+            roof.box((x, yc + random.uniform(0, 0.025), zc), (w - 0.025, 0.045, length / rows * 1.45), lambda s=shade: col(s, 0.05),
+                     tilt=side * slope + random.uniform(-0.04, 0.04), turn=random.uniform(-0.03, 0.03))
     for sx in (-1, 1):  # barge boards along the gable ends
-        roof.box((sx * (W + WALL + 0.56), (PEAK + EAVE) / 2 + 0.05, side * run / 2), (0.06, 0.2, length + 0.05), lambda: col('wood_dark'), tilt=side * slope)
-roof.box((0, PEAK + 0.16, 0), (2 * (W + WALL + 0.6), 0.1, 0.36), lambda: col('wood_dark'), tilt=0)
+        roof.box((sx * (half_x + 0.01), (PEAK + EAVE) / 2 + 0.05, side * run / 2), (0.06, 0.2, length + 0.05), lambda: col('wood_dark'), tilt=side * slope)
+    for k in range(4):  # moss cushions where it's thickest
+        mx, mt, ms, mr = moss_spots[k]
+        if ms == side:
+            roof.stone((mx, PEAK - rise * mt + 0.16, side * run * mt), (0.22, 0.06, 0.18), lambda: col('moss', 0.08), points=8)
+roof.box((0, PEAK + 0.16, 0), (2 * (half_x + 0.05), 0.1, 0.36), lambda: col('wood_dark'), tilt=0)
+for sx in (-1, 1):
+    roof.box((0, PEAK + 0.12, sx * 0.17), (2 * (half_x + 0.05), 0.06, 0.12), lambda: col('wood_dark', 0.05), tilt=sx * slope)
 roof.pole((2.1, 0.75, -1.65), (2.1, PEAK + 0.7, -1.65), 0.08, lambda: col('iron', 0.05), n=8)  # the stove pipe
-roof.pole((2.1, PEAK + 0.7, -1.65), (2.1, PEAK + 0.78, -1.65), 0.11, lambda: col('iron', 0.05), n=8)
+roof.pole((2.1, PEAK - 0.35, -1.65), (2.1, PEAK - 0.25, -1.65), 0.16, lambda: col('rust_dark', 0.05), n=8)  # its flashing
+roof.pole((2.1, PEAK + 0.82, -1.65), (2.1, PEAK + 1.0, -1.65), 0.2, lambda: col('rust', 0.06), n=8, taper=0.15)  # the rain cap
 
 # Floor, foundation stones, the step up to the door.
 floor = Builder()

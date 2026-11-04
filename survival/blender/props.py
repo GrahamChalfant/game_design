@@ -52,59 +52,75 @@ def ring_stones(b, radius, count, size, c, y=0.06):
 
 
 # =========================================================================================
-# BIRCH: a slim white trunk with a slight lean, dark marks, and loose clumps of muted
-# olive-gold leaves, mostly high up. ~8 m tall, base at the origin.
+# BIRCH: a slim white trunk with a slight lean and a gentle wiggle, small dark marks scattered
+# over the bark (thicker and rougher at the foot), limbs that fork into twigs, and many small
+# clumps of muted olive-gold leaves along them, lighter on top and shadowed underneath.
+# Made to look right from the ground as well as from above. ~8 m tall, base at the origin.
+def leaf_clump(b, center, radius, tone):
+    """A faceted clump of leaves: an icosphere, squashed a little, its upper faces lit and its
+    lower faces in shade."""
+    tmp = bmesh.new()
+    bmesh.ops.create_icosphere(tmp, subdivisions=1, radius=radius)
+    index = {v: i for i, v in enumerate(tmp.verts)}
+    verts = []
+    for v in tmp.verts:
+        p = Vector((v.co.x, v.co.z * 0.82, v.co.y)) * (1 + random.uniform(-0.22, 0.22))
+        verts.append(g(*(Vector(center) + p)))
+    for f in tmp.faces:
+        up = f.normal.z  # (Blender z is the game's y)
+        shade = 'leaf_dark' if up < -0.3 else tone if up < 0.5 else ('leaf_gold' if random.random() < 0.35 else tone)
+        b.add(verts, [tuple(index[v] for v in f.verts)], col(shade, 0.08))
+    tmp.free()
+
+
 random.seed(101)
 b = Builder()
-segments = 11
-height = 6.8
+segments = 26
+height = 6.9
 lean = Vector((random.uniform(-0.25, 0.25), 0, random.uniform(-0.25, 0.25)))
 N = 7
 rings = []
+centre_at = lambda t: Vector((0, t * height, 0)) + lean * (t * t) + Vector((math.sin(t * 7) * 0.05, 0, math.cos(t * 5) * 0.05))
 for i in range(segments + 1):
     t = i / segments
-    y = t * height
-    r = 0.17 * (1 - t) + 0.07 * t
+    r = 0.17 * (1 - t) + 0.06 * t
     if i == 0:
-        r *= 1.25  # a flared base
-    centre = Vector((0, y, 0)) + lean * (t * t) + Vector((math.sin(t * 7) * 0.04, 0, math.cos(t * 5) * 0.04))
-    rings.append([centre + Vector((math.cos(math.tau * k / N) * r, 0, math.sin(math.tau * k / N) * r)) for k in range(N)])
+        r *= 1.3  # a flared base
+    rings.append([centre_at(t) + Vector((math.cos(math.tau * k / N) * r, 0, math.sin(math.tau * k / N) * r)) for k in range(N)])
 verts = [g(*p) for ring in rings for p in ring]
 for i in range(segments):
+    t = i / segments
     for j in range(N):
-        t = i / segments
-        # Dark horizontal marks in bands, a darker rough base, the rest chalky white.
-        if i == 0:
+        # Rough and dark at the foot, then chalky white with small dark marks, fewer higher up.
+        if t < 0.06 or (t < 0.14 and random.random() < 0.6):
             c = col('birch_base', 0.08)
-        elif random.random() < 0.28 and t < 0.9:
+        elif random.random() < 0.13 * (1.1 - t):
             c = col('birch_mark', 0.1)
         else:
             c = col('birch_bark', 0.05)
         b.add(verts, [(i * N + j, i * N + (j + 1) % N, (i + 1) * N + (j + 1) % N, (i + 1) * N + j)], c)
 b.add(verts, [tuple(range(segments * N, (segments + 1) * N))], col('birch_mark'))
-top = (rings[-1][0] + rings[-1][3]) / 2
-# Thin limbs reaching up and out into the crown.
-limbs = []
-for k in range(5):
-    a = k * 1.3 + random.uniform(-0.3, 0.3)
-    y0 = random.uniform(3.6, 5.6)
-    t = y0 / height
-    base = Vector((0, y0, 0)) + lean * (t * t)
-    tip = base + Vector((math.cos(a) * 1.1, random.uniform(0.9, 1.4), math.sin(a) * 1.1))
-    b.pole(tuple(base), tuple(tip), 0.045, lambda: col('birch_bark', 0.06), n=4, taper=0.5)
-    limbs.append(tip)
-# Leaf clumps: small, loose and many, round the limb tips and the top, a few lower down.
+top = centre_at(1.0)
+# Limbs reaching up and out, each forking into a couple of twigs, with leaf clumps along them.
 clumps = []
-for tip in limbs:
-    for _ in range(2):
-        clumps.append((tip + Vector((random.uniform(-0.35, 0.35), random.uniform(-0.3, 0.3), random.uniform(-0.35, 0.35))), random.uniform(0.42, 0.62)))
-for _ in range(5):
-    clumps.append((top + Vector((random.uniform(-0.7, 0.7), random.uniform(-0.6, 0.7), random.uniform(-0.7, 0.7))), random.uniform(0.45, 0.65)))
-for _ in range(3):
-    clumps.append((Vector((random.uniform(-0.9, 0.9), random.uniform(4.3, 5.3), random.uniform(-0.9, 0.9))), random.uniform(0.35, 0.5)))
+for k in range(6):
+    a = k * 1.1 + random.uniform(-0.25, 0.25)
+    y0 = random.uniform(3.3, 6.2)
+    base = centre_at(y0 / height)
+    reach = random.uniform(0.9, 1.4) * (1.15 - (y0 - 3.3) / 4)
+    tip = base + Vector((math.cos(a) * reach, random.uniform(0.8, 1.3), math.sin(a) * reach))
+    b.pole(tuple(base), tuple(tip), 0.045, lambda: col('birch_bark', 0.06), n=5, taper=0.5)
+    for f in range(2):
+        fa = a + random.uniform(-0.7, 0.7)
+        twig = tip + Vector((math.cos(fa) * 0.5, random.uniform(0.2, 0.6), math.sin(fa) * 0.5))
+        b.pole(tuple(tip), tuple(twig), 0.022, lambda: col('birch_bark', 0.06), n=3, taper=0.4)
+        clumps.append((twig, random.uniform(0.3, 0.42)))
+    for t in (0.6, 1.0):
+        clumps.append((base.lerp(tip, t) + Vector((random.uniform(-0.25, 0.25), random.uniform(0.0, 0.25), random.uniform(-0.25, 0.25))), random.uniform(0.28, 0.4)))
+for _ in range(4):
+    clumps.append((top + Vector((random.uniform(-0.6, 0.6), random.uniform(-0.4, 0.7), random.uniform(-0.6, 0.6))), random.uniform(0.3, 0.45)))
 for centre, r in clumps:
-    tone = random.choice(('leaf_olive', 'leaf_olive', 'leaf_gold', 'leaf_dark'))
-    icosphere(b, tuple(centre), r, (1.0, 0.85, 1.0), lambda tone=tone: col(tone if random.random() < 0.8 else 'leaf_gold', 0.08), jitter=0.2)
+    leaf_clump(b, tuple(centre), r, random.choice(('leaf_olive', 'leaf_olive', 'leaf_gold', 'leaf_dark')))
 export([build('birch', b, PLANT)], 'birch.glb')
 
 # =========================================================================================

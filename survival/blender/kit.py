@@ -10,11 +10,11 @@ OUT = os.path.join(HERE, '..', 'public', 'models')
 PAL = dict(
     wood=0x6b4a32, wood_dark=0x54392a, driftwood=0x7a7067, cut=0xd9b98a, end_grain=0x9c7a56,
     weathered=0x8a7a68, plank=0x7d6243, chink=0x9c8f78, shingle=0x4a4139, shingle_dark=0x3a332d,
-    moss=0x688841, moss_dark=0x4c6334, stone=0x86877f, stone_dark=0x58585a, lichen=0x949266,
+    moss=0x5e7444, moss_dark=0x435440, stone=0x86877f, stone_dark=0x58585a, lichen=0x949266,
     iron=0x2e2c2a, rust=0x8a4a2a, rust_dark=0x6a3a24, paint=0x5a6a4a, paint_pale=0x7a8a68,
     glass=0x2a3a44, chrome=0x9aa0a6, tyre=0x23211f, hide=0x8a6a4a, hide_pale=0xb08a5a,
     bone=0xd8c49a, wool=0x8c3a2a, straw=0xbfae72, canvas=0x6b6a45, tarp=0x3d5a78, camo=0x4d5a3a,
-    camo_dark=0x3a4530, needles=0x2e5e38, needles_dark=0x1f3a2a, ash=0x3a3633, char=0x2d2824,
+    camo_dark=0x3a4530, needles=0x2f4a40, needles_dark=0x1f3530, ash=0x3a3633, char=0x2d2824,
     ember=0x7a3a20, lamp=0xd9a52b, ochre=0xbfae72,
 )
 

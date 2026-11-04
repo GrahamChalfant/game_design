@@ -339,9 +339,8 @@ The next time you load the game, your model replaces the stand-in automatically.
 
 | File | What it is | Size |
 | --- | --- | --- |
-| `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink`, `jump` and `die`. | ~1.8 m tall |
-| `birch.glb` | Birch: thin, pale trunk with dark marks and a narrow crown. Most of the forest is birch | ~8 m tall |
-| `pine.glb` | Tall conifer mixed into the forests | ~9 m tall |
+| `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink`, `jump` and `die`. The close-up details (face, knit toque, the coat's collar, pockets and cuffs, thumbs, boot soles) are a separate mesh, `player-details`, added and exported by `blender/player_details.py` | ~1.8 m tall |
+| `pine.glb` | Spruce mixed into the forests: drooping, ragged tiers of branches, darker underneath, over a bare stretch of trunk (rebuilt by `blender/conifers.py`, as are the other pines and the pine sapling) | ~9 m tall |
 | `lookout.glb` | The fire lookout tower: four timber legs, stairs, and a cab with windows on top. The stairs, landings and cab floor need to match where the player can walk (`TOWER` in `src/lookout.js`), and meshes with `roof`, `wall`, `window`, `floor` or `stair` in their names turn see-through whenever they're between the camera and the player | ~15 m tall, ~4 m across at the foot |
 | `pine-small.glb` | Young pine | ~3.5 m tall |
 | `pine-skinny.glb` | Narrow pine | ~10 m tall, ~2 m across |
@@ -359,7 +358,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `rock-tall.glb` | Standing stone | ~0.8 m across, ~1.2 m tall |
 | `rock-large.glb` | Large boulder | ~2 m across, ~1.3 m tall |
 | `rabbit.glb` | Rabbit, nose toward Blender's **Front** view, with clips called `rabbit-idle`, `rabbit-graze`, `rabbit-walk` and `rabbit-run` | ~0.55 m long |
-| `deer.glb` | Deer, nose toward Blender's **Front** view, with clips called `deer-idle`, `deer-graze`, `deer-walk` and `deer-run` | ~1.7 m tall at the head |
+| `deer.glb` | Deer, nose toward Blender's **Front** view, with clips called `deer-idle`, `deer-graze`, `deer-walk` and `deer-run`. Its antlers and eyes are a separate mesh, `deer-details`, added and exported by `blender/deer_details.py` | ~1.7 m tall at the head (~2.1 m to the antlers) |
 | `suitcase.glb` | Suitcase in shades of grey (the game tints it), with its lid as a child object called `lid`, origin on the hinge | ~0.7 m wide |
 | `plane.glb` | The crashed bush plane, nose pointing toward you in Blender's **Front** view (model it already crashed) | ~8 m long |
 | `clod.glb` | Lump of soil thrown up along the crash trail | ~0.3 m across |
@@ -376,7 +375,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `truck.glb` | Rusted forest service pickup, passenger door open | 1.9 × 5.1 m |
 | `fallen-log.glb` | Fallen trunk, 1 m long and 1 m thick (stretched per copy) | 1 × 1 m |
 | `fence.glb`, `fence-broken.glb` | One 2.5 m length of split-rail fence, whole or with a rail down | 2.5 m long |
-| `birch.glb` | The woods' birch: white trunk with dark marks, loose olive-gold leaf clumps (rebuilt by `blender/props.py`, as are the rest below unless noted) | ~8 m tall |
+| `birch.glb` | The woods' birch: white trunk with small dark marks, limbs forking into twigs, many small olive-gold leaf clumps shaded underneath (rebuilt by `blender/props.py`, as are the rest below unless noted) | ~8 m tall |
 | `lookout.glb` | The fire lookout tower: frame, four flights of stairs, landings, cab with windows, balcony and railing, metal roof. Stairs, floors, walls, windows and roof are separate parts that fade when in the way (rebuilt by `blender/lookout.py`) | ~16 m tall |
 | `logs.glb`, `axe-ground.glb`, `clod.glb`, `debris.glb`, `landing-wheel.glb` | Things lying about: dropped firewood, the axe, crash clods, a panel of plane skin, a torn-off wheel | small |
 | `torch.glb` | The torch, held by the grip (origin); the flame sits 0.52 m up | 0.7 m |
@@ -386,12 +385,14 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `crystals.glb`, `stalagmite.glb`, `bones.glb`, `fire-ring.glb`, `bedroll.glb`, `glow-fungus.glb` | Cave props (the crystals and fungus glow: the game adds that) | small |
 | `clouds.glb` | Six low-poly cumulus clouds (`cloud-1` … `cloud-6`) for the sky in the over-the-shoulder and first-person views; the game scales them up and drifts them on the wind (rebuilt by `blender/sky.py`) | ~25–60 m across |
 | `campfire.glb` | Fire pit: stones and logs (the flames are added by the game) | ~1.3 m across |
+| `flames.glb` | Nine curling flame tongues (`flame-1` … `flame-9`), yellow-white at the base to red at the tips, for campfires and the lit torch; each has its origin at its base so the game can flicker it (rebuilt by `blender/flames.py`) | ~0.65 m tall |
 | `stump.glb` | Stump left after chopping a tree | ~0.6 m across, ~0.45 m tall |
 | `axe.glb` | Axe held in the hand. Put the origin where the hand grips the handle, with the blade pointing up (+Z in Blender). | ~0.75 m long |
 
-The trees in `blender/trees.blend` (the pines, broadleaf, saplings and dead tree) were made by
-hand. `blender/recolour_trees.py` moved their colours onto the muted palette and exports their
-GLBs; after editing a tree by hand, run it again to re-export them all.
+The broadleaf tree, its sapling and the dead tree in `blender/trees.blend` were made by hand.
+`blender/recolour_trees.py` moved their colours onto the muted palette and exports their GLBs;
+after editing one by hand, run it again to re-export them. (The pines that are still in
+trees.blend are the old ones: the game's come from `blender/conifers.py`.)
 
 ### Inventory icons
 
