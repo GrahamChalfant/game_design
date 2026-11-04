@@ -85,6 +85,8 @@ export class Animals {
     this.onAttack = () => {};
     // Called with (animal) when a boar starts to charge.
     this.onCharge = () => {};
+    // Called with (animal) when a rabbit or deer spots the player and bolts.
+    this.onFlee = () => {};
     for (const kind of Object.keys(KINDS)) {
       loadModel(kind).then((model) => {
         if (!model) return;
@@ -278,7 +280,10 @@ export class Animals {
       }
     } else {
       const scareDistance = fleeDistance(animal.kind, sneaking);
-      if (playerDistance < scareDistance) animal.state = 'flee';
+      if (playerDistance < scareDistance) {
+        if (animal.state !== 'flee') this.onFlee(animal);
+        animal.state = 'flee';
+      }
       if (animal.state === 'flee' && playerDistance > config.calmDistance) this.rest(animal);
     }
 
