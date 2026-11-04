@@ -1,8 +1,12 @@
 # Sounds
 
-The game makes all of its sounds itself (see `src/sounds.js`), so this folder can stay empty.
-To use a recording instead, put a file here named after the sound, as `.mp3`, `.ogg` or
-`.wav`. When the game finds one, it plays the recording in place of the made-up sound.
+The game can make all of its sounds itself (see `src/sounds.js`). To use a recording instead,
+put a file here named after the sound, as `.mp3`, `.ogg` or `.wav`. When the game finds one,
+it plays the recording in place of the made-up sound.
+
+The recordings here now (wind, water, fire, cave, owl, wolf, loon, raven, chop, tree-fall and
+the grass, dirt, gravel and snow footsteps) are public-domain (CC0) field recordings from
+Freesound, cut and levelled for the game. [CREDITS.md](CREDITS.md) lists where each came from.
 
 | File name | When it plays | How |
 | --- | --- | --- |
@@ -20,7 +24,7 @@ To use a recording instead, put a file here named after the sound, as `.mp3`, `.
 | `drip` | Down a cave, now and then (with an echo) | Played once |
 | `bat` | Down a cave, now and then | Played once |
 | `sizzle` | Meat cooking on a fire | Looping |
-| `step-grass`, `step-dirt`, `step-gravel`, `step-rock`, `step-snow`, `step-wood`, `step-water` | One footstep on that ground (dirt is also the road; wood is floors, logs and the tower; rock is boulders and caves) | Played once per step |
+| `step-grass`, `step-dirt`, `step-gravel`, `step-rock`, `step-snow`, `step-wood`, `step-water` | One footstep on that ground (dirt is also the road; wood is floors, logs and the tower; rock is boulders and caves) | Played once each time a foot comes down in the walking animation |
 | `swim` | One swimming stroke | Played once |
 | `splash` | Wading into deep water | Played once |
 | `land` | Landing from a jump | Played once |
@@ -41,6 +45,12 @@ To use a recording instead, put a file here named after the sound, as `.mp3`, `.
 
 Loops should start and end cleanly, so the join can't be heard. Keep the files short and
 small (under about 1 MB each), because they're downloaded when the game starts. Free
-recordings are available at freesound.org (check each one's licence) or sonniss.com.
+recordings are available at freesound.org (check each one's licence) or sonniss.com; add
+each one you use to [CREDITS.md](CREDITS.md).
+
+How loud to make a file: the game turns each sound up or down itself, so match these. Footsteps
+play at full volume, so they peak around -14 dB; the chop around -8 dB; the tree falling -3 dB;
+animals call from 20–50 m away, so they peak at -1 dB. Loops are levelled to about -20 LUFS
+(the cave -22).
 
 Press N in the game to turn the sound off and on.

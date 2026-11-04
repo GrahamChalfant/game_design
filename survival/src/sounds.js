@@ -39,6 +39,8 @@ export const SOUNDS = {
   'add-wood': 'once', 'trap-set': 'once', 'cloth': 'once', splash: 'once', land: 'once',
 };
 const FORMATS = ['mp3', 'ogg', 'wav'];
+// Vite serves public/ at the site root; a plain web server serves it at /public/.
+const SOUND_FOLDERS = ['sounds/', 'public/sounds/'];
 const VOLUME = 0.7;
 
 export class Sound {
@@ -92,9 +94,9 @@ export class Sound {
 
   // Looks for a recording of `name` in public/sounds/.
   async load(name) {
-    for (const format of FORMATS) {
+    for (const file of SOUND_FOLDERS.flatMap((folder) => FORMATS.map((format) => `${folder}${name}.${format}`))) {
       try {
-        const response = await fetch(`sounds/${name}.${format}`);
+        const response = await fetch(file);
         if (!response.ok || !(response.headers.get('content-type') ?? '').startsWith('audio')) continue;
         this.files[name] = await this.ctx.decodeAudioData(await response.arrayBuffer());
         if (SOUNDS[name] === 'loop') this.useRecordedLoop(name);
