@@ -29,6 +29,7 @@ import { isNight } from './daylight.js';
 import { MapView } from './mapView.js';
 import { FarView } from './farView.js';
 import { createViews } from './views.js';
+import { HandView } from './handView.js';
 import { CRASH } from './crashTrail.js';
 import { Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
@@ -509,7 +510,9 @@ function updateCompass() {
 
 // --- The camera: top-down, over the shoulder or first person (V switches; see views.js) ---
 // Add ?view=third or ?view=first to the URL to start in one of the others.
-const views = createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, hour: () => survival.hourOfDay, start: new URLSearchParams(location.search).get('view') });
+const views = createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour: () => survival.hourOfDay, start: new URLSearchParams(location.search).get('view') });
+// Your hands and what's in them, in the first-person view (see handView.js).
+const hands = new HandView(camera, scene);
 
 // --- Top-down camera that follows the player ---
 const MAX_ZOOM = 30; // the furthest the camera pulls back, in meters
@@ -595,6 +598,7 @@ function updateCamera(dt) {
   if (views.looking) views.place(dt, cameraTarget);
   else updateTopCamera(dt);
   camera.updateMatrixWorld();
+  hands.update(dt, views.mode === 'first' && !spotting, inventory.selectedItem, inventory.outfit, player);
   // Fade whatever part of a building is between the camera and the player.
   lookout.update(dt, camera, player.feet, player.position);
   const found = pois.update(dt, camera, player.feet, player.position, undefined, player.cave);
@@ -712,7 +716,7 @@ renderer.setAnimationLoop(() => {
   blood.update(dt);
   ambientLife.update(dt, survival.hourOfDay, player.position, Boolean(player.cave));
   updateSound(dt, !survival.alive, actions);
-  snow.update(dt, clock.elapsedTime, cameraTarget);
+  snow.update(dt, clock.elapsedTime, views.looking && !spotting ? camera.position : cameraTarget, { close: views.looking && !spotting, roofs: world.structures, cave: Boolean(player.cave) });
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);
   views.widenFog();

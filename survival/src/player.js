@@ -20,6 +20,7 @@ const JUMP_MAX_DEPTH = 0.3; // too deep in the water to jump beyond this
 const TOP_MARGIN = 0.1; // feet this close below the top of a rock or stump still clear it
 const TOP_OVERHANG = 0.25; // how far past a rock's edge the player can stand on it
 const STEP = 0.6; // the most you can step up or down onto a floor (stairs, the tower) without jumping
+const HIDDEN_LAYER = 1; // (see hideFromCamera)
 const STEP_OVER = 0.35; // low rocks and thin logs this far above your feet you just walk up onto (hidden in grass, they'd snag you)
 // Steep ground: going up, from STEEP_FROM you slow down until at MAX_CLIMB (in terrain.js)
 // you're scrambling, and steeper than that you can't climb at all. Going down, you walk
@@ -157,6 +158,17 @@ export class Player {
       this.torch.rotation.set(TORCH_HOLD_TILT, 0, 0);
       this.knife.position.set(0, 0.03, 0.02);
       this.knife.rotation.set(Math.PI / 2, 0, 0);
+      // Bandaging: a roll in the right hand, and the wrap going on round the left forearm.
+      const linen = new THREE.MeshLambertMaterial({ color: 0xe9e3d4 });
+      // (Big enough to show past the fist and round the sleeve.)
+      this.bandageRoll = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.11, 10), linen);
+      this.bandageRoll.position.set(0, -0.07, 0.06);
+      this.bandageRoll.rotation.z = Math.PI / 2;
+      model.getObjectByName('hand_R').add(this.bandageRoll);
+      this.bandageWrap = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.078, 0.14, 10, 1, true), linen);
+      this.bandageWrap.position.y = -0.14; // (part way down the forearm, which hangs along -y)
+      model.getObjectByName('lowerarm_L').add(this.bandageWrap);
+      for (const part of [this.bandageRoll, this.bandageWrap]) part.visible = false;
 
       this.mixer = new THREE.AnimationMixer(model);
       this.clips = Object.fromEntries(model.animations.map((clip) => [clip.name, this.mixer.clipAction(clip)]));
@@ -200,6 +212,7 @@ export class Player {
     this.chopping = chopping;
     this.drinking = drinking;
     this.busy = busy;
+    for (const part of [this.bandageRoll, this.bandageWrap]) if (part) part.visible = busy === 'bandage';
   }
 
   // Hit by something at (fromX, fromZ), like a charging boar: reel back and get knocked away.
@@ -327,6 +340,15 @@ export class Player {
     _v: new THREE.Vector3(), _t: new THREE.Vector3(), _x: new THREE.Vector3(1, 0, 0),
     _q: new THREE.Quaternion(), _w: new THREE.Quaternion(), _p: new THREE.Quaternion(), _r: new THREE.Quaternion(),
   };
+
+  // In the first-person view the camera is inside your head, so the body's meshes go on a layer
+  // the camera doesn't draw. Only the meshes: a lit torch's light stays on, which hiding the
+  // whole model would switch off. (Call every frame while hidden: tools load in later.)
+  hideFromCamera(hidden) {
+    this.object.traverse((child) => {
+      if (child.isMesh) child.layers.set(hidden ? HIDDEN_LAYER : 0);
+    });
+  }
 
   // One swing of the axe at an animal (the chopping animation, once through).
   swingAxe() {

@@ -116,9 +116,15 @@ for k in range(6):
         b.pole(tuple(tip), tuple(twig), 0.022, lambda: col('birch_bark', 0.06), n=3, taper=0.4)
         clumps.append((twig, random.uniform(0.3, 0.42)))
     for t in (0.6, 1.0):
-        clumps.append((base.lerp(tip, t) + Vector((random.uniform(-0.25, 0.25), random.uniform(0.0, 0.25), random.uniform(-0.25, 0.25))), random.uniform(0.28, 0.4)))
+        on = base.lerp(tip, t)
+        clump = on + Vector((random.uniform(-0.25, 0.25), random.uniform(0.0, 0.25), random.uniform(-0.25, 0.25)))
+        # (Every clump grows on a twig: from the ground, one with none looks like it's floating.)
+        b.pole(tuple(on), tuple(clump), 0.03, lambda: col('birch_bark', 0.06), n=5, taper=0.5)
+        clumps.append((clump, random.uniform(0.28, 0.4)))
 for _ in range(4):
-    clumps.append((top + Vector((random.uniform(-0.6, 0.6), random.uniform(-0.4, 0.7), random.uniform(-0.6, 0.6))), random.uniform(0.3, 0.45)))
+    clump = top + Vector((random.uniform(-0.6, 0.6), random.uniform(-0.4, 0.7), random.uniform(-0.6, 0.6)))
+    b.pole(tuple(top), tuple(clump), 0.03, lambda: col('birch_bark', 0.06), n=5, taper=0.5)
+    clumps.append((clump, random.uniform(0.3, 0.45)))
 for centre, r in clumps:
     leaf_clump(b, tuple(centre), r, random.choice(('leaf_olive', 'leaf_olive', 'leaf_gold', 'leaf_dark')))
 export([build('birch', b, PLANT)], 'birch.glb')

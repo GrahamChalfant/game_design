@@ -9,6 +9,8 @@ const FADE_AFTER = 60; // seconds before a splat starts to fade...
 const FADE_TIME = 30; // ...and how long it takes to go
 const OPACITY = 0.85;
 const GRAVITY = 9;
+const SHAPES = 6;
+const UP = new THREE.Vector3(0, 1, 0);
 
 export class Blood {
   constructor(scene, world) {
@@ -16,9 +18,11 @@ export class Blood {
     this.world = world;
     this.splats = [];
     this.drops = [];
-    this.splatGeometry = blobGeometry();
+    // A few splat shapes to pick from, so no two look the same. They're lit (in shade and at
+    // night they darken like everything else), not glowing red.
+    this.splatGeometries = Array.from({ length: SHAPES }, () => blobGeometry());
     this.dropGeometry = new THREE.IcosahedronGeometry(0.035, 0);
-    this.dropMaterial = new THREE.MeshBasicMaterial({ color: 0x7a0d0d });
+    this.dropMaterial = new THREE.MeshLambertMaterial({ color: 0x5a0909 });
   }
 
   // Blood from a wound at (x, z), knocked away in the direction (awayX, awayZ).
@@ -47,17 +51,20 @@ export class Blood {
 
   splat(x, z, size) {
     if (this.world.terrain.waterDepth(x, z) > 0) return; // washed away
-    const material = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(0x5e0a0a).multiplyScalar(0.8 + Math.random() * 0.4),
+    const material = new THREE.MeshLambertMaterial({
+      color: new THREE.Color(0x4a0707).multiplyScalar(0.8 + Math.random() * 0.4),
       transparent: true,
       opacity: OPACITY,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -2,
     });
-    const splat = new THREE.Mesh(this.splatGeometry, material);
-    splat.position.set(x, this.world.terrain.heightAt(x, z) + 0.03, z);
-    splat.rotation.y = Math.random() * Math.PI * 2;
+    const splat = new THREE.Mesh(this.splatGeometries[Math.floor(Math.random() * SHAPES)], material);
+    splat.position.set(x, this.world.terrain.heightAt(x, z) + 0.02, z);
+    // Lying flat on the ground, slope and all (not level, poking out of a hillside).
+    const { x: sx, z: sz } = this.world.terrain.slopeAt(x, z);
+    const normal = new THREE.Vector3(-sx, 1, -sz).normalize();
+    splat.quaternion.setFromUnitVectors(UP, normal).multiply(new THREE.Quaternion().setFromAxisAngle(UP, Math.random() * Math.PI * 2));
     splat.scale.set(size * (0.7 + Math.random() * 0.6), 1, size);
     splat.userData.age = 0;
     this.scene.add(splat);
@@ -98,17 +105,28 @@ export class Blood {
   }
 }
 
-// A flat, lumpy disc lying on the ground (radius about 1, scaled per splat).
+// A flat splat lying on the ground (radius about 1, scaled per splat): an uneven blob with a
+// few small drops flung out round it, each one different.
 function blobGeometry() {
-  const shape = new THREE.Shape();
-  const points = 14;
-  for (let i = 0; i <= points; i++) {
-    const angle = (i / points) * Math.PI * 2;
-    const r = 0.75 + 0.25 * Math.sin(i * 2.7) * Math.cos(i * 1.3);
-    const px = Math.cos(angle) * r;
-    const pz = Math.sin(angle) * r;
-    if (i === 0) shape.moveTo(px, pz);
-    else shape.lineTo(px, pz);
+  const blob = (cx, cz, radius, points) => {
+    const shape = new THREE.Shape();
+    const lumps = [Math.random() * 6, 1.5 + Math.random() * 2, Math.random() * 6];
+    for (let i = 0; i <= points; i++) {
+      const angle = (i / points) * Math.PI * 2;
+      const r = radius * (0.7 + 0.2 * Math.sin(angle * 3 + lumps[0]) + 0.12 * Math.sin(angle * lumps[1] + lumps[2]));
+      const px = cx + Math.cos(angle) * r;
+      const pz = cz + Math.sin(angle) * r;
+      if (i === 0) shape.moveTo(px, pz);
+      else shape.lineTo(px, pz);
+    }
+    return shape;
+  };
+  const shapes = [blob(0, 0, 1, 16)];
+  const drops = 2 + Math.floor(Math.random() * 4);
+  for (let i = 0; i < drops; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const out = 1.1 + Math.random() * 0.7;
+    shapes.push(blob(Math.cos(angle) * out, Math.sin(angle) * out, 0.1 + Math.random() * 0.18, 7));
   }
-  return new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2); // (facing up)
+  return new THREE.ShapeGeometry(shapes).rotateX(-Math.PI / 2); // (facing up)
 }

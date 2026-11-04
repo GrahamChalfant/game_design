@@ -7,7 +7,14 @@ const uniforms = {
   uSeeCenter: { value: new THREE.Vector2() }, // player's position on screen, in pixels
   uSeeRadius: { value: 0 }, // size of the hole, in pixels
   uSeeDepth: { value: 0 }, // how far the player is from the camera
+  uNearFade: { value: 0 }, // meters: closer to the camera than this, it fades out (0: never)
 };
+
+// Fades trees out (dotted) within `meters` of the camera, so in the close-up views branches
+// don't fill the screen when you stand under one or the camera backs into it.
+export function setNearFade(meters) {
+  uniforms.uNearFade.value = meters;
+}
 
 // Returns a copy of `material` that gets the see-through hole.
 export function seeThroughMaterial(material) {
@@ -21,6 +28,7 @@ export function seeThroughMaterial(material) {
         uniform vec2 uSeeCenter;
         uniform float uSeeRadius;
         uniform float uSeeDepth;
+        uniform float uNearFade;
         // A 4x4 grid of thresholds, so the hole's edge fades out as a dot pattern.
         float bayer4(vec2 p) {
           int x = int(mod(p.x, 4.0));
@@ -39,7 +47,8 @@ export function seeThroughMaterial(material) {
           // Fully clear in the middle, fading to solid at the edge.
           float solid = smoothstep(uSeeRadius * 0.45, uSeeRadius, seeDistance);
           if (solid < bayer4(gl_FragCoord.xy)) discard;
-        }`,
+        }
+        if (uNearFade > 0.0 && smoothstep(uNearFade * 0.45, uNearFade, vViewPosition.z) < bayer4(gl_FragCoord.xy)) discard;`,
       );
   };
   return patched;

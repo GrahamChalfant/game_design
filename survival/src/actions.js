@@ -9,6 +9,8 @@ const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
 const EAT_TIME = 1.2; // seconds of holding the mouse button to eat something
 const BANDAGE_TIME = 2.5; // ...and to bandage yourself up
 const WARMTH_REACH = 3; // how close to a burning fire warms you up, in meters
+const BUTCHER_REACH = 0.75; // butchering, you step up to this close to the carcass...
+const BUTCHER_STEP = 3; // ...at this many meters a second
 const WET_DEPTH = 0.3; // water this deep (in meters) chills you
 const BANDAGE_HEALING = 30;
 // Up a building (the lookout tower) more than this far above the ground, things down on the
@@ -186,7 +188,19 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       // A shot animal: hold E to butcher it for meat, hide and intestines.
       const time = BUTCHER_TIME[carcass.kind];
       butcheringNow = input.isDown('KeyE');
-      if (butcheringNow) busy = 'butcher';
+      if (butcheringNow) {
+        busy = 'butcher';
+        // Step up to it and face it, so your hands are on it (you can start from 1.8 m off).
+        const dx = carcass.position.x - x;
+        const dz = carcass.position.z - z;
+        const away = Math.hypot(dx, dz);
+        if (away > BUTCHER_REACH) {
+          const step = Math.min(away - BUTCHER_REACH, BUTCHER_STEP * dt);
+          player.tryMove((dx / away) * step, 0, world);
+          player.tryMove(0, (dz / away) * step, world);
+        }
+        if (away > 0.05) player.facing = Math.atan2(dx, dz);
+      }
       butchering = butcheringNow ? butchering + dt : 0;
       progress = butchering / time;
       prompt = butcheringNow ? 'Butchering…' : `A dead ${carcass.kind} · hold E to butcher it`;

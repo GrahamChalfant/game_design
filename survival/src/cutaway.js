@@ -30,6 +30,7 @@ export class Cutaway {
       const { roof, cutaway, floor } = child.userData;
       if (!roof && !cutaway && !floor && !FADES.test(child.name)) return;
       child.material = child.material.clone();
+      child.material.side = THREE.DoubleSide; // (from inside, in the close-up views, you see their undersides)
       child.material.transparent = true;
       child.material.userData.opacity = child.material.opacity;
       this.parts.push({ mesh: child, shown: 1, blocking: false });
@@ -56,7 +57,10 @@ export class Cutaway {
   // Fades what's in the way while `close` (the player is at the building); otherwise, or with
   // no camera (e.g. looking through binoculars), brings everything back.
   update(dt, camera, feet, position, close) {
-    const active = Boolean(camera && close);
+    // In the first-person view the camera is in your head: nothing's between it and you, and
+    // you want to see the roof over you, not have it faded away.
+    const inYourHead = camera && Math.hypot(camera.position.x - position.x, camera.position.z - position.z) < 0.6;
+    const active = Boolean(camera && close && !inYourHead);
     if (active) this.findBlocking(camera, feet, position);
     for (const part of this.parts) {
       const target = active && part.blocking ? GHOST : 1;
