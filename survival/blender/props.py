@@ -279,11 +279,12 @@ for y in (0.02, 1.4, 1.78):
 body.box((0, 1.05, -0.1), (0.4, 0.65, 0.12), lambda: col('wool', 0.06))  # the coat
 for x in (-0.1, 0.1):
     body.box((x, 0.1, 0.05), (0.1, 0.16, 0.24), lambda: col('wood_dark'))  # boots
+# (In the locker's own space, like every part: build_hinged moves it round the hinge itself.)
 door = Builder()
-door.box((0.34, 0.9, 0.0), (0.68, 1.74, 0.03), lambda: col('steel', 0.05))
+door.box((-0.01, 0.9, 0.26), (0.68, 1.74, 0.03), lambda: col('steel', 0.05))
 for y in (1.45, 1.55, 1.65):
-    door.box((0.34, y, 0.02), (0.4, 0.025, 0.01), lambda: col('steel_dark'))
-door.box((0.6, 0.95, 0.03), (0.03, 0.18, 0.04), lambda: col('iron'))
+    door.box((-0.01, y, 0.28), (0.4, 0.025, 0.01), lambda: col('steel_dark'))
+door.box((0.25, 0.95, 0.29), (0.03, 0.18, 0.04), lambda: col('iron'))
 export([build('locker', body, METAL), build_hinged('locker-door', door, METAL, (-0.35, 0, 0.26))], 'locker.glb')
 
 # =========================================================================================

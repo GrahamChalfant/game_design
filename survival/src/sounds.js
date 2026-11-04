@@ -76,7 +76,7 @@ export class Sound {
     this.echo = ctx.createDelay(1);
     this.echo.delayTime.value = 0.23;
     const feedback = ctx.createGain();
-    feedback.gain.value = 0.45;
+    feedback.gain.value = 0.3;
     this.echo.connect(feedback).connect(this.echo);
     this.echoOut = ctx.createGain();
     this.echoOut.gain.value = 0;
@@ -170,10 +170,10 @@ export class Sound {
     // The fire's roar rises and falls slowly; the crackles (below) do the rest.
     const flicker = 0.7 + 0.3 * Math.sin(this.time * 0.9) * Math.sin(this.time * 0.37 + 2);
     set('fire', outside * 0.35 * env.fire * flicker, 0.2);
-    set('cave', env.underground * 0.45);
+    set('cave', env.underground * 0.13); // a low background, under the drips and your steps
     // Meat sizzling on the fire: a quiet hiss, with the fat spitting (below).
     set('sizzle', env.cooking ? 0.06 : 0);
-    this.echoOut.gain.setTargetAtTime(env.underground ? 0.7 : 0, now, 0.3);
+    this.echoOut.gain.setTargetAtTime(env.underground ? 0.35 : 0, now, 0.3);
     if (env.paused) return;
 
     // Now-and-then sounds.
@@ -196,8 +196,8 @@ export class Sound {
       this.play('loon', this.around(30, 45));
     }
     // Mosquitoes: by the water, and anywhere at night, unless it's cold.
-    if (!env.underground && env.cold < 0.5 && (env.water || env.night) && this.timers.mosquito <= 0) {
-      this.timers.mosquito = rand(8, 25) * (env.water && env.night ? 1 : 2);
+    if (!env.underground && env.lowland !== false && env.cold < 0.5 && (env.water || env.night) && this.timers.mosquito <= 0) {
+      this.timers.mosquito = rand(20, 50) * (env.water && env.night ? 1 : 2);
       this.play('mosquito');
     }
     // Deer nearby: their hooves as they walk or bolt, and a bleat now and then while they graze.
@@ -222,11 +222,11 @@ export class Sound {
       this.deer.set(animal, timer);
     }
     if (env.underground && this.timers.drip <= 0) {
-      this.timers.drip = rand(0.6, 3);
+      this.timers.drip = rand(2, 6);
       this.drip();
     }
     if (env.underground && this.timers.bat <= 0) {
-      this.timers.bat = rand(4, 12);
+      this.timers.bat = rand(10, 25);
       this.bat();
     }
     // Busy hands: chewing, gulping, rummaging, winding a bandage.
@@ -637,11 +637,12 @@ const EFFECTS = {
   mosquito: (s, v) => {
     const ctx = s.ctx;
     const t = ctx.currentTime;
-    const length = rand(1.2, 2.5);
+    // Slow and faint: it drifts in, hangs about your ear, and drifts off again.
+    const length = rand(4, 7);
     const side = Math.random() < 0.5 ? -1 : 1;
     const pitch = rand(520, 640);
     const whine = ctx.createOscillator();
-    whine.type = 'sawtooth';
+    whine.type = 'triangle';
     whine.frequency.setValueAtTime(pitch * 1.04, t);
     whine.frequency.linearRampToValueAtTime(pitch * 0.96, t + length);
     const wobble = ctx.createOscillator();
@@ -650,12 +651,13 @@ const EFFECTS = {
     depth.gain.value = pitch * 0.01;
     wobble.connect(depth).connect(whine.frequency);
     const filter = ctx.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.value = 1200;
+    filter.type = 'bandpass';
+    filter.frequency.value = pitch * 2;
+    filter.Q.value = 0.8;
+    // A smooth swell and fade (a raised cosine), never a sudden start or stop.
     const amp = ctx.createGain();
-    amp.gain.setValueAtTime(0.0001, t);
-    amp.gain.exponentialRampToValueAtTime(0.03 * v, t + length * 0.5);
-    amp.gain.exponentialRampToValueAtTime(0.0001, t + length);
+    const curve = new Float32Array(64).map((_, i) => 0.01 * v * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / 63)));
+    amp.gain.setValueCurveAtTime(curve, t, length);
     const panner = ctx.createStereoPanner();
     panner.pan.setValueAtTime(side * 0.9, t);
     panner.pan.linearRampToValueAtTime(-side * 0.9, t + length);

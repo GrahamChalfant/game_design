@@ -32,7 +32,7 @@ export const ITEMS = {
   rawMeat: { name: 'Raw meat', stack: 10 },
   cookedMeat: { name: 'Cooked meat', stack: 10 },
   // Made from wood; light it at a burning campfire (#94).
-  torch: { name: 'Torch', stack: 5 },
+  torch: { name: 'Torch', stack: 1 },
   // Lights up the dark around you. Burns down only while you hold it: the in-game minutes
   // it has left are kept on its slot as `burn`.
   litTorch: { name: 'Lit torch', stack: 1, burns: TORCH_MINUTES },

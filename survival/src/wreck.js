@@ -12,11 +12,13 @@ const WING_TOP = 0.45; // how high the wing lies off the ground, for hopping ont
 const SUITCASES = [
   // Thrown out as the plane skidded in, lying in the furrow it dug.
   { ...trailPoint(17, 0.4), heading: 2.2, color: 0x4f5b3a, loot: [['lighter', 1], ['flare', 1]] },
-  { x: 4.2, z: -1.8, heading: 0.3, color: 0x6b4a32, loot: [['bandage', 3], ['rope', 2]], note: 'a first-aid kit' },
+  // The rest lie out in the open, clear of the plane and its wings (which hide anything
+  // under them from the camera), a few meters off the nose, the left wingtip and the tail.
+  { x: 6.2, z: 0.2, heading: 0.3, color: 0x6b4a32, loot: [['bandage', 3], ['rope', 2]], note: 'a first-aid kit' },
   // Your own luggage: your jacket (you come to in just a shirt, and it's cold)...
-  { x: -3, z: -3.6, heading: 2.4, color: 0x3d5a78, loot: [['jacket', 1], ['rope', 2]], note: 'your jacket' },
+  { x: -7.5, z: -2.5, heading: 2.4, color: 0x3d5a78, loot: [['jacket', 1], ['rope', 2]], note: 'your jacket' },
   // ...and the pilot's bag, with a compass.
-  { x: -1.2, z: -10.6, heading: 1.1, color: 0x7a2f2f, loot: [['compass', 1], ['rope', 1]], note: 'a compass' },
+  { x: 0, z: -15, heading: 1.1, color: 0x7a2f2f, loot: [['compass', 1], ['rope', 1]], note: 'a compass' },
 ];
 const CLODS = 46;
 // Where the starting items lie around the wreckage.

@@ -31,6 +31,7 @@ import { FarView } from './farView.js';
 import { CRASH } from './crashTrail.js';
 import { Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
+import { MOUNTAIN_FOOT } from './terrain.js';
 
 // Each game grows a new map from a random seed. Add ?seed=1234 to the address to play (or
 // share) a particular map: the same seed always gives the same map.
@@ -157,6 +158,7 @@ function updateSound(dt, paused, busy = {}) {
     night: isNight(survival.hourOfDay),
     underground,
     cold: player.cave ? 0 : terrain.coldAt(x, z),
+    lowland: terrain.mountainAt(x, z) <= MOUNTAIN_FOOT, // (no mosquitoes up the mountains)
     water: player.cave ? 0 : terrain.nearWater(x, z, 3) ? 1 : terrain.nearWater(x, z, 12) ? 0.45 : 0,
     fire: player.cave ? 0 : fire,
     woods: Math.min(1, Math.max(0, terrain.forest(x, z) + 0.3)),
@@ -206,6 +208,15 @@ function updateFootsteps() {
   if (wasAirborne && !player.airborne) {
     sound.play('land');
     sound.play(`step-${underfoot()}`, null, 1.3);
+    // Off a cliff: a long fall hurts.
+    const damage = player.takeFallDamage();
+    if (damage > 0) {
+      survival.hurt(damage);
+      sound.play('hit');
+      sound.play('hurt');
+      hud.flashHurt();
+      hud.toast(`You land hard (-${damage} health)`);
+    }
   }
   wasAirborne = player.airborne;
   const footfalls = player.takeFootfalls();
@@ -264,6 +275,7 @@ const hud = new Hud({
     hud.forgetRecipes();
     hud.hideSpeech();
     warnedDay = 0;
+    saidMountainCold = null;
     saidShirtCold = saidHungry = saidThirsty = false;
     hud.hideGameOver();
   },
@@ -347,7 +359,7 @@ const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), i
 const DUSK_WARNING_HOUR = 18.5; // a while before sunset at 20:00
 let warnedDay = 0; // the last day the dusk warning was given
 let saidFreezing = false;
-let saidMountainCold = false; // said again each time you head back up
+let saidMountainCold = null; // the day the player last remarked on the mountain cold (once a day at most)
 let saidShirtCold = false; // said once you come to, in just a shirt
 // Running low on food or water: said once each time it drops to a quarter.
 const LOW = 25;
@@ -382,11 +394,11 @@ function thinkAloud({ fire, shelter, cold = 0 }) {
     hud.say("I'm freezing… I need a fire or some shelter.", 6);
   }
   if (!survival.isFreezing) saidFreezing = false;
-  if (cold > 0.3 && !saidMountainCold) {
-    saidMountainCold = true;
+  // Up the mountains: said once a day at most, however often you go up and down.
+  if (cold > 0.3 && saidMountainCold !== day) {
+    saidMountainCold = day;
     hud.say("The air's bitter up here… I won't last long without warmer clothes.", 6);
   }
-  if (cold === 0) saidMountainCold = false;
 }
 const speechPoint = new THREE.Vector3();
 // What the player says on coming across the first of each kind of place.

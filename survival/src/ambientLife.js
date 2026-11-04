@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MOUNTAIN_FOOT } from './terrain.js';
 
 // Little lives going on around you, just for the feel of the place: flocks of birds flying
 // over by day, butterflies over the meadows, and fireflies blinking in the dark. They all
@@ -8,6 +9,8 @@ const BIRDS_PER_FLOCK = [5, 9];
 const BIRD_SPEED = 9; // m/s
 const BIRD_HEIGHT = [7, 11]; // meters above the ground
 const BIRD_RANGE = 90; // a flock this far off turns up somewhere else, upwind
+const GLIDE_TIME = 1.5; // seconds a bird glides between bouts of flapping
+const BIRD_COLORS = [[0x26241f, 0x3a3631], [0x5d625f, 0x8a8c86]]; // [back, belly]: crows, then grey jays
 const BUTTERFLIES = 10;
 const BUTTERFLY_RANGE = 22;
 const FIREFLIES = 60;
@@ -20,21 +23,15 @@ export class AmbientLife {
     this.group = new THREE.Group();
     scene.add(this.group);
 
-    // Birds: two flapping wings each, dark against the ground.
-    const birdMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2622, side: THREE.DoubleSide, roughness: 1 });
-    const wingGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 0, 0.12), new THREE.Vector3(0.38, 0, -0.05), new THREE.Vector3(0, 0, -0.12),
-    ]);
-    wingGeometry.computeVertexNormals();
-    this.flocks = Array.from({ length: FLOCKS }, () => {
+    // Birds: crows and grey jays, low-poly, with wings that bend at the wrist.
+    this.flocks = Array.from({ length: FLOCKS }, (_, f) => {
+      const parts = birdParts(BIRD_COLORS[f % BIRD_COLORS.length]);
       const count = Math.round(rand(...BIRDS_PER_FLOCK));
       const birds = Array.from({ length: count }, (_, i) => {
-        const bird = new THREE.Group();
-        const left = new THREE.Mesh(wingGeometry, birdMaterial);
-        const right = new THREE.Mesh(wingGeometry, birdMaterial);
-        right.scale.x = -1;
-        bird.add(left, right, new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 4).scale(1, 0.8, 2), birdMaterial));
-        bird.userData = { left, right, offset: new THREE.Vector3(rand(-3, 3), rand(-1, 1), -i * 1.2 + rand(-0.5, 0.5)), flap: rand(0, 10) };
+        const bird = makeBird(parts);
+        bird.userData.offset = new THREE.Vector3(rand(-3, 3), rand(-1, 1), -i * 1.2 + rand(-0.5, 0.5));
+        bird.userData.flap = rand(0, 10);
+        bird.userData.glide = rand(0, 10); // when it next stops flapping to glide
         this.group.add(bird);
         return bird;
       });
@@ -79,6 +76,9 @@ export class AmbientLife {
     const day = hour > 5.5 && hour < 20;
     const dusk = hour > 20.5 || hour < 4;
     const cold = terrain.coldAt(position.x, position.z);
+    // No insects up the mountains, nor on their slopes just around you.
+    const lowland = (x, z) => terrain.mountainAt(x, z) <= MOUNTAIN_FOOT;
+    const insects = lowland(position.x, position.z);
 
     // Birds fly over by day, each flock in a loose V, across the player's patch of sky.
     for (const flock of this.flocks) {
@@ -103,14 +103,16 @@ export class AmbientLife {
       const ground = terrain.heightAt(flock.center.x, flock.center.z);
       const facing = Math.atan2(Math.cos(flock.heading), Math.sin(flock.heading));
       for (const bird of flock.birds) {
-        const { left, right, offset } = bird.userData;
-        bird.userData.flap += dt * 11;
-        const local = offset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), facing);
-        bird.position.set(flock.center.x + local.x, Math.max(ground, 0) + flock.height + offset.y, flock.center.z + local.z);
+        const data = bird.userData;
+        const local = data.offset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), facing);
+        bird.position.set(flock.center.x + local.x, Math.max(ground, 0) + flock.height + data.offset.y, flock.center.z + local.z);
         bird.rotation.y = facing;
-        const flap = Math.sin(bird.userData.flap) * 0.7;
-        left.rotation.z = flap;
-        right.rotation.z = -flap;
+        // A few seconds of flapping, then a glide on still wings, held a little up.
+        data.glide -= dt;
+        if (data.glide < -GLIDE_TIME) data.glide = rand(2, 6);
+        const flapping = THREE.MathUtils.smoothstep(data.glide, -0.3, 0.3);
+        data.flap += dt * 10 * flapping;
+        flapBird(bird, Math.sin(data.flap) * 0.75 * flapping, Math.sin(data.flap - 0.9) * 0.55 * flapping, 0.12 * (1 - flapping));
       }
     }
 
@@ -118,7 +120,7 @@ export class AmbientLife {
     for (const fly of this.butterflies) {
       const data = fly.userData;
       const meadow = terrain.forest(position.x, position.z) < 0.2 && cold < 0.2;
-      fly.visible = day && meadow;
+      fly.visible = day && meadow && insects && (!data.placed || lowland(data.home.x, data.home.z));
       if (!fly.visible) {
         data.placed = false;
         continue;
@@ -141,7 +143,7 @@ export class AmbientLife {
     }
 
     // Fireflies blink low over the ground on summer nights.
-    this.fireflies.visible = dusk && cold < 0.3;
+    this.fireflies.visible = dusk && cold < 0.3 && insects;
     if (!this.fireflies.visible) return;
     const p = this.fireflies.geometry.attributes.position;
     const c = this.fireflies.geometry.attributes.color;
@@ -157,7 +159,7 @@ export class AmbientLife {
       fly.drift += dt * 0.4;
       fly.x += Math.sin(fly.drift * 1.3 + i) * dt * 0.3;
       fly.z += Math.cos(fly.drift * 1.1 + i) * dt * 0.3;
-      const blink = Math.max(0, Math.sin((this.time + fly.phase) * fly.speed * 2)) ** 3;
+      const blink = lowland(fly.x, fly.z) ? Math.max(0, Math.sin((this.time + fly.phase) * fly.speed * 2)) ** 3 : 0;
       p.setXYZ(i, fly.x, terrain.heightAt(fly.x, fly.z) + fly.y + Math.sin(fly.drift * 2) * 0.2, fly.z);
       c.setXYZ(i, 0.8 * blink, 1 * blink, 0.35 * blink);
     });
@@ -167,6 +169,81 @@ export class AmbientLife {
 }
 
 const rand = (min, max) => min + Math.random() * (max - min);
+
+// The pieces of one kind of bird, shared by its flock: a body (head, beak and tail fan on
+// it), and a left wing in two parts, the inner from the shoulder to the wrist and the outer
+// from the wrist to the tip. About a crow's size: 0.8 m across the wings. Faces +z.
+function birdParts([back, belly]) {
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide, roughness: 1 });
+  const shape = (triangles) => {
+    const positions = [];
+    const colors = [];
+    for (const [color, ...corners] of triangles) {
+      const c = new THREE.Color(color);
+      for (const p of corners) {
+        positions.push(...p);
+        colors.push(c.r, c.g, c.b);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.computeVertexNormals();
+    return geometry;
+  };
+  const head = [0, 0.012, 0.17];
+  const top = [0, 0.04, 0.02];
+  const under = [0, -0.035, 0.02];
+  const left = [0.045, 0, 0.03];
+  const right = [-0.045, 0, 0.03];
+  const rump = [0, 0.01, -0.11];
+  const beak = 0x1c1b19;
+  const body = shape([
+    [back, head, left, top], [back, head, top, right], [belly, head, under, left], [belly, head, right, under],
+    [back, rump, top, left], [back, rump, right, top], [belly, rump, left, under], [belly, rump, under, right],
+    // The beak, and the tail fanned out behind.
+    [beak, [0, 0.004, 0.215], [0.013, 0.008, 0.163], [-0.013, 0.008, 0.163]],
+    [beak, [0, 0.004, 0.215], [-0.013, 0.008, 0.163], [0, 0.02, 0.163]],
+    [beak, [0, 0.004, 0.215], [0, 0.02, 0.163], [0.013, 0.008, 0.163]],
+    [back, [0, 0.01, -0.1], [0.055, 0.005, -0.24], [0, 0.005, -0.26]],
+    [back, [0, 0.01, -0.1], [0, 0.005, -0.26], [-0.055, 0.005, -0.24]],
+  ]);
+  const inner = shape([[back, [0, 0, 0.04], [0.19, 0, 0.03], [0.19, 0, -0.08]], [back, [0, 0, 0.04], [0.19, 0, -0.08], [0, 0, -0.07]]]);
+  const outer = shape([
+    [back, [0, 0, 0.03], [0.21, 0, -0.03], [0.17, 0, -0.1]], [back, [0, 0, 0.03], [0.17, 0, -0.1], [0, 0, -0.08]],
+  ]);
+  return { material, body, inner, outer };
+}
+
+// One bird, from its kind's parts: the wings hinge at the shoulders and bend at the wrists.
+function makeBird({ material, body, inner, outer }) {
+  const bird = new THREE.Group();
+  bird.add(new THREE.Mesh(body, material));
+  const wings = [1, -1].map((side) => {
+    const shoulder = new THREE.Group();
+    shoulder.position.set(side * 0.035, 0.02, 0.03);
+    shoulder.scale.x = side; // the right wing is the left one mirrored
+    const wrist = new THREE.Group();
+    wrist.position.x = 0.19;
+    wrist.add(new THREE.Mesh(outer, material));
+    shoulder.add(new THREE.Mesh(inner, material), wrist);
+    bird.add(shoulder);
+    return { shoulder, wrist, side };
+  });
+  bird.userData.wings = wings;
+  return bird;
+}
+
+// Sets a bird's wings: `beat` raises the whole wing at the shoulder (radians), `tip` bends the
+// outer part at the wrist (a beat behind, so the wing ripples), and `lift` holds both a little up.
+function flapBird(bird, beat, tip, lift) {
+  for (const { shoulder, wrist, side } of bird.userData.wings) {
+    // (The mirrored right wing turns the other way at the shoulder; inside the mirror, the
+    // wrist bends up for both.)
+    shoulder.rotation.z = side * (beat + lift);
+    wrist.rotation.z = tip - beat * 0.3;
+  }
+}
 
 // A soft round glow, for the fireflies.
 function dot() {
