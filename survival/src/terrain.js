@@ -25,6 +25,10 @@ const ROAD = new THREE.Color(0x9a8668); // the old fire road's packed dirt...
 const RUT = new THREE.Color(0x7e6c54); // ...its wheel ruts...
 const ROAD_GRASS = new THREE.Color(0x848e5c); // ...and the grass growing back down the middle
 
+// The steepest ground anyone can walk up (the player and animals). Only the mountains' rock
+// faces are steeper; lake beds and stream banks don't count (see canClimb).
+export const MAX_CLIMB = THREE.MathUtils.degToRad(40);
+
 const GROUND_CELL = 0.5; // meters along each side of a ground square: bigger gives bigger facets
 const GROUND_BUDGET_MS = 3; // the most time per frame spent building ground
 const LAKE_GAP = [12, 18]; // meters from the plane to the crash lake's shore
@@ -43,6 +47,7 @@ const CREEKS = {
   depth: 0.24, // meters of water in the middle (shallow enough not to soak you: see WET_DEPTH in actions.js)
   clearOfCrash: 45,
 };
+const RIVER_BANK_REACH = 22; // meters from the river's middle its banks are cut back to (see createRiver)
 const CREEK_BED = new THREE.Color(0x8a8670); // pale pebbles under the water
 // Snowy mountains. `up` is how far up a mountain you are, 0 at its foot to 1 near the top.
 const MOUNTAINS = {
@@ -58,6 +63,8 @@ const MOUNTAINS = {
   snowline: 0.52, // `up` where the snow starts
   coldFrom: 0.42, // `up` where the air starts getting colder...
   coldFull: 0.68, // ...and is coldest
+  ridgeRound: 0.25, // how rounded the ridges' crests and the gullies' bottoms are (0 is a sharp crease)
+  blend: 5, // how sharply overlapping peaks meet: higher is closer to a crease, lower blends them more (and fills in the saddles)
 };
 
 // The land: gently rolling ground, a lake, and a river running out of it. Everything is worked out from (x, z) so other code can ask "what's here?".
@@ -132,16 +139,20 @@ export function createTerrain(random, noise, size) {
   const mountainHeight = (x, z) => {
     const highland = highlandAt(x, z);
     if (highland === 0 && !peaks.some((p) => nearPeak(p, x, z))) return 0;
-    let h = 0;
+    // Where peaks overlap, the higher one mostly wins, but they blend into each other (a
+    // power mean rather than the plain highest), so there's a rounded saddle between them
+    // instead of a sharp crease.
+    let sum = 0;
     for (const p of peaks) {
       if (!nearPeak(p, x, z)) continue;
       const up = 1 - smoothstep(outFrom(p, x, z), 0, 1);
       if (up <= 0) continue;
-      // Ridges and gullies on the way up.
-      const ridges = 1 - Math.abs(noise(x * 0.018 + p.offset, z * 0.018));
-      h = Math.max(h, p.height * up ** 1.3 + ridges * 7 * up * up);
+      // Ridges and gullies on the way up, with rounded crests rather than knife edges.
+      const n = noise(x * 0.018 + p.offset, z * 0.018);
+      const ridges = 1 - Math.sqrt(n * n + MOUNTAINS.ridgeRound ** 2);
+      sum += Math.max(0, p.height * up ** 1.3 + ridges * 7 * up * up) ** MOUNTAINS.blend;
     }
-    return MOUNTAINS.highlandHeight * highland ** 1.2 + h;
+    return MOUNTAINS.highlandHeight * highland ** 1.2 + sum ** (1 / MOUNTAINS.blend);
   };
   const baseHeight = (x, z) => hills(x, z) + mountainHeight(x, z);
 
@@ -223,6 +234,21 @@ export function createTerrain(random, noise, size) {
   const waterDepth = (x, z) => {
     const level = waterLevelAt(x, z);
     return level === -Infinity ? 0 : Math.max(0, level - heightAt(x, z));
+  };
+  // Which way the ground rises at (x, z) and how steeply: { x, z } meters up per meter
+  // across. Reuses one object, so copy it if you keep it.
+  const slope = { x: 0, z: 0 };
+  const slopeAt = (x, z) => {
+    slope.x = heightAt(x + 0.5, z) - heightAt(x - 0.5, z);
+    slope.z = heightAt(x, z + 0.5) - heightAt(x, z - 0.5);
+    return slope;
+  };
+  // False if heading (dx, dz) at (x, z) is up ground too steep to climb (see MAX_CLIMB).
+  // Banks in and out of the water are always fine, so you can't get stuck in a lake.
+  const canClimb = (x, z, dx, dz) => {
+    const { x: sx, z: sz } = slopeAt(x, z);
+    if (sx * dx + sz * dz <= 0 || Math.hypot(sx, sz) <= Math.tan(MAX_CLIMB)) return true;
+    return waterDepth(x, z) > 0 || nearWater(x, z, 0.5);
   };
   // Rough "is this within `margin` meters of a lake or the river" check, for placing things.
   const nearWater = (x, z, margin) => {
@@ -367,6 +393,8 @@ export function createTerrain(random, noise, size) {
 
   const terrain = {
     heightAt,
+    slopeAt,
+    canClimb,
     waterLevelAt,
     waterDepth,
     nearWater,
@@ -491,7 +519,10 @@ function createRiver(random, noise, lakeAngle, lake, heightAt, size) {
     z += Math.sin(heading) * STEP;
   }
 
-  const index = channelIndex([{ points }], 8); // (the channel and banks reach 8 m from its middle)
+  // The channel and banks reach this far from its middle: far enough for the banks to slope
+  // all the way up to the land where the river cuts through a hill, rather than stopping
+  // short at a sheer step.
+  const index = channelIndex([{ points }], RIVER_BANK_REACH);
   // The ground height the channel cuts down to at that spot: a rounded bed under the
   // water, and banks sloping back up to meet the land.
   const carve = ({ distance, level, halfWidth }) =>
