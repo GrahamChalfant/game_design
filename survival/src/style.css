@@ -473,6 +473,9 @@ canvas {
 }
 
 #inventory .tip {
+  /* Wrap to the width of the slots: a long line would otherwise stretch the column (and
+     spread the backpack slots apart) on a wide screen. */
+  contain: inline-size;
   margin: 10px 0 0;
   font-size: 12px;
   opacity: 0.75;
@@ -533,7 +536,7 @@ canvas {
 
 #backpack .grid {
   display: grid;
-  grid-template-columns: repeat(6, auto);
+  grid-template-columns: repeat(6, max-content);
   gap: 6px;
 }
 

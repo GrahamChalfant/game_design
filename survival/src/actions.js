@@ -182,6 +182,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       // A shot animal: hold E to butcher it for meat, hide and intestines.
       const time = BUTCHER_TIME[carcass.kind];
       butcheringNow = input.isDown('KeyE');
+      if (butcheringNow) busy = 'butcher';
       butchering = butcheringNow ? butchering + dt : 0;
       progress = butchering / time;
       prompt = butcheringNow ? 'Butchering…' : `A dead ${carcass.kind} · hold E to butcher it`;
@@ -460,7 +461,9 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       if (night && pressedE) onSleep();
     }
 
-    player.setAction(inventory.selectedItem, chopping, drinking, inventory.hasBackpack, busy);
+    // Butchering, you work with your knife if you have one, whatever's in your hand.
+    const inHand = busy === 'butcher' && inventory.count('knife') > 0 ? 'knife' : inventory.selectedItem;
+    player.setAction(inHand, chopping, drinking, inventory.hasBackpack, busy);
     const warmFire = offGround ? null : campfires.near(x, z, WARMTH_REACH);
     const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
     const wet = !player.cave && world.terrain.waterDepth(x, z) > WET_DEPTH;

@@ -19,8 +19,10 @@ const JUMP_MAX_DEPTH = 0.3; // too deep in the water to jump beyond this
 const TOP_MARGIN = 0.1; // feet this close below the top of a rock or stump still clear it
 const TOP_OVERHANG = 0.25; // how far past a rock's edge the player can stand on it
 const STEP = 0.6; // the most you can step up or down onto a floor (stairs, the tower) without jumping
+const STEP_OVER = 0.35; // low rocks and thin logs this far above your feet you just walk up onto (hidden in grass, they'd snag you)
 const KNIFE_GRIP_OFFSET = 0.01; // nudge so the middle of knife.glb's handle (1 cm below its origin) sits in the fist
-const STAB_TIME = 0.25; // seconds a knife jab lasts
+const STAB_TIME = 0.32; // seconds a knife jab lasts: a quick thrust, then the arm comes back
+const STAB_THRUST = 0.3; // the share of the jab spent thrusting forward
 const FADE_TIME = 0.15; // seconds to blend from one animation to the next
 const POSE_SPEED = 8; // how quickly the arms move into and out of a pose (see poseArms)
 const HURT_TIME = 0.45; // seconds the player reels after being hit
@@ -87,7 +89,8 @@ export class Player {
     this.knife.visible = false;
     this.object.add(this.knife);
     this.stabTime = 0; // counts down after a stab, to jab the knife forward
-    this.busy = null; // what the hands are doing: 'search', 'searchLow', 'eat', 'bandage', 'draw' or null
+    this.jab = 0; // how far out the arm is in that jab (0–1)
+    this.busy = null; // what the hands are doing: 'search', 'searchLow', 'eat', 'bandage', 'butcher', 'draw' or null
     this.drawAmount = 0; // how far the bow is drawn (0–1), while drawing it
     this.pose = null; // the arm pose being shown (stays set while it fades out)
     this.poseWeight = 0;
@@ -200,7 +203,7 @@ export class Player {
     else if (this.airborne) this.play('jump');
     else if (this.drinking) this.play('drink');
     else if (this.chopping) this.play('chop');
-    else if (this.busy === 'searchLow' || this.busy === 'bandage') this.play('crouch'); // down on your knees
+    else if (this.busy === 'searchLow' || this.busy === 'bandage' || this.busy === 'butcher') this.play('crouch'); // down on your knees
     else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? SNEAK_SPEED : WALK_SPEED));
     else this.play(this.sneaking ? 'crouch' : 'idle');
     this.mixer.update(dt);
@@ -244,8 +247,15 @@ export class Player {
       } else if (this.pose === 'bandage') {
         // Kneeling, winding a bandage round the leg.
         for (const side of [1, -1]) arm(side, [side * 0.2, -0.7, 0.7], [-side * 0.5 + rummage(side, 6), -0.7, 0.45]);
+      } else if (this.pose === 'butcher') {
+        // Kneeling over the carcass: the left hand holds it down, the right saws at it with the knife.
+        const saw = Math.sin(t * 11) * 0.35;
+        arm(1, [0.25, -0.75, 0.6], [0.05, -0.9, 0.45]);
+        arm(-1, [-0.2, -0.7, 0.65 + saw * 0.4], [-0.05, -0.75, 0.6 + saw]);
       }
     }
+    // A knife jab: the right arm punches straight out in front.
+    if (this.jab > 0 && !(w > 0.5)) arm(-1, [-0.12, -0.2, 1], [-0.02, -0.05, 1], this.jab);
     // Holding a torch: the elbow bent at 90 degrees, the forearm out in front, flame upright.
     if (this.torch.visible && !(w > 0.5 && this.pose !== 'eat')) {
       arm(-1, [-0.12, -1, 0.12], [-0.05, 0.02, 1], 1 - w);
@@ -289,7 +299,7 @@ export class Player {
     _q: new THREE.Quaternion(), _w: new THREE.Quaternion(), _p: new THREE.Quaternion(), _r: new THREE.Quaternion(),
   };
 
-  // A quick forward jab of the knife (no stab animation in player.glb yet).
+  // A quick forward jab of the knife (no stab animation in player.glb, so poseArms thrusts the arm).
   stab() {
     this.stabTime = STAB_TIME;
   }
@@ -301,8 +311,11 @@ export class Player {
     this.torchLight.intensity = this.torchLit ? TORCH_LIGHT * flicker : 0;
     this.torchFlame.scale.setScalar(0.32 * (0.9 + 0.15 * flicker));
     this.stabTime = Math.max(0, this.stabTime - dt);
-    const jab = Math.sin((this.stabTime / STAB_TIME) * Math.PI); // 0 → 1 → 0
-    this.knife.rotation.x = Math.PI / 2 - jab * 0.9;
+    // How far out the arm is in a jab: shoots out fast, comes back slower (0 → 1 → 0).
+    const p = 1 - this.stabTime / STAB_TIME;
+    this.jab = this.stabTime === 0 ? 0 : p < STAB_THRUST ? 1 - (1 - p / STAB_THRUST) ** 2 : 1 - ((p - STAB_THRUST) / (1 - STAB_THRUST)) ** 2;
+    // The blade stays pointing out past the knuckles: thrust out (see poseArms), it points straight ahead.
+    this.knife.rotation.x = Math.PI / 2;
     if (!this.mixer) {
       // Swing the axe while chopping; otherwise rest it on the shoulder.
       this.chopTime = this.chopping ? (this.chopTime ?? 0) + dt : 0;
@@ -433,7 +446,7 @@ export class Player {
     const feet = this.position.y + this.jumpHeight;
     let top = this.position.y;
     for (const o of world.obstacles.near(this.position.x, this.position.z, TOP_OVERHANG)) {
-      if (o.top === undefined || o.top > feet + TOP_MARGIN) continue;
+      if (o.top === undefined || o.top > feet + Math.max(TOP_MARGIN, this.airborne ? 0 : STEP_OVER)) continue;
       if (Math.hypot(o.x - this.position.x, o.z - this.position.z) < o.radius + TOP_OVERHANG) top = Math.max(top, o.top);
     }
     // Floors in buildings (stairs, landings, the lookout's cab) you can step up onto.
@@ -465,7 +478,7 @@ export class Player {
     }
     const feet = this.position.y + this.jumpHeight;
     for (const o of world.obstacles.near(x, z, RADIUS)) {
-      if (o.top !== undefined && feet >= o.top - TOP_MARGIN) continue; // high enough to pass over it
+      if (o.top !== undefined && feet >= o.top - STEP_OVER) continue; // high enough to pass over it, or low enough to step up onto
       if (o.below !== undefined && feet >= o.below) continue; // only in the way lower down (the tower's legs)
       if (o.above !== undefined && feet < o.above) continue; // only in the way higher up (the cab's walls)
       const distance = Math.hypot(o.x - x, o.z - z);
