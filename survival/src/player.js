@@ -21,12 +21,15 @@ const TOP_MARGIN = 0.1; // feet this close below the top of a rock or stump stil
 const TOP_OVERHANG = 0.25; // how far past a rock's edge the player can stand on it
 const STEP = 0.6; // the most you can step up or down onto a floor (stairs, the tower) without jumping
 const STEP_OVER = 0.35; // low rocks and thin logs this far above your feet you just walk up onto (hidden in grass, they'd snag you)
-// Steep ground: from STEEP_FROM you slow down, up or down it, until at MAX_CLIMB (in
-// terrain.js) you're scrambling. Steeper than that you can't climb at all, and can't keep
-// your footing either: you slide slowly down it, so getting down a rock face takes a while.
+// Steep ground: going up, from STEEP_FROM you slow down until at MAX_CLIMB (in terrain.js)
+// you're scrambling, and steeper than that you can't climb at all. Going down, you walk
+// normally down any slope, but step off ground steeper than CLIFF and you fall, and a long
+// fall hurts (see takeFall).
 const STEEP_FROM = THREE.MathUtils.degToRad(25);
 const SCRAMBLE_SPEED = 1.2;
-const SLIDE_SPEED = 0.6;
+const CLIFF = THREE.MathUtils.degToRad(60);
+const SAFE_FALL = 3; // meters you can drop without getting hurt
+const FALL_DAMAGE = 9; // health lost per meter dropped beyond that
 const KNIFE_GRIP_OFFSET = 0.01; // nudge so the middle of knife.glb's handle (1 cm below its origin) sits in the fist
 const STAB_TIME = 0.32; // seconds a knife jab lasts: a quick thrust, then the arm comes back
 const STAB_THRUST = 0.3; // the share of the jab spent thrusting forward
@@ -100,11 +103,14 @@ export class Player {
     this.object.add(this.knife);
     this.stabTime = 0; // counts down after a stab, to jab the knife forward
     this.jab = 0; // how far out the arm is in that jab (0–1)
+    this.swingTime = 0; // counts down through one axe swing at an animal
     this.busy = null; // what the hands are doing: 'search', 'searchLow', 'eat', 'bandage', 'butcher', 'draw' or null
     this.drawAmount = 0; // how far the bow is drawn (0–1), while drawing it
     this.pose = null; // the arm pose being shown (stays set while it fades out)
     this.poseWeight = 0;
     this.footfalls = 0; // feet that have come down since takeFootfalls was last called
+    this.fallFrom = null; // while in the air, the highest the feet have been
+    this.fallDamage = 0; // health lost to landing from a long fall, since takeFallDamage was last called
     this.hurtTime = 0; // counts down after being hit
     this.knock = new THREE.Vector2(); // how fast a hit is pushing the player back
 
@@ -213,8 +219,8 @@ export class Player {
     else if (this.swimming) this.play('swim');
     else if (this.airborne) this.play('jump');
     else if (this.drinking) this.play('drink');
-    else if (this.chopping) this.play('chop');
-    else if (this.busy === 'searchLow' || this.busy === 'bandage' || this.busy === 'butcher') this.play('crouch'); // down on your knees
+    else if (this.chopping || this.swingTime > 0) this.play('chop');
+    else if (this.busy === 'searchLow' || this.busy === 'butcher') this.play('crouch'); // down on your knees
     else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? SNEAK_SPEED : WALK_SPEED));
     else this.play(this.sneaking ? 'crouch' : 'idle');
     const clip = this.playing;
@@ -265,8 +271,11 @@ export class Player {
         arm(-1, [-0.1, 0.08, 1], [-0.04, 0.08, 1]);
         arm(1, [0.35, 0.05, 1 - d * 0.9], [-1, 0.05, 0.9 - d * 0.9]);
       } else if (this.pose === 'bandage') {
-        // Kneeling, winding a bandage round the leg.
-        for (const side of [1, -1]) arm(side, [side * 0.2, -0.7, 0.7], [-side * 0.5 + rummage(side, 6), -0.7, 0.45]);
+        // Standing, the left forearm held out across the chest, the right hand winding a
+        // bandage round and round it.
+        const wind = t * 7;
+        arm(1, [0.3, -0.55, 0.75], [-0.6, 0.1, 0.8]);
+        arm(-1, [-0.2, -0.5, 0.8], [0.35 + Math.cos(wind) * 0.3, 0.05 + Math.sin(wind) * 0.3, 0.85]);
       } else if (this.pose === 'butcher') {
         // Kneeling over the carcass: the left hand holds it down, the right saws at it with the knife.
         const saw = Math.sin(t * 11) * 0.35;
@@ -319,6 +328,19 @@ export class Player {
     _q: new THREE.Quaternion(), _w: new THREE.Quaternion(), _p: new THREE.Quaternion(), _r: new THREE.Quaternion(),
   };
 
+  // One swing of the axe at an animal (the chopping animation, once through).
+  swingAxe() {
+    this.swingTime = this.clips?.chop?.getClip().duration ?? 0.8;
+    if (this.playing === this.clips?.chop) this.clips.chop.time = 0;
+  }
+
+  // Health lost to landing hard (off a cliff) since this was last asked.
+  takeFallDamage() {
+    const damage = Math.round(this.fallDamage);
+    this.fallDamage = 0;
+    return damage;
+  }
+
   // How many times a foot has come down in the walking animation since this was last asked,
   // or null before player.glb has loaded (no animation to follow yet).
   takeFootfalls() {
@@ -340,6 +362,7 @@ export class Player {
     this.torchLight.intensity = this.torchLit ? TORCH_LIGHT * flicker : 0;
     this.torchFlame.scale.setScalar(0.32 * (0.9 + 0.15 * flicker));
     this.stabTime = Math.max(0, this.stabTime - dt);
+    this.swingTime = Math.max(0, (this.swingTime ?? 0) - dt);
     // How far out the arm is in a jab: shoots out fast, comes back slower (0 → 1 → 0).
     const p = 1 - this.stabTime / STAB_TIME;
     this.jab = this.stabTime === 0 ? 0 : p < STAB_THRUST ? 1 - (1 - p / STAB_THRUST) ** 2 : 1 - ((p - STAB_THRUST) / (1 - STAB_THRUST)) ** 2;
@@ -381,14 +404,14 @@ export class Player {
     // How steep the ground underfoot is (not up on a rock or a floor, or in the water).
     const onGround = !this.cave && !this.airborne && this.standingHeight < 0.05 && depth === 0;
     const { x: rise, z: riseZ } = onGround ? world.terrain.slopeAt(this.position.x, this.position.z) : { x: 0, z: 0 };
-    const grade = Math.hypot(rise, riseZ);
-    const tooSteep = grade > Math.tan(MAX_CLIMB);
+    const groundBefore = this.position.y;
+    const [fromX, fromZ] = [this.position.x, this.position.z];
 
     if (moving) {
       const way = new THREE.Vector2(x, z).normalize();
-      // Steep ground slows you to a scramble the steeper it is the way you're going.
-      const along = Math.abs(way.x * rise + way.y * riseZ);
-      const steepness = tooSteep ? 1 : THREE.MathUtils.smoothstep(along, Math.tan(STEEP_FROM), Math.tan(MAX_CLIMB));
+      // Steep ground slows you to a scramble the steeper it is uphill the way you're going.
+      const uphill = Math.max(0, way.x * rise + way.y * riseZ);
+      const steepness = THREE.MathUtils.smoothstep(uphill, Math.tan(STEEP_FROM), Math.tan(MAX_CLIMB));
       speed = THREE.MathUtils.lerp(speed, Math.min(speed, SCRAMBLE_SPEED), steepness);
       const step = way.multiplyScalar(speed * dt);
       // Move one axis at a time so the player slides along trees and the shore.
@@ -401,15 +424,17 @@ export class Player {
       this.facing += diff * Math.min(1, TURN_SPEED * dt);
       this.walkTime += dt;
     }
-    // Too steep to stand on: slide down it.
-    if (tooSteep) {
-      this.tryMove((-rise / grade) * SLIDE_SPEED * dt, 0, world);
-      this.tryMove(0, (-riseZ / grade) * SLIDE_SPEED * dt, world);
-    }
-
     // Underground you walk on the cave's floor; on the surface, the land (or swim).
     const ground = this.cave ? this.cave.floorAt(this.position.x, this.position.z) : world.terrain.heightAt(this.position.x, this.position.z);
     this.position.y = this.cave ? ground : Math.max(ground, world.terrain.waterLevelAt(this.position.x, this.position.z) - SWIM_DEPTH);
+    // The ground fell away faster than a walk down even the steepest slope (a cliff edge): you
+    // go over, falling from where your feet were. In the air, the body keeps its height
+    // whatever the ground below does, so a jump or a fall carries on over dips and drops.
+    const drop = groundBefore - this.position.y;
+    const walkable = Math.hypot(this.position.x - fromX, this.position.z - fromZ) * Math.tan(CLIFF);
+    const overTheEdge = !this.cave && !this.airborne && onGround && drop > walkable + 0.05;
+    if (!this.cave && (this.airborne || overTheEdge)) this.jumpHeight += drop;
+    if (overTheEdge) this.jumpSpeed = Math.min(this.jumpSpeed, -0.01); // falling (so the step-down below doesn't catch you)
 
     // Space to jump (not while swimming or wading deep). The jump only lifts the body:
     // `position` stays on the ground, so the camera doesn't bob.
@@ -424,6 +449,13 @@ export class Player {
       if (this.jumpHeight <= this.standingHeight) this.jumpSpeed = 0; // landed
     }
     if (this.jumpSpeed === 0 && this.jumpHeight <= this.standingHeight) this.jumpHeight = this.standingHeight;
+    // How far you've come down, for fall damage: from the highest point in the air to where you land.
+    if (this.airborne) this.fallFrom = Math.max(this.fallFrom ?? -Infinity, this.feet);
+    else if (this.fallFrom !== null) {
+      const fell = this.fallFrom - this.feet;
+      if (fell > SAFE_FALL && world.terrain.waterDepth(this.position.x, this.position.z) < 0.6) this.fallDamage += (fell - SAFE_FALL) * FALL_DAMAGE;
+      this.fallFrom = null;
+    }
 
     this.object.position.copy(this.position);
     this.object.position.y += this.jumpHeight;
@@ -476,6 +508,8 @@ export class Player {
     this.position.copy(this.spawn);
     this.facing = this.spawnFacing;
     this.jumpHeight = this.jumpSpeed = this.standingHeight = 0;
+    this.fallFrom = null;
+    this.fallDamage = 0;
     this.crouched = false;
     this.body.rotation.x = 0;
     this.hurtTime = 0;

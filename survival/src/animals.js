@@ -4,6 +4,7 @@ import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { createRandom } from './random.js';
 import { CRASH } from './crashTrail.js';
+import { MOUNTAIN_FOOT } from './terrain.js';
 import {
   BOAR_ATTACK_COOLDOWN, BOAR_ATTACK_REACH, BOAR_CALM_DISTANCE, BOAR_CHARGE_SPEED, BOAR_COUNT,
   BOAR_DAMAGE, BOAR_WALK_SPEED, chargeDistance, fleeDistance,
@@ -395,6 +396,7 @@ export class Animals {
     const limit = this.world.size / 2 - 1;
     if (Math.abs(x) > limit || Math.abs(z) > limit) return false;
     if (kind === 'boar' && Math.hypot(x - CRASH.x, z - CRASH.z) < keepOut) return false;
+    if (kind === 'boar' && this.world.terrain.mountainAt(x, z) > MOUNTAIN_FOOT) return false; // boars keep to the lowlands
     if (this.world.terrain.waterDepth(x, z) > 0.35) return false; // (they wade the creeks and shallows)
     return this.world.obstacles.isClear(x, z, radius);
   }

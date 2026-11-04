@@ -60,6 +60,10 @@ export const FLEE_DISTANCE = {
 export const HITS_TO_KILL = { rabbit: 1, deer: 1, boar: 1 }; // one arrow kills: a deer won't wait for a second
 // Knife stabs needed (issue #75/#76). Deer bolt before you can reach them, but count it anyway.
 export const KNIFE_HITS_TO_KILL = { rabbit: 1, deer: 2, boar: 3 };
+// The axe hits harder than the knife but swings slower. It reaches as far as a knife stab
+// (see knifeHitTest), and doesn't wear out on animals.
+export const AXE_HITS_TO_KILL = { rabbit: 1, deer: 2, boar: 2 };
+export const AXE_COOLDOWN = 0.8; // seconds between swings at an animal
 // What each animal gives when you take it from a trap or butcher it.
 export const ANIMAL_DROPS = {
   rabbit: { rawMeat: 2, hide: 1, gut: 1 },
@@ -97,7 +101,7 @@ export function fleeDistance(kind, sneaking) {
 // Applies one hit ('arrow' or 'knife'); returns true if the animal is now dead.
 // Damage is tracked as a fraction, so mixing a stab and an arrow still adds up.
 export function hitAnimal(animal, weapon = 'arrow') {
-  const needed = (weapon === 'knife' ? KNIFE_HITS_TO_KILL : HITS_TO_KILL)[animal.kind];
+  const needed = ({ knife: KNIFE_HITS_TO_KILL, axe: AXE_HITS_TO_KILL }[weapon] ?? HITS_TO_KILL)[animal.kind];
   animal.wounds = (animal.wounds ?? 0) + 1 / needed;
   animal.hits = (animal.hits ?? 0) + 1;
   return animal.wounds >= 1 - 1e-9;

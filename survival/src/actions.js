@@ -1,7 +1,7 @@
 import { formatFuel } from './campfires.js';
 import { isNight } from './daylight.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
-import { ANIMAL_DROPS, BOW_COOLDOWN, BOW_DRAW_TIME, BOW_MIN_DRAW, BUTCHER_TIME, KNIFE_COOLDOWN, arrowFlight, hitAnimal, knifeHitTest } from './hunting.js';
+import { ANIMAL_DROPS, AXE_COOLDOWN, BOW_COOLDOWN, BOW_DRAW_TIME, BOW_MIN_DRAW, BUTCHER_TIME, KNIFE_COOLDOWN, arrowFlight, hitAnimal, knifeHitTest } from './hunting.js';
 import { BERRY_HUNGER, hasBerries, regrowLeft } from './foraging.js';
 
 const COOK_TIME = 3; // seconds of holding the mouse button at a fire to cook one piece of meat
@@ -35,6 +35,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
   let chopBeat = 0; // seconds into the current axe swing (for the sound of it biting)
   const CHOP_BEAT = 0.83; // one swing of player.glb's chop animation
   let knifeReady = 0; // seconds until the knife can stab again
+  let axeReady = 0; // seconds until the axe can swing at an animal again
 
   // Adds items to the inventory. Anything that doesn't fit is dropped on the ground at
   // (dropX, dropZ), or at the player's feet.
@@ -85,7 +86,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     const bush = onGround(bushes.near(x, z, 1.4));
     const now = survival.minutesSurvived;
     const tree = onGround(player.treeInReach(world));
-    const chopping = Boolean(tree && held === 'axe' && input.usingTool() && !player.airborne);
+    // A living animal right in front of you takes the axe instead of a tree (a boar coming at you).
+    const axeTarget = held === 'axe' && !offGround && !player.swimming ? knifeHitTest(x, z, player.facing, animals.all.filter((a) => !a.dead)) : null;
+    axeReady = Math.max(0, axeReady - dt);
+    const chopping = Boolean(tree && held === 'axe' && input.usingTool() && !player.airborne && !axeTarget);
     let prompt = null;
     let progress = null;
     let cookingNow = false;
@@ -408,6 +412,17 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       if (done) eat('berries');
     }
 
+    // The axe: click or hold to swing it at an animal right in front of you.
+    if (axeTarget && input.usingTool() && axeReady === 0 && !player.airborne) {
+      axeReady = AXE_COOLDOWN;
+      player.swingAxe();
+      sfx('arrow-hit', axeTarget.position);
+      if (hitAnimal(axeTarget, 'axe')) {
+        animals.kill(axeTarget);
+        hud.toast(`You killed a ${axeTarget.kind}! Hold E next to it to butcher it`);
+      } else hud.toast(`You hit the ${axeTarget.kind} with your axe`);
+    }
+
     // Stone knife (#75): click or hold to stab whatever's right in front of you. Only stabs
     // that land wear it down. Works next to a carcass or bush too, so you can fight a boar there.
     if (held === 'knife' && input.usingTool() && knifeReady === 0 && !player.swimming && !player.airborne) {
@@ -442,7 +457,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       // It creaks, then crashes down (see Trees: FALL_TIME).
       const at = { x: tree.spot.x, z: tree.spot.z };
       sfx('tree-creak', at);
-      setTimeout(() => sfx('tree-fall', at), 1150);
+      setTimeout(() => sfx('tree-fall', at), 1050); // (tree-fall.mp3's crash is 0.25 s in: it lands with the tree, at FALL_TIME)
       // Wood that doesn't fit lands where the tree fell, a little beyond the stump.
       const away = Math.atan2(tree.spot.x - x, tree.spot.z - z);
       give('wood', tree.wood, tree.spot.x + Math.sin(away) * 1.6, tree.spot.z + Math.cos(away) * 1.6);

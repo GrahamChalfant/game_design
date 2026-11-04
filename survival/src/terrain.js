@@ -28,6 +28,8 @@ const ROAD_GRASS = new THREE.Color(0x848e5c); // ...and the grass growing back d
 // The steepest ground anyone can walk up (the player and animals). Only the mountains' rock
 // faces are steeper; lake beds and stream banks don't count (see canClimb).
 export const MAX_CLIMB = THREE.MathUtils.degToRad(40);
+// Where the mountains begin (see mountainAt): past this, no boars, butterflies, fireflies or mosquitoes.
+export const MOUNTAIN_FOOT = 0.02;
 
 const GROUND_CELL = 0.5; // meters along each side of a ground square: bigger gives bigger facets
 const GROUND_BUDGET_MS = 3; // the most time per frame spent building ground

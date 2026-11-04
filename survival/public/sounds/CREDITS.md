@@ -16,7 +16,7 @@ loop, filtered of low rumble, faded and levelled for the game, from Freesound's 
 | `loon.mp3` | [Late Summer Loons](https://freesound.org/people/itinerantmonk108/sounds/751848/) | itinerantmonk108 | one call, 18.4–26 s |
 | `raven.mp3` | [Raven on roof of Office Supply Centre](https://freesound.org/people/SoundsLikeYukon/sounds/864903/) | SoundsLikeYukon | one call, 2.3–4.2 s |
 | `chop.mp3` | [Wood Chop 8.wav](https://freesound.org/people/wavecal22/sounds/537435/) | wavecal22 | 0.2–1.3 s |
-| `tree-fall.mp3` | [Big Tree Fall in Forest](https://freesound.org/people/Kinoton/sounds/494071/) | Kinoton | 0.3–7.9 s |
+| `tree-fall.mp3` | [Big Tree Fall in Forest](https://freesound.org/people/Kinoton/sounds/494071/) | Kinoton | the crash, 4.5–7.9 s |
 | `step-grass.mp3` | [Hiking Boot Footsteps on Grass](https://freesound.org/people/Fission9/sounds/521587/) | Fission9 | one step, at 3 s |
 | `step-dirt.mp3` | [Footsteps - Exterior - various steps, stumble, stops, dirty](https://freesound.org/people/TILIADESIGN/sounds/591534/) | TILIADESIGN | one step, at 7 s |
 | `step-gravel.mp3` | [Right Gravel Footstep 5](https://freesound.org/people/Ali_6868/sounds/384880/) | Ali_6868 | whole |
