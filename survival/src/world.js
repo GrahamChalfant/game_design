@@ -19,7 +19,7 @@ export const WORLD_SIZE = 1400;
 const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into the haze
 const HECTARES = ((WORLD_SIZE - 4) / 100) ** 2; // the area things are scattered over
 // How many of each thing to scatter, per hectare (100 m × 100 m).
-const FOREST_PER_HECTARE = 160;
+const FOREST_PER_HECTARE = 300; // (the most tried for: open woods take fewer)
 const BROADLEAF_PER_HECTARE = 13;
 const ROCKS_PER_HECTARE = 140;
 // Each forest tree's collision radius.
@@ -36,14 +36,24 @@ const FOREST_RADIUS = {
   'sapling-broadleaf': 0.15,
   'tree-dead': 0.4,
 };
-// Forest trees take their kind from this list in turn, so anything listed once is the rarest.
-// The forest is mostly birch: thin trunks with room between them, so you can walk through
-// it. A few spruce and the odd dead tree are mixed in for colour.
+// Forest trees take their kind from these lists in turn, so anything listed once is the rarest.
+// At the forest's edges it's open birch woods, thin trunks with room to walk between them;
+// deeper in it closes into boreal forest, mostly spruce, crowded together.
 const FOREST_MIX = [
   'birch', 'birch', 'pine-small', 'birch', 'sapling-broadleaf', 'birch', 'birch', 'pine',
   'birch', 'birch', 'tree-dead', 'birch', 'birch', 'pine-skinny', 'birch', 'birch',
 ];
-const FOREST_SPACING = 2.4; // meters of open ground kept between forest trees
+const DEEP_FOREST_MIX = [
+  'pine-skinny', 'pine', 'birch', 'pine-skinny', 'pine-tall', 'pine-small', 'pine-skinny', 'pine',
+  'tree-dead', 'pine-skinny', 'birch', 'pine', 'pine-skinny', 'pine-tall', 'pine-small', 'birch',
+];
+// Meters of open ground kept between forest trees: at the edges, and in the thick of it.
+const FOREST_SPACING = { open: 2.7, deep: 2.1 }; // (spruce boughs reach about 2 m: any closer and it's a wall of branches)
+const DEEP_FROM = [0.25, 0.7]; // forest() values where it goes from open woods to deep forest
+// Under the trees in the deep forest: saplings, young spruce and dead snags, close together.
+const UNDERSTORY_PER_HECTARE = 200;
+const UNDERSTORY_MIX = ['sapling-pine', 'sapling-pine', 'pine-small', 'sapling-broadleaf', 'sapling-pine', 'tree-dead', 'pine-small', 'sapling-pine'];
+const UNDERSTORY_SPACING = 1.2;
 // Up the mountains, dark spruce grow on the lower slopes and snowy ones higher up, thinning
 // out to nothing at the treeline (see mountainAt in terrain.js: 0 at a mountain's foot, 1 at the top).
 const SPRUCE = ['pine', 'pine-tall', 'pine-skinny', 'pine-small', 'pine-wide', 'sapling-pine', 'pine', 'tree-dead'];
@@ -60,6 +70,57 @@ const ROCK_SHAPES = {
   'rock-tall': { radius: 0.35, reach: 0.51, height: 1.17, scale: [0.7, 1.4] },
   'rock-large': { radius: 0.95, reach: 1.18, height: 1.28, scale: [0.8, 1.4] },
 };
+// Rain water standing in the fire road's wheel ruts, here and there (see RUTS in terrain.js):
+// a flat sheet just above the bottom of the rut, so the ground round it shapes the puddle.
+const PUDDLES = { every: 4, chance: 0.2, rut: 0.8, length: [0.6, 1.6], width: [0.45, 0.7] };
+function roadPuddles(random, terrain, paths) {
+  const out = [];
+  for (const path of paths) {
+    for (let i = 1; i < path.length; i++) {
+      const [a, b] = [path[i - 1], path[i]];
+      const d = Math.hypot(b.x - a.x, b.z - a.z);
+      const heading = Math.atan2(b.x - a.x, b.z - a.z);
+      for (let t = random.range(0, PUDDLES.every); t < d; t += PUDDLES.every) {
+        if (random.next() > PUDDLES.chance) continue;
+        const side = random.next() < 0.5 ? -1 : 1;
+        const x = a.x + ((b.x - a.x) * t) / d + Math.cos(heading) * PUDDLES.rut * side;
+        const z = a.z + ((b.z - a.z) * t) / d - Math.sin(heading) * PUDDLES.rut * side;
+        if (terrain.waterDepth(x, z) > 0 || terrain.snowAt(x, z).depth > 0) continue;
+        // (The ground is drawn from heights every half meter, which round off the bottom of a
+        // rut: sit the water just above the drawn ground, from those corners, not the true bottom.)
+        const [gx, gz] = [Math.floor(x / 0.5) * 0.5, Math.floor(z / 0.5) * 0.5];
+        const drawn = (terrain.heightAt(gx, gz) + terrain.heightAt(gx + 0.5, gz) + terrain.heightAt(gx, gz + 0.5) + terrain.heightAt(gx + 0.5, gz + 0.5)) / 4;
+        out.push(new THREE.Matrix4().compose(
+          new THREE.Vector3(x, Math.min(drawn, terrain.heightAt(x, z) + 0.06) + 0.012, z),
+          new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), heading),
+          new THREE.Vector3(random.range(...PUDDLES.width), 1, random.range(...PUDDLES.length)),
+        ));
+      }
+    }
+  }
+  return out;
+}
+// A puddle: a flat, dark, glassy oval (1 across before sizing).
+function puddle() {
+  const geometry = new THREE.CircleGeometry(0.5, 12).rotateX(-Math.PI / 2);
+  return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x3a5054, roughness: 0.06, metalness: 0.2, transparent: true, opacity: 0.88 }));
+}
+// Snow lying on a rock: a copy of the rock a touch bigger, white, drawn only where it faces up
+// (so the snow sits on its top faces, whatever its shape). Swaps in for the rock's material.
+const SNOW_ON_ROCK = { grow: 1.025, facingUp: 0.55 };
+let snowOnRockMaterial = null;
+function snowOnRock() {
+  if (snowOnRockMaterial) return snowOnRockMaterial;
+  snowOnRockMaterial = new THREE.MeshStandardMaterial({ color: 0xe8eef2, roughness: 0.9 });
+  snowOnRockMaterial.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <normal_fragment_maps>',
+      `#include <normal_fragment_maps>
+      if (inverseTransformDirection(normal, viewMatrix).y < ${SNOW_ON_ROCK.facingUp.toFixed(2)}) discard;`,
+    );
+  };
+  return snowOnRockMaterial;
+}
 // How far a rock, scaled and stretched, reaches out from its middle.
 const rockReach = (shape, scale, stretch) => shape.reach * scale * Math.max(stretch[0], stretch[2]);
 const ROCK_TOP = 0.9; // rocks taper, so the player stands a little below the very top
@@ -123,9 +184,22 @@ export function buildWorld(scene, seed) {
   const forest = Object.fromEntries(Object.keys(FOREST_RADIUS).map((kind) => [kind, []]));
   let placedTrees = 0;
   scatter(random, Math.round(FOREST_PER_HECTARE * HECTARES), (x, z) => {
-    if (terrain.forest(x, z) < random.range(-0.15, 0.45) || !isFree(x, z, FOREST_SPACING)) return null;
-    const kind = FOREST_MIX[placedTrees++ % FOREST_MIX.length];
+    const woods = terrain.forest(x, z);
+    if (woods < random.range(-0.15, 0.45)) return null;
+    const deep = THREE.MathUtils.smoothstep(woods, ...DEEP_FROM);
+    if (!isFree(x, z, THREE.MathUtils.lerp(FOREST_SPACING.open, FOREST_SPACING.deep, deep))) return null;
+    const mix = random.next() < deep ? DEEP_FOREST_MIX : FOREST_MIX;
+    const kind = mix[placedTrees++ % mix.length];
     const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
+    forest[kind].push(tree);
+    return tree;
+  });
+  // The understory, in among the trees of the deep forest.
+  scatter(random, Math.round(UNDERSTORY_PER_HECTARE * HECTARES), (x, z) => {
+    const deep = THREE.MathUtils.smoothstep(terrain.forest(x, z), ...DEEP_FROM);
+    if (deep < random.range(0.2, 1) || !isFree(x, z, UNDERSTORY_SPACING)) return null;
+    const kind = UNDERSTORY_MIX[placedTrees++ % UNDERSTORY_MIX.length];
+    const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.6, 1.1));
     forest[kind].push(tree);
     return tree;
   });
@@ -134,7 +208,7 @@ export function buildWorld(scene, seed) {
     scatterAround(random, massif, Math.round(SPRUCE_PER_HECTARE * hectares), (x, z) => {
       const up = terrain.mountainAt(x, z);
       // Thinner the higher you go, and none above the treeline.
-      if (up < 0.02 || up > TREELINE * random.range(0.8, 1.05) || !isFree(x, z, FOREST_SPACING * 0.75)) return null;
+      if (up < 0.02 || up > TREELINE * random.range(0.8, 1.05) || !isFree(x, z, FOREST_SPACING.open * 0.6)) return null;
       const kind = random.pick(up > SNOWY_ABOVE ? SNOWY_SPRUCE : SPRUCE);
       const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
       forest[kind].push(tree);
@@ -156,6 +230,7 @@ export function buildWorld(scene, seed) {
   // squashed or stretched a little differently.
   const rocks = Object.fromEntries(Object.keys(ROCK_SHAPES).map((name) => [name, []]));
   let placedRocks = 0;
+  const snowyRocks = Object.fromEntries(Object.keys(ROCK_SHAPES).map((name) => [name, []])); // the rocks in snowy places, for their snow
   scatter(random, Math.round(ROCKS_PER_HECTARE * HECTARES), (x, z) => {
     if (terrain.groundAt(x, z).kind !== 'rock' && random.next() > 0.08) return null;
     const name = ROCK_MIX[placedRocks % ROCK_MIX.length];
@@ -169,6 +244,11 @@ export function buildWorld(scene, seed) {
     obstacle.top = y + shape.height * ROCK_TOP * scale * stretch[1]; // the player can jump onto it
     const rock = transform(x, y, z, rotation, scale, stretch);
     rocks[name].push(rock);
+    // Lying in snow, a rock has snow on top too.
+    if (terrain.snowAt(x, z).amount > 0.5) {
+      const g = SNOW_ON_ROCK.grow;
+      snowyRocks[name].push(transform(x, y + 0.01, z, rotation, scale * g, stretch));
+    }
     return rock;
   });
   // Stones along the creeks: half-sunk in the water and lying on the banks.
@@ -194,6 +274,9 @@ export function buildWorld(scene, seed) {
       rocks[name].push(transform(x, y, z, random.range(0, Math.PI * 2), scale, stretch));
     }
   }
+  for (const [name, transforms] of Object.entries(snowyRocks)) {
+    if (transforms.length) scene.add(instancedModel(name, placeholders.rock(), transforms, snowOnRock));
+  }
   for (const [name, transforms] of Object.entries(rocks)) {
     scene.add(instancedModel(name, placeholders.rock(), transforms));
   }
@@ -201,6 +284,7 @@ export function buildWorld(scene, seed) {
   // Fallen trees, old fences, and the ruin of the fire road.
   const details = scatterDetails(scene, { random, terrain, obstacles, isFree, pois, worldSize: WORLD_SIZE, hectares: HECTARES });
   ruinRoads(scene, random, terrain, roads, details.addLog, obstacles);
+  scene.add(instancedModel('puddle', puddle(), roadPuddles(createRandom(mapSeed + 23), terrain, roads.paths)));
 
   // Loose stones (for arrowheads) lie in small groups by the rocks and the lake shore,
   // never deep in the forest. They're picked up like any other item (see main.js).
@@ -218,7 +302,7 @@ export function buildWorld(scene, seed) {
       obstacles.isClear(x, z, 0.3),
   );
 
-  const grass = createGrass(mapSeed, terrain, WORLD_SIZE + 10);
+  const grass = createGrass(mapSeed, terrain, WORLD_SIZE + 10, { trees, obstacles });
   grass.update(0, SPAWN.x, SPAWN.z, true);
   scene.add(grass.group);
 

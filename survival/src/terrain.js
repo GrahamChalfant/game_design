@@ -31,8 +31,18 @@ export const MAX_CLIMB = THREE.MathUtils.degToRad(40);
 // Where the mountains begin (see mountainAt): past this, no boars, butterflies, fireflies or mosquitoes.
 export const MOUNTAIN_FOOT = 0.02;
 
+// Hummocks in the land (meters up or down): broad ones a few meters across, and small ones.
+const RELIEF = [0.16, 0.05];
+// The fire road's wheel ruts: how far out from the middle, how wide, how deep; and how much
+// the middle stands up.
+const RUTS = { at: 0.8, width: 0.45, depth: 0.1, crown: 0.04 };
+// Snow: lowland patches start where their noise passes `from`, and pile up to `depth`; the
+// mountain snowfields pile up deeper.
+const SNOW_PATCH = { from: 0.86, depth: 0.22 };
+const SNOW_FIELD_DEPTH = 0.35;
 const GROUND_CELL = 0.5; // meters along each side of a ground square: bigger gives bigger facets
 const FACET = 0.5; // how much each ground triangle is lit as its own flat facet (1) or with the land's smooth slope (0)
+const SNOW_FACET = 0.12; // ...and snow, which is soft
 const GROUND_BUDGET_MS = 3; // the most time per frame spent building ground
 const LAKE_GAP = [12, 18]; // meters from the plane to the crash lake's shore
 // More lakes around the lowlands: how many, how big (meters), and how far apart.
@@ -157,7 +167,10 @@ export function createTerrain(random, noise, size) {
     }
     return MOUNTAINS.highlandHeight * highland ** 1.2 + sum ** (1 / MOUNTAINS.blend);
   };
-  const baseHeight = (x, z) => hills(x, z) + mountainHeight(x, z);
+  // Gentle hummocks and hollows a few meters across, so the land isn't flat as a table at your
+  // feet. (Smoothed away on the roads: see heightAt.)
+  const relief = (x, z) => noise(x * 0.21 + 2100, z * 0.21) * RELIEF[0] + noise(x * 0.73 + 2200, z * 0.73) * RELIEF[1];
+  const baseHeight = (x, z) => hills(x, z) + mountainHeight(x, z) + relief(x, z);
 
   const half = size / 2 - 60;
   const lowland = (x, z, reach) =>
@@ -201,6 +214,35 @@ export function createTerrain(random, noise, size) {
 
   const crashTrail = createCrashTrail(noise);
 
+  // The road, for heightAt and the ground's colours (filled in by layRoads).
+  const ROAD_CELL = 16;
+  const roadCells = new Map();
+
+  // Where snow lies, and how deep: the odd lingering patch in the lowlands, and the snowfields
+  // above the snowline up the mountains. `amount` (0–1) is how white the ground is; `depth`
+  // (meters) is how much snow is piled on it: a quick bank at the edge, then a soft dome, so
+  // the snow has some body to it rather than being paint on the ground.
+  const snowResult = { amount: 0, depth: 0 };
+  const snowAt = (x, z) => {
+    snowResult.amount = 0;
+    snowResult.depth = 0;
+    const patch = noise(x * 0.06 + 400, z * 0.06) + noise(x * 0.4 + 500, z * 0.4) * 0.22;
+    if (patch > SNOW_PATCH.from) {
+      snowResult.amount = Math.min(1, (patch - SNOW_PATCH.from) / 0.03);
+      snowResult.depth = SNOW_PATCH.depth * (0.6 * smoothstep(patch, SNOW_PATCH.from - 0.005, SNOW_PATCH.from + 0.025) + 0.4 * smoothstep(patch, SNOW_PATCH.from + 0.025, SNOW_PATCH.from + 0.12));
+    }
+    const up = mountainAt(x, z);
+    if (up > 0) {
+      const snowy = up + noise(x * 0.05 + 1300, z * 0.05) * 0.1 + noise(x * 0.3 + 1400, z * 0.3) * 0.04;
+      if (snowy > MOUNTAINS.snowline) {
+        const line = MOUNTAINS.snowline;
+        snowResult.amount = Math.max(snowResult.amount, Math.min(1, (snowy - line) / 0.04));
+        snowResult.depth = Math.max(snowResult.depth, SNOW_FIELD_DEPTH * (0.6 * smoothstep(snowy, line - 0.004, line + 0.03) + 0.4 * smoothstep(snowy, line + 0.03, line + 0.15)));
+      }
+    }
+    return snowResult;
+  };
+
   // The land before the creeks are cut into it.
   const landAt = (x, z) => {
     const h = withLakes(baseHeight(x, z), x, z, lakes) + crashTrail.at(x, z).height;
@@ -221,9 +263,22 @@ export function createTerrain(random, noise, size) {
   );
 
   const heightAt = (x, z) => {
-    const h = landAt(x, z);
+    let h = landAt(x, z);
     const c = creeks.nearest(x, z);
-    return c ? Math.min(h, creeks.carve(c)) : h;
+    if (c) h = Math.min(h, creeks.carve(c));
+    // The old fire road: smoothed flat (no hummocks), with two wheel ruts pressed into it and
+    // the middle a little proud of them, blending into the land at its edges.
+    const road = roadCells.size ? roadAt(x, z) : null;
+    if (road) {
+      const across = Math.abs(road.offset);
+      const on = 1 - smoothstep(across, road.half - 0.4, road.half + 0.6);
+      const rut = 1 - smoothstep(Math.abs(across - RUTS.at), RUTS.width * 0.3, RUTS.width);
+      h += on * (-relief(x, z) - rut * RUTS.depth + (1 - smoothstep(across, 0, 0.55)) * RUTS.crown);
+    }
+    // Snow lies on top of the ground (on dry land: not in a creek, a lake or the river).
+    const snow = snowAt(x, z);
+    if (snow.depth <= 0 || (c && c.distance < c.halfWidth + 0.5) || lakeOrRiverLevel(x, z) > h - 0.05) return h;
+    return h + snow.depth;
   };
 
   // The height of the water's surface at (x, z), or -Infinity if there's no water here.
@@ -279,8 +334,6 @@ export function createTerrain(random, noise, size) {
   const coldAt = (x, z) => smoothstep(mountainAt(x, z), MOUNTAINS.coldFrom, MOUNTAINS.coldFull);
 
   // Roads, added with setRoads once the map knows where they go: segments sorted into cells.
-  const ROAD_CELL = 16;
-  const roadCells = new Map();
   let roadHalf = 0;
   const roadAt = (x, z) => {
     if (!roadCells.size) return null;
@@ -325,10 +378,10 @@ export function createTerrain(random, noise, size) {
       color.lerp(tint, Math.min(1, (rock - 0.38) / 0.05));
       kind = 'rock';
     }
-    // A little lingering snow, in the odd patch.
-    const snow = noise(x * 0.06 + 400, z * 0.06) + noise(x * 0.4 + 500, z * 0.4) * 0.22;
-    if (snow > 0.86) {
-      color.lerp(SNOW, Math.min(1, (snow - 0.86) / 0.03));
+    // A little lingering snow, in the odd patch (see snowAt).
+    const lowSnow = noise(x * 0.06 + 400, z * 0.06) + noise(x * 0.4 + 500, z * 0.4) * 0.22;
+    if (lowSnow > SNOW_PATCH.from) {
+      color.lerp(SNOW, Math.min(1, (lowSnow - SNOW_PATCH.from) / 0.03));
       kind = 'snow';
     }
     // Up the mountains: grass gives way to scree and bare rock, then snow.
@@ -398,6 +451,7 @@ export function createTerrain(random, noise, size) {
 
   const terrain = {
     heightAt,
+    snowAt,
     slopeAt,
     canClimb,
     waterLevelAt,
@@ -712,8 +766,12 @@ function createGround(size, heightAt, groundAt, noise) {
       b.fromBufferAttribute(p, i + 1);
       c.fromBufferAttribute(p, i + 2);
       const facet = b.sub(a).cross(c.sub(a)).normalize();
+      // Snow (the near-white ground) is lit smooth, so drifts look soft and rounded.
+      let white = 0;
+      for (let k = 0; k < 3; k++) for (let ch = 0; ch < 3; ch++) white += cornerColors[cornerOf[i + k] * 3 + ch];
+      const facetShare = white / 9 > 0.8 ? SNOW_FACET : FACET;
       for (let k = 0; k < 3; k++) {
-        n.fromBufferAttribute(normals, i + k).lerp(facet, FACET).normalize();
+        n.fromBufferAttribute(normals, i + k).lerp(facet, facetShare).normalize();
         normals.setXYZ(i + k, n.x, n.y, n.z);
       }
       if (i % 600 === 597) yield;
