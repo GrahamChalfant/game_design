@@ -1,5 +1,6 @@
 # Moves the hand-made trees in trees.blend onto the muted, colder palette (see STYLE_GUIDE.md),
-# saves trees.blend, and exports each tree's GLB to survival/public/models/.
+# saves trees.blend, and exports the leafy trees' and the dead tree's GLBs to survival/public/models/
+# (the spruce and pines are made by conifers.py now).
 # Run: blender -b --python recolour_trees.py
 #
 # These trees were modelled by hand, so there's no script to rebuild them with new colours.
@@ -50,7 +51,9 @@ if not scene.get(MARK):
     bpy.ops.wm.save_mainfile()
     print('@@ recoloured trees.blend')
 
-for name in TREES:
+# The spruce and pines are now made by conifers.py: only the leafy trees and the dead tree are
+# exported from trees.blend.
+for name in sorted(LEAVES | {'tree-dead'}):
     o = bpy.data.objects[name]
     bpy.ops.object.select_all(action='DESELECT')
     o.select_set(True)

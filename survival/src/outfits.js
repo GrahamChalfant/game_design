@@ -25,7 +25,7 @@ export function dressModel(model, outfit) {
   const { color } = OUTFITS[outfit ?? 'shirt'];
   const target = color === null ? null : new THREE.Color(color); // (linear, like the vertex colours)
   model.traverse((child) => {
-    if (child.userData.parkaPart) return; // the parka's own pieces keep their colours
+    if (child.userData.parkaPart || child.userData.keepColours) return; // the parka's own pieces (and a torch's flame) keep their colours
     const colors = child.isMesh ? child.geometry.attributes.color : null;
     if (!colors) return;
     // Keep the original colours, so the red jacket can come back when it's put on.

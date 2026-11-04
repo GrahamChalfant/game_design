@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { loadModel } from './models.js';
 
 // Simple stand-ins, used until Blender models exist in public/models/.
 const material = (color, roughness = 0.9) => new THREE.MeshStandardMaterial({ color, roughness });
@@ -475,8 +476,26 @@ export function flames() {
     chunk.userData.ember = true; // campfires.js leaves embers alone when it flickers the flames
     group.add(chunk);
   }
+  // Once it's loaded, the curling, coloured tongues made in Blender (blender/flames.py) take the
+  // place of these stand-in ones. Each has its origin at its base, so the flicker stretches it
+  // up from there just the same.
+  flameModel ??= loadModel('flames');
+  flameModel.then((model) => {
+    if (!model) return;
+    for (const child of [...group.children]) if (!child.userData.ember) group.remove(child);
+    model.traverse((part) => {
+      if (!part.isMesh) return;
+      const tongue = new THREE.Mesh(part.geometry, FLAME_MATERIAL);
+      tongue.userData.keepColours = true; // (the torch's flame is on the player: outfits.js mustn't repaint its reds)
+      tongue.position.copy(part.position);
+      tongue.quaternion.copy(part.quaternion);
+      group.add(tongue);
+    });
+  });
   return group;
 }
+let flameModel = null;
+const FLAME_MATERIAL = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false });
 
 // A torch: a stick with a dark, pitch-soaked wrap at the top. The origin is where the hand
 // grips it; `userData.tip` is how far up the wrap's top is (where a flame goes).

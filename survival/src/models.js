@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { chunkKey, chunkOf, chunksAround } from './stream.js';
+import { CHUNK_SIZE, chunkKey, chunkOf, chunksAround } from './stream.js';
 
 const loader = new GLTFLoader();
 // Vite serves public/ at the site root; a plain web server serves it at /public/.
@@ -22,85 +22,89 @@ export function loadModel(name, folders = MODEL_FOLDERS) {
   });
 }
 
-// Draws many copies of a model cheaply: one InstancedMesh per mesh in the model. Only the
-// copies in the chunks around the player are drawn (see drawModelsAround), so there can be
-// tens of thousands of copies across the map.
+// Draws many copies of a model cheaply. Only the copies in the chunks around the player are
+// drawn (see drawModelsAround), so there can be tens of thousands of copies across the map.
+// Each drawn chunk gets its own InstancedMesh per mesh in the model, so three.js can skip the
+// chunks the camera can't see, and those outside the sun's small shadow area when it draws
+// shadows (with one mesh for everything, every copy nearby was drawn twice every frame).
 // `transforms` holds one Matrix4 (position/rotation/scale) per copy.
 // `changeMaterial`, if given, swaps each material for a modified one.
 // `tints`, if given, holds one THREE.Color per copy to multiply its colours by.
 // `positions`, if given, holds { x, z } per copy: where it belongs on the map. Otherwise it's
 // taken from the transforms (pass it when copies start hidden, like stumps before a tree's cut).
 // Call `holder.setInstance(i, matrix)` to move, rotate or hide (scale 0) one copy.
+const CHUNK_REACH = 24; // meters a copy can stick up or out past its chunk (a tall tree, a falling one)
 export function instancedModel(name, placeholder, transforms, changeMaterial, tints, positions) {
   transforms = transforms.map((t) => t.clone());
   const holder = new THREE.Group();
-  const chunks = new Map(); // chunk key → indices of the copies in it
+  const chunks = new Map(); // chunk key → { indices, centre } of the copies in it
+  const chunkOfCopy = new Array(transforms.length);
+  const slotOf = new Int32Array(transforms.length); // copy → its place in its chunk's meshes
   transforms.forEach((transform, i) => {
     const x = positions ? positions[i].x : transform.elements[12];
     const z = positions ? positions[i].z : transform.elements[14];
     const [cx, cz] = chunkOf(x, z);
     const key = chunkKey(cx, cz);
-    if (!chunks.has(key)) chunks.set(key, []);
-    chunks.get(key).push(i);
+    if (!chunks.has(key)) chunks.set(key, { indices: [], cx, cz, heights: 0 });
+    const chunk = chunks.get(key);
+    slotOf[i] = chunk.indices.length;
+    chunk.indices.push(i);
+    chunk.heights += transform.elements[13];
+    chunkOfCopy[i] = chunk;
   });
 
-  const slotOf = new Int32Array(transforms.length).fill(-1); // copy → its place in the buffers
-  let shown = []; // the copies being drawn, in buffer order
-  let parts = []; // { mesh, local } per mesh in the model
   let template = placeholder;
   const materials = new Map(); // each original material → its changed copy, made once
-
   const matrix = new THREE.Matrix4();
-  const write = (slot, i) => {
-    for (const { mesh, local } of parts) mesh.setMatrixAt(slot, matrix.multiplyMatrices(transforms[i], local));
+  const built = new Map(); // chunk key → [{ mesh, local }] for each mesh in the model
+
+  const change = (m) => {
+    if (!changeMaterial) return m;
+    if (!materials.has(m)) materials.set(m, changeMaterial(m));
+    return materials.get(m);
   };
-  // Makes the InstancedMeshes, with room for at least `capacity` copies.
-  const build = (capacity) => {
-    for (const { mesh } of parts) mesh.dispose();
-    holder.clear();
-    parts = [];
+  // Makes one chunk's meshes, filled with its copies.
+  const buildChunk = (key) => {
+    const chunk = chunks.get(key);
+    const parts = [];
     template.updateMatrixWorld(true);
+    // A sphere round the whole chunk, with room for what stands up out of it.
+    const sphere = new THREE.Sphere(
+      new THREE.Vector3((chunk.cx + 0.5) * CHUNK_SIZE, chunk.heights / chunk.indices.length, (chunk.cz + 0.5) * CHUNK_SIZE),
+      CHUNK_SIZE * 0.71 + CHUNK_REACH,
+    );
     template.traverse((child) => {
       if (!child.isMesh) return;
-      const change = (m) => {
-        if (!changeMaterial) return m;
-        if (!materials.has(m)) materials.set(m, changeMaterial(m));
-        return materials.get(m);
-      };
       const material = Array.isArray(child.material) ? child.material.map(change) : change(child.material);
-      const mesh = new THREE.InstancedMesh(child.geometry, material, capacity);
+      const mesh = new THREE.InstancedMesh(child.geometry, material, chunk.indices.length);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      // Copies are spread around and can move, so don't let three.js skip drawing them.
-      mesh.frustumCulled = false;
-      if (tints) mesh.setColorAt(0, WHITE); // makes the colour buffer
+      mesh.boundingSphere = sphere;
+      const local = child.matrixWorld.clone();
+      chunk.indices.forEach((i, slot) => {
+        mesh.setMatrixAt(slot, matrix.multiplyMatrices(transforms[i], local));
+        if (tints) mesh.setColorAt(slot, tints[i]);
+      });
       holder.add(mesh);
-      parts.push({ mesh, local: child.matrixWorld.clone() });
+      parts.push({ mesh, local });
     });
+    built.set(key, parts);
   };
-  // Fills the buffers with the copies in `keys` (a list of chunk keys).
-  const fill = (keys) => {
-    for (const i of shown) slotOf[i] = -1;
-    shown = keys.flatMap((key) => chunks.get(key) ?? []);
-    const capacity = parts[0]?.mesh.instanceMatrix.count ?? 0;
-    if (shown.length > capacity || parts.length === 0) build(Math.max(64, Math.ceil(shown.length * 1.5)));
-    shown.forEach((i, slot) => {
-      slotOf[i] = slot;
-      write(slot, i);
-      if (tints) for (const { mesh } of parts) mesh.setColorAt(slot, tints[i]);
-    });
-    for (const { mesh } of parts) {
-      mesh.count = shown.length;
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  const dropChunk = (key) => {
+    for (const { mesh } of built.get(key)) {
+      holder.remove(mesh);
+      mesh.dispose();
     }
+    built.delete(key);
   };
 
   let keys = [];
   const stream = {
     draw(newKeys) {
       keys = newKeys;
-      fill(keys);
+      const wanted = new Set(keys.filter((key) => chunks.has(key)));
+      for (const key of [...built.keys()]) if (!wanted.has(key)) dropChunk(key);
+      for (const key of wanted) if (!built.has(key)) buildChunk(key);
     },
   };
   streamed.add(stream);
@@ -108,21 +112,22 @@ export function instancedModel(name, placeholder, transforms, changeMaterial, ti
   loadModel(name).then((model) => {
     if (!model) return;
     template = model;
-    build(Math.max(64, Math.ceil(shown.length * 1.5)));
-    fill(keys);
+    for (const key of [...built.keys()]) dropChunk(key);
+    stream.draw(keys);
   });
 
   holder.setInstance = (i, transform) => {
     transforms[i] = transform.clone();
-    const slot = slotOf[i];
-    if (slot < 0) return;
-    write(slot, i);
-    for (const { mesh } of parts) mesh.instanceMatrix.needsUpdate = true;
+    const parts = built.get(chunkKey(chunkOfCopy[i].cx, chunkOfCopy[i].cz));
+    if (!parts) return;
+    for (const { mesh, local } of parts) {
+      mesh.setMatrixAt(slotOf[i], matrix.multiplyMatrices(transforms[i], local));
+      mesh.instanceMatrix.needsUpdate = true;
+    }
   };
   return holder;
 }
 
-const WHITE = new THREE.Color(1, 1, 1);
 const streamed = new Set();
 let currentKeys = [];
 let currentChunk = null;
