@@ -28,6 +28,9 @@ const POSE_SPEED = 8; // how quickly the arms move into and out of a pose (see p
 const HURT_TIME = 0.45; // seconds the player reels after being hit
 const KNOCKBACK = 7; // m/s a hit throws the player back at first
 const TORCH_LEAN = 0.25; // a held torch leans this far forward from upright (radians)
+// Where each foot comes down in player.glb's walking animations, as a share of the cycle
+// (measured from the shins' lowest points), so footstep sounds land with the feet.
+const FOOTFALLS = { walk: [0.167, 0.639], sneak: [0.361, 0.833] };
 
 export class Player {
   constructor(scene, spawn, worldSize, spawnFacing = 0) {
@@ -94,6 +97,7 @@ export class Player {
     this.drawAmount = 0; // how far the bow is drawn (0–1), while drawing it
     this.pose = null; // the arm pose being shown (stays set while it fades out)
     this.poseWeight = 0;
+    this.footfalls = 0; // feet that have come down since takeFootfalls was last called
     this.hurtTime = 0; // counts down after being hit
     this.knock = new THREE.Vector2(); // how fast a hit is pushing the player back
 
@@ -206,7 +210,16 @@ export class Player {
     else if (this.busy === 'searchLow' || this.busy === 'bandage' || this.busy === 'butcher') this.play('crouch'); // down on your knees
     else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? SNEAK_SPEED : WALK_SPEED));
     else this.play(this.sneaking ? 'crouch' : 'idle');
+    const clip = this.playing;
+    const before = clip.time;
     this.mixer.update(dt);
+    // Count the feet that came down this frame (see takeFootfalls).
+    const falls = moving && FOOTFALLS[clip.getClip().name];
+    if (falls) {
+      const length = clip.getClip().duration;
+      const [a, b] = [before / length, clip.time / length];
+      for (const f of falls) if (b >= a ? f > a && f <= b : f > a || f <= b) this.footfalls++;
+    }
     if (this.alive) this.poseArms(dt);
   }
 
@@ -298,6 +311,15 @@ export class Player {
     _v: new THREE.Vector3(), _t: new THREE.Vector3(), _x: new THREE.Vector3(1, 0, 0),
     _q: new THREE.Quaternion(), _w: new THREE.Quaternion(), _p: new THREE.Quaternion(), _r: new THREE.Quaternion(),
   };
+
+  // How many times a foot has come down in the walking animation since this was last asked,
+  // or null before player.glb has loaded (no animation to follow yet).
+  takeFootfalls() {
+    if (!this.mixer) return null;
+    const falls = this.footfalls;
+    this.footfalls = 0;
+    return falls;
+  }
 
   // A quick forward jab of the knife (no stab animation in player.glb, so poseArms thrusts the arm).
   stab() {

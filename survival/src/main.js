@@ -171,9 +171,12 @@ function updateSound(dt, paused, busy = {}) {
 }
 
 // --- Footsteps ---
-// A step every stride, sounding like whatever's underfoot (quieter while sneaking), a thump
-// when you land from a jump, strokes while swimming, and a splash as you wade in deep.
-const STRIDE = { walk: 0.8, sneak: 0.55, swim: 1.6 };
+// A step each time a foot comes down in the walking animation, sounding like whatever's
+// underfoot (quieter while sneaking), a thump when you land from a jump, strokes while
+// swimming, and a splash as you wade in deep.
+// Meters per step or stroke, for swimming and for before player.glb has loaded (a step
+// every half of the walk or sneak cycle, at full speed).
+const STRIDE = { walk: 1.77, sneak: 1.33, swim: 1.6 };
 const GROUND_SOUNDS = { grass: 'grass', rock: 'rock', snow: 'snow', dirt: 'dirt', road: 'dirt', shore: 'gravel', water: 'water' };
 let stride = 0;
 const lastStep = { x: 0, z: 0 };
@@ -205,7 +208,12 @@ function updateFootsteps() {
     sound.play(`step-${underfoot()}`, null, 1.3);
   }
   wasAirborne = player.airborne;
+  const footfalls = player.takeFootfalls();
   if (player.airborne) return;
+  if (footfalls !== null && !player.swimming) {
+    if (footfalls > 0) sound.play(`step-${underfoot()}`, null, player.sneaking ? 0.45 : 1);
+    return;
+  }
   stride += moved;
   const length = player.swimming ? STRIDE.swim : player.sneaking ? STRIDE.sneak : STRIDE.walk;
   if (stride < length) return;
