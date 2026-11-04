@@ -137,6 +137,11 @@ export function drawModelsAround(x, z) {
   for (const stream of streamed) stream.draw(currentKeys);
 }
 
+// Makes the next drawModelsAround redraw (after the draw distance changes).
+export function redrawModels() {
+  currentChunk = null;
+}
+
 // A transform that hides a copy.
 export const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 

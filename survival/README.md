@@ -55,6 +55,7 @@ automatically whenever you save a file.
 | Tab or I | Open or close your character, inventory and crafting (drag items to move them, or off the menu to drop them) |
 | M | Look at your map, once you've found one |
 | Mouse wheel / trackpad scroll | Zoom in and out |
+| V | Switch view: top-down (the usual), over the shoulder, or first person. In the last two, click to capture the mouse and look around with it (WASD walks the way you look; Esc lets the mouse go), and you can see much further. Add `?view=third` or `?view=first` to the address to start in one |
 | Esc | Pause and show the controls (also closes the inventory) |
 
 ### How to play
