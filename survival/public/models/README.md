@@ -24,9 +24,9 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `log-pile.glb` | 4-3-2 stack of 1.2 m logs with two stakes | 204 | camp_props.py |
 | `stump.glb` | Tree stump with root flares, ~0.45 m tall | 90 | camp_props.py |
 | `trap.glb` | Spring-pole snare: stake, bent sapling with needle tufts, cord and a wide noose lying open in front (-Y), ~0.7 m across | 336 | camp_props.py |
-| `pine.glb`, `pine-small.glb`, `pine-skinny.glb`, `pine-tall.glb`, `pine-wide.glb` | Pines | 188–448 | trees.blend |
-| `pine-snow.glb`, `pine-small-snow.glb` | Snowy pines | 1,124 / 548 | trees.blend |
-| `sapling-pine.glb`, `sapling-broadleaf.glb` | Saplings | 144 / 288 | trees.blend |
+| `pine.glb`, `pine-small.glb`, `pine-skinny.glb`, `pine-tall.glb`, `pine-wide.glb` | Spruce | 1,752–4,165 | blender/conifers.py |
+| `pine-snow.glb`, `pine-small-snow.glb` | Snowy spruce | 2,243 / 1,749 | blender/conifers.py |
+| `sapling-pine.glb`, `sapling-broadleaf.glb` | Saplings | 897 / 288 | blender/conifers.py / trees.blend |
 | `broadleaf.glb` | Field tree | 614 | trees.blend |
 | `tree-dead.glb` | Bare dead tree | 272 | trees.blend |
 | `rock.glb`, `rock-small.glb`, `rock-flat.glb`, `rock-tall.glb`, `rock-large.glb` | Rocks | 44–140 | rock.blend |
