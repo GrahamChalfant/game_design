@@ -27,6 +27,51 @@ export const START_ITEMS = [
   { item: 'backpack', x: 2.8, z: -3.2 },
 ];
 
+// The wreck up close: grime and mud thrown up from the ground (darker the lower it is), and
+// mottled dirt and scuffs over the paint, so the plane's big flat faces don't look like a
+// fresh toy. Height above the ground is measured from the model's lowest point, found on its
+// first frame (once it's been put in place).
+const GRIME = { height: 1.1, mottle: 0.22, scale: 2.3 };
+function weather(model) {
+  const floor = { value: 0 };
+  let measured = false;
+  model.traverse((child) => {
+    if (!child.isMesh) return;
+    const material = child.material.clone();
+    material.roughness = Math.max(material.roughness ?? 1, 0.85);
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uFloor = floor;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vLocal;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLocal = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+          varying vec3 vLocal;
+          uniform float uFloor;
+          float grimeHash(vec2 p) { return fract(sin(dot(p, vec2(41.3, 289.1))) * 15731.743); }
+          float grimeNoise(vec2 p) {
+            vec2 i = floor(p), f = fract(p);
+            f = f * f * (3.0 - 2.0 * f);
+            return mix(mix(grimeHash(i), grimeHash(i + vec2(1, 0)), f.x), mix(grimeHash(i + vec2(0, 1)), grimeHash(i + vec2(1, 1)), f.x), f.y);
+          }`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float above = vLocal.y - uFloor;
+          float mud = 1.0 - smoothstep(0.0, ${GRIME.height.toFixed(2)}, above);
+          float mottle = grimeNoise(vLocal.xz * ${GRIME.scale.toFixed(1)} + vLocal.y * 1.7) * 0.6 + grimeNoise(vLocal.xz * ${(GRIME.scale * 4).toFixed(1)}) * 0.4;
+          vec3 dirt = vec3(0.22, 0.18, 0.13);
+          diffuseColor.rgb = mix(diffuseColor.rgb, dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)) * vec3(1.0), 0.18);
+          diffuseColor.rgb *= 1.0 - ${GRIME.mottle.toFixed(2)} * mottle;
+          diffuseColor.rgb = mix(diffuseColor.rgb, dirt, mud * 0.7);`);
+    };
+    child.material = material;
+    child.onBeforeRender = () => {
+      if (measured) return;
+      measured = true;
+      floor.value = new THREE.Box3().setFromObject(model).min.y;
+    };
+  });
+}
+
 // The crashed bush plane at the start: the plane, its broken-off wing, a few
 // scattered bits of debris and a wisp of smoke from the engine.
 export function buildWreck(scene, world) {
@@ -67,8 +112,8 @@ export function buildWreck(scene, world) {
     return holder;
   };
 
-  place(withModel('plane', placeholders.crashedPlane()), PLANE);
-  place(withModel('plane-wing', placeholders.brokenWing()), WING);
+  place(withModel('plane', placeholders.crashedPlane(), weather), PLANE);
+  place(withModel('plane-wing', placeholders.brokenWing(), weather), WING);
   for (const [x, z, heading] of [[3.5, -8.5, 0.4], [-1.8, -2.4, 2.1], [4.6, -5, 1.2]]) {
     place(swappable('debris', placeholders.debris()), { x, z, heading });
   }

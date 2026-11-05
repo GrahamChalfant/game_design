@@ -81,19 +81,22 @@ function maker(seed) {
 function buildShapes() {
   const r = maker(7);
   const shapes = {};
-  // Moss: a low, soft mound, bright on top.
+  // Moss: a low, soft, lumpy cushion (smooth-shaded: see coverParts), lighter on top.
+  shapes.moss = mossCushion(r);
+  // Needle litter: a thin, ragged drift of old needles, its rim sunk just under the ground so
+  // it melts into it rather than lying on top like a mat.
   let t = [];
-  lump([0, 0.02, 0], [0.42, 0.13, 0.36], 0x6f8a4a, 0x4c6236, r, t);
-  lump([0.28, 0.0, 0.14], [0.2, 0.08, 0.18], 0x7a9452, 0x52683a, r, t);
-  shapes.moss = shape(t);
-  // Needle litter: a flat, ragged rust-brown drift lying on the ground.
-  t = [];
-  const rim = Array.from({ length: 11 }, (_, i) => {
-    const a = (i / 11) * Math.PI * 2;
-    const d = 0.75 + r() * 0.35;
-    return [Math.cos(a) * d, 0.015, Math.sin(a) * d];
+  const rim = Array.from({ length: 16 }, (_, i) => {
+    const a = (i / 16) * Math.PI * 2;
+    const d = 0.62 + r() * 0.45;
+    return [Math.cos(a) * d, -0.03, Math.sin(a) * d];
   });
-  for (let i = 0; i < rim.length; i++) t.push([i % 3 ? 0x5c4430 : 0x4e3a29, [0, 0.025, 0], rim[(i + 1) % rim.length], rim[i]]);
+  const mid = rim.map(([x, , z], i) => [x * 0.55 + (r() - 0.5) * 0.08, 0.018, z * 0.55 + (r() - 0.5) * 0.08]);
+  for (let i = 0; i < rim.length; i++) {
+    const j = (i + 1) % rim.length;
+    const shade = i % 3 ? 0x4f402d : 0x463826;
+    t.push([0x54442f, [0, 0.025, 0], mid[j], mid[i]], [shade, mid[i], mid[j], rim[j]], [shade, mid[i], rim[j], rim[i]]);
+  }
   shapes.litter = shape(t);
   // A fern: fronds arching out from the middle and drooping at the tips.
   t = [];
@@ -118,9 +121,9 @@ function buildShapes() {
   shapes.fern = shape(t);
   // A low shrub: a few dark, leathery leaf clumps (Labrador tea), the odd paler one.
   t = [];
-  lump([0, 0.16, 0], [0.26, 0.17, 0.24], 0x48603a, 0x34472c, r, t);
-  lump([0.2, 0.11, 0.12], [0.18, 0.12, 0.17], 0x52683e, 0x3a4e2e, r, t);
-  lump([-0.16, 0.1, 0.1], [0.17, 0.11, 0.16], 0x6a7046, 0x44502e, r, t);
+  lump([0, 0.16, 0], [0.26, 0.17, 0.24], 0x37492d, 0x263222, r, t);
+  lump([0.2, 0.11, 0.12], [0.18, 0.12, 0.17], 0x3e5131, 0x2a3724, r, t);
+  lump([-0.16, 0.1, 0.1], [0.17, 0.11, 0.16], 0x525a38, 0x343d26, r, t);
   stick([0, 0, 0], [0.05, 0.14, 0.02], 0.018, 0.01, 0x4a3a2c, t, 4);
   shapes.shrub = shape(t);
   // A fallen branch: a grey-brown stick lying on the ground with a side twig (length 1).
@@ -154,10 +157,35 @@ function buildShapes() {
   return shapes;
 }
 
-// The materials and shapes, made once.
+// A moss cushion: a squashed sphere with a lumpy top and a flat underside, its colour going
+// from dark at the base to a lighter, mossy green on top. Smooth-shaded, so it looks soft.
+function mossCushion(r) {
+  const geometry = new THREE.SphereGeometry(1, 12, 7);
+  const p = geometry.attributes.position;
+  const colors = [];
+  const low = new THREE.Color(0x2c3a24);
+  const high = new THREE.Color(0x4a5c33);
+  const c = new THREE.Color();
+  const bumps = Array.from({ length: 7 }, () => [r() * 1.6 - 0.8, r() * 1.6 - 0.8, 0.25 + r() * 0.5]);
+  for (let i = 0; i < p.count; i++) {
+    let [x, y, z] = [p.getX(i), p.getY(i), p.getZ(i)];
+    let lift = 1;
+    for (const [bx, bz, h] of bumps) lift += h * Math.exp(-((x - bx) ** 2 + (z - bz) ** 2) * 9);
+    y = y < 0 ? y * 0.15 : y * lift;
+    p.setXYZ(i, x * 0.42, y * 0.07, z * 0.36);
+    c.copy(low).lerp(high, Math.min(1, Math.max(0, y) * 0.8 + 0.25 * Math.sin(x * 9 + z * 7) ** 2));
+    colors.push(c.r, c.g, c.b);
+  }
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+// The materials and shapes, made once. Most are flat-shaded; the moss is smooth.
 export function coverParts() {
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, side: THREE.DoubleSide });
-  return { material, shapes: buildShapes() };
+  const smooth = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  return { material, materials: { moss: smooth }, shapes: buildShapes() };
 }
 
 // Picks something to grow at (x, z) in a chunk, or null. `random` is the chunk's own;
@@ -177,7 +205,7 @@ export function pickCover(random, woods) {
 }
 
 // How big each kind is drawn (a scale range), and whether it lies along the slope.
-const SIZES = { moss: [0.6, 1.5], litter: [0.45, 1.05], fern: [0.7, 1.35], shrub: [0.7, 1.4], branch: [0.7, 1.7], stones: [0.7, 1.4], mushrooms: [0.8, 1.3] };
+const SIZES = { moss: [0.5, 1.3], litter: [0.45, 1.05], fern: [0.7, 1.35], shrub: [0.7, 1.4], branch: [0.7, 1.7], stones: [0.7, 1.4], mushrooms: [0.8, 1.3] };
 const LIES_FLAT = new Set(['litter', 'branch', 'moss']);
 
 // A copy of `kind` at (x, z): its matrix and tint.

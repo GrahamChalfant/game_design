@@ -360,7 +360,9 @@ export function createTerrain(random, noise, size) {
   const color = new THREE.Color();
   const tint = new THREE.Color();
   // What the ground looks like at (x, z). The returned colour is reused: copy it if you keep it.
-  const groundAt = (x, z) => {
+  // `withSnow` false leaves the snow out of the colour (the ground's mesh blends it in itself,
+  // smoothly, from snowAt: see createGround).
+  const groundAt = (x, z, withSnow = true) => {
     // Broad sage and olive areas, ochre dry patches and dark mossy blotches, like brush strokes.
     color.copy(SAGE).lerp(OLIVE, clamp(noise(x * 0.025 + 300, z * 0.025) + 0.5, 0, 1));
     color.lerp(OCHRE, smoothstep(noise(x * 0.07 + 600, z * 0.07) + noise(x * 0.3, z * 0.3) * 0.25, 0.15, 0.6) * 0.7);
@@ -381,7 +383,7 @@ export function createTerrain(random, noise, size) {
     // A little lingering snow, in the odd patch (see snowAt).
     const lowSnow = noise(x * 0.06 + 400, z * 0.06) + noise(x * 0.4 + 500, z * 0.4) * 0.22;
     if (lowSnow > SNOW_PATCH.from) {
-      color.lerp(SNOW, Math.min(1, (lowSnow - SNOW_PATCH.from) / 0.03));
+      if (withSnow) color.lerp(SNOW, Math.min(1, (lowSnow - SNOW_PATCH.from) / 0.03));
       kind = 'snow';
     }
     // Up the mountains: grass gives way to scree and bare rock, then snow.
@@ -395,7 +397,7 @@ export function createTerrain(random, noise, size) {
       }
       const snowy = up + noise(x * 0.05 + 1300, z * 0.05) * 0.1 + noise(x * 0.3 + 1400, z * 0.3) * 0.04;
       if (snowy > MOUNTAINS.snowline) {
-        color.lerp(SNOW, Math.min(1, (snowy - MOUNTAINS.snowline) / 0.04));
+        if (withSnow) color.lerp(SNOW, Math.min(1, (snowy - MOUNTAINS.snowline) / 0.04));
         kind = 'snow';
       }
     }
@@ -499,7 +501,7 @@ export function createTerrain(random, noise, size) {
     },
     // Makes the ground and water meshes (slow, so only for the map you keep).
     build() {
-      const ground = createGround(size, heightAt, groundAt, noise);
+      const ground = createGround(size, heightAt, groundAt, noise, snowAt);
       terrain.ground = ground.group;
       terrain.drawAround = ground.drawAround;
       terrain.water = createWater(lakes, river, creeks.list);
@@ -715,9 +717,22 @@ function channelIndex(courses, reach) {
 
 // The ground: faceted hilly meshes where every triangle is one flat colour, one per chunk,
 // built as the player comes near (see drawAround) and dropped again once they're far away.
-function createGround(size, heightAt, groundAt, noise) {
+function createGround(size, heightAt, groundAt, noise, snowAt) {
   const group = new THREE.Group();
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  // Snow is blended in per pixel from each corner's `snow` amount, not painted per triangle:
+  // the edge of a patch then runs as a smooth curve through the triangles, instead of a
+  // sawtooth along their edges.
+  const snowColor = { value: SNOW.clone() };
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uSnowColor = snowColor;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float snow;\nvarying float vSnow;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSnow = snow;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uSnowColor;\nvarying float vSnow;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uSnowColor, smoothstep(0.4, 0.6, vSnow));');
+  };
   const built = new Map(); // chunk key → mesh (its `userData.cell` is the size of its squares)
   const half = size / 2;
   // Chunks more than 2 out from the player's (only drawn in the views that look out across the
@@ -743,8 +758,10 @@ function createGround(size, heightAt, groundAt, noise) {
     // sharply the two triangles of a square land either side of the change, and the road and
     // yards come out as a checkerboard of brown and green.)
     const cornerColors = new Float32Array(corners.count * 3);
+    const cornerSnow = new Float32Array(corners.count);
     for (let i = 0; i < corners.count; i++) {
-      const { color } = groundAt(corners.getX(i), corners.getZ(i));
+      cornerSnow[i] = snowAt(corners.getX(i), corners.getZ(i)).amount;
+      const { color } = groundAt(corners.getX(i), corners.getZ(i), false);
       cornerColors[i * 3] = color.r;
       cornerColors[i * 3 + 1] = color.g;
       cornerColors[i * 3 + 2] = color.b;
@@ -766,10 +783,9 @@ function createGround(size, heightAt, groundAt, noise) {
       b.fromBufferAttribute(p, i + 1);
       c.fromBufferAttribute(p, i + 2);
       const facet = b.sub(a).cross(c.sub(a)).normalize();
-      // Snow (the near-white ground) is lit smooth, so drifts look soft and rounded.
-      let white = 0;
-      for (let k = 0; k < 3; k++) for (let ch = 0; ch < 3; ch++) white += cornerColors[cornerOf[i + k] * 3 + ch];
-      const facetShare = white / 9 > 0.8 ? SNOW_FACET : FACET;
+      // Snow is lit smooth, so drifts look soft and rounded.
+      const snowy = (cornerSnow[cornerOf[i]] + cornerSnow[cornerOf[i + 1]] + cornerSnow[cornerOf[i + 2]]) / 3;
+      const facetShare = THREE.MathUtils.lerp(FACET, SNOW_FACET, snowy);
       for (let k = 0; k < 3; k++) {
         n.fromBufferAttribute(normals, i + k).lerp(facet, facetShare).normalize();
         normals.setXYZ(i + k, n.x, n.y, n.z);
@@ -799,6 +815,9 @@ function createGround(size, heightAt, groundAt, noise) {
       if (i % 300 === 297) yield;
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const snow = new Float32Array(position.count);
+    for (let i = 0; i < position.count; i++) snow[i] = cornerSnow[cornerOf[i]];
+    geometry.setAttribute('snow', new THREE.BufferAttribute(snow, 1));
     geometry.computeBoundingSphere();
 
     const mesh = new THREE.Mesh(geometry, material);
