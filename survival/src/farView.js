@@ -152,7 +152,7 @@ export class FarView {
     place(trunk, 0xc8c4b6, leafy.filter((tree) => tree.kind === 'birch'));
     place(trunk, 0x4a3a2e, leafy.filter((tree) => tree.kind !== 'birch'));
     place(cone, 0x34493f, spruce);
-    place(crown, 0x8f8c58, leafy);
+    place(crown, 0x606a40, leafy); // (the canopies' olive and gold, mixed, as they read from far off: paler and the far forest is a band of mustard)
   }
 
 }

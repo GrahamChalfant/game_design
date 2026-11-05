@@ -563,7 +563,9 @@ def bark_col():
 log.add(verts, faces, bark_col)
 # Broken ends: jagged, pale wood.
 for end, ring_ in ((-0.5, rings[0]), (0.5, rings[-1])):
-    tip = (end + math.copysign(0.12, end), 0.55, 0.05)
+    # (Only just proud of the trunk: the game stretches a log 3-6.5 m long, so anything more
+    # comes out as a long point, like a sharpened pencil.)
+    tip = (end + math.copysign(0.02, end), 0.55, 0.05)
     vs = [g(*p) for p in ring_] + [g(*tip)]
     fs = [((j + 1) % N, j, N) if end > 0 else (j, (j + 1) % N, N) for j in range(N)]
     log.add(vs, fs, lambda: col('end_grain', 0.08))

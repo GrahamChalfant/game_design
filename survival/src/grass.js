@@ -86,8 +86,9 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
       let name = random.pick(TUFT_MIX);
       const shade = random.range(0.85, 1.15);
       const hue = random.range(-0.015, 0.015);
-      const width = random.range(0.8, 1.3);
-      let height = random.range(0.3, 0.7);
+      // (Narrow, so up close a tuft is blades of grass rather than a few wide paper strips.)
+      const width = random.range(0.5, 0.85);
+      let height = random.range(0.35, 0.8);
       const spin = random.range(0, Math.PI * 2);
       const thin = random.next();
       if (Math.abs(x) > half || Math.abs(z) > half) continue;
@@ -148,7 +149,7 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
     return kind;
   });
   const cover = coverParts();
-  for (const name of COVER_KINDS) kinds.push({ name, geometry: cover.shapes[name], material: cover.material, mesh: null });
+  for (const name of COVER_KINDS) kinds.push({ name, geometry: cover.shapes[name], material: cover.materials[name] ?? cover.material, mesh: null });
   let shownKeys = [];
   const draw = () => {
     for (const kind of kinds) {
