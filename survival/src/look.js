@@ -73,6 +73,70 @@ export function needleMaterial(material) {
   return result;
 }
 
+// ---- hair (the player's beard, brows and hair: blender/survivor.py) ----
+// Locks of fine strands, drawn once: light on clear, so the vertex colour gives each card its
+// shade. LOCKS of them side by side, each card showing one (u across it, v from the root at the
+// top to the tips at the bottom). A lock is full width at the root and its strands draw together
+// toward a ragged point, a few straying, so a card reads as a clump of hair, not a chip.
+export const LOCKS = 4;
+let strands = null;
+function hairTexture() {
+  if (strands) return strands;
+  const W = 128 * LOCKS, H = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.lineCap = 'round';
+  let seed = 11;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let lock = 0; lock < LOCKS; lock++) {
+    const left = lock * 128;
+    const middle = left + 64 + (rand() - 0.5) * 16;
+    for (let i = 0; i < 70; i++) {
+      const start = left + 10 + rand() * 108;
+      const stray = rand() < 0.15;
+      const length = H * (stray ? 0.3 + 0.5 * rand() : 0.55 + 0.45 * rand() ** 0.5);
+      const light = 120 + rand() * 120;
+      const width = 1.3 + rand() * 1.4;
+      const wave = rand() * 6.28;
+      let x = start;
+      for (let y = 0; y < length; y += 4) {
+        const t = y / H;
+        // (Drawing in toward the lock's middle, down its length; strays keep going their way.)
+        const target = stray ? start + (start - middle) * 0.3 * t : start + (middle - start) * t * 0.85;
+        const nx = target + Math.sin(y * 0.06 + wave) * 1.2;
+        const l = Math.round(light * (0.8 + 0.3 * t));
+        ctx.strokeStyle = `rgb(${l},${l},${l})`;
+        ctx.lineWidth = width * (1 - 0.5 * (y / length));
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(nx, y + 4.5);
+        ctx.stroke();
+        x = nx;
+      }
+    }
+  }
+  strands = new THREE.CanvasTexture(canvas);
+  strands.colorSpace = THREE.SRGBColorSpace;
+  strands.anisotropy = 4;
+  return strands;
+}
+
+// The material for hair cards (named 'hair' in the model): the strand texture, cut out where
+// it's clear, seen from both sides, with a soft sheen.
+export function hairMaterial(material) {
+  if (material.userData.hair) return material;
+  material.userData.hair = true;
+  material.map = hairTexture();
+  material.alphaTest = 0.5;
+  material.side = THREE.DoubleSide;
+  material.color.setScalar(1.35); // (the strands are mid-grey on average)
+  if ('roughness' in material) material.roughness = 0.7;
+  material.needsUpdate = true;
+  return material;
+}
+
 // Lights a tree as one soft, rounded mass instead of facet by facet: every face's normal is
 // bent toward pointing out and a little up from the trunk (SOFT: how far), and the back of a
 // face is lit like its front, so a needle card or a bough's underside doesn't go dark just
