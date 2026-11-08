@@ -21,6 +21,9 @@ from kit import PAL, Builder, g, material
 
 OUT = os.path.join(HERE, '..', 'public', 'models', 'player.glb')
 RIG = globals().get('RIG', OUT)
+# How far out from the middle the arms' joints are (shoulder, elbow, wrist), so they hang close
+# at his sides. The skeleton is moved to match (its arm bones only turn in the animations).
+ARM_X = {'upperarm': 0.2, 'lowerarm': 0.212, 'hand': 0.222}
 PACK_ON_BACK = (0, 0.84, -0.295)  # (game axes: where backpack.glb hangs on his back)
 
 PAL.update(
@@ -162,8 +165,8 @@ def torso(parts):
     p = Part(['hips', 'spine'])
     # The jacket: hips (its hem) up to the shoulders, a little fuller at the chest.
     rings = []
-    for y, w, front, back in ((0.84, 0.205, 0.13, 0.12), (0.9, 0.2, 0.125, 0.12), (1.02, 0.19, 0.12, 0.115), (1.16, 0.205, 0.135, 0.12),
-                              (1.27, 0.225, 0.13, 0.125), (1.34, 0.235, 0.115, 0.115), (1.39, 0.2, 0.1, 0.105), (1.43, 0.13, 0.085, 0.095)):
+    for y, w, front, back in ((0.84, 0.19, 0.13, 0.12), (0.9, 0.185, 0.125, 0.12), (1.02, 0.176, 0.12, 0.115), (1.16, 0.182, 0.135, 0.12),
+                              (1.27, 0.19, 0.13, 0.125), (1.34, 0.186, 0.115, 0.115), (1.39, 0.16, 0.1, 0.105), (1.43, 0.12, 0.085, 0.095)):
         rings.append(section(Vector((0, y, 0)), w, front, back, 14, power=2.6))
     def coat(i, k, c, n):
         if i == 0 and n.y < 0.3:
@@ -189,9 +192,9 @@ def torso(parts):
 def arms(parts):
     for s, side in ((1, 'L'), (-1, 'R')):
         p = Part(['spine', f'upperarm_{side}', f'lowerarm_{side}', f'hand_{side}'])
-        shoulder, elbow, wrist = Vector((0.27 * s, 1.37, 0)), Vector((0.305 * s, 1.04, -0.01)), Vector((0.315 * s, 0.8, 0.0))
+        shoulder, elbow, wrist = Vector((ARM_X['upperarm'] * s, 1.36, 0)), Vector((ARM_X['lowerarm'] * s, 1.04, -0.01)), Vector((ARM_X['hand'] * s, 0.8, 0.0))
         # (The sleeve starts inside the shoulder and rounds into it, not perched on top.)
-        tube_between(p, shoulder + Vector((-0.1 * s, -0.045, 0)), elbow, [(0.045, 0.05), (0.068, 0.066), (0.068, 0.065), (0.063, 0.06), (0.058, 0.056)], lambda i, k, c, n: tone('coat'), sides=9, cap_start=False)
+        tube_between(p, shoulder + Vector((-0.06 * s, -0.04, 0)), elbow, [(0.045, 0.05), (0.068, 0.066), (0.068, 0.065), (0.063, 0.06), (0.058, 0.056)], lambda i, k, c, n: tone('coat'), sides=9, cap_start=False)
         tube_between(p, elbow + Vector((0, 0.02, 0)), wrist + Vector((0, 0.02, 0)), [(0.06, 0.058), (0.055, 0.052), (0.05, 0.048)], lambda i, k, c, n: tone('coat'), sides=9, cap_start=False)
         tube_between(p, wrist + Vector((0, 0.05, 0)), wrist - Vector((0, 0.01, 0)), [(0.054, 0.052), (0.05, 0.048)], lambda i, k, c, n: tone('coat_dark', 0.02), sides=9)  # cuff
         # The hand, in a wool glove: a palm, the fingers together and curled a little, a thumb.
@@ -642,6 +645,16 @@ before, actions = set(bpy.data.objects), set(bpy.data.actions)
 bpy.ops.import_scene.gltf(filepath=os.path.abspath(RIG))
 brought = [ob for ob in bpy.data.objects if ob not in before]
 arm = next(ob for ob in brought if ob.type == 'ARMATURE')
+bpy.context.view_layer.objects.active = arm
+bpy.ops.object.mode_set(mode='EDIT')
+for side, s_ in (('L', 1), ('R', -1)):
+    for bone, x in ARM_X.items():
+        eb = arm.data.edit_bones[f'{bone}_{side}']
+        eb.use_connect = False
+        dx = s_ * x - eb.head.x
+        eb.head.x += dx
+        eb.tail.x += dx
+bpy.ops.object.mode_set(mode='OBJECT')
 for ob in [ob for ob in brought if ob.type == 'MESH' and ob.name.split('.')[0] in ('player', 'player-details', 'player-hair', 'player-pack')]:
     brought.remove(ob)
     bpy.data.objects.remove(ob)

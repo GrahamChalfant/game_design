@@ -3,7 +3,7 @@ import { SpatialGrid } from './grid.js';
 import { loadModel } from './models.js';
 import { createRandom } from './random.js';
 import { CHUNK_SIZE, chunkKey, chunkOf, chunkSeed, chunksAround } from './stream.js';
-import { COVER_KINDS, coverParts, pickCover, placeCover, rootsFor } from './groundCover.js';
+import { COVER_KINDS, coverParts, pickCarpet, pickCover, placeCover, rootsFor } from './groundCover.js';
 import { bladeMaterial, bladeTuft, isBladeTuft } from './look.js';
 
 const FOREST_THINNING = 0.75; // the share of tufts left out where trees grow
@@ -11,6 +11,8 @@ const TUFT_BRIGHTNESS = 1.5;
 const TRIES_PER_CHUNK = 900; // spots tried per chunk; the ones on grassy ground get a tuft
 const COVER_TRIES_PER_CHUNK = 650; // ...and for the moss, ferns, shrubs and so on (see groundCover.js)
 const COVER_GROUND = new Set(['grass', 'dirt']); // what ground they grow on
+const CARPET_TRIES_PER_CHUNK = 3600; // ...and for the heath and lichen carpeting the ground (pickCarpet)
+const HEATH_BRIGHTNESS = 2.6; // (the leaf texture is mid-grey)
 // The road's verges: from this far inside its edge to this far outside it, the grass grows
 // long and thick, from these tufts.
 const VERGE = [0.35, 1.1];
@@ -134,6 +136,21 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
       if (!COVER_GROUND.has(terrain.groundAt(x, z).kind) || terrain.waterDepth(x, z) > 0) continue;
       if (!cleared.isClear(x, z, 0) || (obstacles && !obstacles.isClear(x, z, 0.12))) continue;
       tufts[kind].push(placeCover(kind, x, z, random, terrain));
+    }
+    // The carpet: heath, lichen and Labrador tea, in patches and zones.
+    for (let tries = 0; tries < CARPET_TRIES_PER_CHUNK; tries++) {
+      if (tries % 60 === 59) yield;
+      const x = (cx + random.next()) * CHUNK_SIZE;
+      const z = (cz + random.next()) * CHUNK_SIZE;
+      if (Math.abs(x) > half || Math.abs(z) > half) continue;
+      const carpet = pickCarpet(random, x, z, Math.max(0, terrain.forest(x, z)));
+      if (!carpet) continue;
+      const ground = terrain.groundAt(x, z).kind;
+      if (!(ground === 'grass' || (ground === 'rock' && carpet.kind === 'lichen')) || terrain.waterDepth(x, z) > 0) continue;
+      if (!cleared.isClear(x, z, 0) || (obstacles && !obstacles.isClear(x, z, 0.25))) continue;
+      const tuft = placeCover(carpet.kind, x, z, random, terrain);
+      if (carpet.tint !== null) tuft.color.set(carpet.tint).multiplyScalar(HEATH_BRIGHTNESS * tuft.color.r);
+      tufts[carpet.kind].push(tuft);
     }
     if (trees) tufts.roots = rootsFor(trees, cx, cz, CHUNK_SIZE, terrain, random);
     yield;

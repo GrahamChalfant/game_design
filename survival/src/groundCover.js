@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { paintedCover } from './look.js';
 
 // The small things on the forest floor and in the meadows, so the ground isn't bare: moss
@@ -16,8 +17,9 @@ const UP = new THREE.Vector3(0, 1, 0);
 // in the open (in between, they're blended). `chance` is how many of the spots tried get
 // anything at all.
 const DEEP = { chance: 0.62, weights: { moss: 26, litter: 22, fern: 16, shrub: 14, branch: 12, stones: 5, mushrooms: 5 } };
-const OPEN = { chance: 0.11, weights: { shrub: 46, stones: 26, fern: 8, moss: 8, branch: 6, litter: 0, mushrooms: 0 } };
-export const COVER_KINDS = ['moss', 'litter', 'fern', 'shrub', 'branch', 'stones', 'mushrooms', 'roots'];
+const OPEN = { chance: 0.11, weights: { shrub: 8, stones: 26, fern: 8, moss: 8, branch: 6, litter: 0, mushrooms: 0 } };
+// (The heath and lichen carpet the ground in a pass of their own: pickCarpet.)
+export const COVER_KINDS = ['moss', 'litter', 'fern', 'shrub', 'branch', 'stones', 'mushrooms', 'roots', 'heath', 'lichen'];
 // The spruce whose roots show (the others are saplings, dead snags and the like).
 const ROOTED = new Set(['pine', 'pine-tall', 'pine-wide', 'pine-skinny', 'pine-snow', 'tree-dead']);
 
@@ -142,20 +144,11 @@ function buildFineShapes() {
     }
   }
   shapes.fern = shape(t);
-  // A low Labrador-tea shrub: woody stems, each with clusters of small leathery leaves.
-  t = [];
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2 + r() * 0.5;
-    const reach = 0.12 + r() * 0.14;
-    const top = [Math.cos(a) * reach, 0.16 + r() * 0.12, Math.sin(a) * reach];
-    bentStick([[0, 0, 0], [top[0] * 0.5, top[1] * 0.55, top[2] * 0.5], top], 0.014, 0.006, () => 0x4a3a2c, t, 4);
-    for (let c = 0; c < 3; c++) {
-      const centre = [top[0] + (r() - 0.5) * 0.12, top[1] + (r() - 0.6) * 0.08, top[2] + (r() - 0.5) * 0.12];
-      const s = 0.07 + r() * 0.05;
-      fineLump(centre, [s, s * 0.6, s], (up) => (up > 0.3 ? pick(r, [0x37492d, 0x3e5131, 0x525a38]) : pick(r, [0x263222, 0x2a3724])), r, t, 0);
-    }
-  }
-  shapes.shrub = shape(t);
+  // A Labrador-tea thicket: a knee-high clump of leafy sprigs (heath cards, see heathPatch).
+  shapes.shrub = heathPatch(r, { radius: 0.35, mound: 0.14, cards: 11, height: [0.3, 0.52], spread: 0.8 });
+  // The heath and the reindeer lichen, which carpet the open ground.
+  shapes.heath = heathPatch(r, {});
+  shapes.lichen = lichenClump(r);
   // A fallen branch: a bent, tapering stick (length 1) with forked side twigs.
   t = [];
   const bark = () => pick(r, [0x6b5a48, 0x5e4e3e, 0x75655a]);
@@ -214,6 +207,209 @@ function mossCushion(r) {
   return geometry;
 }
 
+// ---- the heath: the dwarf shrubs that carpet open northern ground ----
+// Out of the deep forest, the boreal and subarctic ground (northern Canada, Finnmark) isn't
+// grass with bare earth between: it's a knee-to-ankle-high mat of dwarf shrubs (crowberry,
+// lingonberry, bilberry, bearberry, Labrador tea, dwarf birch and willow, turning red and
+// orange in autumn), cushions of pale reindeer lichen on the dry rises, and moss, with sedge
+// and grass in clumps through it. The plants grow in patches and zones, not evenly.
+// A heath patch is a low leafy mound with sprigs standing out of it: cards of a leaf texture
+// (light on clear: the copy's tint gives the plant), the mound mapped to the texture's solid
+// band of leaves, the sprigs to its sprigs.
+let heathLeaves = null;
+const HEATH_BAND = 0.2; // the bottom of the texture: solid leaves (for the mounds)
+const HEATH_CLUMPS = 4; // bushes across the rest of it, one per card
+function heathTexture() {
+  if (heathLeaves) return heathLeaves;
+  const W = 512, H = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const r = maker(29);
+  const leaf = (x, y, angle, length, width, light) => {
+    const l = Math.round(Math.min(255, light));
+    ctx.fillStyle = `rgb(${l},${l},${l})`;
+    for (const dx of [-W, 0, W]) { // (three times, so it repeats seamlessly across)
+      ctx.beginPath();
+      ctx.ellipse(x + dx, y, width, length, angle, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+  // The solid band at the bottom: leaves over leaves, no gaps.
+  ctx.fillStyle = 'rgb(70,70,70)';
+  ctx.fillRect(0, H * (1 - HEATH_BAND), W, H * HEATH_BAND);
+  for (let i = 0; i < 1400; i++) leaf(r() * W, H * (1 - HEATH_BAND) + r() * H * HEATH_BAND, r() * Math.PI, 5 + r() * 4, 2.5 + r() * 2, 90 + r() * 140);
+  // Above it, HEATH_CLUMPS bushes side by side (a card shows one): woody sprigs fanning up and
+  // out from the middle, tallest there and lower toward the sides, so each card's outline is a
+  // ragged dome, not a rectangle. Small leaves all along the sprigs, smaller toward the tips.
+  ctx.lineCap = 'round';
+  const clumpW = W / HEATH_CLUMPS;
+  for (let c = 0; c < HEATH_CLUMPS; c++) {
+    const middle = (c + 0.5) * clumpW;
+    for (let s = 0; s < 26; s++) {
+      const off = (r() + r() + r() - 1.5) / 1.5; // (-1..1, most near the middle)
+      let x = middle + off * clumpW * 0.32;
+      let y = H * (1 - HEATH_BAND * 0.5);
+      const top = H * (0.06 + 0.62 * Math.abs(off) ** 1.3 + 0.22 * r());
+      const lean = off * 0.55 + (r() - 0.5) * 0.25;
+      const step = 7;
+      for (let k = 0; y > top; k++) {
+        const nx = Math.min(middle + clumpW * 0.47, Math.max(middle - clumpW * 0.47, x + lean * step + Math.sin(k * 0.7 + s) * 1.2));
+        const ny = y - step;
+        ctx.strokeStyle = 'rgb(85,85,85)';
+        ctx.lineWidth = 2.2 * (y - top) / (H - top) + 0.8;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(nx, ny);
+        ctx.stroke();
+        const t = (H - y) / (H - top);
+        for (const side of [-1, 1]) {
+          const lx = Math.min(middle + clumpW * 0.46, Math.max(middle - clumpW * 0.46, nx + side * 5));
+          if (r() < 0.85) leaf(lx, ny, side * (0.7 + r() * 0.5), (7 - 2.5 * t) + r() * 2, 3 + r() * 1.5, 110 + r() * 130);
+        }
+        x = nx;
+        y = ny;
+      }
+    }
+  }
+  heathLeaves = new THREE.CanvasTexture(canvas);
+  heathLeaves.colorSpace = THREE.SRGBColorSpace;
+  heathLeaves.wrapS = THREE.RepeatWrapping;
+  heathLeaves.anisotropy = 4;
+  return heathLeaves;
+}
+
+// A heath patch about 1 m across (before each copy's scale): a lumpy mound `mound` high and
+// `cards` sprig cards standing out of it, `height` (a range) tall.
+function heathPatch(r, { radius = 0.5, mound = 0.1, cards = 8, height = [0.12, 0.26], spread = 0.65 }) {
+  const positions = [];
+  const uvs = [];
+  const normals = [];
+  const quad = (a, b, c, d, ua, ub, uc, ud) => {
+    for (const [p, uv] of [[a, ua], [b, ub], [c, uc], [a, ua], [c, uc], [d, ud]]) {
+      positions.push(...p);
+      uvs.push(...uv);
+      // (Lit like a soft rounded mass, not card by card.)
+      const n = new THREE.Vector3(p[0] * 0.8, 1, p[2] * 0.8).normalize();
+      normals.push(n.x, n.y, n.z);
+    }
+  };
+  // The mound: rings out from the middle, lumpy, its rim sunk into the ground.
+  const sectors = 12;
+  const rings = [0, 0.4, 0.75, 1].map((f, i) => Array.from({ length: sectors }, (_, k) => {
+    const a = (k / sectors) * Math.PI * 2;
+    const wobble = 1 + 0.25 * Math.sin(a * 3 + r() * 6) * (i > 0 ? 1 : 0);
+    const h = i === 3 ? -0.04 : mound * (1 - f * f) * (0.8 + r() * 0.4);
+    return [Math.cos(a) * radius * f * wobble, h, Math.sin(a) * radius * f * wobble];
+  }));
+  // (Mapped flat from above onto the texture's solid band of leaves.)
+  const bandUV = (p) => [p[0] * 0.45 + 0.5, HEATH_BAND * (0.5 + 0.85 * p[2] / (radius * 2))];
+  for (let i = 0; i < rings.length - 1; i++) {
+    for (let k = 0; k < sectors; k++) {
+      const k1 = (k + 1) % sectors;
+      const [a, b, c, d] = [rings[i][k], rings[i + 1][k], rings[i + 1][k1], rings[i][k1]];
+      quad(a, d, c, b, bandUV(a), bandUV(d), bandUV(c), bandUV(b)); // (wound to face up)
+    }
+  }
+  // The sprigs: upright cards through the mound, every way round.
+  for (let k = 0; k < cards; k++) {
+    const a = r() * Math.PI;
+    const d = Math.sqrt(r()) * radius * spread;
+    const ca = r() * Math.PI * 2;
+    const [cx, cz] = [Math.cos(ca) * d, Math.sin(ca) * d];
+    const w = (0.3 + r() * 0.3) * radius * 2 * 0.5;
+    const h = height[0] + r() * (height[1] - height[0]);
+    const [dx, dz] = [Math.cos(a) * w, Math.sin(a) * w];
+    const base = mound * (1 - (d / radius) ** 2) - 0.04;
+    // (One of the texture's bushes, the whole width of it, maybe mirrored.)
+    const clump = Math.floor(r() * HEATH_CLUMPS);
+    let [u0, du] = [(clump + 0.02) / HEATH_CLUMPS, 0.96 / HEATH_CLUMPS];
+    if (r() < 0.5) [u0, du] = [u0 + du, -du];
+    const tilt = (r() - 0.5) * 0.15;
+    quad([cx - dx, base, cz - dz], [cx + dx, base, cz + dz], [cx + dx + tilt, base + h, cz + dz], [cx - dx + tilt, base + h, cz - dz],
+      [u0, HEATH_BAND * 0.6], [u0 + du, HEATH_BAND * 0.6], [u0 + du, 1], [u0, 1]);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(new Array(positions.length).fill(1), 3));
+  return geometry;
+}
+
+// Reindeer lichen: a cluster of pale, soft cushions, smooth shaded.
+function lichenClump(r) {
+  const parts = [];
+  for (let k = 0; k < 6; k++) {
+    const a = r() * Math.PI * 2;
+    const d = k === 0 ? 0 : 0.12 + r() * 0.22;
+    const s = 0.09 + r() * 0.09;
+    const g = new THREE.IcosahedronGeometry(1, 2);
+    const p = g.attributes.position;
+    const colors = [];
+    const c = new THREE.Color();
+    const seeds = [r() * 6, r() * 6];
+    for (let i = 0; i < p.count; i++) {
+      let [x, y, z] = [p.getX(i), p.getY(i), p.getZ(i)];
+      const lump = 1 + 0.18 * Math.sin(x * 7 + seeds[0]) * Math.sin(z * 6 + seeds[1]) + 0.1 * Math.sin(y * 11 + x * 5);
+      y = y < 0 ? y * 0.2 : y;
+      p.setXYZ(i, Math.cos(a) * d + x * s * lump, (y * 0.55 * s) * lump - 0.01, Math.sin(a) * d + z * s * lump);
+      // (Pale grey-green, the hollows between its branches darker.)
+      c.set(0x687060).lerp(new THREE.Color(0xa6ae9a), Math.min(1, Math.max(0, y) * 0.8 + 0.3 * (lump - 0.85)));
+      colors.push(c.r, c.g, c.b);
+    }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    parts.push(g);
+  }
+  const merged = mergeGeometries(parts);
+  merged.computeVertexNormals();
+  return merged;
+}
+
+// The heath's plants, as tints of the leaf texture (linear-ish, the texture is mid-grey), and
+// how each zone mixes them: crowberry and lingonberry evergreen, bilberry gone red, dwarf
+// birch and willow orange, Labrador tea olive.
+const HEATH_TINTS = {
+  crowberry: [0x5e7444, 0x687e48], lingonberry: [0x70904a, 0x7c9a4e], bilberry: [0x7a3828, 0x8a4630, 0x7a5034],
+  birch: [0xa0602e, 0xae7434, 0x8e5a2c], tea: [0x7e8452, 0x8a905a],
+};
+const HEATH_ZONES = [
+  ['crowberry', 'crowberry', 'lingonberry', 'tea', 'bilberry'],
+  ['lingonberry', 'crowberry', 'bilberry', 'birch', 'lingonberry'],
+  ['birch', 'crowberry', 'tea', 'bilberry', 'crowberry'],
+  ['tea', 'crowberry', 'lingonberry', 'lingonberry', 'birch'],
+];
+
+// A smooth value noise (0–1), for patches and zones.
+function hash2(x, z) {
+  const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+export function patchNoise(x, z) {
+  const ix = Math.floor(x), iz = Math.floor(z);
+  const fx = x - ix, fz = z - iz;
+  const sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
+  const a = hash2(ix, iz), b = hash2(ix + 1, iz), c = hash2(ix, iz + 1), d = hash2(ix + 1, iz + 1);
+  return a + (b - a) * sx + (c - a) * sz + (a - b - c + d) * sx * sz;
+}
+
+// What carpets the ground at (x, z), or null: `woods` how deep in the forest (0–1). The heath
+// grows in patches (bigger and closer in the open), lichen on the dry rises between, Labrador
+// tea in thickets; under the spruce, mostly moss and bilberry.
+export function pickCarpet(random, x, z, woods) {
+  const patch = patchNoise(x * 0.18 + 31, z * 0.18) * 0.65 + patchNoise(x * 0.7, z * 0.7 + 17) * 0.35;
+  const open = 1 - THREE.MathUtils.smoothstep(woods, 0.05, 0.5);
+  const chance = THREE.MathUtils.lerp(0.3, 0.95, open) * THREE.MathUtils.smoothstep(patch, 0.12, 0.5);
+  if (random.next() > chance) return null;
+  const dry = patchNoise(x * 0.11 + 70, z * 0.11 - 40);
+  if (open > 0.5 && dry > 0.62 && random.next() < 0.7) return { kind: 'lichen', tint: null };
+  if (random.next() < 0.08 + 0.1 * (1 - open)) return { kind: 'shrub', tint: random.pick(HEATH_TINTS.tea) };
+  const zone = HEATH_ZONES[Math.floor(patchNoise(x * 0.05 - 9, z * 0.05 + 23) * HEATH_ZONES.length * 0.999)];
+  const plant = open > 0.5 ? random.pick(zone) : random.pick(['bilberry', 'lingonberry', 'crowberry']);
+  return { kind: 'heath', tint: random.pick(HEATH_TINTS[plant]) };
+}
+
 // The materials and shapes, made once. Most are flat-shaded; the moss is smooth.
 export function coverParts() {
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, side: THREE.DoubleSide });
@@ -221,7 +417,19 @@ export function coverParts() {
   // (Mottled like the ground, and the moss darker, see look.js.)
   paintedCover(material, 0.8);
   paintedCover(smooth, 0.62);
-  return { material, materials: { moss: smooth }, shapes: buildFineShapes() };
+  const leaves = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide, map: heathTexture(), alphaTest: 0.5 });
+  paintedCover(leaves, 1);
+  // (Both sides of a sprig card lit by its soft, upward normal: the back of a card doesn't go
+  // dark just because it faces away.)
+  const painted = leaves.onBeforeCompile;
+  leaves.onBeforeCompile = (shader, renderer) => {
+    painted(shader, renderer);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nnormal = normalize(vNormal);');
+  };
+  leaves.customProgramCacheKey = () => 'cover-leaves';
+  const lichen = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  paintedCover(lichen, 1);
+  return { material, materials: { moss: smooth, heath: leaves, shrub: leaves, lichen }, shapes: buildFineShapes() };
 }
 
 // Picks something to grow at (x, z) in a chunk, or null. `random` is the chunk's own;
@@ -241,7 +449,7 @@ export function pickCover(random, woods) {
 }
 
 // How big each kind is drawn (a scale range), and whether it lies along the slope.
-const SIZES = { moss: [0.5, 1.3], litter: [0.45, 1.05], fern: [0.7, 1.35], shrub: [0.7, 1.4], branch: [0.7, 1.7], stones: [0.7, 1.4], mushrooms: [0.8, 1.3] };
+const SIZES = { heath: [0.45, 1.0], lichen: [0.5, 1.2], moss: [0.5, 1.3], litter: [0.45, 1.05], fern: [0.7, 1.35], shrub: [0.7, 1.4], branch: [0.7, 1.7], stones: [0.7, 1.4], mushrooms: [0.8, 1.3] };
 const LIES_FLAT = new Set(['litter', 'branch', 'moss']);
 
 // A copy of `kind` at (x, z): its matrix and tint.
