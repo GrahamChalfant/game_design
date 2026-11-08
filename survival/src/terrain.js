@@ -238,6 +238,16 @@ export function createTerrain(random, noise, size) {
         snowResult.depth = Math.max(snowResult.depth, SNOW_FIELD_DEPTH * (0.6 * smoothstep(snowy, line - 0.004, line + 0.03) + 0.4 * smoothstep(snowy, line + 0.03, line + 0.15)));
       }
     }
+    // None under water, or right down to it: not in the river, a lake or a creek, nor on the
+    // wet bank just above them.
+    if (snowResult.amount > 0) {
+      const land = landAt(x, z);
+      const c = creeks.nearest(x, z);
+      if (lakeOrRiverLevel(x, z) > land - 0.35 || (c && c.distance < c.halfWidth + 1)) {
+        snowResult.amount = 0;
+        snowResult.depth = 0;
+      }
+    }
     return snowResult;
   };
 
