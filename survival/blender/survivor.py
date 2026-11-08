@@ -261,8 +261,8 @@ def arms(parts):
 # the eye sockets, brow ridge, cheekbones, mouth and chin (relief). The beard, moustache, brows
 # and the hair under the beanie are sculpted over that surface, groomed into clumps.
 HEAD_CZ = 0.005
-PROFILE = ((1.505, 0.034, 0.055, 0.02, 0.04), (1.54, 0.076, 0.085, 0.06, 0.012), (1.575, 0.088, 0.1, 0.085, 0.0),
-           (1.615, 0.095, 0.104, 0.098, 0.0), (1.655, 0.099, 0.1, 0.105, 0.0), (1.695, 0.098, 0.104, 0.106, 0.0),
+PROFILE = ((1.505, 0.032, 0.055, 0.02, 0.04), (1.54, 0.07, 0.085, 0.06, 0.012), (1.575, 0.082, 0.1, 0.085, 0.0),
+           (1.615, 0.09, 0.104, 0.098, 0.0), (1.655, 0.096, 0.1, 0.105, 0.0), (1.695, 0.098, 0.104, 0.106, 0.0),
            (1.735, 0.089, 0.094, 0.1, 0.0), (1.775, 0.076, 0.078, 0.088, 0.0), (1.805, 0.048, 0.05, 0.06, 0.0))
 HEAD_POWER = 2.1
 HEAD_SCALE = 0.9
@@ -385,6 +385,9 @@ def skin_colour(q):
     flush = max(gauss(q.x - 0.06 * s, y - 1.622, 0.026, 0.022) for s in (1, -1)) * max(0.0, front)
     flush = max(flush, gauss(q.x, y - 1.612, 0.016, 0.014), 0.35 if abs(q.x) > 0.095 else 0.0)  # (and the nose tip, the ears)
     c = blend(c, tone('skin_rose', 0.0), flush)
+    if abs(q.x) > 0.098:  # (the ear: its hollow darker toward the middle, the rim lighter)
+        d = math.hypot((q.y - 1.662) / 0.026, (q.z + 0.02) / 0.016)
+        c = blend(c, tone('skin_shade', 0.0, 0.7), (1 - d) * 1.4 * min(1.0, (abs(q.x) - 0.098) / 0.01))
     return c
 
 
@@ -403,12 +406,16 @@ def head(parts):
 
     # The nose: rings from the bridge down to its tip, its back sunk into the face.
     nose = []
-    for y, w, out, back in ((1.688, 0.008, 0.002, 0.012), (1.675, 0.0092, 0.006, 0.014), (1.66, 0.0105, 0.012, 0.016),
-                            (1.644, 0.0125, 0.018, 0.018), (1.628, 0.016, 0.023, 0.02), (1.614, 0.018, 0.026, 0.02),
-                            (1.603, 0.016, 0.021, 0.02), (1.597, 0.012, 0.014, 0.018)):
+    for y, w, out, back in ((1.676, 0.0062, -0.003, 0.012), (1.665, 0.0071, 0.003, 0.013), (1.651, 0.0083, 0.009, 0.015),
+                            (1.637, 0.0096, 0.0145, 0.016), (1.625, 0.0114, 0.019, 0.017), (1.614, 0.0128, 0.0208, 0.018),
+                            (1.606, 0.0125, 0.0185, 0.018), (1.6, 0.0104, 0.0125, 0.016), (1.597, 0.007, 0.005, 0.014)):
         z = head_point(y, 0.0).z
-        nose.append(section(Vector((0, y, z)), w, out, back, 8, power=1.9))
-    loft(h, nose, lambda i, k, c, n: None)
+        nose.append(section(Vector((0, y, z)), w, out, back, 10, power=2.2))
+    loft(h, nose, lambda i, k, c, n: None, cap_start=False)
+    for s in (1, -1):  # (the wings of the nose, either side of the tip)
+        wing = Vector((0.0105 * s, 1.604, head_point(1.604, 0.0).z + 0.002))
+        rings = [section(wing + Vector((0, dy, 0)), w, f, 0.006, 8, power=2.0) for dy, w, f in ((0.007, 0.0015, 0.0005), (0.003, 0.0048, 0.0042), (-0.002, 0.0048, 0.0042), (-0.005, 0.0015, 0.0005))]
+        loft(h, rings, lambda i, k, c, n: None)
     for s in (1, -1):  # (the nostrils)
         c = Vector((0.008 * s, 1.5965, head_point(1.597, 0.0).z + 0.009))
         disc = [c + Vector((math.cos(t) * 0.0045, 0, math.sin(t) * 0.003)) for t in (math.tau * j / 6 for j in range(6))]
@@ -423,7 +430,7 @@ def head(parts):
             return head_point(y, a) + head_normal(y, a) * lift
         # The eyeball: a dome filling the almond-shaped opening (rings in to its middle), the
         # iris and pupil on its curve, clipped to the opening as the lids would.
-        W, UP, DOWN = 0.0165, 0.0074, 0.0058
+        W, UP, DOWN = 0.0172, 0.0084, 0.0062
         dome = lambda r: 0.0022 + 0.0028 * (1 - r * r)
         def eye_at(u, v, extra=0.0):
             """u, v: across and up the opening (-1..1 each way)."""
@@ -448,7 +455,7 @@ def head(parts):
                     u, v = u * 0.93 / k, v * 0.93 / k
                 pts.append(eye_at(u, v, extra))
             return pts
-        h.add_out(disc(0.0066, 0.0005, 14), fwd, tone('iris', 0.0))
+        h.add_out(disc(0.0071, 0.0005, 16), fwd, tone('iris', 0.0))
         h.add_out(disc(0.0027, 0.0008, 10), fwd, tone('pupil', 0.0))
         outline = [eye_at(math.cos(math.tau * j / 12), math.sin(math.tau * j / 12)) for j in range(12)]
         # The upper lid: a lash line along the top of the eye, and the lid fold above it.
@@ -470,8 +477,9 @@ def head(parts):
             d1 = on_face(a1.x, a1.y - 0.0028, 0.0026)
             h.add_out([a0, a1, d1, d0], fwd, None, smooth=True)
         # Ears: a thick shell, standing a little out from the head and leaning back.
-        tube_between(h, (0.088 * s, 1.662, -0.012), (0.113 * s, 1.666, -0.024), [(0.026, 0.016), (0.031, 0.02), (0.028, 0.018), (0.016, 0.01)],
-                     lambda i, k, c, n: None, sides=8)
+        tube_between(h, (0.088 * s, 1.662, -0.012), (0.111 * s, 1.666, -0.024), [(0.026, 0.016), (0.031, 0.02), (0.029, 0.018), (0.02, 0.012)],
+                     lambda i, k, c, n: None, sides=10)
+
     # The lips: a fuller lower lip and a thinner upper one, a dark line where they meet.
     zl = head_point(1.571, 0.0).z
     tube_between(h, (-0.024, 1.571, zl - 0.003), (0.024, 1.571, zl - 0.003), [(0.002, 0.002), (0.0048, 0.0045), (0.0055, 0.005), (0.0048, 0.0045), (0.002, 0.002)],
@@ -570,12 +578,16 @@ def beard(h):
     mcols = 40
 
     def mat(u, j):
-        a = -0.5 + j / mcols
-        y = 1.584 + 0.023 * u
+        # (A crescent: its top tucked under the nose, its ends drooping past the corners of
+        # the mouth into the beard; fullest in the middle of each side.)
+        a = -0.55 + 1.1 * j / mcols
+        t = abs(a) / 0.55
+        top, bottom = 1.597 - 0.006 * t * t, 1.584 - 0.02 * t ** 1.6
+        y = bottom + (top - bottom) * u
         p, n = head_point(y, a), head_normal(y, a)
-        fade = (1 - u) ** 0.5 * min(1.0, (0.5 - abs(a)) / 0.12 + 0.3)
-        return p, n, 0.0015 + 0.009 * fade, 0.008 * (1 - u) ** 2 * (1 + 2.5 * abs(a))
-    groomed(h, (10, mcols), mat, strand_colour('beard', 0.5), clump=3.0, wave=0.8, tips=0.004)
+        fade = (1 - u) ** 0.45 * (1 - t ** 3) * min(1.0, 0.35 + abs(a) * 5)
+        return p, n, 0.001 + 0.0068 * fade, 0.0035 * (1 - u) ** 2
+    groomed(h, (10, mcols), mat, lambda u, ridge: tone('beard', 0.0, 0.68 + 0.32 * ridge * (0.4 + 0.6 * u) + random.uniform(-0.03, 0.03)), clump=3.0, wave=0.8, tips=0.0025)
 
 
 def hair_below_beanie(h):
@@ -712,6 +724,16 @@ for side, s_ in (('L', 1), ('R', -1)):
         eb.head.x += dx
         eb.tail.x += dx
 bpy.ops.object.mode_set(mode='OBJECT')
+# (Swim, drink and die were made with the right hand straight, the rest with it turned to grip
+# the axe: give them the same turn, so the right glove (modelled for it, see RIGHT_HAND_TURN)
+# hangs right in every animation.)
+grip = (math.cos(RIGHT_HAND_TURN / 2), math.sin(RIGHT_HAND_TURN / 2), 0.0, 0.0)
+for action in [act for act in bpy.data.actions if act not in actions and act.name.split('.')[0] in ('swim', 'drink', 'die')]:
+    for bag in action.layers[0].strips[0].channelbags:
+        for fc in bag.fcurves:
+            if fc.data_path == 'pose.bones["hand_R"].rotation_quaternion':
+                for key in fc.keyframe_points:
+                    key.co[1] = key.handle_left[1] = key.handle_right[1] = grip[fc.array_index]
 for ob in [ob for ob in brought if ob.type == 'MESH' and ob.name.split('.')[0] in ('player', 'player-details', 'player-hair', 'player-pack')]:
     brought.remove(ob)
     bpy.data.objects.remove(ob)
