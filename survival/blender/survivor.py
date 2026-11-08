@@ -18,6 +18,9 @@ import bpy  # (before bmesh, which Blender registers along with it)
 import bmesh
 from mathutils import Matrix, Vector
 from kit import PAL, Builder, g, material
+import importlib
+import player_anim
+importlib.reload(player_anim)
 
 OUT = os.path.join(HERE, '..', 'public', 'models', 'player.glb')
 RIG = globals().get('RIG', OUT)
@@ -157,7 +160,7 @@ def legs(parts):
     """Work trousers, worn paler at the knees, bunched over tall leather boots laced up the
     front, on thick soles."""
     for s, side in ((1, 'L'), (-1, 'R')):
-        p = Part(['hips', f'thigh_{side}', f'shin_{side}'])
+        p = Part(['hips', f'thigh_{side}', f'shin_{side}', f'foot_{side}'])
         x = 0.105 * s
         rings = []
         for y, w, d, dz in ((0.96, 0.08, 0.095, 0.0), (0.82, 0.086, 0.094, 0.0), (0.66, 0.075, 0.08, 0.005), (0.49, 0.064, 0.07, 0.012),
@@ -795,8 +798,8 @@ def joints(arm):
     pos = {b.name: (arm.matrix_world @ b.head_local) for b in arm.data.bones}
     game = {n: Vector((v.x, v.z, -v.y)) for n, v in pos.items()}
     ends = {'head': game['head'] + Vector((0, 0.42, 0)), 'hand_L': game['hand_L'] + Vector((0, -0.18, 0)),
-            'hand_R': game['hand_R'] + Vector((0, -0.18, 0)), 'shin_L': game['shin_L'] + Vector((0, -0.45, 0)),
-            'shin_R': game['shin_R'] + Vector((0, -0.45, 0)), 'hips': game['spine'], 'spine': game['head'],
+            'hand_R': game['hand_R'] + Vector((0, -0.18, 0)), 'shin_L': game['foot_L'], 'shin_R': game['foot_R'],
+            'foot_L': game['foot_L'] + Vector((0, -0.06, 0.17)), 'foot_R': game['foot_R'] + Vector((0, -0.06, 0.17)), 'hips': game['spine'], 'spine': game['head'],
             'thigh_L': game['shin_L'], 'thigh_R': game['shin_R'], 'upperarm_L': game['lowerarm_L'], 'upperarm_R': game['lowerarm_R'],
             'lowerarm_L': game['hand_L'], 'lowerarm_R': game['hand_R']}
     return {n: (game[n], ends[n]) for n in game}
@@ -929,16 +932,10 @@ for side, s_ in (('L', 1), ('R', -1)):
         eb.head.x += dx
         eb.tail.x += dx
 bpy.ops.object.mode_set(mode='OBJECT')
-# (Swim, drink and die were made with the right hand straight, the rest with it turned to grip
-# the axe: give them the same turn, so the right glove (modelled for it, see RIGHT_HAND_TURN)
-# hangs right in every animation.)
-grip = (math.cos(RIGHT_HAND_TURN / 2), math.sin(RIGHT_HAND_TURN / 2), 0.0, 0.0)
-for action in [act for act in bpy.data.actions if act not in actions and act.name.split('.')[0] in ('swim', 'drink', 'die')]:
-    for bag in action.layers[0].strips[0].channelbags:
-        for fc in bag.fcurves:
-            if fc.data_path == 'pose.bones["hand_R"].rotation_quaternion':
-                for key in fc.keyframe_points:
-                    key.co[1] = key.handle_left[1] = key.handle_right[1] = grip[fc.array_index]
+# The animations, authored fresh (player_anim.py; it adds the foot bones too). Any older copies
+# of them in the file go, so only these are exported.
+CLIPS = ('idle', 'walk', 'sneak', 'crouch', 'jump', 'chop', 'drink', 'swim', 'die')
+player_anim.animate(arm, [act for act in bpy.data.actions if act.name.split('.')[0] in CLIPS])
 for ob in [ob for ob in brought if ob.type == 'MESH' and ob.name.split('.')[0] in ('player', 'player-details', 'player-hair', 'player-pack')]:
     brought.remove(ob)
     bpy.data.objects.remove(ob)

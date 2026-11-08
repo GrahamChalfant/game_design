@@ -12,8 +12,10 @@ export const OUTFITS = {
   parka: { color: 0x8a6a4a, fur: [0xd8c49a, 0xc2a878, 0xe6d6b0] },
 };
 
-// The red coat is painted in player.glb's vertex colours: strong red, very little green.
-const isCoat = (r, g) => r > 0.12 && r > g * 4;
+// The red coat is painted in player.glb's vertex colours: strong red, very little green or
+// blue, however shaded (its creases are darkened: survivor.py's baked shading), so it's told
+// apart by how red it is, not how bright. (Skin, lips and the beard are much less red.)
+const isCoat = (r, g, b) => r > 0.008 && r > g * 3.5 && r > b * 3.5;
 const COAT_RED = 0.4; // the coat's usual brightness (linear), so darker folds stay darker
 
 // Paints the coat on a loaded player model to match `outfit` (null: just the shirt).
@@ -33,7 +35,7 @@ export function dressModel(model, outfit) {
     const original = child.userData.coatColors;
     for (let i = 0; i < colors.count; i++) {
       const [r, g, b] = [original[i * 3], original[i * 3 + 1], original[i * 3 + 2]];
-      if (!target || !isCoat(r, g)) colors.setXYZ(i, r, g, b);
+      if (!target || !isCoat(r, g, b)) colors.setXYZ(i, r, g, b);
       else {
         const shade = r / COAT_RED;
         colors.setXYZ(i, target.r * shade, target.g * shade, target.b * shade);
@@ -48,7 +50,7 @@ export function dressModel(model, outfit) {
 // Sizes are in player.glb's own space (meters, standing at the origin, facing +z), fitted to
 // the survivor (blender/survivor.py): the skirt just over the jacket's hem, the hood just over
 // the beanie. Smooth shaded; the fur is a soft, lumpy roll, lighter at its tips.
-const SKIRT = { top: 0.95, bottom: 0.66, width: [0.212, 0.226], depth: [0.152, 0.166], forward: 0.0 }; // (to mid-thigh: longer, and a stride pushes the knee through it)
+const SKIRT = { top: 0.95, bottom: 0.66, width: [0.2, 0.226], depth: [0.142, 0.166], forward: 0.0 }; // (to mid-thigh: longer, and a stride pushes the knee through it)
 const HOOD = { centre: [0, 1.68, -0.012], size: [0.128, 0.158, 0.138], open: THREE.MathUtils.degToRad(150), down: 0.74 };
 const FUR = { ruff: 0.034, hem: 0.03 };
 
