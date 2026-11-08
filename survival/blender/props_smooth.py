@@ -19,7 +19,7 @@ PAL.update(
     granite=0x7e7d76, granite_dark=0x5c5b56, granite_warm=0x8a8274, berry=0xa8202a, berry_dark=0x6a1018, berry_hi=0xd85a50,
     leaf=0x3a5a2a, leaf_dark=0x2a4220, stem=0x5a4a2a, tyre=0x22201e, tyre_worn=0x3a3632, rim=0x8a8e90, rim_dark=0x5a5e60,
     strut=0x6e7276, rust=0x7a4a2a, lime=0xa8a090, lime_dark=0x6e685e, lime_wet=0x8a8274, lime_tip=0xc8c0ae,
-    bark=0x4c3b2e, bark_dark=0x2e241c, bark_grey=0x6d655a, moss=0x4e6236, moss_dark=0x34442a, heart=0x8a6440, sapwood=0xc4a479,
+    bark=0x5e4a3a, bark_dark=0x42352a, bark_grey=0x847a6c, moss=0x4e6236, moss_dark=0x34442a, heart=0x8a6440, sapwood=0xc4a479,
     ring=0x7a5636, canvas=0x4f6b45, canvas_dark=0x3a5032, canvas_light=0x5e7a52, webbing=0x2f3a28, buckle=0x3a3a38,
     bedroll=0x8a3a2a, bedroll_dark=0x6a2a20, paint_y=0xd9a52b,
 )
@@ -200,7 +200,7 @@ def fallen_log():
     def colour(i, k, p):
         a = math.tau * k / sides
         furrow = abs(math.sin(a * 9 + fbm(Vector((xs[i] * 3, a, 0)), 4) * 2.5))
-        c = mix(tone('bark_dark'), tone('bark'), furrow)
+        c = mix(tone('bark_dark'), tone('bark'), 0.35 + 0.65 * furrow)
         c = mix(c, tone('bark_grey'), max(0.0, fbm(p * 3, 5)) * 1.4)
         moss = math.sin(a) * 1.4 - 0.25 + fbm(p * 2.5, 11) * 1.2  # (over the top, in patches)
         return mix(c, mix(tone('moss'), tone('moss_dark'), 0.5 + fbm(p * 9, 2)), moss)

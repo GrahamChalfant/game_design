@@ -757,7 +757,19 @@ function createGround(size, heightAt, groundAt, snowAt) {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSnow = snow;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 uSnowColor;\nvarying float vSnow;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uSnowColor, smoothstep(0.4, 0.6, vSnow));');
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        {
+          // Old snow, not a sheet of white: its edge broken up (thinning in tongues and
+          // holes, the ground showing through), blue-grey in its hollows, crusted and a
+          // little grubby where it thins out.
+          vec2 q = vGroundXZ;
+          float edge = vSnow + (groundNoise(q * 1.3) - 0.5) * 0.35 + (groundNoise(q * 6.0) - 0.5) * 0.16;
+          float cover = smoothstep(0.42, 0.6, edge);
+          float drift = groundNoise(q * 0.9 + 3.0);
+          vec3 snow = uSnowColor * mix(vec3(0.8, 0.86, 0.95), vec3(1.0), drift * 0.7 + 0.3) * (0.94 + 0.08 * groundNoise(q * 23.0));
+          snow = mix(snow * vec3(0.84, 0.82, 0.78), snow, smoothstep(0.45, 0.85, edge));
+          diffuseColor.rgb = mix(diffuseColor.rgb, snow, cover);
+        }`);
     paintedGround(shader);
   };
   const built = new Map(); // chunk key → mesh (its `userData.cell` is the size of its squares)
