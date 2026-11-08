@@ -8,7 +8,7 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 
 | File | What it is | Tris | Source |
 | --- | --- | --- | --- |
-| `player.glb` | Survivor (rigged, animated; `hand_R` bone, `player-pack` mesh = the backpack.glb mesh, skinned to `spine`) | 5,840 | player.blend |
+| `player.glb` | Survivor: realistic proportions, smooth-shaded low poly (red hooded jacket, beanie, boots); rigged and animated, `hand_R` bone, `player-pack` mesh = the backpack.glb mesh, skinned to `spine` | 6,232 | blender/survivor.py |
 | `axe.glb` | Hand axe held by the player (material `tool`) | 128 | blender/remake.py |
 | `deer.glb` | Deer (rigged) | 3,464 | blender/smooth_rigged.py |
 | `rabbit.glb` | Rabbit (rigged) | 1,632 | blender/smooth_rigged.py |
