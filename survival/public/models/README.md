@@ -8,7 +8,7 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 
 | File | What it is | Tris | Source |
 | --- | --- | --- | --- |
-| `player.glb` | Survivor: realistic proportions, smooth shaded (sculpted face; beard, moustache, brows and hair sculpted and groomed into clumps; ribbed knit beanie, red hooded jacket, gloves, boots); rigged and animated, `hand_R` bone, `player-pack` mesh = the backpack.glb mesh, skinned to `spine` | 23,400 | blender/survivor.py |
+| `player.glb` | Survivor, smooth shaded, baked crease shading: `player` = body in a plaid wool shirt (sculpted face, groomed beard and hair, ribbed beanie, gloves, trousers, laced boots); `player-jacket` = quilted red puffer jacket and knitted scarf, shown once worn (outfits.js); `player-pack` = the backpack.glb mesh on the spine. Rigged with foot bones; animations idle, walk (a jog), sneak, crouch, jump, chop, drink, swim, die (blender/player_anim.py) | ~29,000 + jacket | blender/survivor.py |
 | `axe.glb` | Hand axe held by the player (material `tool`) | 128 | blender/remake.py |
 | `deer.glb` | White-tailed buck in winter coat, smooth shaded, antlers; rigged, animations `deer-graze`, `deer-idle`, `deer-walk`, `deer-run` | 5,774 | blender/deer.py |
 | `rabbit.glb` | Rabbit (rigged) | 1,632 | blender/smooth_rigged.py |

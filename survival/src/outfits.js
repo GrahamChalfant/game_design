@@ -2,14 +2,14 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // What the player can wear (#88), and how it looks on them. How warm each one keeps you is in
-// survival.js (OUTFIT_WARMTH). player.glb is modelled in the red jacket; with no outfit on,
-// the jacket is painted as a plain shirt instead.
+// survival.js (OUTFIT_WARMTH). player.glb has the player in a wool shirt ('player') and the red
+// jacket with its scarf as a mesh of its own over it ('player-jacket'), shown once it's worn.
 export const OUTFITS = {
-  shirt: { color: 0x4a5560 }, // (linear) a thin grey-blue shirt
-  jacket: { color: null }, // the red jacket, as modelled
+  shirt: { color: null, jacket: false }, // just the shirt
+  jacket: { color: null, jacket: true }, // the red jacket, as modelled
   // A heavy coat of stitched hides, down to the knees, with a fur-trimmed hood: the colour
   // its body takes on, and its fur.
-  parka: { color: 0x8a6a4a, fur: [0xd8c49a, 0xc2a878, 0xe6d6b0] },
+  parka: { color: 0x8a6a4a, fur: [0xd8c49a, 0xc2a878, 0xe6d6b0], jacket: true },
 };
 
 // The red coat is painted in player.glb's vertex colours: strong red, very little green or
@@ -24,10 +24,13 @@ export function dressModel(model, outfit) {
   if (!model || model.userData.outfit === outfit) return;
   model.userData.outfit = outfit;
   showParkaParts(model, outfit === 'parka');
-  const { color } = OUTFITS[outfit ?? 'shirt'];
+  const { color, jacket } = OUTFITS[outfit ?? 'shirt'];
+  const jacketMesh = model.getObjectByName('player-jacket');
+  if (jacketMesh) jacketMesh.visible = jacket;
   const target = color === null ? null : new THREE.Color(color); // (linear, like the vertex colours)
   model.traverse((child) => {
     if (child.userData.parkaPart || child.userData.keepColours) return; // the parka's own pieces (and a torch's flame) keep their colours
+    if (jacketMesh && child !== jacketMesh) return; // (only the jacket is ever recoloured)
     const colors = child.isMesh ? child.geometry.attributes.color : null;
     if (!colors) return;
     // Keep the original colours, so the red jacket can come back when it's put on.
@@ -62,7 +65,7 @@ function showParkaParts(model, show) {
 function addParkaParts(model) {
   let body = null;
   model.traverse((child) => {
-    if (child.isSkinnedMesh && !body && child.name !== 'player-pack') body = child;
+    if (child.isSkinnedMesh && !body && child.name === 'player') body = child;
   });
   if (!body) return []; // (the stand-in shown until player.glb loads has no skeleton)
   const { color, fur } = OUTFITS.parka;
