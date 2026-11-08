@@ -164,17 +164,53 @@ def legs(parts):
     for s, side in ((1, 'L'), (-1, 'R')):
         p = Part(['hips', f'thigh_{side}', f'shin_{side}', f'foot_{side}'])
         x = 0.105 * s
+        # The leg, a ring every 1.5 cm, creased: bunched in folds above the boot, and behind
+        # the knee; a darker seam down the outside.
+        table = ((0.96, 0.08, 0.095, 0.0), (0.82, 0.086, 0.094, 0.0), (0.66, 0.075, 0.08, 0.005), (0.49, 0.064, 0.07, 0.012),
+                 (0.4, 0.064, 0.068, 0.0), (0.33, 0.068, 0.07, 0.0), (0.3, 0.066, 0.068, 0.0))
+        table = tuple(sorted(table))  # (bottom to top, for table_params)
         rings = []
-        for y, w, d, dz in ((0.96, 0.08, 0.095, 0.0), (0.82, 0.086, 0.094, 0.0), (0.66, 0.075, 0.08, 0.005), (0.49, 0.064, 0.07, 0.012),
-                            (0.4, 0.064, 0.068, 0.0), (0.33, 0.068, 0.07, 0.0), (0.3, 0.066, 0.068, 0.0)):
-            rings.append(section(Vector((x, y, dz)), w, d, d, 10))
+        for i in range(45):
+            y = 0.96 - (0.96 - 0.3) * i / 44
+            w, d, dz = table_params(table, y)
+            ring = section(Vector((x, y, dz)), w, d, d, 12)
+            out = []
+            for k, q in enumerate(ring):
+                r = q - Vector((x, y, dz))
+                a_ = math.atan2(r.x * s, r.z)  # (0 at the front, + toward the outside)
+                fold = 0.0
+                if y < 0.45:  # (bunching above the boot)
+                    fold += 0.05 * math.sin(y * 150 + a_ * 2) * (0.45 - y) / 0.15
+                if 0.44 < y < 0.58 and math.cos(a_) < -0.2:  # (behind the knee)
+                    fold += 0.045 * math.sin(y * 210) * (1 - abs(y - 0.51) / 0.07)
+                out.append(Vector((x, y, dz)) + r * (1 + fold))
+            rings.append(out)
 
-        def trousers(i, k, c, n):
-            knee = max(0.0, 1 - abs(c.y - 0.5) / 0.07) * max(0.0, n.z)
-            if c.y < 0.36:
+        def trousers(q):
+            r = q - Vector((x, q.y, 0))
+            a_ = math.atan2(r.x * s, r.z)
+            if q.y < 0.36:
                 return tone('trousers_dark', 0.0, 0.95)  # (bunched over the boot)
-            return tone('trousers', 0.0)
-        loft(p, rings, trousers, cap_start=False)
+            c = tone('trousers', 0.0)
+            if abs(a_ - math.pi / 2) < 0.08:
+                c = blend(c, tone('trousers_dark', 0.0, 0.8), 0.8)  # (the outside seam)
+            knee = max(0.0, 1 - abs(q.y - 0.5) / 0.08) * max(0.0, math.cos(a_))
+            return blend(c, tone('trousers_worn', 0.0), knee * 0.6)  # (worn at the knee)
+        p.corner = trousers
+        loft(p, rings, lambda i, k, c, n: None, cap_start=False, res=1)
+        # A cargo pocket on the outside of the thigh, its flap and the flap's press stud.
+        def thigh_point(y, a_, lift):
+            w, d, dz = table_params(table, y)
+            return Vector((x + math.sin(a_) * s * w * (1 + lift / w), y, dz + math.cos(a_) * d * (1 + lift / d)))
+        for (y0, y1, a0, a1, lift, colour) in ((0.62, 0.75, 0.75, 1.65, 0.006, tone('trousers', 0.0, 0.95)), (0.735, 0.765, 0.72, 1.68, 0.011, tone('trousers_dark', 0.0, 0.95))):
+            grid = [[thigh_point(y0 + (y1 - y0) * j / 4, a0 + (a1 - a0) * i / 6, lift) for i in range(7)] for j in range(5)]
+            for j in range(4):
+                for i in range(6):
+                    p.add_out([grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]], Vector((s, 0, 0)), colour, smooth=True)
+            for i in range(6):  # (its lower edge)
+                p.add_out([grid[0][i], grid[0][i + 1], thigh_point(y0, a0 + (a1 - a0) * (i + 1) / 6, -0.002), thigh_point(y0, a0 + (a1 - a0) * i / 6, -0.002)], Vector((0, -1, 0)), colour)
+        stud = thigh_point(0.745, 1.2, 0.013)
+        p.add_out([stud + Vector((0, math.sin(t) * 0.005, math.cos(t) * 0.005)) for t in (math.tau * j / 6 for j in range(6))], Vector((s, 0, 0)), tone('zip', 0.0, 1.4))
         # The boot's shaft, from its padded top down to the ankle, then the foot to a rounded
         # toe on a thick sole.
         boot = []
