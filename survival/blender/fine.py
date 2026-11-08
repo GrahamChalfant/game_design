@@ -1,7 +1,7 @@
-# Runs the older model generators in the new look's "fine" mode (index.html?look=new, see
-# src/look.js): their own layouts, unchanged (the cabin's walls and roof parts, the lookout's
-# stairs where the game lets you walk, the doors and lids where they swing), built from finer
-# parts, into survival/public/models/look/:
+# Runs the older model generators in "fine" mode: their own layouts, unchanged (the cabin's
+# walls and roof parts, the lookout's stairs where the game lets you walk, the doors and lids
+# where they swing), built from finer parts, into survival/public/models/. (Run on their own,
+# places.py, lookout.py and props.py make the old low-poly versions: run them through this.)
 #   - poles and logs are rounder, in a few segments with a little wobble, each one tone with a
 #     gentle variation face to face (not a checkerboard), and darker end grain;
 #   - boxes (planks, boards, posts) have their edges bevelled, so nothing is a hard block.
@@ -17,7 +17,7 @@ import bmesh
 from mathutils import Matrix, Vector
 import kit
 
-LOOK_OUT = os.path.join(HERE, '..', 'public', 'models', 'look')
+LOOK_OUT = os.path.join(HERE, '..', 'public', 'models')
 # Made from scratch by remake.py (or conifers.py): left alone here.
 SKIP = {
     'fallen-log', 'rock', 'stump', 'logs', 'axe-ground', 'barrel', 'bedroll', 'bones', 'chest', 'clod', 'cupboard',
@@ -96,7 +96,7 @@ def skipping(export):
 
 def run_own_builder(script):
     """A generator with its own Builder (places.py): run it with the fine parts,
-    into look/, without its scene reset."""
+    without its scene reset."""
     path = os.path.join(HERE, script)
     src = open(path, encoding='utf-8').read()
     head, tail = src.split('bpy.ops.wm.read_factory_settings(use_empty=True)\n', 1)
@@ -110,7 +110,7 @@ def run_own_builder(script):
 
 def run_kit_script(script):
     """A generator built on kit.py (lookout.py, props.py): run it with kit's parts made fine,
-    into look/, without its scene reset; then put kit back as it was."""
+    without its scene reset; then put kit back as it was."""
     restore = patch(kit.Builder)
     saved = (kit.OUT, kit.reset, kit.export)
     kit.OUT, kit.reset, kit.export = LOOK_OUT, (lambda: None), skipping(kit.export)

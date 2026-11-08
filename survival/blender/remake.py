@@ -1,6 +1,5 @@
-# Rebuilds models for the new look (index.html?look=new, see src/look.js) into
-# survival/public/models/look/, at the same sizes as the originals (so collisions still fit).
-# The game loads these instead of the originals, in the new look only (REMADE in look.js).
+# Builds most of the game's models from scratch, into survival/public/models/, at the sizes
+# the game expects (so collisions still fit), with the part names and hinges it looks for.
 # Run in an open Blender (Blender MCP or the Text Editor), or: blender -b --python remake.py
 #
 # The aim is the needle-card spruce's level: natural, irregular shapes with enough faces to
@@ -19,7 +18,7 @@ PAL.update(
     granite=0x7e7d76, granite_warm=0x86806f, granite_dark=0x5a5a57, granite_deep=0x45464a,
     lichen_pale=0x93937c, lichen_gold=0x968c66, moss_rock=0x46553a, moss_rock_dark=0x36432d,
 )
-LOOK = 'look/'
+LOOK = ''  # (the folder under public/models/ they go into)
 os.makedirs(os.path.join(OUT, LOOK), exist_ok=True)
 
 

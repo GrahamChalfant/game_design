@@ -1,8 +1,9 @@
-# The animals and the player for the new look (index.html?look=new, see src/look.js): the
-# rigged, animated models can't be rebuilt from scratch without rebuilding their skeletons and
-# animations too, so instead each is brought in as it is, rounded off with one level of
-# subdivision (before its rig, so it still bends with the bones), shaded smooth, and sent out
-# again with the same skeleton, animations and part names, into public/models/look/.
+# The rigged, animated animals: they can't be rebuilt from scratch without rebuilding their
+# skeletons and animations too, so instead each is brought in as its generator made it (boar.py
+# and the like), rounded off with one level of subdivision (before its rig, so it still bends
+# with the bones), shaded smooth, and written back in place with the same skeleton, animations
+# and part names. A model already rounded off (shaded smooth) is left alone, so running this
+# twice does no harm.
 # The blocky facets turn into soft, organic bodies; the colours blend across the old faces.
 # Run in an open Blender (Blender MCP or the Text Editor). It works in a collection of its
 # own and removes what it brought in afterwards.
@@ -12,7 +13,7 @@ import bmesh
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELS = os.path.join(HERE, '..', 'public', 'models')
-NAMES = [n for n in globals().get('NAMES', ['rabbit', 'deer', 'boar', 'player'])]
+NAMES = [n for n in globals().get('NAMES', ['rabbit', 'deer', 'boar'])]
 LEVELS = {'player': 1}  # (default 1 for all; the player's hands are small, so no more)
 
 
@@ -25,6 +26,14 @@ def smooth(name):
     actions = set(bpy.data.actions)
     bpy.ops.import_scene.gltf(filepath=os.path.abspath(os.path.join(MODELS, f'{name}.glb')))
     brought = [o for o in bpy.data.objects if o not in before]
+    if any(p.use_smooth for o in brought if o.type == 'MESH' for p in o.data.polygons):
+        print(f'@@ {name}.glb: already rounded off, left alone')
+        for o in brought:
+            bpy.data.objects.remove(o)
+        bpy.data.collections.remove(work)
+        for action in [a for a in bpy.data.actions if a not in actions]:
+            bpy.data.actions.remove(action)
+        return
     for o in brought:
         # (Not the small separate details, eyes and buttons and the like: rounded off, they
         # shrink away from the surface they sit on and float.)
@@ -48,7 +57,7 @@ def smooth(name):
     for o in brought:
         o.select_set(True)
     bpy.context.view_layer.objects.active = next(o for o in brought if o.type == 'ARMATURE')
-    out = os.path.abspath(os.path.join(MODELS, 'look', f'{name}.glb'))
+    out = os.path.abspath(os.path.join(MODELS, f'{name}.glb'))
     bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', use_selection=True, export_apply=True,
                               export_animations=True, export_animation_mode='ACTIONS', export_skins=True)
     tris = sum(len(o.evaluated_get(bpy.context.evaluated_depsgraph_get()).to_mesh().loop_triangles) for o in brought if o.type == 'MESH')
@@ -58,7 +67,7 @@ def smooth(name):
     # (Its animations go too: left behind, the next model exported would take them all along.)
     for action in [a for a in bpy.data.actions if a not in actions]:
         bpy.data.actions.remove(action)
-    print(f'@@ look/{name}.glb: about {tris} tris')
+    print(f'@@ {name}.glb: about {tris} tris')
 
 
 for name in NAMES:

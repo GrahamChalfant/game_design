@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CHUNK_SIZE, chunkKey, chunkOf, chunksAround } from './stream.js';
-import { NEW_LOOK, REMADE, paintedSurface, surfaceFor } from './look.js';
+import { paintedSurface, surfaceFor } from './look.js';
 
 const loader = new GLTFLoader();
 // Vite serves public/ at the site root; a plain web server serves it at /public/.
@@ -9,20 +9,17 @@ const MODEL_FOLDERS = ['models/', 'public/models/'];
 
 // Loads public/models/<name>.glb. Resolves to the model, or null if there isn't one yet.
 export function loadModel(name, folders = MODEL_FOLDERS) {
-  if (NEW_LOOK && REMADE.has(name) && folders === MODEL_FOLDERS) folders = MODEL_FOLDERS.map((folder) => `${folder}look/`); // (see look.js)
   if (folders.length === 0) return Promise.resolve(null);
   return new Promise((resolve) => {
     loader.load(
       folders[0] + name + '.glb',
       (gltf) => {
         gltf.scene.animations = gltf.animations;
-        // In the new look every model's surfaces are painted, by what they're made of (look.js).
-        if (NEW_LOOK) {
-          gltf.scene.traverse((child) => {
-            if (!child.isMesh) return;
-            for (const material of [child.material].flat()) paintedSurface(material, surfaceFor(material.name));
-          });
-        }
+        // Every model's surfaces are painted, by what they're made of (look.js).
+        gltf.scene.traverse((child) => {
+          if (!child.isMesh) return;
+          for (const material of [child.material].flat()) paintedSurface(material, surfaceFor(material.name));
+        });
         resolve(gltf.scene);
       },
       undefined,
@@ -180,18 +177,13 @@ export function instancedModel(name, placeholder, transforms, changeMaterial, ti
     for (const key of [...built.keys()]) dropChunk(key);
     stream.draw(keys);
   };
-  loadModel(name).then((model) => {
-    if (!model) return;
-    template = model;
-    rebuild();
+  // With a detailed version, both are loaded before either is shown: otherwise the near copies
+  // appear as the plain model first, then swap to the detailed one a moment later.
+  Promise.all([loadModel(name), detail ? loadModel(detail.name) : null]).then(([model, detailed]) => {
+    if (model) template = model;
+    if (detailed) detailTemplate = detailed;
+    if (model || detailed) rebuild();
   });
-  if (detail) {
-    loadModel(detail.name).then((model) => {
-      if (!model) return;
-      detailTemplate = model;
-      rebuild();
-    });
-  }
 
   holder.setInstance = (i, transform) => {
     transforms[i] = transform.clone();

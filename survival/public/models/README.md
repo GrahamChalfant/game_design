@@ -8,32 +8,33 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 
 | File | What it is | Tris | Source |
 | --- | --- | --- | --- |
-| `player.glb` | Survivor (rigged, animated; `hand_R` bone, `player-pack` mesh = the backpack.glb mesh, skinned to `spine`) | 864 | player.blend |
-| `axe.glb` | Hand axe held by the player (material `tool`) | 56 | player.blend |
-| `deer.glb` | Deer (rigged) | 536 | animals.blend |
-| `rabbit.glb` | Rabbit (rigged) | 272 | animals.blend |
-| `suitcase.glb` | Washed-up suitcase with `lid` | 356 | animals.blend |
-| `plane.glb` | Crashed plane wreck | 448 | plane.blend |
-| `plane-wing.glb` | Detached plane wing | 72 | plane.blend |
-| `shelter.glb` | A-frame hide shelter, single vertex-colour material | 1,076 | shelter.py (generates shelter.blend) |
+| `player.glb` | Survivor (rigged, animated; `hand_R` bone, `player-pack` mesh = the backpack.glb mesh, skinned to `spine`) | 5,840 | player.blend |
+| `axe.glb` | Hand axe held by the player (material `tool`) | 128 | blender/remake.py |
+| `deer.glb` | Deer (rigged) | 3,464 | blender/smooth_rigged.py |
+| `rabbit.glb` | Rabbit (rigged) | 1,632 | blender/smooth_rigged.py |
+| `suitcase.glb` | Washed-up suitcase with `lid` | 720 | blender/remake.py |
+| `plane.glb` | Crashed plane wreck | 960 | blender/remake.py |
+| `plane-wing.glb` | Detached plane wing | 200 | blender/remake.py |
+| `shelter.glb` | A-frame hide shelter, single vertex-colour material | 916 | blender/remake.py |
 | `bow.glb` | Self bow, 1.40 m, hide grip, string; origin at grip centre, string toward +Y (archer) | 188 | hunting_props.py |
 | `arrow.glb` | Arrow, 0.70 m, stone head, 3 vanes; origin at the nock, points -Y | 40 | hunting_props.py |
-| `stone.glb` | Fist-sized throwing stone, ~0.095 m; origin at base centre | 28 | hunting_props.py |
+| `stone.glb` | Fist-sized throwing stone, ~0.095 m; origin at base centre | 80 | blender/remake.py |
 | `backpack.glb` | Canvas backpack (greens, rust bedroll), upright, origin base centre; straps toward +Z, pocket toward -Z (glTF). Same mesh as the worn `player-pack` | 204 | backpack.py |
-| `campfire.glb` | Ring of 15 nearly-touching stones built from `rock-small`/`rock` (mossy vertex paint), log teepee, embers, crossed-blade flame, ~0.95 m across | 861 | camp_props.py |
-| `log-pile.glb` | 4-3-2 stack of 1.2 m logs with two stakes | 204 | camp_props.py |
-| `stump.glb` | Tree stump with root flares, ~0.45 m tall | 90 | camp_props.py |
-| `trap.glb` | Spring-pole snare: stake, bent sapling with needle tufts, cord and a wide noose lying open in front (-Y), ~0.7 m across | 336 | camp_props.py |
-| `pine.glb`, `pine-small.glb`, `pine-skinny.glb`, `pine-tall.glb`, `pine-wide.glb` | Spruce | 1,752–4,165 | blender/conifers.py |
+| `campfire.glb` | Ring of 15 nearly-touching stones built from `rock-small`/`rock` (mossy vertex paint), log teepee, embers, crossed-blade flame, ~0.95 m across | 1,594 | blender/remake.py |
+| `log-pile.glb` | 4-3-2 stack of 1.2 m logs with two stakes | 1,020 | blender/remake.py |
+| `stump.glb` | Tree stump with root flares, ~0.45 m tall | 248 | blender/remake.py |
+| `trap.glb` | Spring-pole snare: stake, bent sapling with needle tufts, cord and a wide noose lying open in front (-Y), ~0.7 m across | 278 | blender/remake.py |
+| `pine.glb`, `pine-small.glb`, `pine-skinny.glb`, `pine-tall.glb`, `pine-wide.glb` | Spruce | 2,322 / 1,752 / 4,165 / 4,032 / 2,645 | blender/conifers.py |
 | `pine-snow.glb`, `pine-small-snow.glb` | Snowy spruce | 2,243 / 1,749 | blender/conifers.py |
 | `sapling-pine.glb` | Sapling | 897 | blender/conifers.py |
-| `tree-dead.glb` | Bare dead tree | 272 | trees.blend |
-| `rock.glb`, `rock-small.glb`, `rock-flat.glb`, `rock-tall.glb`, `rock-large.glb` | Rocks | 44–140 | rock.blend |
-| `grass-tuft.glb`, `grass-short.glb`, `grass-clump.glb`, `grass-sparse.glb`, `grass-wide.glb`, `grass-wisp.glb`, `grass-tall.glb`, `grass-seed.glb`, `grass-fern.glb` | Grass tufts, painted grey (tinted by the ground) | 9–45 | grass.blend |
-| `berry-bush.glb` | Berry bush, rust berry clusters; origin base centre | 258 | food_props.py |
+| `near/pine.glb` … `near/sapling-pine.glb` | The same spruce in needle cards, drawn within 26 m of the player | 2,488–12,120 | blender/conifers.py (DETAIL) |
+| `tree-dead.glb` | Bare dead tree | 1,265 | blender/remake.py |
+| `rock.glb`, `rock-small.glb`, `rock-flat.glb`, `rock-tall.glb`, `rock-large.glb` | Rocks | 1,280 / 320 / 1,280 / 1,280 / 1,280 | blender/remake.py |
+| `grass-fern.glb` | Fern, pale (tinted by the ground; the grass tufts themselves are drawn in code) | 256 | blender/remake.py |
+| `berry-bush.glb` | Berry bush, rust berry clusters; origin base centre | 1,298 | blender/remake.py |
 | `berry.glb` | Berry pickup (3 berries + leaf) | 25 | food_props.py |
 | `knife.glb` | Stone knife, wood handle, slate blade; origin at the guard (top of the handle wrap), blade along +Z Blender / +Y glTF (like axe), edge toward -Y | 76 | food_props.py |
-| `boar.glb` | Wild boar: rigged, with `boar-idle`, `boar-walk`, `boar-run`, `boar-graze` clips; wedge body with a dark mane that reads from above; faces -Y, origin at feet | 472 | boar.py |
+| `boar.glb` | Wild boar: rigged, with `boar-idle`, `boar-walk`, `boar-run`, `boar-graze` clips; wedge body with a dark mane that reads from above; faces -Y, origin at feet | 2,832 | blender/smooth_rigged.py |
 
 **Wanted (placeholders in code until these land):**
 - `berry-bush.glb` — low bush ~0.9 m, origin base centre; berries as a child node named `berries` (hidden when picked).
@@ -43,8 +44,9 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 Style, palette and poly budgets: `survival/blender/STYLE_GUIDE.md`.
 See "Adding models from Blender" in `survival/README.md` for sizes and orientation.
 
-**The new look (`index.html?look=new`, see `src/look.js`):** `look/` holds richer versions of most of these models, loaded in their place in that look only (`REMADE` in look.js). They're the same sizes, part names, hinges, skeletons and animations, so the game uses them the same way:
-- `blender/remake.py` rebuilds rocks, dead wood, the plane and its wreckage, the containers, camp props, the shelter, bones, the axe and more from scratch;
-- `blender/fine.py` re-runs `places.py`, `lookout.py` and `props.py` with finer parts (rounder logs, bevelled boards);
-- `blender/smooth_rigged.py` rounds off the rigged animals and the player under their rigs;
-- `blender/conifers.py` (with `LOOK = 'new'`) makes the needle-card spruce drawn near the player.
+**How these are made:** most come from four scripts (run them in an open Blender, via the Blender MCP or the Text Editor):
+- `blender/remake.py` builds rocks, dead wood, the plane and its wreckage, the containers, camp props, the shelter, bones, the axe and more from scratch;
+- `blender/fine.py` runs `places.py`, `lookout.py` and `props.py` with finer parts (rounder logs, bevelled boards). Run on their own, those make the old low-poly versions;
+- `blender/smooth_rigged.py` rounds off the rigged animals (made by `boar.py` and the like) under their rigs;
+- `blender/conifers.py` makes the spruce, and with `DETAIL = True` the needle-card versions in `near/` that are drawn near the player.
+The grass tufts are cards of fine blades, drawn in code (`src/look.js`).

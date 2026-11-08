@@ -4,7 +4,7 @@ import { loadModel } from './models.js';
 import { createRandom } from './random.js';
 import { CHUNK_SIZE, chunkKey, chunkOf, chunkSeed, chunksAround } from './stream.js';
 import { COVER_KINDS, coverParts, pickCover, placeCover, rootsFor } from './groundCover.js';
-import { NEW_LOOK, bladeMaterial, bladeTuft, isBladeTuft } from './look.js';
+import { bladeMaterial, bladeTuft, isBladeTuft } from './look.js';
 
 const FOREST_THINNING = 0.75; // the share of tufts left out where trees grow
 const TUFT_BRIGHTNESS = 1.5;
@@ -74,8 +74,8 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
       );
   };
   const material = grassMaterial();
-  // In the new look the tufts are cards of fine blades (look.js), with a material of their own.
-  const blades = NEW_LOOK ? bladeMaterial(grassMaterial()) : null;
+  // The tufts are cards of fine blades (look.js), with a material of their own.
+  const blades = bladeMaterial(grassMaterial());
 
   // Each chunk grows its own tufts from the map's seed, so they're the same every time it's
   // drawn. Chunks out of sight are forgotten and grown again when you come back.
@@ -145,7 +145,7 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
   // One InstancedMesh per tuft model, holding the tufts of the chunks around the player.
   const group = new THREE.Group();
   const kinds = [...new Set(TUFT_MIX)].map((name) => {
-    if (blades && isBladeTuft(name)) return { name, geometry: bladeTuft(name), material: blades, mesh: null };
+    if (isBladeTuft(name)) return { name, geometry: bladeTuft(name), material: blades, mesh: null };
     const kind = { name, geometry, mesh: null };
     loadModel(name).then((model) => {
       model?.traverse((child) => {

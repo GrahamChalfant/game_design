@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { NEW_LOOK, paintedCover } from './look.js';
+import { paintedCover } from './look.js';
 
 // The small things on the forest floor and in the meadows, so the ground isn't bare: moss
 // mounds, ferns, low shrubs (Labrador tea and blueberry), fallen branches, rust-brown drifts of
@@ -40,125 +40,18 @@ function shape(triangles) {
   return geometry;
 }
 
-// A rough ball (an icosahedron, jittered), squashed to `size`, coloured top and bottom.
-function lump(center, size, top, side, random, triangles) {
-  const ico = new THREE.IcosahedronGeometry(1, 0).toNonIndexed();
-  const p = ico.attributes.position;
-  const jitter = new Map();
-  const at = (i) => {
-    const key = `${p.getX(i).toFixed(3)},${p.getY(i).toFixed(3)},${p.getZ(i).toFixed(3)}`;
-    if (!jitter.has(key)) jitter.set(key, 0.82 + random() * 0.36);
-    const k = jitter.get(key);
-    return [center[0] + p.getX(i) * size[0] * k, center[1] + p.getY(i) * size[1] * k, center[2] + p.getZ(i) * size[2] * k];
-  };
-  for (let i = 0; i < p.count; i += 3) {
-    const tri = [at(i), at(i + 1), at(i + 2)];
-    const up = (tri[0][1] + tri[1][1] + tri[2][1]) / 3 - center[1];
-    triangles.push([up > size[1] * 0.25 ? top : side, ...tri]);
-  }
-}
-
-// A tapered prism from `a` to `b` (radii ra, rb), for branches and roots.
-function stick(a, b, ra, rb, color, triangles, sides = 5) {
-  const axis = new THREE.Vector3(...b).sub(new THREE.Vector3(...a)).normalize();
-  const side = new THREE.Vector3().crossVectors(axis, Math.abs(axis.y) < 0.9 ? UP : new THREE.Vector3(1, 0, 0)).normalize();
-  const up = new THREE.Vector3().crossVectors(side, axis);
-  const ring = (centre, r, k) => {
-    const t = (k / sides) * Math.PI * 2;
-    return new THREE.Vector3(...centre).addScaledVector(side, Math.cos(t) * r).addScaledVector(up, Math.sin(t) * r).toArray();
-  };
-  for (let k = 0; k < sides; k++) {
-    const [a0, a1, b0, b1] = [ring(a, ra, k), ring(a, ra, k + 1), ring(b, rb, k), ring(b, rb, k + 1)];
-    triangles.push([color, a0, b0, a1], [color, a1, b0, b1]);
-  }
-}
-
 // Seeded the same every time, so the shapes don't change between games.
 function maker(seed) {
   let s = seed;
   return () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
 }
 
+// The moss (the other shapes are built in buildFineShapes, on top of this).
 function buildShapes() {
-  const r = maker(7);
-  const shapes = {};
-  // Moss: a low, soft, lumpy cushion (smooth-shaded: see coverParts), lighter on top.
-  shapes.moss = mossCushion(r);
-  // Needle litter: a thin, ragged drift of old needles, its rim sunk just under the ground so
-  // it melts into it rather than lying on top like a mat.
-  let t = [];
-  const rim = Array.from({ length: 16 }, (_, i) => {
-    const a = (i / 16) * Math.PI * 2;
-    const d = 0.62 + r() * 0.45;
-    return [Math.cos(a) * d, -0.03, Math.sin(a) * d];
-  });
-  const mid = rim.map(([x, , z], i) => [x * 0.55 + (r() - 0.5) * 0.08, 0.018, z * 0.55 + (r() - 0.5) * 0.08]);
-  for (let i = 0; i < rim.length; i++) {
-    const j = (i + 1) % rim.length;
-    const shade = i % 3 ? 0x4f402d : 0x463826;
-    t.push([0x54442f, [0, 0.025, 0], mid[j], mid[i]], [shade, mid[i], mid[j], rim[j]], [shade, mid[i], rim[j], rim[i]]);
-  }
-  shapes.litter = shape(t);
-  // A fern: fronds arching out from the middle and drooping at the tips.
-  t = [];
-  for (let f = 0; f < 7; f++) {
-    const a = (f / 7) * Math.PI * 2 + r() * 0.4;
-    const [dx, dz] = [Math.cos(a), Math.sin(a)];
-    const [sx, sz] = [-dz, dx];
-    const pts = [[0, 0.02], [0.18, 0.2], [0.36, 0.27], [0.52, 0.2], [0.62, 0.08]];
-    const widths = [0.02, 0.07, 0.08, 0.05, 0.0];
-    const color = f % 2 ? 0x5f7a3c : 0x6c8644;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const [d0, y0] = pts[i];
-      const [d1, y1] = pts[i + 1];
-      const [w0, w1] = [widths[i], widths[i + 1]];
-      const p0l = [dx * d0 + sx * w0, y0, dz * d0 + sz * w0];
-      const p0r = [dx * d0 - sx * w0, y0, dz * d0 - sz * w0];
-      const p1l = [dx * d1 + sx * w1, y1, dz * d1 + sz * w1];
-      const p1r = [dx * d1 - sx * w1, y1, dz * d1 - sz * w1];
-      t.push([color, p0l, p1l, p0r], [color, p0r, p1l, p1r]);
-    }
-  }
-  shapes.fern = shape(t);
-  // A low shrub: a few dark, leathery leaf clumps (Labrador tea), the odd paler one.
-  t = [];
-  lump([0, 0.16, 0], [0.26, 0.17, 0.24], 0x37492d, 0x263222, r, t);
-  lump([0.2, 0.11, 0.12], [0.18, 0.12, 0.17], 0x3e5131, 0x2a3724, r, t);
-  lump([-0.16, 0.1, 0.1], [0.17, 0.11, 0.16], 0x525a38, 0x343d26, r, t);
-  stick([0, 0, 0], [0.05, 0.14, 0.02], 0.018, 0.01, 0x4a3a2c, t, 4);
-  shapes.shrub = shape(t);
-  // A fallen branch: a grey-brown stick lying on the ground with a side twig (length 1).
-  t = [];
-  stick([-0.5, 0.035, 0], [0.5, 0.025, 0.04], 0.035, 0.016, 0x6b5a48, t);
-  stick([0.05, 0.03, 0.01], [0.32, 0.03, 0.22], 0.016, 0.006, 0x6b5a48, t, 4);
-  stick([-0.2, 0.03, 0], [-0.36, 0.06, -0.15], 0.014, 0.005, 0x5e4e3e, t, 4);
-  shapes.branch = shape(t);
-  // Stones: three or four small grey ones together.
-  t = [];
-  lump([0, 0.04, 0], [0.11, 0.07, 0.09], 0x8a8a84, 0x6a6a66, r, t);
-  lump([0.15, 0.025, 0.08], [0.07, 0.045, 0.06], 0x92928a, 0x707070, r, t);
-  lump([-0.1, 0.02, 0.12], [0.06, 0.035, 0.05], 0x7e7e78, 0x62625e, r, t);
-  lump([0.06, 0.015, -0.13], [0.05, 0.03, 0.045], 0x8a8a84, 0x66665f, r, t);
-  shapes.stones = shape(t);
-  // Mushrooms: a few pale-capped ones in the moss.
-  t = [];
-  for (const [x, z, h] of [[0, 0, 0.09], [0.08, 0.05, 0.06], [-0.06, 0.07, 0.05]]) {
-    stick([x, 0, z], [x, h, z], 0.012, 0.01, 0xd8ccb0, t, 4);
-    lump([x, h, z], [0.04 * (h / 0.07), 0.018, 0.04 * (h / 0.07)], 0xb88a5a, 0x9a7048, r, t);
-  }
-  shapes.mushrooms = shape(t);
-  // Roots: four spreading out from a trunk's foot and down into the ground (for a tree of scale 1).
-  t = [];
-  for (let k = 0; k < 5; k++) {
-    const a = (k / 5) * Math.PI * 2 + r() * 0.5;
-    const reach = 0.75 + r() * 0.45;
-    stick([Math.cos(a) * 0.2, 0.12, Math.sin(a) * 0.2], [Math.cos(a) * reach, -0.04, Math.sin(a) * reach], 0.075, 0.02, 0x4e3e30, t);
-  }
-  shapes.roots = shape(t);
-  return shapes;
+  return { moss: mossCushion(maker(7)) };
 }
 
-// ---- the new look's finer shapes (look.js), the same sizes as the ones above ----
+// ---- the shapes: moss above, the rest here ----
 
 // A rounded lump: a finer icosahedron, its corners jittered smoothly by noise-like offsets,
 // squashed to `size`; colour(up) picks a face's colour from how far it faces up (-1 to 1).
@@ -206,7 +99,7 @@ const pick = (random, colours) => colours[Math.floor(random() * colours.length)]
 
 function buildFineShapes() {
   const r = maker(11);
-  const shapes = buildShapes(); // (moss, and anything not remade here)
+  const shapes = buildShapes(); // (the moss)
   // Needle litter: a finer ragged drift, sunk at its rim, with a few twigs lying in it.
   let t = [];
   const rim = Array.from({ length: 30 }, (_, i) => {
@@ -325,12 +218,10 @@ function mossCushion(r) {
 export function coverParts() {
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, side: THREE.DoubleSide });
   const smooth = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
-  if (NEW_LOOK) {
-    // (The new look: mottled like the ground, and the moss darker, see look.js.)
-    paintedCover(material, 0.8);
-    paintedCover(smooth, 0.62);
-  }
-  return { material, materials: { moss: smooth }, shapes: NEW_LOOK ? buildFineShapes() : buildShapes() };
+  // (Mottled like the ground, and the moss darker, see look.js.)
+  paintedCover(material, 0.8);
+  paintedCover(smooth, 0.62);
+  return { material, materials: { moss: smooth }, shapes: buildFineShapes() };
 }
 
 // Picks something to grow at (x, z) in a chunk, or null. `random` is the chunk's own;
