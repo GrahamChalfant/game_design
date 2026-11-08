@@ -4,6 +4,7 @@ import { loadModel } from './models.js';
 import { createRandom } from './random.js';
 import { CHUNK_SIZE, chunkKey, chunkOf, chunkSeed, chunksAround } from './stream.js';
 import { COVER_KINDS, coverParts, pickCover, placeCover, rootsFor } from './groundCover.js';
+import { NEW_LOOK, bladeMaterial, bladeTuft, isBladeTuft } from './look.js';
 
 const FOREST_THINNING = 0.75; // the share of tufts left out where trees grow
 const TUFT_BRIGHTNESS = 1.5;
@@ -45,8 +46,12 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
   faceUp(geometry);
 
   const uniforms = { uTime: { value: 0 } };
-  const material = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.95, vertexColors: true });
-  material.onBeforeCompile = (shader) => {
+  const grassMaterial = () => {
+    const material = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.95, vertexColors: true });
+    material.onBeforeCompile = grassShader;
+    return material;
+  };
+  const grassShader = (shader) => {
     shader.uniforms.uTime = uniforms.uTime;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying float vBladeHeight;')
@@ -68,6 +73,9 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
         '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.8, 1.0, min(vBladeHeight, 1.0));',
       );
   };
+  const material = grassMaterial();
+  // In the new look the tufts are cards of fine blades (look.js), with a material of their own.
+  const blades = NEW_LOOK ? bladeMaterial(grassMaterial()) : null;
 
   // Each chunk grows its own tufts from the map's seed, so they're the same every time it's
   // drawn. Chunks out of sight are forgotten and grown again when you come back.
@@ -137,6 +145,7 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
   // One InstancedMesh per tuft model, holding the tufts of the chunks around the player.
   const group = new THREE.Group();
   const kinds = [...new Set(TUFT_MIX)].map((name) => {
+    if (blades && isBladeTuft(name)) return { name, geometry: bladeTuft(name), material: blades, mesh: null };
     const kind = { name, geometry, mesh: null };
     loadModel(name).then((model) => {
       model?.traverse((child) => {

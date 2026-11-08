@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { HIDDEN, instancedModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { seeThroughMaterial } from './seeThrough.js';
-import { NEW_LOOK, needleMaterial, softFoliage } from './look.js';
+import { NEW_LOOK, needleMaterial, paintedSurface, softFoliage } from './look.js';
 import { SpatialGrid } from './grid.js';
 
 // How much wood each kind of tree gives, how long it takes to chop (seconds of holding),
@@ -46,7 +46,8 @@ export class Trees {
     // (A model's needle cards, in the new look, are painted with see-through needles.)
     const prepare = (material) => {
       const result = seeThroughMaterial(material.name.startsWith('needles') ? needleMaterial(material) : material);
-      return NEW_LOOK && kind !== 'tree-dead' ? softFoliage(result) : result;
+      if (!NEW_LOOK) return result;
+      return kind === 'tree-dead' ? paintedSurface(result, 'wood') : softFoliage(result);
     };
     // In the new look, the spruce near the player are the needle-card ones (public/models/look/),
     // the rest the plain ones: the same boughs in the same places, just simpler.
