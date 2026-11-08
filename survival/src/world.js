@@ -10,7 +10,7 @@ import { CRASH, trailPoint } from './crashTrail.js';
 import { SpatialGrid } from './grid.js';
 import { LOOKOUT, chooseLookout, lookoutBase, lookoutObstacles, lookoutStructure } from './lookout.js';
 import { choosePois, poiClearing, poiObstacles, poiStructure } from './pois.js';
-import { ROAD_WIDTH, alongRoads, layRoads, ruinRoads } from './roads.js';
+import { KEEP_CLEAR, ROAD_WIDTH, alongRoads, layRoads, ruinRoads } from './roads.js';
 import { scatterDetails } from './details.js';
 
 // Meters across; the playable area is a square centred on the crash, at 0,0. Only the chunks
@@ -150,6 +150,13 @@ export function buildWorld(scene, seed) {
   // The old fire road from the tower out to the nearest cabins (painted into the ground, so
   // before any of the ground is drawn), with a truck or two left on it.
   const roads = layRoads(createRandom(mapSeed + 17), terrain, lookout, pois);
+  // (Should the road still pass over a cabin or the like, that place goes: nothing is ever
+  // built on the road.)
+  const roadPoints = alongRoads(roads.paths, 2);
+  for (let i = pois.length - 1; i >= 0; i--) {
+    const reach = KEEP_CLEAR[pois[i].kind] ?? 4;
+    if (roadPoints.some(({ x, z }) => Math.hypot(x - pois[i].x, z - pois[i].z) < reach - 1)) pois.splice(i, 1);
+  }
   terrain.setRoads(roads.paths, ROAD_WIDTH);
   pois.push(...roads.trucks);
   // Everything is drawn around the player as they move: start where they spawn.

@@ -173,8 +173,8 @@ const SURFACES = {
     c *= 0.8 + 0.22 * mid + 0.06 * fine;
     c = mix(c, vec3(dot(c, vec3(0.3, 0.59, 0.11))), 0.12);`,
   fur: `
-    float streak = psNoise(p * vec3(7.0, 22.0, 7.0));
-    c *= (0.84 + 0.18 * mid) * (0.82 + 0.3 * streak);`,
+    float streak = psNoise(p * vec3(24.0, 5.0, 24.0)); // (running down the hair, not round the legs)
+    c *= (0.86 + 0.16 * mid) * (0.9 + 0.16 * streak);`,
   plain: `
     c *= 0.84 + 0.2 * mid + 0.08 * fine;`,
 };

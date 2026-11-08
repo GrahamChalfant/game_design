@@ -39,9 +39,9 @@ const POSE_SPEED = 8; // how quickly the arms move into and out of a pose (see p
 const HURT_TIME = 0.45; // seconds the player reels after being hit
 const KNOCKBACK = 7; // m/s a hit throws the player back at first
 const TORCH_LEAN = 0.25; // a held torch leans this far forward from upright (radians)
-// Where each foot comes down in player.glb's walking animations, as a share of the cycle
-// (measured from the shins' lowest points), so footstep sounds land with the feet.
-const FOOTFALLS = { walk: [0.167, 0.639], sneak: [0.361, 0.833] };
+// Where each foot comes down in player.glb's walking animations, as a share of the cycle (they
+// start on the left foot's contact: blender/player_anim.py), so footstep sounds land with the feet.
+const FOOTFALLS = { walk: [0.0, 0.5], sneak: [0.0, 0.5] };
 
 export class Player {
   constructor(scene, spawn, worldSize, spawnFacing = 0) {

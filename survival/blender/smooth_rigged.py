@@ -13,7 +13,7 @@ import bmesh
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELS = os.path.join(HERE, '..', 'public', 'models')
-NAMES = [n for n in globals().get('NAMES', ['rabbit', 'deer', 'boar'])]
+NAMES = [n for n in globals().get('NAMES', ['rabbit', 'boar'])]  # (the deer: deer.py)
 LEVELS = {'player': 1}  # (default 1 for all; the player's hands are small, so no more)
 
 

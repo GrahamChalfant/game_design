@@ -10,6 +10,9 @@ const MAX_LEG = 450; // meters: past the first cabin, one further than this from
 const STEP = 5; // meters per step when finding the way
 const TRUCKS = 2;
 const LOGS_ACROSS = 3;
+// How far the road's middle keeps from each kind of place (meters from its centre): a cabin's
+// half-length, plus half the road, plus a little.
+export const KEEP_CLEAR = { cabin: 6, stand: 4.5, camp: 5, leanto: 5, cave: 5 };
 
 // Works out where the road goes. Returns { paths: [[{x, z}]], trucks: [poi], stops }.
 export function layRoads(random, terrain, lookout, pois) {
@@ -25,8 +28,11 @@ export function layRoads(random, terrain, lookout, pois) {
     if (stops.length > 1 && Math.hypot(next.x - last.x, next.z - last.z) > MAX_LEG) break; // (the tower always gets its road)
     stops.push(front(next, 6)); // up to the cabin's door
   }
+  // (The road keeps clear of every cabin, camp and stand on the way, not just the ones it
+  // goes to: it never runs through a building.)
+  const blocked = pois.map((p) => ({ x: p.x, z: p.z, r: KEEP_CLEAR[p.kind] ?? 4 }));
   const paths = [];
-  for (let i = 1; i < stops.length; i++) paths.push(smooth(findWay(terrain, stops[i - 1], stops[i])));
+  for (let i = 1; i < stops.length; i++) paths.push(smooth(findWay(terrain, stops[i - 1], stops[i], blocked)));
 
   // A truck or two left by the side of the road, partway along.
   const trucks = [];
@@ -47,7 +53,7 @@ export function layRoads(random, terrain, lookout, pois) {
 }
 
 // Finds a way from a to b, a few meters at a time, steering round water and steep ground.
-function findWay(terrain, a, b) {
+function findWay(terrain, a, b, blocked = []) {
   const points = [{ x: a.x, z: a.z }];
   let x = a.x;
   let z = a.z;
@@ -63,6 +69,7 @@ function findWay(terrain, a, b) {
       const nz = z + Math.sin(angle) * STEP;
       const ford = terrain.creekOnly(nx, nz); // (creeks are shallow: the road fords them)
       if (!ford && (terrain.waterDepth(nx, nz) > 0 || terrain.nearWater(nx, nz, 3))) continue;
+      if (blocked.some((o) => Math.hypot(nx - o.x, nz - o.z) < o.r)) continue;
       const climb = Math.abs(terrain.heightAt(nx, nz) - terrain.heightAt(x, z)) / STEP;
       const cost = Math.abs(turn) * 2 + climb * 8 + terrain.mountainAt(nx, nz) * 10;
       if (!best || cost < best.cost) best = { angle, nx, nz, cost };

@@ -122,7 +122,8 @@ export function createWater(lakes, river, creeks = []) {
     return sheet;
   });
 
-  const stream = ribbon(river.points, 0.5, 0, waterMaterial(true));
+  // (The river a little more opaque than the lake: deep and silty, its bed mostly hidden.)
+  const stream = ribbon(river.points, 0.5, 0, waterMaterial(true, { opacity: 0.93 }));
   // Creek water is thin and clear: you see the pebbles through it. (Its streaks start
   // straight away: the river's fade in only as it leaves its lake.)
   const creekMaterial = waterMaterial(true, { color: 0x6f9a94, opacity: 0.38 });
