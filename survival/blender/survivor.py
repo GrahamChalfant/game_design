@@ -166,8 +166,8 @@ def legs(parts):
         x = 0.105 * s
         # The leg, a ring every 1.5 cm, creased: bunched in folds above the boot, and behind
         # the knee; a darker seam down the outside.
-        table = ((0.96, 0.08, 0.095, 0.0), (0.82, 0.086, 0.094, 0.0), (0.66, 0.075, 0.08, 0.005), (0.49, 0.064, 0.07, 0.012),
-                 (0.4, 0.064, 0.068, 0.0), (0.33, 0.068, 0.07, 0.0), (0.3, 0.066, 0.068, 0.0))
+        table = ((0.96, 0.08, 0.095, 0.0), (0.82, 0.086, 0.094, 0.0), (0.66, 0.079, 0.084, 0.005), (0.49, 0.07, 0.075, 0.012),
+                 (0.4, 0.07, 0.073, 0.0), (0.33, 0.072, 0.074, 0.0), (0.3, 0.068, 0.07, 0.0))
         table = tuple(sorted(table))  # (bottom to top, for table_params)
         rings = []
         for i in range(45):
@@ -441,7 +441,7 @@ def torso(parts):
     collar = [[q + Vector((0, 0.035 * max(0.0, -q.z) / 0.08 * (i / 3), 0)) for q in ring] for i, ring in enumerate(collar)]
     loft(p, collar, lambda i, k, c, n: tone('coat_dark' if i >= 2 else 'coat', 0.0), cap_start=False, cap_end=False)
     # The hood, rolled up and stowed at the back of the collar: a soft, low roll.
-    hood = [section(Vector((0, y, -0.075)), w, f, b, 12, power=2.0) for y, w, f, b in ((1.385, 0.115, 0.03, 0.05), (1.43, 0.13, 0.035, 0.058), (1.47, 0.12, 0.03, 0.05), (1.495, 0.09, 0.02, 0.032))]
+    hood = [section(Vector((0, y, -0.08)), w, f, b, 12, power=2.0) for y, w, f, b in ((1.39, 0.085, 0.03, 0.045), (1.43, 0.098, 0.034, 0.054), (1.468, 0.09, 0.03, 0.047), (1.49, 0.065, 0.02, 0.03))]
     loft(p, hood, lambda i, k, c, n: tone('coat_fold' if n.y < 0 else 'coat', 0.0), cap_end=True)
     # The storm flap down the front, the zip pull at its top, and its press studs.
     on_jacket(p, -0.016, 0.016, 0.85, 1.41, 0.006, tone('coat', 0.0, 0.93), rows=40, cols=3)
