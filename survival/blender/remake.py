@@ -24,8 +24,17 @@ os.makedirs(os.path.join(OUT, LOOK), exist_ok=True)
 
 
 def shared(name, rough=0.95):
-    """One material per name, reused run after run (otherwise an open Blender numbers them)."""
-    return bpy.data.materials.get(name) or material(name, rough)
+    """One material per name, made by this script and reused run after run (otherwise an open
+    Blender numbers them). One of the same name from elsewhere (say, a model imported into the
+    scene) is renamed out of the way: it may not be wired to the vertex colours."""
+    m = bpy.data.materials.get(name)
+    if m and m.get('remake'):
+        return m
+    if m:
+        m.name = f'{name}-other'
+    m = material(name, rough)
+    m['remake'] = True
+    return m
 
 
 def tone(name, var=0.06, shade=1.0):
@@ -433,12 +442,141 @@ def plane_wing():
     return build('plane-wing', b, shared('plane', 0.6))
 
 
+# ---- shared builders for made things ----
+from kit import build_hinged
+
+
+def rounded_box(b, lo, hi, radius, colour, segments=2):
+    """A box from corner lo to hi (game space) with its edges rounded off (bevelled), coloured
+    face by face by colour(centre, normal)."""
+    tmp = bmesh.new()
+    bmesh.ops.create_cube(tmp, size=1)
+    size = Vector(hi) - Vector(lo)
+    mid = (Vector(hi) + Vector(lo)) / 2
+    for v in tmp.verts:
+        v.co = Vector((v.co.x * size.x, v.co.y * size.y, v.co.z * size.z)) + mid
+    r = min(radius, min(size) * 0.45)
+    bmesh.ops.bevel(tmp, geom=tmp.edges[:] + tmp.verts[:], offset=r, segments=segments, profile=0.5, affect='EDGES')
+    tmp.normal_update()
+    index = {v: i for i, v in enumerate(tmp.verts)}
+    verts = [g(*v.co) for v in tmp.verts]
+    for f in tmp.faces:
+        b.add(verts, [tuple(index[v] for v in f.verts)], colour(f.calc_center_median(), f.normal))
+    tmp.free()
+
+
+def rod(b, a, z, r0, r1, colour, sides=6):
+    """A round rod from a to z (game space)."""
+    a, z = Vector(a), Vector(z)
+    u, v = frame((z - a).normalized())
+    loft(b, [[a + u * q.x + v * q.y for q in section(Vector(), r0, r0, sides, 2)], [z + u * q.x + v * q.y for q in section(Vector(), r1, r1, sides, 2)]], colour)
+
+
+PAL.update(
+    case=0xb9b4aa, case_dark=0x8f8a80, case_trim=0x55504a, brass_dull=0x9a8456, soil=0x4a3a2a, soil_dark=0x3a2d22,
+    soil_root=0x5e4a34, grass_bit=0x5e6b3c, alu=0x9ea3a6, alu_dark=0x6e7376,
+)
+
+
+def suitcase():
+    """A battered leather suitcase lying flat (the game tints it): the base, and its lid
+    ('lid', hinged along the back top edge) closed on top."""
+    random.seed(401)
+    def leather(c, n):
+        if abs(c.x) > 0.3 and abs(c.z) > 0.19:
+            return tone('case_trim', 0.05)  # (corner caps)
+        return tone(random.choice(('case', 'case', 'case_dark')), 0.03)
+    base = Builder()
+    rounded_box(base, (-0.36, 0.0, -0.25), (0.36, 0.12, 0.25), 0.035, leather)
+    rounded_box(base, (-0.365, 0.105, -0.255), (0.365, 0.122, 0.255), 0.006, lambda c, n: tone('case_trim', 0.04))  # the seam
+    for x in (-0.2, 0.2):  # latches
+        rounded_box(base, (x - 0.03, 0.08, 0.247), (x + 0.03, 0.135, 0.262), 0.006, lambda c, n: tone('brass_dull', 0.05))
+    # The handle, on the front.
+    rod(base, (-0.1, 0.06, 0.26), (-0.08, 0.06, 0.31), 0.012, 0.012, lambda c, n: tone('case_trim', 0.04))
+    rod(base, (0.1, 0.06, 0.26), (0.08, 0.06, 0.31), 0.012, 0.012, lambda c, n: tone('case_trim', 0.04))
+    rod(base, (-0.08, 0.06, 0.31), (0.08, 0.06, 0.31), 0.014, 0.014, lambda c, n: tone('case_trim', 0.04))
+    lid = Builder()
+    rounded_box(lid, (-0.36, 0.12, -0.25), (0.36, 0.235, 0.25), 0.035, leather)
+    rounded_box(lid, (-0.05, 0.12, -0.252), (0.05, 0.24, 0.252), 0.008, lambda c, n: tone('case_dark', 0.05))
+    return [build('suitcase', base, shared('suitcase', 0.7)), build_hinged('lid', lid, shared('suitcase', 0.7), (0, 0.12, -0.24))]
+
+
+def debris():
+    """Torn sheet metal off the plane: a few bent, ragged panels, about 0.9 x 0.6 m."""
+    random.seed(402)
+    b = Builder()
+    for (x, z, turn, w, d, bend, painted) in ((-0.15, 0.0, 0.3, 0.55, 0.4, 0.12, True), (0.2, 0.08, -0.5, 0.45, 0.3, -0.08, False), (0.05, -0.12, 1.4, 0.35, 0.25, 0.15, True)):
+        rings = []
+        for i in range(5):
+            t = i / 4
+            row = []
+            for j in range(4):
+                s = j / 3
+                p = Vector(((t - 0.5) * w, 0.05 + bend * math.sin(t * math.pi) + random.uniform(-0.015, 0.015), (s - 0.5) * d))
+                if i in (0, 4) or j in (0, 3):
+                    p += Vector((random.uniform(-0.03, 0.03), 0, random.uniform(-0.03, 0.03)))  # (ragged edges)
+                c, s_ = math.cos(turn), math.sin(turn)
+                row.append(Vector((p.x * c - p.z * s_ + x, p.y, p.x * s_ + p.z * c + z)))
+            rings.append(row)
+        for i in range(4):
+            for j in range(3):
+                quad = [rings[i][j], rings[i + 1][j], rings[i + 1][j + 1], rings[i][j + 1]]
+                col_ = tone(random.choice(('paint', 'paint_dull')), 0.05) if painted and random.random() < 0.8 else tone(random.choice(('alu', 'alu_dark')), 0.05)
+                b.add([g(*p) for p in quad], [(0, 1, 2, 3)], col_)
+                b.add([g(*p) for p in quad[::-1]], [(0, 1, 2, 3)], col_)  # (seen from both sides)
+    return build('debris', b, shared('metal', 0.6))
+
+
+def landing_wheel():
+    """The wheel off the plane's landing gear, on its side, with its bent leg."""
+    random.seed(403)
+    b = Builder()
+    rings = []
+    sides, around = 14, 8
+    for i in range(around):
+        a = math.tau * i / around
+        ring = []
+        for k in range(sides):
+            t = math.tau * k / sides
+            r = 0.26 + 0.08 * math.cos(a)
+            ring.append(Vector((math.cos(t) * r, 0.15 + 0.07 * math.sin(a), math.sin(t) * r)))
+        rings.append(ring)
+    rings.append(rings[0])
+    loft(b, rings, lambda c, n: tone('tyre', 0.05), close_start=False, close_end=False)
+    hub = [Vector((math.cos(math.tau * k / 10) * 0.17, 0.2, math.sin(math.tau * k / 10) * 0.17)) for k in range(10)]
+    loft(b, [hub, [p - Vector((0, 0.1, 0)) for p in hub]], lambda c, n: tone('alu', 0.05))
+    rod(b, (0, 0.24, 0), (0.05, 0.36, 0.9), 0.04, 0.035, lambda c, n: tone('cowl_dark', 0.05))
+    return build('landing-wheel', b, shared('metal', 0.6))
+
+
+def clod():
+    """A clod of soil thrown out by the plane: lumpy earth with roots and a bit of turf."""
+    random.seed(404)
+    b = Builder()
+    tmp = bmesh.new()
+    bmesh.ops.create_icosphere(tmp, subdivisions=2, radius=1)
+    for v in tmp.verts:
+        d = v.co.normalized()
+        r = 1 + 0.3 * noise.noise(d * 2.0 + Vector((4, 4, 4)))
+        v.co = Vector((d.x * 0.14 * r, max(-0.02, (d.y * 0.5 + 0.5) * 0.2 * r - 0.03), d.z * 0.13 * r))
+    tmp.normal_update()
+    index = {v: i for i, v in enumerate(tmp.verts)}
+    verts = [g(*v.co) for v in tmp.verts]
+    for f in tmp.faces:
+        n = f.normal
+        c = tone('grass_bit', 0.08) if n.y > 0.7 and random.random() < 0.5 else tone(random.choice(('soil', 'soil', 'soil_dark', 'soil_root')), 0.06)
+        b.add(verts, [tuple(index[v] for v in f.verts)], c)
+    tmp.free()
+    return build('clod', b, shared('clod'))
+
+
 def remake():
     made = []
     for name, (size, seed, cuts, detail) in ROCKS.items():
         made.append((name, [boulder(name, size, seed, cuts, subdivisions=detail)]))
     made += [('fallen-log', [fallen_log()]), ('stump', [stump()]), ('tree-dead', [dead_tree()]), ('logs', [firewood()])]
     made += [('plane', [plane()]), ('plane-wing', [plane_wing()])]
+    made += [('suitcase', suitcase()), ('debris', [debris()]), ('landing-wheel', [landing_wheel()]), ('clod', [clod()])]
     return made
 
 

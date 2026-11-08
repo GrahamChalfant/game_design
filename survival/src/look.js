@@ -254,7 +254,7 @@ export function bladeTuft(name) {
 export const REMADE = new Set([
   'rock', 'rock-small', 'rock-flat', 'rock-tall', 'rock-large',
   'fallen-log', 'stump', 'tree-dead', 'logs',
-  'plane', 'plane-wing',
+  'plane', 'plane-wing', 'suitcase', 'debris', 'landing-wheel', 'clod',
 ]);
 
 // Which surface each of the models' materials gets, by its name in the model.
@@ -270,7 +270,9 @@ export const surfaceFor = (materialName) => SURFACE_OF[materialName.split('.')[0
 
 export function paintedSurface(material, kind) {
   const paint = SURFACES[kind];
-  if (!paint) return material;
+  // (Once only: a model's parts often share a material, and painting it twice breaks its shader.)
+  if (!paint || material.userData.painted) return material;
+  material.userData.painted = true;
   const before = material.onBeforeCompile;
   const key = material.customProgramCacheKey();
   material.onBeforeCompile = (shader, renderer) => {
@@ -319,7 +321,9 @@ export function paintedSurface(material, kind) {
   material.customProgramCacheKey = () => `${key}|painted-${kind}`;
   // (A copy of the material, as the cabins' fading roofs and the suitcases make, is painted too.)
   material.clone = function () {
-    return paintedSurface(THREE.Material.prototype.clone.call(this), kind);
+    const copy = THREE.Material.prototype.clone.call(this);
+    delete copy.userData.painted; // (copied over with the rest, but the copy isn't painted yet)
+    return paintedSurface(copy, kind);
   };
   material.needsUpdate = true;
   return material;
