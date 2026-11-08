@@ -5,7 +5,7 @@
 #   - poles and logs are rounder, in a few segments with a little wobble, each one tone with a
 #     gentle variation face to face (not a checkerboard), and darker end grain;
 #   - boxes (planks, boards, posts) have their edges bevelled, so nothing is a hard block.
-# Covers places.py (cabin, hunting stand, lean-to, campsite, truck, fences),
+# Covers places.py (cabin, lean-to, campsite, truck, fences),
 # lookout.py and what's left of props.py (cot, fire finder, binoculars, signpost, fire gate,
 # crystals, glow fungus). Models remake.py builds from scratch are skipped.
 # Run in an open Blender (Blender MCP or the Text Editor); it doesn't reset the scene.

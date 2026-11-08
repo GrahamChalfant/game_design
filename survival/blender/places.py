@@ -1,5 +1,5 @@
 # Generates the models for the places around the map (src/pois.js, src/details.js):
-#   cabin.glb, hunting-stand.glb, lean-to.glb, campsite.glb, truck.glb,
+#   cabin.glb, lean-to.glb, campsite.glb, truck.glb,
 #   fallen-log.glb, fence.glb, fence-broken.glb   (in survival/public/models/)
 # Run: blender -b --python places.py
 #
@@ -355,54 +355,7 @@ cabin = [build('cabin-wall-front', walls['front'], WOOD), build('cabin-wall-back
          build('cabin-roof', roof, WOOD), build('cabin-floor', floor, WOOD), build('cabin-inside', inside, WOOD)]
 export(cabin, 'cabin.glb')
 
-# =========================================================================================
-# HUNTING STAND  (as STAND: platform ±1.1 at 3 m, ladder down to z = 2.6, ±0.42 wide)
-random.seed(22)
-P, H, FOOT, LH = 3.0, 1.1, 2.6, 0.42
-frame = Builder()
-corners = [(1, 1), (1, -1), (-1, -1), (-1, 1)]
-for cx, cz in corners:
-    frame.pole((cx * (H + 0.25), -0.6, cz * (H + 0.25)), (cx * H, P + 1.05, cz * H), 0.075, lambda: col('wood', 0.08), n=6, taper=0.85, cap=lambda: col('cut'))
-for (ax, az), (bx_, bz_) in (((1, 1), (1, -1)), ((-1, 1), (-1, -1)), ((1, -1), (-1, -1))):
-    frame.pole((ax * (H + 0.15), 0.4, az * (H + 0.15)), (bx_ * H, P - 0.25, bz_ * H), 0.04, lambda: col('wood_dark', 0.06), n=5)
-    frame.pole((bx_ * (H + 0.15), 0.4, bz_ * (H + 0.15)), (ax * H, P - 0.25, az * H), 0.04, lambda: col('wood_dark', 0.06), n=5)
-for z in (-H, H):  # joists
-    frame.box((0, P - 0.13, z), (2 * H + 0.3, 0.12, 0.1), lambda: col('wood_dark'))
-x = -H - 0.05
-while x < H + 0.05:  # deck planks
-    w = random.uniform(0.17, 0.24)
-    frame.box((x + w / 2, P - 0.04, 0), (w - 0.02, 0.06, 2 * H + 0.15), lambda: col('plank', 0.1))
-    x += w
-rail = P + 0.92
-for a, b_ in (((-H, rail, -H), (H, rail, -H)), ((-H, rail, -H), (-H, rail, H)), ((H, rail, -H), (H, rail, H))):
-    frame.pole(a, b_, 0.04, lambda: col('weathered', 0.06), n=5)
-    frame.pole((a[0], rail - 0.45, a[2]), (b_[0], rail - 0.45, b_[2]), 0.03, lambda: col('weathered', 0.06), n=5)
-for sx in (-1, 1):  # ladder rails and rungs
-    frame.pole((sx * LH, -0.1, FOOT + 0.1), (sx * LH, P + 0.45, H - 0.05), 0.045, lambda: col('wood', 0.06), n=5)
-rungs = 9
-for i in range(rungs):
-    t = (i + 0.6) / (rungs + 0.4)
-    yy = t * P
-    zz = FOOT - (FOOT - H) * t
-    frame.pole((-LH, yy, zz), (LH, yy, zz), 0.03, lambda: col('wood_dark', 0.06), n=5)
-frame.box((0.25, P + 0.45, -H + 0.25), (0.95, 0.06, 0.32), lambda: col('plank'))  # the seat
-for x in (-0.15, 0.65):
-    frame.box((x, P + 0.22, -H + 0.25), (0.06, 0.45, 0.06), lambda: col('wood_dark'))
-frame.box((H - 0.1, rail + 0.03, 0.2), (0.04, 0.04, 0.5), lambda: col('wood_dark'))  # a gun rest across the rail
-canopy = Builder()
-for cx, cz in corners:
-    canopy.pole((cx * H, P + 0.9, cz * H), (cx * H, P + 2.05 - cz * 0.18, cz * H), 0.035, lambda: col('wood_dark'), n=5)
-
-
-def tarp_at(u, v):
-    x = (u - 0.5) * (2 * H + 0.5)
-    z = (v - 0.5) * (2 * H + 0.7)
-    sag = math.sin(u * math.pi) * math.sin(v * math.pi) * 0.12
-    return (x, P + 2.05 - z * 0.17 - sag, z)
-
-
-canopy.sheet(tarp_at, 4, 4, lambda: col(random.choice(('camo', 'camo', 'camo_dark', 'moss_dark')), 0.08))
-export([build('hunting-stand', frame, WOOD), build('hunting-stand-roof', canopy, CLOTH)], 'hunting-stand.glb')
+# (The hunting stand: stand.py.)
 
 # =========================================================================================
 # LEAN-TO  (as LEAN_TO: ±1.6 wide, front posts at z = 0.75, roof down to z = -1.25)

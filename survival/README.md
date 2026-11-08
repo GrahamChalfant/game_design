@@ -114,16 +114,16 @@ side (search the glovebox). It's marked on the map as a dashed line.
 fences** run across the meadows and round some of the cabins' yards, with rails down and gaps
 to slip through.
 
-Birds fly over by day, butterflies flutter over the meadows, and fireflies blink at night. You
-can hear the wind (louder up the mountains) and the birds of the northern woods by day
-(white-throated sparrows, boreal chickadees, Canada jays, ravens, a ruffed grouse drumming);
-owls, wolves far off and loons on the lake at night; mosquitoes by the water; deer walking,
+A few birds fly over by day. The north is quiet: you hear the wind (louder up the mountains)
+and, now and then by day, a bird of the boreal winter (a junco's "tsip", boreal chickadees,
+Canada jays, ravens); out by a lake, the new ice cracking, pinging, groaning and singing (more
+at night); owls, wolves far off and a lynx yowling at night; deer walking,
 bleating, and snorting as they bolt from you; water nearby, a campfire's crackle, and
 dripping and bats down a cave. Your footsteps sound
 like what's underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things
 you do have a sound: chopping and trees crashing down, the bow, arrows landing, eating,
-drinking, cooking, searching, bandaging, lighting a fire; a boar squeals as it charges, and
-you'll hear it when you're hit. All the sounds are made
+drinking, cooking, searching, bandaging, lighting a fire, and
+you'll hear it when you're hurt. All the sounds are made
 by the game itself; to use recordings instead, see `public/sounds/README.md`. Press N to turn
 the sound off and on.
 
@@ -163,9 +163,6 @@ light fires. Save the flare for signalling a rescue (coming later).
 To take off your outfit or backpack, open the menu (Tab) and drag it from your character: onto an
 empty slot to carry the outfit, or off the menu to leave it on the ground. A backpack put down keeps
 everything inside it until you pick it up again.
-
-Boars never come near the crash, so you can get your bearings there. Further out, a boar that
-gores you knocks you back, and leaves some blood on the ground.
 
 Your stats are the icons at the bottom right. They're white, turn yellow when low, and red when
 you're about to run out; the thermometer goes from a cool blue when you're freezing to a warm red
@@ -295,7 +292,7 @@ src/pois.js           Cabins, caves, stands, campsites, lean-tos: where they go,
 src/caves.js          Cave entrances, and the cave systems underground
 src/roads.js          The old fire road: where it goes, and the gate, signs and fallen trees on it
 src/details.js        Fallen trees and old fences
-src/ambientLife.js    Birds, butterflies and fireflies
+src/ambientLife.js    Birds flying over
 src/sounds.js         All the sounds (made with Web Audio; recordings in public/sounds/ replace them)
 src/poiModels.js      Stand-in models for the cabins, stands, campsites, lean-tos, truck, logs and fences
 src/cutaway.js        Fades the parts of a building between the camera and the player
@@ -370,9 +367,8 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `axe-ground.glb` | Axe lying on the ground | ~0.75 m long |
 | `logs.glb` | Pile of logs lying on the ground | ~0.7 m long |
 | `trap.glb` | Spring-pole snare (rebuilt by `blender/camp_props.py`) | ~0.7 m across |
-| `boar.glb` | Rigged wild boar with idle, walk, run and graze clips (rebuilt by `blender/boar.py`) | ~1.4 m long, 0.9 m tall |
 | `cabin.glb` | Abandoned log cabin: walls (`cabin-wall-*`) and roof fade when in the way; the cupboard and chest stay in code (rebuilt by `blender/places.py`, as are the rest below) | 5.9 × 4.9 m, 3.6 m tall |
-| `hunting-stand.glb` | Hunter's stand, platform 3 m up; `hunting-stand-roof` is the canopy (hidden on stands without one) | 2.7 m square, 5 m tall |
+| `hunting-stand.glb` | Hunter's stand of peeled poles and weathered planks, deck 3 m up; `hunting-stand-roof` is its tin roof (hidden on stands without one) (built by `blender/stand.py`) | 2.9 m square, 5.2 m tall |
 | `lean-to.glb` | Trapper's lean-to with a bark roof (`lean-to-roof`), drying rack and chopping block | ~6 m across |
 | `campsite.glb` | Abandoned campsite: fire ring, tripod and pot, log seats, collapsed tent | ~4 m across |
 | `truck.glb` | Rusted forest service pickup, passenger door open | 1.9 × 5.1 m |

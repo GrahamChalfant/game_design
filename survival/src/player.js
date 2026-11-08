@@ -215,7 +215,7 @@ export class Player {
     for (const part of [this.bandageRoll, this.bandageWrap]) if (part) part.visible = busy === 'bandage';
   }
 
-  // Hit by something at (fromX, fromZ), like a charging boar: reel back and get knocked away.
+  // Hit by something at (fromX, fromZ), reel back and get knocked away.
   hit(fromX, fromZ) {
     this.hurtTime = HURT_TIME;
     this.knock.set(this.position.x - fromX, this.position.z - fromZ).normalize().multiplyScalar(KNOCKBACK);

@@ -33,7 +33,6 @@ import { HandView } from './handView.js';
 import { CRASH } from './crashTrail.js';
 import { Survival } from './survival.js';
 import { buildWorld, WORLD_SIZE } from './world.js';
-import { MOUNTAIN_FOOT } from './terrain.js';
 
 // Each game grows a new map from a random seed. Add ?seed=1234 to the address to play (or
 // share) a particular map: the same seed always gives the same map.
@@ -106,24 +105,11 @@ const shelters = new Shelters(scene, world);
 // Berry bushes first, so animals don't spawn inside them.
 const bushes = new Bushes(scene, world, createRandom(SEED + 3));
 const animals = new Animals(scene, world, SEED + 2);
-// A charging boar gores the player (#76).
-// You reel back from the hit, and a little blood spatters the ground.
+// A little blood where an animal is shot or stabbed.
 const blood = new Blood(scene, world);
-animals.onAttack = (animal, damage) => {
-  survival.hurt(damage);
-  sound.play('hit');
-  sound.play('hurt');
-  player.hit(animal.position.x, animal.position.z);
-  const away = new THREE.Vector2(player.position.x - animal.position.x, player.position.z - animal.position.z).normalize();
-  blood.spill(player.position.x, player.position.z, away.x, away.y);
-  hud.flashHurt();
-  hud.toast(`The ${animal.kind} gores you! (-${damage} health)`);
-};
 animals.spawnAll(player.position);
 const traps = new Traps(scene, world, animals);
 const arrows = new Arrows(scene, world, animals);
-// A boar squeals as it charges.
-animals.onCharge = (animal) => sound.play('boar-charge', animal.position);
 animals.onFlee = (animal) => {
   if (animal.kind === 'deer') sound.play('deer-snort', animal.position);
 };
@@ -144,7 +130,7 @@ arrows.onLand = (x, z) => {
 const pickups = new Pickups(scene, world);
 // Abandoned cabins, caves and hunting stands around the map (see pois.js).
 const pois = buildPois(scene, world);
-// Birds, butterflies and fireflies about the place, and the sounds of it all.
+// Birds about the place, and the sounds of it all.
 const ambientLife = new AmbientLife(scene, world);
 const sound = new Sound();
 // What the sounds need to know about where you are.
@@ -160,7 +146,6 @@ function updateSound(dt, paused, busy = {}) {
     night: isNight(survival.hourOfDay),
     underground,
     cold: player.cave ? 0 : terrain.coldAt(x, z),
-    lowland: terrain.mountainAt(x, z) <= MOUNTAIN_FOOT, // (no mosquitoes up the mountains)
     water: player.cave ? 0 : terrain.nearWater(x, z, 3) ? 1 : terrain.nearWater(x, z, 12) ? 0.45 : 0,
     fire: player.cave ? 0 : fire,
     woods: Math.min(1, Math.max(0, terrain.forest(x, z) + 0.3)),

@@ -13,7 +13,6 @@ loop, filtered of low rumble, faded and levelled for the game, from Freesound's 
 | `cave.mp3` | [ambience cave7.ogg](https://freesound.org/people/fonografico/sounds/636125/) | fonografico | 24 s loop, from 3 s |
 | `owl.mp3` | [owl_hooting_000102_0145S3 002-070 000-002 007-015.wav](https://freesound.org/people/Gerent/sounds/558398/) | Gerent | 1.1–3.7 s |
 | `wolf.mp3` | [Cooper Creek 20160313_014852 solitary wolf howl very clear](https://freesound.org/people/betchkal/sounds/500646/) | betchkal | one howl, 29–38.5 s |
-| `loon.mp3` | [Late Summer Loons](https://freesound.org/people/itinerantmonk108/sounds/751848/) | itinerantmonk108 | one call, 18.4–26 s |
 | `raven.mp3` | [Raven on roof of Office Supply Centre](https://freesound.org/people/SoundsLikeYukon/sounds/864903/) | SoundsLikeYukon | one call, 2.3–4.2 s |
 | `chop.mp3` | [Wood Chop 8.wav](https://freesound.org/people/wavecal22/sounds/537435/) | wavecal22 | 0.2–1.3 s |
 | `tree-fall.mp3` | [Big Tree Fall in Forest](https://freesound.org/people/Kinoton/sounds/494071/) | Kinoton | the crash, 4.5–7.9 s |

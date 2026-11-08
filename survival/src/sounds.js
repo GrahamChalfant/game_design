@@ -1,7 +1,9 @@
-// The sounds of the place, the northern woods in late summer: wind; by day, the birds of the
-// boreal forest (white-throated sparrows, boreal chickadees, Canada jays, ravens, a ruffed
-// grouse drumming); by night, owls, wolves far off and loons out on the lake; mosquitoes by the
-// water; deer moving about nearby; water lapping, a campfire crackling, and dripping and bats
+// The sounds of the place, the far north (the Yukon, the Northwest Territories) as the cold
+// sets in. Mostly a great quiet: the wind, and now and then a bird of the boreal winter (the
+// "tsip" of a junco, a boreal chickadee, a Canada jay, a raven's croak). Out by a lake, the new
+// ice along its edges sings as the cold works on it: pings, groans, whip cracks, a whale-like
+// moan, more at night when the cold deepens. By night, owls, wolves far off, and the yowl of a
+// lynx. Deer moving about nearby; water lapping, a campfire crackling, and dripping and bats
 // down a cave.
 //
 // Every sound is made right here with the Web Audio API, so the game needs no sound files.
@@ -17,13 +19,13 @@ export const SOUNDS = {
   water: 'loop', // by a lake or the river
   fire: 'loop', // by a burning campfire
   cave: 'loop', // the hum underground
-  // By day, a bird singing somewhere around you: any one of these (or `birds`, if there's a
-  // recording of that, in place of all of them).
-  birds: 'once', sparrow: 'once', chickadee: 'once', jay: 'once', raven: 'once', grouse: 'once',
+  // By day, now and then, a bird somewhere around you: any one of these (or `birds`, if
+  // there's a recording of that, in place of all of them).
+  birds: 'once', junco: 'once', chickadee: 'once', jay: 'once', raven: 'once',
   owl: 'once', // at night, now and then
   wolf: 'once', // at night, far off
-  loon: 'once', // out on the lake, mostly at night
-  mosquito: 'once', // one flying past your ear, by the water and at night
+  lynx: 'once', // at night, now and then, out in the woods
+  ice: 'once', // the lake ice cracking and singing, out by the water (more at night and in the cold)
   // Deer nearby, from where the deer is:
   'deer-snort': 'once', 'deer-bleat': 'once', 'deer-step': 'once', 'deer-run': 'once',
   drip: 'once', // underground
@@ -33,7 +35,7 @@ export const SOUNDS = {
   'step-grass': 'once', 'step-dirt': 'once', 'step-gravel': 'once', 'step-rock': 'once',
   'step-snow': 'once', 'step-wood': 'once', 'step-water': 'once', 'swim': 'once',
   // Things happening (see Sound.play):
-  'boar-charge': 'once', hit: 'once', hurt: 'once', chop: 'once', 'tree-creak': 'once', 'tree-fall': 'once',
+  hit: 'once', hurt: 'once', chop: 'once', 'tree-creak': 'once', 'tree-fall': 'once',
   'bow-draw': 'once', 'bow-shoot': 'once', 'arrow-hit': 'once', 'arrow-land': 'once', stab: 'once',
   chew: 'once', gulp: 'once', rummage: 'once', bandage: 'once', pickup: 'once', 'fire-light': 'once',
   'add-wood': 'once', 'trap-set': 'once', 'cloth': 'once', splash: 'once', land: 'once',
@@ -48,7 +50,7 @@ export class Sound {
     this.ctx = null;
     this.files = {}; // name → AudioBuffer, for any recordings found in public/sounds/
     this.loops = {};
-    this.timers = { birds: 1, owl: 8, wolf: 40, loon: 15, mosquito: 5, drip: 1, bat: 5, crackle: 0, sputter: 0, busy: 0 };
+    this.timers = { birds: 6, owl: 8, wolf: 40, lynx: 70, ice: 6, drip: 1, bat: 5, crackle: 0, sputter: 0, busy: 0 };
     this.deer = new WeakMap(); // deer → seconds until its next footstep (or bleat)
     this.muted = readMuted();
     this.time = 0;
@@ -178,11 +180,12 @@ export class Sound {
 
     // Now-and-then sounds.
     for (const key of Object.keys(this.timers)) this.timers[key] -= dt;
+    // (The north is quiet: a bird only every half a minute or so, fewer still in the cold.)
     if (!env.underground && !env.night && env.cold < 0.6 && this.timers.birds <= 0) {
-      this.timers.birds = rand(3, 9) / (0.5 + env.woods);
-      this.bird(env.woods);
+      this.timers.birds = (rand(14, 40) / (0.5 + env.woods)) * (1 + 2 * env.cold);
+      this.bird();
     }
-    // The night: an owl, wolves far off, and loons calling out on the lake (now and then by day too).
+    // The night: an owl, wolves far off, a lynx yowling out in the woods.
     if (!env.underground && env.night && this.timers.owl <= 0) {
       this.timers.owl = rand(25, 60);
       this.play('owl', this.around(20, 40));
@@ -191,14 +194,14 @@ export class Sound {
       this.timers.wolf = rand(60, 150);
       this.play('wolf', this.around(42, 48));
     }
-    if (!env.underground && this.timers.loon <= 0) {
-      this.timers.loon = (rand(30, 80) * (env.night ? 1 : 2.5)) / (env.water ? 2 : 1);
-      this.play('loon', this.around(30, 45));
+    if (!env.underground && env.night && this.timers.lynx <= 0) {
+      this.timers.lynx = rand(90, 220);
+      this.play('lynx', this.around(25, 40));
     }
-    // Mosquitoes: by the water, and anywhere at night, unless it's cold.
-    if (!env.underground && env.lowland !== false && env.cold < 0.5 && (env.water || env.night) && this.timers.mosquito <= 0) {
-      this.timers.mosquito = rand(20, 50) * (env.water && env.night ? 1 : 2);
-      this.play('mosquito');
+    // The ice along the lake: only out by the water, singing most as the night's cold deepens.
+    if (!env.underground && env.water && this.timers.ice <= 0) {
+      this.timers.ice = rand(5, 16) * (env.night ? 1 : 2) / (0.5 + env.water);
+      this.play('ice', this.around(8, 30));
     }
     // Deer nearby: their hooves as they walk or bolt, and a bleat now and then while they graze.
     // (The snort as one spots you is played by main.js.)
@@ -333,13 +336,12 @@ export class Sound {
     return gain;
   }
 
-  // A bird of the northern woods singing somewhere around you (see EFFECTS). The deeper in the
-  // trees, the likelier it's a grouse drumming.
-  bird(woods) {
+  // A bird of the boreal winter somewhere around you (see EFFECTS).
+  bird() {
     if (this.playFile('birds', rand(0.12, 0.28), rand(-0.9, 0.9))) return;
-    const pick = Math.random() * (9 + woods * 0.4);
-    const name = pick < 3 ? 'sparrow' : pick < 6 ? 'chickadee' : pick < 7.8 ? 'jay' : pick < 9 ? 'raven' : 'grouse';
-    this.play(name, this.around(10, 35));
+    const pick = Math.random();
+    const name = pick < 0.4 ? 'junco' : pick < 0.65 ? 'chickadee' : pick < 0.82 ? 'jay' : 'raven';
+    this.play(name, this.around(8, 35));
   }
 
   // Somewhere `near` to `far` meters from the player, in any direction.
@@ -349,7 +351,7 @@ export class Sound {
     return { x: this.listener.x + Math.cos(angle) * distance, z: this.listener.z + Math.sin(angle) * distance };
   }
 
-  // Whistled or called notes, all through one voice: birdsong, owls, loons, wolves.
+  // Whistled or called notes, all through one voice: birdsong, owls, wolves, a lynx, the ice.
   // `notes`: [{ at (seconds), length, from (Hz), to = from, gain = 1 }]. `type` is the tone's
   // wave and `filter` a bandpass on it (Hz); `warble`: [rate (Hz), depth (a fraction of the
   // pitch)] of a quick waver in pitch; `breath`: how much air goes with each note.
@@ -484,12 +486,6 @@ const EFFECTS = {
     s.burst({ type: 'highpass', freq: 3000, attack: 0.02, decay: 0.25, gain: 0.06 * v, pan, echo, at: 0.05 });
   },
   land: (s, v, pan, echo) => s.tone({ from: 90, to: 50, decay: 0.08, gain: 0.12 * v, pan, echo }),
-  // A boar charging: a grunt rising into a squeal.
-  'boar-charge': (s, v, pan, echo) => {
-    s.tone({ type: 'sawtooth', from: 110, to: 180, attack: 0.03, decay: 0.25, gain: 0.08 * v, pan, echo, filter: 600 });
-    s.tone({ type: 'sawtooth', from: 520, to: 900, attack: 0.05, decay: 0.45, gain: 0.07 * v, pan, echo, filter: 1400, at: 0.2 });
-    s.burst({ freq: 400, q: 2, attack: 0.02, decay: 0.15, gain: 0.08 * v, pan, echo });
-  },
   // Getting hit: a heavy thud, and the player's grunt.
   hit: (s, v, pan, echo) => {
     s.tone({ from: 110, to: 45, decay: 0.2, gain: 0.25 * v, pan, echo });
@@ -549,17 +545,22 @@ const EFFECTS = {
     s.burst({ freq: 900, q: 1, attack: 0.01, decay: 0.08, gain: 0.05 * v, pan, echo, at: 0.04 });
   },
 
-  // Birds of the boreal forest, by day (see Sound.bird).
-  // White-throated sparrow, "Oh sweet Canada, Canada, Canada": two long clear whistles, the
-  // second higher, then that high note again in threes.
-  sparrow: (s, v, pan, echo) => {
-    const low = rand(3000, 3600);
-    const high = low * rand(1.15, 1.25);
-    const notes = [{ at: 0, length: 0.5, from: low }, { at: 0.6, length: 0.45, from: high }];
-    for (let i = 0; i < 2 + Math.floor(Math.random() * 3); i++) {
-      for (let j = 0; j < 3; j++) notes.push({ at: 1.15 + i * 0.5 + j * 0.15, length: 0.12, from: high, gain: 0.8 });
+  // Birds of the boreal winter, by day (see Sound.bird).
+  // Dark-eyed junco: mostly its sharp little "tsip" contact calls, a few, unevenly spaced, as a
+  // flock feeds; now and then a short, dry, musical trill.
+  junco: (s, v, pan, echo) => {
+    if (Math.random() < 0.75) {
+      let at = 0;
+      for (let i = 0; i < 2 + Math.floor(Math.random() * 4); i++) {
+        const pitch = rand(6500, 8000);
+        s.song([{ at, length: 0.035, from: pitch, to: pitch * 0.82 }], { volume: 0.06 * v, pan, echo, breath: 0.25 });
+        at += rand(0.25, 1.1);
+      }
+    } else {
+      const pitch = rand(3800, 4600);
+      const notes = Array.from({ length: 10 + Math.floor(Math.random() * 8) }, (_, i) => ({ at: i * 0.065, length: 0.04, from: pitch * 1.08, to: pitch }));
+      s.song(notes, { volume: 0.07 * v, pan, echo, breath: 0.2 });
     }
-    s.song(notes, { volume: 0.15 * v, pan, echo, warble: [rand(20, 30), 0.01] });
   },
   // Boreal chickadee, a wheezy "tsik-a-dee-dee": two quick high notes, then two buzzy ones.
   chickadee: (s, v, pan, echo) => {
@@ -586,17 +587,8 @@ const EFFECTS = {
     }
     s.song(notes, { volume: 0.18 * v, pan, echo, type: 'sawtooth', filter: 1100, warble: [rand(45, 60), 0.12], breath: 0.4 });
   },
-  // Ruffed grouse drumming: low thumps, slow at first, speeding up and getting louder into a
-  // whir, about five seconds in all.
-  grouse: (s, v, pan, echo) => {
-    let at = 0;
-    for (let gap = 0.6; gap > 0.045; gap *= 0.88) {
-      s.tone({ from: 80, to: 45, decay: 0.1, gain: (0.3 + 0.4 * (1 - gap / 0.6)) * 0.5 * v, pan, echo, at });
-      at += gap;
-    }
-  },
 
-  // The night (and the lake).
+  // The night.
   // An owl: mostly a great horned owl's deep "hoo, h'hoo-hoo, hoo, hoo"; sometimes a boreal
   // owl's quick run of higher hoots.
   owl: (s, v, pan, echo) => {
@@ -621,50 +613,59 @@ const EFFECTS = {
     howl(0, rand(420, 520), 0.2);
     if (Math.random() < 0.5) howl(rand(1, 2), rand(550, 650), 0.14);
   },
-  // A common loon's wail across the lake: two or three long, rising notes, and their echo off
-  // the far shore.
-  loon: (s, v, pan, echo) => {
-    const pitch = rand(650, 800);
-    const notes = [{ at: 0, length: 1.3, from: pitch, to: pitch * 1.5 }, { at: 1.45, length: 1.1, from: pitch * 1.5, to: pitch * 1.45 }];
-    if (Math.random() < 0.6) notes.push({ at: 2.7, length: 1.4, from: pitch * 1.75, to: pitch * 1.6 });
-    for (const [delay, gain, side] of [[0, 1, pan], [0.45, 0.3, -pan * 0.5]]) {
-      s.song(notes.map((note) => ({ ...note, at: note.at + delay })),
-        { volume: 0.22 * gain * v, pan: side, echo, type: 'triangle', warble: [rand(5, 6.5), 0.012], breath: 0.15 });
+  // A Canada lynx out in the woods: a deep, drawn-out yowl, rising and falling like a house
+  // cat's caterwaul but lower and rougher, once to three times; sometimes a low growl first.
+  lynx: (s, v, pan, echo) => {
+    let at = 0;
+    if (Math.random() < 0.4) {
+      s.song([{ at: 0, length: rand(0.8, 1.2), from: rand(95, 120), to: rand(80, 95) }],
+        { volume: 0.12 * v, pan, echo, type: 'sawtooth', filter: 420, warble: [rand(18, 26), 0.08], breath: 0.6 });
+      at = 1.4;
+    }
+    for (let i = 0; i < 1 + Math.floor(Math.random() * 3); i++) {
+      const pitch = rand(260, 340);
+      const length = rand(0.9, 1.6);
+      s.song([
+        { at, length: length * 0.45, from: pitch * 0.8, to: pitch * 1.45 },
+        { at: at + length * 0.4, length: length * 0.6, from: pitch * 1.45, to: pitch * 0.7 },
+      ], { volume: 0.13 * v, pan, echo, type: 'sawtooth', filter: 950, warble: [rand(5, 8), 0.04], breath: 0.45 });
+      at += length + rand(0.4, 1.2);
     }
   },
-  // A mosquito flying past your ear: a thin whine that swells and fades as it crosses from one
-  // side to the other, dropping a little in pitch as it goes by.
-  mosquito: (s, v) => {
-    const ctx = s.ctx;
-    const t = ctx.currentTime;
-    // Slow and faint: it drifts in, hangs about your ear, and drifts off again.
-    const length = rand(4, 7);
-    const side = Math.random() < 0.5 ? -1 : 1;
-    const pitch = rand(520, 640);
-    const whine = ctx.createOscillator();
-    whine.type = 'triangle';
-    whine.frequency.setValueAtTime(pitch * 1.04, t);
-    whine.frequency.linearRampToValueAtTime(pitch * 0.96, t + length);
-    const wobble = ctx.createOscillator();
-    wobble.frequency.value = rand(8, 14);
-    const depth = ctx.createGain();
-    depth.gain.value = pitch * 0.01;
-    wobble.connect(depth).connect(whine.frequency);
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = pitch * 2;
-    filter.Q.value = 0.8;
-    // A smooth swell and fade (a raised cosine), never a sudden start or stop.
-    const amp = ctx.createGain();
-    const curve = new Float32Array(64).map((_, i) => 0.01 * v * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / 63)));
-    amp.gain.setValueCurveAtTime(curve, t, length);
-    const panner = ctx.createStereoPanner();
-    panner.pan.setValueAtTime(side * 0.9, t);
-    panner.pan.linearRampToValueAtTime(-side * 0.9, t + length);
-    whine.connect(filter).connect(amp).connect(panner).connect(s.master);
-    for (const oscillator of [whine, wobble]) {
-      oscillator.start(t);
-      oscillator.stop(t + length + 0.05);
+
+  // The ice along a lake, cooling and tightening (see Sound.update): any of
+  // - pings: the "pew" of a crack running through the sheet, each pitch falling fast from high
+  //   to low (the ice carries the high notes quickest), with a fainter echo off the far shore;
+  // - a groan: a low, wavering moan as the sheet flexes;
+  // - a whip crack: a sharp snap, a thump under it, and the pings running away from it;
+  // - singing: a slow, whale-like glide up and down.
+  ice: (s, v, pan, echo) => {
+    const ping = (at, gain) => {
+      const from = rand(2400, 4200);
+      s.tone({ from, to: from * rand(0.06, 0.1), attack: 0.002, decay: rand(0.18, 0.3), gain: gain * v, pan, echo, at });
+      s.tone({ from: from * 0.9, to: from * 0.08, attack: 0.002, decay: 0.3, gain: gain * 0.3 * v, pan: -pan * 0.5, echo, at: at + rand(0.12, 0.2) });
+    };
+    const pick = Math.random();
+    if (pick < 0.4) {
+      let at = 0;
+      for (let i = 0; i < 1 + Math.floor(Math.random() * 4); i++) {
+        ping(at, rand(0.05, 0.09));
+        at += rand(0.15, 0.7);
+      }
+    } else if (pick < 0.65) {
+      const pitch = rand(55, 85);
+      s.song([{ at: 0, length: rand(1.4, 2.6), from: pitch, to: pitch * rand(0.75, 1.3) }],
+        { volume: 0.16 * v, pan, echo, type: 'sawtooth', filter: 260, warble: [rand(2, 4), 0.1], breath: 0.5 });
+    } else if (pick < 0.88) {
+      s.burst({ type: 'highpass', freq: 2500, attack: 0.001, decay: 0.05, gain: 0.25 * v, pan, echo });
+      s.tone({ from: 120, to: 45, attack: 0.003, decay: 0.35, gain: 0.18 * v, pan, echo });
+      for (let i = 0; i < 3 + Math.floor(Math.random() * 3); i++) ping(0.08 + i * rand(0.08, 0.2), 0.07 / (1 + i * 0.4));
+    } else {
+      const pitch = rand(380, 520);
+      s.song([
+        { at: 0, length: 1.1, from: pitch, to: pitch * 1.6 },
+        { at: 1.0, length: 1.4, from: pitch * 1.6, to: pitch * 1.1 },
+      ], { volume: 0.06 * v, pan, echo, type: 'sine', warble: [rand(3, 5), 0.02], breath: 0.1 });
     }
   },
 

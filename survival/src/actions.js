@@ -88,7 +88,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     const bush = onGround(bushes.near(x, z, 1.4));
     const now = survival.minutesSurvived;
     const tree = onGround(player.treeInReach(world));
-    // A living animal right in front of you takes the axe instead of a tree (a boar coming at you).
+    // A living animal right in front of you takes the axe instead of a tree.
     const axeTarget = held === 'axe' && !offGround && !player.swimming ? knifeHitTest(x, z, player.facing, animals.all.filter((a) => !a.dead)) : null;
     axeReady = Math.max(0, axeReady - dt);
     const chopping = Boolean(tree && held === 'axe' && input.usingTool() && !player.airborne && !axeTarget);
@@ -438,7 +438,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     }
 
     // Stone knife (#75): click or hold to stab whatever's right in front of you. Only stabs
-    // that land wear it down. Works next to a carcass or bush too, so you can fight a boar there.
+    // that land wear it down. Works next to a carcass or bush too.
     if (held === 'knife' && input.usingTool() && knifeReady === 0 && !player.swimming && !player.airborne) {
       knifeReady = KNIFE_COOLDOWN;
       player.stab();
