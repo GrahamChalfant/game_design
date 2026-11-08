@@ -902,6 +902,126 @@ def fern():
     return build('grass-fern', b, shared('grass'))
 
 
+# ---- small things: bones, cave rock, the throwing stone, the axe ----
+PAL.update(
+    bone=0xd3c4a0, bone_shade=0xb5a682, bone_dark=0x7a6c52, drip=0x8a8276, drip_dark=0x625b52, drip_wet=0x4e4943,
+    hickory=0x9a7a52, hickory_dark=0x7a5c3c, steel=0x6c6e70, steel_edge=0xbfc4c8, steel_dark=0x3c3d3e,
+)
+
+
+def bone_into(b, a, z, r, knobs=True):
+    """A long bone from a to z, its ends swollen into knuckles."""
+    a, z = Vector(a), Vector(z)
+    tube(b, [(a, r * 1.3), (a.lerp(z, 0.15), r), (a.lerp(z, 0.85), r * 0.9), (z, r * 1.25)], 6, lambda t, ang, n: tone(random.choice(('bone', 'bone', 'bone_shade')), 0.04), rough=0.06)
+    if knobs:
+        for p in (a, z):
+            b.stone(tuple(p), (r * 1.6, r * 1.4, r * 1.6), lambda: tone('bone_shade', 0.05), points=10)
+
+
+def bones():
+    """Old remains in the cave: a skull with dark sockets, curved ribs, leg bones and a few vertebrae."""
+    random.seed(701)
+    b = Builder()
+    # The skull: a long, rounded box of bone, with dark eye sockets and nose.
+    tmp = bmesh.new()
+    bmesh.ops.create_icosphere(tmp, subdivisions=2, radius=1)
+    for v in tmp.verts:
+        d = v.co.normalized()
+        stretch = 1.0 + 0.6 * max(0, d.x)  # (the muzzle, toward +x)
+        v.co = Vector((d.x * 0.11 * stretch + 0.3, d.y * 0.06 + 0.07, d.z * 0.065 * (1 - 0.35 * max(0, d.x))))
+    tmp.normal_update()
+    index = {v: i for i, v in enumerate(tmp.verts)}
+    verts = [g(*v.co) for v in tmp.verts]
+    for f in tmp.faces:
+        c, n = f.calc_center_median(), f.normal
+        dark = (abs(n.z) > 0.6 and 0.33 < c.x < 0.37 and c.y > 0.08) or (n.x > 0.8)
+        b.add(verts, [tuple(index[v] for v in f.verts)], tone('bone_dark', 0.05) if dark else tone(random.choice(('bone', 'bone_shade')), 0.04))
+    tmp.free()
+    # Ribs: arcs off a broken spine.
+    for k in range(5):
+        x = -0.1 + k * 0.06
+        pts = [Vector((x, 0.02 + 0.13 * math.sin(t * math.pi * 0.9), -0.02 - 0.18 * t)) for t in (0, 0.33, 0.66, 1)]
+        tube(b, [(p, 0.012 * (1 - 0.3 * i / 3)) for i, p in enumerate(pts)], 5, lambda t, a, n: tone(random.choice(('bone', 'bone_shade')), 0.04))
+    for k in range(6):  # vertebrae along the spine
+        b.stone((-0.16 + k * 0.06, 0.03, 0.0), (0.025, 0.025, 0.03), lambda: tone('bone_shade', 0.05), points=9)
+    bone_into(b, (-0.34, 0.025, 0.08), (0.02, 0.025, 0.15), 0.017)
+    bone_into(b, (-0.2, 0.02, -0.2), (0.12, 0.03, -0.14), 0.015)
+    return build('bones', b, shared('rock'))
+
+
+def stalagmite():
+    """A dripstone rising from the cave floor: lumpy, ringed with growth, wet and dark low down."""
+    random.seed(702)
+    b = Builder()
+    path = []
+    for i in range(10):
+        t = i / 9
+        r = 0.33 * (1 - t) ** 1.3 + 0.02
+        r *= 1 + 0.12 * math.sin(t * 19)  # growth rings
+        path.append((Vector((math.sin(t * 3) * 0.03, -0.04 + t * 1.04, math.cos(t * 2) * 0.02)), r))
+    def drip(t, a, n):
+        if t < 0.15:
+            return tone('drip_wet', 0.05)
+        return tone(random.choice(('drip', 'drip', 'drip_dark')), 0.05, 0.9 + 0.2 * t)
+    tube(b, path, 10, drip, rough=0.12, seed=7)
+    return build('stalagmite', b, shared('rock'))
+
+
+def throwing_stone():
+    """A fist-sized throwing stone, base at the origin."""
+    b = Builder()
+    stone_into(b, (0.05, 0.07, 0.035), 703, cuts=3, sink=0.0, subdivisions=2, mossy=False)
+    return build('stone', b, shared('stone'))
+
+
+def axe_into(b, place):
+    """A felling axe: a curved hickory handle along +y (its end at -0.16) and a forged head at
+    the top, its blade toward +z. `place` maps the axe's own points to the model's."""
+    handle = [Vector((0, -0.16, 0)), Vector((0, 0.05, 0.012)), Vector((0, 0.3, -0.004)), Vector((0, 0.52, 0.01)), Vector((0, 0.64, 0.0))]
+    rings = []
+    for i, p in enumerate(handle):
+        w = 0.016 if i else 0.02  # (the knob at the end)
+        rings.append([place(p + Vector((math.cos(math.tau * k / 8) * w, 0, math.sin(math.tau * k / 8) * w * 1.5))) for k in range(8)])
+    loft(b, rings, lambda c, n: tone(random.choice(('hickory', 'hickory', 'hickory_dark')), 0.04))
+    # The head: an eye round the handle, the poll behind, the cheeks tapering to a bright edge.
+    head = [  # (z, half-height, half-thickness)
+        (-0.06, 0.035, 0.022), (-0.02, 0.04, 0.028), (0.03, 0.04, 0.026), (0.1, 0.05, 0.014), (0.17, 0.075, 0.006), (0.2, 0.08, 0.002)]
+    rings = []
+    for z, h, t in head:
+        ring = [Vector((t, 0.6 - h, z)), Vector((t, 0.6 + h, z)), Vector((-t, 0.6 + h, z)), Vector((-t, 0.6 - h, z))]
+        rings.append([place(p) for p in ring])
+    loft(b, rings, lambda c, n: tone('steel_edge', 0.04) if place_back(c, n) else tone(random.choice(('steel', 'steel_dark')), 0.04))
+
+
+place_back = lambda c, n: False
+
+
+def axe():
+    """The axe as held (see handView.js): handle along +y, blade toward +z."""
+    random.seed(704)
+    b = Builder()
+    global place_back
+    place_back = lambda c, n: c.z > 0.15
+    axe_into(b, lambda p: p)
+    return build('axe', b, shared('tool', 0.6))
+
+
+def axe_ground():
+    """The axe lying in the grass where it fell: handle angled, blade flat, base at the origin."""
+    random.seed(705)
+    b = Builder()
+    turn = 0.6
+    def lay(p):
+        # The axe's own y (along the handle) runs along the ground, its x points up.
+        d = Vector((math.sin(turn), 0, math.cos(turn)))
+        side = Vector((math.cos(turn), 0, -math.sin(turn)))
+        return d * (p.y - 0.25) + Vector((0, 0.045 + p.x, 0)) + side * p.z
+    global place_back
+    place_back = lambda c, n: False
+    axe_into(b, lay)
+    return build('axe-ground', b, shared('metal', 0.6))
+
+
 def remake():
     made = []
     for name, (size, seed, cuts, detail) in ROCKS.items():
@@ -911,6 +1031,7 @@ def remake():
     made += [('suitcase', suitcase()), ('debris', [debris()]), ('landing-wheel', [landing_wheel()]), ('clod', [clod()])]
     made += [('barrel', [barrel()]), ('chest', chest()), ('supply-crate', supply_crate()), ('ammo-box', ammo_box()), ('locker', locker()), ('cupboard', cupboard()), ('weathered-pack', weathered_pack())]
     made += [('campfire', [campfire()]), ('log-pile', [log_pile()]), ('fire-ring', [fire_ring()]), ('torch', [torch()]), ('bedroll', [bedroll()]), ('trap', [trap()]), ('berry-bush', berry_bush()), ('grass-fern', [fern()])]
+    made += [('bones', [bones()]), ('stalagmite', [stalagmite()]), ('stone', [throwing_stone()]), ('axe', [axe()]), ('axe-ground', [axe_ground()])]
     return made
 
 
