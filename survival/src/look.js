@@ -255,6 +255,7 @@ export const REMADE = new Set([
   'rock', 'rock-small', 'rock-flat', 'rock-tall', 'rock-large',
   'fallen-log', 'stump', 'tree-dead', 'logs',
   'plane', 'plane-wing', 'suitcase', 'debris', 'landing-wheel', 'clod',
+  'barrel', 'chest', 'supply-crate', 'ammo-box', 'locker', 'cupboard', 'weathered-pack',
 ]);
 
 // Which surface each of the models' materials gets, by its name in the model.

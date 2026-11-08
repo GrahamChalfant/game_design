@@ -570,6 +570,145 @@ def clod():
     return build('clod', b, shared('clod'))
 
 
+# ---- containers you search ----
+PAL.update(
+    board=0x6e533a, board_dark=0x5c4430, board_grey=0x6a6052, iron=0x34312e, iron_rust=0x5a3a28,
+    olive=0x4f5b3a, olive_dark=0x3c4630, steel_green=0x5a6a5a, steel_dark=0x444f45, canvas_pack=0x6b6a45, canvas_dark=0x51503a,
+    leather=0x5a4130, stencil=0xc9c2a8,
+)
+boards = lambda: tone(random.choice(('board', 'board', 'board', 'board_dark', 'board_dark', 'board_grey')), 0.05)
+
+
+def planked(b, lo, hi, axis, count, gap=0.008, radius=0.012, colour=None):
+    """A slab made of `count` planks side by side along `axis` (0 x, 1 y, 2 z), a hair apart."""
+    lo, hi = Vector(lo), Vector(hi)
+    step = (hi[axis] - lo[axis]) / count
+    for i in range(count):
+        a, z = lo.copy(), hi.copy()
+        a[axis] = lo[axis] + i * step + gap / 2
+        z[axis] = lo[axis] + (i + 1) * step - gap / 2
+        c = colour() if colour else boards()
+        rounded_box(b, a, z, radius, lambda c_, n_, c=c: tuple(min(1, x * random.uniform(0.95, 1.05)) for x in c[:3]) + (1.0,))
+
+
+def barrel():
+    """An old wooden barrel: bowed staves and two iron hoops, about 0.85 m tall."""
+    random.seed(501)
+    b = Builder()
+    staves = 16
+    rings = []
+    for i in range(7):
+        t = i / 6
+        r = 0.26 + 0.05 * math.sin(t * math.pi)
+        rings.append([Vector((math.cos(math.tau * k / staves) * r, t * 0.85, math.sin(math.tau * k / staves) * r)) for k in range(staves)])
+    shades = [boards() for _ in range(staves)]
+    def stave(c, n):
+        k = int((math.atan2(c.z, c.x) % math.tau) / math.tau * staves) % staves
+        if abs(c.y - 0.2) < 0.05 or abs(c.y - 0.68) < 0.05:
+            return tone('iron', 0.06)
+        return shades[k]
+    loft(b, rings, stave, cap=tone('board_dark', 0.05))
+    return build('barrel', b, shared('wood'))
+
+
+def chest():
+    """A plank chest bound with iron, its lid ('chest-lid') hinged along the back top edge."""
+    random.seed(502)
+    base, lid = Builder(), Builder()
+    planked(base, (-0.44, 0.0, -0.26), (0.44, 0.3, -0.22), 1, 3)
+    planked(base, (-0.44, 0.0, 0.22), (0.44, 0.3, 0.26), 1, 3)
+    planked(base, (-0.46, 0.0, -0.26), (-0.42, 0.3, 0.26), 1, 3)
+    planked(base, (0.42, 0.0, -0.26), (0.46, 0.3, 0.26), 1, 3)
+    planked(base, (-0.43, 0.0, -0.23), (0.43, 0.04, 0.23), 0, 4)
+    for x in (-0.36, 0.36):  # iron straps
+        rounded_box(base, (x - 0.03, -0.005, -0.27), (x + 0.03, 0.31, 0.27), 0.006, lambda c, n: tone(random.choice(('iron', 'iron_rust')), 0.05))
+    rounded_box(base, (-0.05, 0.2, 0.26), (0.05, 0.3, 0.28), 0.008, lambda c, n: tone('iron', 0.05))  # the hasp
+    planked(lid, (-0.46, 0.3, -0.275), (0.46, 0.45, 0.275), 2, 5)
+    for x in (-0.36, 0.36):
+        rounded_box(lid, (x - 0.03, 0.29, -0.28), (x + 0.03, 0.455, 0.28), 0.006, lambda c, n: tone(random.choice(('iron', 'iron_rust')), 0.05))
+    return [build('chest', base, shared('wood')), build_hinged('chest-lid', lid, shared('wood'), (0, 0.45, -0.275))]
+
+
+def supply_crate():
+    """A slatted wooden supply crate with a stencil, its lid ('supply-crate-lid') hinged at the back."""
+    random.seed(503)
+    base, lid = Builder(), Builder()
+    for z in (-0.3, 0.27):
+        planked(base, (-0.49, 0.0, z), (0.49, 0.48, z + 0.03), 1, 4)
+    for x in (-0.49, 0.46):
+        planked(base, (x, 0.0, -0.3), (x + 0.03, 0.48, 0.3), 1, 4)
+    for x in (-0.47, 0.44):  # corner battens
+        for z in (-0.32, 0.27):
+            rounded_box(base, (x, 0, z), (x + 0.05, 0.48, z + 0.05), 0.008, lambda c, n: tone('board_dark', 0.05))
+    rounded_box(base, (-0.2, 0.18, 0.302), (0.2, 0.3, 0.304), 0.002, lambda c, n: tone('stencil', 0.05))  # the stencil
+    planked(lid, (-0.5, 0.48, -0.31), (0.5, 0.555, 0.31), 0, 6)
+    return [build('supply-crate', base, shared('wood')), build_hinged('supply-crate-lid', lid, shared('wood'), (0, 0.55, -0.3))]
+
+
+def ammo_box():
+    """An olive steel ammo can with a latch and handle, its lid ('ammo-box-lid') hinged at the back."""
+    random.seed(504)
+    base, lid = Builder(), Builder()
+    paint = lambda c, n: tone(random.choice(('olive', 'olive', 'olive_dark')), 0.04)
+    rounded_box(base, (-0.25, -0.02, -0.14), (0.25, 0.21, 0.14), 0.02, paint)
+    rounded_box(base, (-0.252, 0.12, -0.142), (0.252, 0.135, 0.142), 0.004, lambda c, n: tone('olive_dark', 0.04))  # a rolled rib
+    rounded_box(base, (-0.18, 0.06, 0.14), (0.18, 0.1, 0.15), 0.004, lambda c, n: tone('stencil', 0.05))  # stencilled lettering
+    rounded_box(lid, (-0.26, 0.205, -0.15), (0.26, 0.28, 0.15), 0.02, paint)
+    rod(lid, (-0.1, 0.29, 0.0), (0.1, 0.29, 0.0), 0.012, 0.012, lambda c, n: tone('iron', 0.05))  # handle
+    rounded_box(lid, (0.24, 0.17, -0.04), (0.27, 0.27, 0.04), 0.006, lambda c, n: tone('iron', 0.05))  # latch
+    return [build('ammo-box', base, shared('metal', 0.6)), build_hinged('ammo-box-lid', lid, shared('metal', 0.6), (0, 0.28, -0.15))]
+
+
+def locker():
+    """A tall green steel locker with vents, its door ('locker-door') hinged on the left front."""
+    random.seed(505)
+    body, door = Builder(), Builder()
+    paint = lambda c, n: tone(random.choice(('steel_green', 'steel_green', 'steel_dark')), 0.04)
+    rounded_box(body, (-0.35, 0.0, -0.25), (0.35, 1.8, 0.23), 0.015, paint)
+    rounded_box(body, (-0.33, 0.0, -0.23), (0.33, 0.06, 0.24), 0.01, lambda c, n: tone('steel_dark', 0.04))  # plinth
+    rounded_box(door, (-0.345, 0.07, 0.235), (0.345, 1.78, 0.26), 0.01, paint)
+    for i in range(4):  # vent slots
+        y = 1.5 + i * 0.05
+        rounded_box(door, (-0.15, y, 0.258), (0.15, y + 0.02, 0.265), 0.004, lambda c, n: tone('iron', 0.05))
+    rounded_box(door, (0.26, 0.85, 0.258), (0.3, 1.0, 0.28), 0.008, lambda c, n: tone('iron', 0.05))  # handle
+    return [build('locker', body, shared('metal', 0.6)), build_hinged('locker-door', door, shared('metal', 0.6), (-0.35, 0, 0.26))]
+
+
+def cupboard():
+    """A rough plank cupboard, its two doors ('cupboard-door-left'/'-right') hinged at the sides."""
+    random.seed(506)
+    body, left, right = Builder(), Builder(), Builder()
+    planked(body, (-0.44, 0.0, -0.25), (0.44, 1.78, -0.22), 0, 5)
+    for x in (-0.44, 0.41):
+        planked(body, (x, 0.0, -0.25), (x + 0.03, 1.78, 0.22), 2, 3)
+    for y in (0.0, 0.6, 1.2, 1.75):  # shelves and top
+        rounded_box(body, (-0.42, y, -0.22), (0.42, y + 0.03, 0.22), 0.006, lambda c, n: tone('board_dark', 0.05))
+    for part, (x0, x1), knob in ((left, (-0.4, -0.005), -0.06), (right, (0.005, 0.4), 0.06)):
+        planked(part, (x0, 0.04, 0.215), (x1, 1.74, 0.245), 0, 3)
+        rounded_box(part, (x0 + 0.02, 1.4, 0.245), (x1 - 0.02, 1.45, 0.255), 0.005, lambda c, n: tone('board_dark', 0.05))  # battens
+        rounded_box(part, (x0 + 0.02, 0.35, 0.245), (x1 - 0.02, 0.4, 0.255), 0.005, lambda c, n: tone('board_dark', 0.05))
+        rounded_box(part, (knob - 0.015, 0.85, 0.245), (knob + 0.015, 0.92, 0.27), 0.006, lambda c, n: tone('iron', 0.05))
+    return [build('cupboard', body, shared('wood')),
+            build_hinged('cupboard-door-left', left, shared('wood'), (-0.4, 0, 0.23)),
+            build_hinged('cupboard-door-right', right, shared('wood'), (0.4, 0, 0.23))]
+
+
+def weathered_pack():
+    """An old canvas backpack slumped on the ground, its top flap ('weathered-pack-flap') hinged at the back."""
+    random.seed(507)
+    body, flap = Builder(), Builder()
+    canvas = lambda c, n: tone(random.choice(('canvas_pack', 'canvas_pack', 'canvas_dark')), 0.04)
+    rounded_box(body, (-0.25, 0.0, -0.16), (0.25, 0.46, 0.16), 0.08, canvas, segments=3)
+    rounded_box(body, (-0.18, 0.06, 0.15), (0.18, 0.28, 0.25), 0.05, canvas, segments=2)  # front pocket
+    for x in (-0.3, 0.3):  # side pockets
+        rounded_box(body, (x - 0.05, 0.05, -0.09), (x + 0.05, 0.25, 0.09), 0.035, canvas)
+    for x in (-0.12, 0.12):  # straps
+        rounded_box(body, (x - 0.025, 0.1, 0.24), (x + 0.025, 0.44, 0.255), 0.005, lambda c, n: tone('leather', 0.05))
+    rounded_box(flap, (-0.24, 0.43, -0.17), (0.24, 0.5, 0.2), 0.03, canvas)
+    rounded_box(flap, (-0.24, 0.3, 0.17), (0.24, 0.5, 0.21), 0.02, canvas)
+    return [build('weathered-pack', body, shared('cloth')), build_hinged('weathered-pack-flap', flap, shared('cloth'), (0, 0.45, -0.17))]
+
+
 def remake():
     made = []
     for name, (size, seed, cuts, detail) in ROCKS.items():
@@ -577,6 +716,7 @@ def remake():
     made += [('fallen-log', [fallen_log()]), ('stump', [stump()]), ('tree-dead', [dead_tree()]), ('logs', [firewood()])]
     made += [('plane', [plane()]), ('plane-wing', [plane_wing()])]
     made += [('suitcase', suitcase()), ('debris', [debris()]), ('landing-wheel', [landing_wheel()]), ('clod', [clod()])]
+    made += [('barrel', [barrel()]), ('chest', chest()), ('supply-crate', supply_crate()), ('ammo-box', ammo_box()), ('locker', locker()), ('cupboard', cupboard()), ('weathered-pack', weathered_pack())]
     return made
 
 
