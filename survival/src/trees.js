@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { HIDDEN, instancedModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { seeThroughMaterial } from './seeThrough.js';
+import { NEW_LOOK, needleMaterial, softFoliage } from './look.js';
 import { SpatialGrid } from './grid.js';
 
 // How much wood each kind of tree gives, how long it takes to chop (seconds of holding),
@@ -15,15 +16,14 @@ const KINDS = {
   'pine-snow': { wood: 4, chopTime: 2.5, stump: 1 },
   'pine-small-snow': { wood: 2, chopTime: 1.5, stump: 0.5 },
   'sapling-pine': { wood: 1, chopTime: 0.8, stump: 0.25 },
-  'sapling-broadleaf': { wood: 1, chopTime: 0.8, stump: 0.25 },
   'tree-dead': { wood: 3, chopTime: 2, stump: 0.9 },
-  broadleaf: { wood: 3, chopTime: 2, stump: 1 },
-  birch: { wood: 2, chopTime: 1.5, stump: 0.5 },
 };
 // Each tree is multiplied by one of these, so the forest isn't all one green.
 // Cool blue-greens, mostly, and the odd warmer one.
 const TREE_TINTS = [0xffffff, 0xd6e4d2, 0xb2cac6, 0xc2d2cc, 0xa6c0b8, 0xe2e2c6].map((hex) => new THREE.Color(hex));
 const UNTINTED = new Set(['tree-dead']); // bare wood stays its own colour
+// Meters from the player within which spruce are drawn in full detail, in the new look.
+const DETAIL_RADIUS = 26;
 const STUMP_RADIUS = 0.35;
 const STUMP_HEIGHT = 0.45;
 const FALL_TIME = 1.3; // seconds to topple over
@@ -43,7 +43,15 @@ export class Trees {
     const transforms = spots.map((spot) => treeMatrix(spot, 0, null));
     // Trees get a see-through hole wherever they'd hide the player.
     const tints = UNTINTED.has(kind) ? undefined : spots.map(treeTint);
-    const trees = instancedModel(kind, placeholder, transforms, seeThroughMaterial, tints);
+    // (A model's needle cards, in the new look, are painted with see-through needles.)
+    const prepare = (material) => {
+      const result = seeThroughMaterial(material.name.startsWith('needles') ? needleMaterial(material) : material);
+      return NEW_LOOK && kind !== 'tree-dead' ? softFoliage(result) : result;
+    };
+    // In the new look, the spruce near the player are the needle-card ones (public/models/look/),
+    // the rest the plain ones: the same boughs in the same places, just simpler.
+    const detail = NEW_LOOK && kind !== 'tree-dead' ? { name: `look/${kind}`, radius: DETAIL_RADIUS } : undefined;
+    const trees = instancedModel(kind, placeholder, transforms, prepare, tints, undefined, detail);
     // Stumps start hidden, so tell them where they belong on the map.
     const stumps = instancedModel('stump', placeholders.stump(), spots.map(() => HIDDEN.clone()), undefined, undefined, spots);
     this.scene.add(trees, stumps);

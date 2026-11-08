@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CRASH, createCrashTrail } from './crashTrail.js';
 import { createWater } from './water.js';
 import { CHUNK_SIZE, DRAW_CHUNKS, chunksAround } from './stream.js';
+import { NEW_LOOK } from './look.js';
 
 const { smoothstep, clamp } = THREE.MathUtils;
 
@@ -327,7 +328,7 @@ export function createTerrain(random, noise, size) {
   };
 
   // How "foresty" an area is (roughly -1..1). Large woods and open meadows, a few hundred
-  // meters across, with trees growing in clumps inside the woods. No birch up the mountains.
+  // meters across, with trees growing in clumps inside the woods.
   const forest = (x, z) =>
     noise(x * 0.006 + 700, z * 0.006) * 1.3 + noise(x * 0.04 + 50, z * 0.04) * 0.6 - mountainAt(x, z) * 4;
   // How cold the air is up the mountains: 0 in the lowlands, rising to 1 above the snowline.
@@ -715,6 +716,34 @@ function channelIndex(courses, reach) {
   return { nearest };
 }
 
+// The new look's ground (look.js): painted-looking detail at three sizes, by world position:
+// broad patches meters across, drier and warmer or darker and mossier; clumps; and a fine
+// grain. (Lighter on snow, which stays clean.)
+function paintedGround(shader) {
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\nvarying vec2 vGroundXZ;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGroundXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', `#include <common>
+      varying vec2 vGroundXZ;
+      float groundHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float groundNoise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(groundHash(i), groundHash(i + vec2(1, 0)), f.x), mix(groundHash(i + vec2(0, 1)), groundHash(i + vec2(1, 1)), f.x), f.y);
+      }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+      {
+        vec2 q = vGroundXZ;
+        float broad = groundNoise(q * 0.17) * 0.6 + groundNoise(q * 0.47 + 7.0) * 0.4;
+        float clumps = groundNoise(q * 2.1 + broad * 3.0);
+        float grain = groundNoise(q * 11.0) * 0.6 + groundNoise(q * 29.0) * 0.4;
+        float specks = smoothstep(0.72, 0.9, groundNoise(q * 61.0)); // (bits of old needle and twig, at your feet)
+        vec3 detail = mix(vec3(0.84, 0.89, 0.83), vec3(1.1, 1.05, 0.9), broad) * (0.88 + 0.2 * clumps) * (0.88 + 0.22 * grain) * (1.0 - 0.18 * specks) * 1.35; // (and a little lighter: from the ground, the forest floor read near black)
+        diffuseColor.rgb *= mix(detail, vec3(0.97 + 0.05 * grain), smoothstep(0.4, 0.6, vSnow));
+      }`);
+}
+
 // The ground: faceted hilly meshes where every triangle is one flat colour, one per chunk,
 // built as the player comes near (see drawAround) and dropped again once they're far away.
 function createGround(size, heightAt, groundAt, noise, snowAt) {
@@ -732,6 +761,7 @@ function createGround(size, heightAt, groundAt, noise, snowAt) {
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 uSnowColor;\nvarying float vSnow;')
       .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uSnowColor, smoothstep(0.4, 0.6, vSnow));');
+    if (NEW_LOOK) paintedGround(shader);
   };
   const built = new Map(); // chunk key → mesh (its `userData.cell` is the size of its squares)
   const half = size / 2;
@@ -785,7 +815,7 @@ function createGround(size, heightAt, groundAt, noise, snowAt) {
       const facet = b.sub(a).cross(c.sub(a)).normalize();
       // Snow is lit smooth, so drifts look soft and rounded.
       const snowy = (cornerSnow[cornerOf[i]] + cornerSnow[cornerOf[i + 1]] + cornerSnow[cornerOf[i + 2]]) / 3;
-      const facetShare = THREE.MathUtils.lerp(FACET, SNOW_FACET, snowy);
+      const facetShare = NEW_LOOK ? 0 : THREE.MathUtils.lerp(FACET, SNOW_FACET, snowy); // (the new look is lit smooth)
       for (let k = 0; k < 3; k++) {
         n.fromBufferAttribute(normals, i + k).lerp(facet, facetShare).normalize();
         normals.setXYZ(i + k, n.x, n.y, n.z);
@@ -809,6 +839,17 @@ function createGround(size, heightAt, groundAt, noise, snowAt) {
       }
       // (The fine speckle is kept small: from the ground, neighbouring triangles flipping
       // lighter and darker read as a checkerboard.)
+      if (NEW_LOOK) {
+        // Each corner keeps its own colour, blended smoothly across the triangle (the shader
+        // adds the fine detail), so there are no flat-coloured triangles to see.
+        for (let k = 0; k < 3; k++) {
+          const corner = cornerOf[i + k] * 3;
+          shade.setRGB(cornerColors[corner], cornerColors[corner + 1], cornerColors[corner + 2], THREE.SRGBColorSpace);
+          shade.toArray(colors, (i + k) * 3);
+        }
+        if (i % 300 === 297) yield;
+        continue;
+      }
       const speckle = noise(x * 1.3, z * 1.3) * 0.08 + noise(x * 7.3, z * 7.3) * 0.045;
       shade.setRGB(r / 3, gr / 3, bl / 3, THREE.SRGBColorSpace).multiplyScalar(1 + speckle);
       for (let corner = 0; corner < 3; corner++) shade.toArray(colors, (i + corner) * 3);

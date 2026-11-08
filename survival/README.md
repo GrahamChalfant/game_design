@@ -1,6 +1,6 @@
 # Northern Survival
 
-A top-down survival game set in a northern landscape of golden meadows, open birch woods and
+A top-down survival game set in a far-northern landscape of golden meadows, spruce woodland and
 lingering snow, built with [Three.js](https://threejs.org/). The goal is to see how long you can survive.
 
 Everything for this game lives in this `survival` folder. Ideas and planned features are tracked
@@ -169,7 +169,7 @@ you're about to run out; the thermometer goes from a cool blue when you're freez
 at its hottest. You'll say so when you get hungry or thirsty. Temperature falls at night and in the water, and rises near a burning
 fire. If it reaches zero, you start losing health.
 
-The land around the crash is open birch woods, meadows and lakes. In one corner of the map,
+The land around the crash is open spruce woodland, meadows and lakes. In one corner of the map,
 a different one each game, is a big mountain range, about half a kilometer across: a rocky,
 spruce-wooded highland with snowy peaks standing on it. Spruce grow on the lower slopes, then
 scree and bare rock, then snow. The air gets
@@ -375,7 +375,6 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `truck.glb` | Rusted forest service pickup, passenger door open | 1.9 × 5.1 m |
 | `fallen-log.glb` | Fallen trunk, 1 m long and 1 m thick (stretched per copy) | 1 × 1 m |
 | `fence.glb`, `fence-broken.glb` | One 2.5 m length of split-rail fence, whole or with a rail down | 2.5 m long |
-| `birch.glb` | The woods' birch: white trunk with small dark marks, limbs forking into twigs, many small olive-gold leaf clumps shaded underneath (rebuilt by `blender/props.py`, as are the rest below unless noted) | ~8 m tall |
 | `lookout.glb` | The fire lookout tower: frame, four flights of stairs, landings, cab with windows, balcony and railing, metal roof. Stairs, floors, walls, windows and roof are separate parts that fade when in the way (rebuilt by `blender/lookout.py`) | ~16 m tall |
 | `logs.glb`, `axe-ground.glb`, `clod.glb`, `debris.glb`, `landing-wheel.glb` | Things lying about: dropped firewood, the axe, crash clods, a panel of plane skin, a torn-off wheel | small |
 | `torch.glb` | The torch, held by the grip (origin); the flame sits 0.52 m up | 0.7 m |
