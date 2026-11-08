@@ -219,6 +219,11 @@ export function createTerrain(random, noise, size) {
   };
 
   const crashTrail = createCrashTrail(noise);
+  // How rocky the ground is (above 0.38 stone shows through; see groundAt).
+  const rockAt = (x, z) => noise(x * 0.05 + 900, z * 0.05) + noise(x * 0.4 + 950, z * 0.4) * 0.25;
+  // How much of the ground is stone there (0 soil, 1 bare rock): the plane's skid doesn't cut
+  // into rock, and leaves pale scrapes on it rather than torn soil.
+  const stoneAt = (x, z) => smoothstep(rockAt(x, z), 0.38, 0.5);
 
   // The road, for heightAt and the ground's colours (filled in by layRoads).
   const ROAD_CELL = 16;
@@ -261,7 +266,8 @@ export function createTerrain(random, noise, size) {
 
   // The land before the creeks are cut into it.
   const landAt = (x, z) => {
-    const h = withLakes(baseHeight(x, z), x, z, lakes) + crashTrail.at(x, z).height;
+    const scarHeight = crashTrail.at(x, z).height;
+    const h = withLakes(baseHeight(x, z), x, z, lakes) + (scarHeight ? scarHeight * (1 - stoneAt(x, z)) : 0);
     const r = river.nearest(x, z);
     return r ? Math.min(h, river.carve(r)) : h;
   };
@@ -393,7 +399,7 @@ export function createTerrain(random, noise, size) {
 
     let kind = 'grass';
     // Grey stone showing through.
-    const rock = noise(x * 0.05 + 900, z * 0.05) + noise(x * 0.4 + 950, z * 0.4) * 0.25;
+    const rock = rockAt(x, z);
     if (rock > 0.38) {
       // (Stony ground: grey stones and gravel with the tundra's plants still between them,
       // bare stone only at the heart of it.)
@@ -425,9 +431,12 @@ export function createTerrain(random, noise, size) {
     // Bare soil torn up by the crash, with dark streaks running along the skid.
     const scar = crashTrail.at(x, z);
     if (scar.dirt > 0) {
+      const stone = stoneAt(x, z);
       tint.copy(TORN_SOIL).lerp(DARK_SOIL, smoothstep(scar.streak, -0.2, 0.35));
-      color.lerp(tint, scar.dirt);
-      if (scar.dirt > 0.4) kind = 'dirt';
+      color.lerp(tint, scar.dirt * (1 - stone));
+      // (On rock: pale scrapes along the skid, the stone's weathered surface ground off.)
+      color.lerp(tint.copy(STONE).multiplyScalar(1.12), scar.dirt * stone * 0.45 * smoothstep(scar.streak, -0.3, 0.3));
+      if (scar.dirt * (1 - stone) > 0.4) kind = 'dirt';
     }
     // The old fire road (see roads.js): packed dirt with two wheel ruts and grass coming back
     // up the middle, its edges blending into the land.
@@ -783,10 +792,12 @@ function paintedGround(shader) {
         // Bare rock: slabs of lighter and darker stone, dark cracks between them, and crusts of
         // lichen, pale green-grey and orange.
         float slab = groundNoise(q * 0.55 + 51.0) * 0.6 + groundNoise(q * 1.7 + 53.0) * 0.4;
-        float crack = 1.0 - smoothstep(0.0, 0.035, abs(groundNoise(q * 1.3 + 71.0) - 0.5));
+        // (Cracks fine and broken, coming and going along their length, not drawn round every slab.)
+        float crack = (1.0 - smoothstep(0.0, 0.018, abs(groundNoise(q * 1.3 + 71.0) - 0.5)))
+          * smoothstep(0.45, 0.7, groundNoise(q * 0.8 + 83.0));
         float crust = smoothstep(0.6, 0.72, groundNoise(q * 4.3 + 91.0));
         vec3 lichen = mix(vec3(1.12, 1.12, 0.92), vec3(1.25, 0.98, 0.72), smoothstep(0.4, 0.6, groundNoise(q * 0.9 + 97.0)));
-        vec3 rockDetail = vec3(0.8 + 0.32 * slab) * (1.0 - 0.45 * crack) * mix(vec3(1.0), lichen, crust * 0.7);
+        vec3 rockDetail = vec3(0.8 + 0.32 * slab) * (1.0 - 0.3 * crack) * mix(vec3(1.0), lichen, crust * 0.7);
         detail *= mix(vec3(1.0), rockDetail, vStone);
         diffuseColor.rgb *= mix(detail, vec3(0.97 + 0.05 * grain), smoothstep(0.4, 0.6, vSnow));
       }`);

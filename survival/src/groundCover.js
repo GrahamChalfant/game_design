@@ -20,8 +20,10 @@ const DEEP = { chance: 0.62, weights: { moss: 26, litter: 22, fern: 16, shrub: 1
 const OPEN = { chance: 0.11, weights: { shrub: 8, stones: 26, fern: 8, moss: 8, branch: 6, litter: 0, mushrooms: 0 } };
 // (The heath and lichen carpet the ground in a pass of their own: pickCarpet.)
 export const COVER_KINDS = ['moss', 'litter', 'fern', 'shrub', 'branch', 'stones', 'mushrooms', 'roots', 'heath', 'lichen'];
-// The spruce whose roots show (the others are saplings, dead snags and the like).
-const ROOTED = new Set(['pine', 'pine-tall', 'pine-wide', 'pine-skinny', 'pine-snow', 'tree-dead']);
+// The trees whose roots show (not saplings and young spruce), and each one's trunk radius at
+// its base (measured from its model), so the roots fit the trunk.
+const ROOTED = { pine: 0.146, 'pine-tall': 0.189, 'pine-wide': 0.193, 'pine-skinny': 0.078, 'pine-snow': 0.138, 'tree-dead': 0.2 };
+const ROOT_TRUNK = 0.15; // (the trunk the roots shape is made for)
 
 // One kind's shape: a list of triangles, each [colour, a, b, c], as a flat-shaded geometry.
 function shape(triangles) {
@@ -171,13 +173,15 @@ function buildFineShapes() {
     fineLump([x, h, z], [w, 0.022, w], (up) => (up > 0.1 ? pick(r, [0xb88a5a, 0xa87a4c]) : 0x6e5a44), r, t);
   }
   shapes.mushrooms = shape(t);
-  // Roots: spreading from a trunk's foot, curving down into the ground (for a tree of scale 1).
+  // Roots: the flare at a trunk's foot, for a trunk ROOT_TRUNK in radius: each root starts
+  // inside the trunk, swells out of it low down and dives into the ground within half a meter
+  // (a spruce's roots run shallow, under the moss: only their tops show near the trunk).
   t = [];
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2 + r() * 0.5;
-    const reach = 0.75 + r() * 0.45;
+  for (let k = 0; k < 5; k++) {
+    const a = (k / 5) * Math.PI * 2 + r() * 0.6;
+    const reach = 0.42 + r() * 0.14;
     const [cx, cz] = [Math.cos(a), Math.sin(a)];
-    bentStick([[cx * 0.18, 0.14, cz * 0.18], [cx * reach * 0.4, 0.09, cz * reach * 0.4], [cx * reach * 0.75, 0.02, cz * reach * 0.75], [cx * reach, -0.05, cz * reach]], 0.08, 0.018, () => pick(r, [0x4e3e30, 0x5a4a3a, 0x463628]), t, 7);
+    bentStick([[cx * 0.08, 0.17, cz * 0.08], [cx * 0.2, 0.08, cz * 0.2], [cx * reach * 0.7, 0.015, cz * reach * 0.7], [cx * reach, -0.06, cz * reach]], 0.075, 0.012, () => pick(r, [0x5a4a3c, 0x504032, 0x62523f]), t, 7);
   }
   shapes.roots = shape(t);
   return shapes;
@@ -472,9 +476,10 @@ export function rootsFor(trees, chunkX, chunkZ, chunkSize, terrain, random) {
   const midX = (chunkX + 0.5) * chunkSize;
   const midZ = (chunkZ + 0.5) * chunkSize;
   for (const tree of trees.grid.near(midX, midZ, chunkSize * 0.72)) {
-    if (!ROOTED.has(tree.kind)) continue; // (a stump keeps its roots)
+    if (!(tree.kind in ROOTED)) continue; // (a stump keeps its roots)
     if (Math.floor(tree.x / chunkSize) !== chunkX || Math.floor(tree.z / chunkSize) !== chunkZ) continue;
-    const { scale, rotation } = tree.spot;
+    const { rotation } = tree.spot;
+    const scale = (tree.spot.scale * ROOTED[tree.kind]) / ROOT_TRUNK;
     const matrix = new THREE.Matrix4().compose(
       new THREE.Vector3(tree.x, terrain.heightAt(tree.x, tree.z), tree.z),
       new THREE.Quaternion().setFromAxisAngle(UP, rotation + random.next()),

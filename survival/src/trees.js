@@ -6,17 +6,18 @@ import { needleMaterial, paintedSurface, softFoliage } from './look.js';
 import { SpatialGrid } from './grid.js';
 
 // How much wood each kind of tree gives, how long it takes to chop (seconds of holding),
-// and how big its stump is (1 is the size of stump.glb).
+// and how big its stump is (1 is the size of stump.glb, whose cut top is 0.26 m across in
+// radius: each is the tree's own trunk at its base, measured from its model, a little over).
 const KINDS = {
-  pine: { wood: 4, chopTime: 2.5, stump: 1 },
-  'pine-small': { wood: 2, chopTime: 1.5, stump: 0.5 },
-  'pine-skinny': { wood: 3, chopTime: 2, stump: 0.7 },
-  'pine-tall': { wood: 6, chopTime: 3.5, stump: 1.4 },
-  'pine-wide': { wood: 5, chopTime: 3, stump: 1.2 },
-  'pine-snow': { wood: 4, chopTime: 2.5, stump: 1 },
-  'pine-small-snow': { wood: 2, chopTime: 1.5, stump: 0.5 },
-  'sapling-pine': { wood: 1, chopTime: 0.8, stump: 0.25 },
-  'tree-dead': { wood: 3, chopTime: 2, stump: 0.9 },
+  pine: { wood: 4, chopTime: 2.5, stump: 0.58 },
+  'pine-small': { wood: 2, chopTime: 1.5, stump: 0.31 },
+  'pine-skinny': { wood: 3, chopTime: 2, stump: 0.31 },
+  'pine-tall': { wood: 6, chopTime: 3.5, stump: 0.75 },
+  'pine-wide': { wood: 5, chopTime: 3, stump: 0.76 },
+  'pine-snow': { wood: 4, chopTime: 2.5, stump: 0.55 },
+  'pine-small-snow': { wood: 2, chopTime: 1.5, stump: 0.31 },
+  'sapling-pine': { wood: 1, chopTime: 0.8, stump: 0.2 },
+  'tree-dead': { wood: 3, chopTime: 2, stump: 0.78 },
 };
 // Each tree is multiplied by one of these, so the forest isn't all one green.
 // Cool blue-greens, mostly, and the odd warmer one.
@@ -91,8 +92,8 @@ export class Trees {
     const away = new THREE.Vector3(tree.spot.x - fromX, 0, tree.spot.z - fromZ).normalize();
     tree.fallAxis = new THREE.Vector3(0, 1, 0).cross(away).normalize();
     tree.spot.obstacle.radius = STUMP_RADIUS * tree.spot.scale * tree.stump;
-    tree.spot.obstacle.top = tree.spot.y + STUMP_HEIGHT * tree.spot.scale * tree.stump; // the player can jump onto it
-    tree.stumps.setInstance(tree.index, treeMatrix(tree.spot, 0, null, tree.stump));
+    tree.spot.obstacle.top = tree.spot.y + STUMP_HEIGHT * tree.spot.scale * stumpHeight(tree.stump); // the player can jump onto it
+    tree.stumps.setInstance(tree.index, stumpMatrix(tree.spot, tree.stump));
     return true;
   }
 
@@ -138,6 +139,18 @@ function treeTint({ x, z }) {
 }
 
 // Position, tilt (while falling) and size for one tree.
+// A stump as wide as the tree's trunk, but cut at a height an axe leaves (knee high or so),
+// not shrunk as short as it is narrow.
+const stumpHeight = (width) => Math.min(1, width + 0.4);
+function stumpMatrix(spot, width) {
+  const spin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spot.rotation);
+  return new THREE.Matrix4().compose(
+    new THREE.Vector3(spot.x, spot.y, spot.z),
+    spin,
+    new THREE.Vector3(spot.scale * width, spot.scale * stumpHeight(width), spot.scale * width),
+  );
+}
+
 function treeMatrix(spot, tilt, axis, shrink = 1) {
   const spin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spot.rotation);
   const rotation = axis ? new THREE.Quaternion().setFromAxisAngle(axis, tilt).multiply(spin) : spin;
