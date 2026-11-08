@@ -178,6 +178,8 @@ export function buildWorld(scene, seed) {
     !terrain.crashTrail.near(x, z, 2) &&
     obstacles.isClear(x, z, spacing);
 
+  // Trees need soil: none on bare rock or stony ground.
+  const soil = (x, z) => !['rock', 'stony'].includes(terrain.groundAt(x, z).kind);
   const place = (x, z, radius, scale) => {
     const obstacle = { x, z, radius: radius * scale };
     obstacles.add(obstacle);
@@ -194,7 +196,7 @@ export function buildWorld(scene, seed) {
     const woods = terrain.forest(x, z);
     if (woods < random.range(-0.15, 0.45)) return null;
     const deep = THREE.MathUtils.smoothstep(woods, ...DEEP_FROM);
-    if (!isFree(x, z, THREE.MathUtils.lerp(FOREST_SPACING.open, FOREST_SPACING.deep, deep))) return null;
+    if (!isFree(x, z, THREE.MathUtils.lerp(FOREST_SPACING.open, FOREST_SPACING.deep, deep)) || !soil(x, z)) return null;
     const mix = random.next() < deep ? DEEP_FOREST_MIX : FOREST_MIX;
     const kind = mix[placedTrees++ % mix.length];
     const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
@@ -204,7 +206,7 @@ export function buildWorld(scene, seed) {
   // The understory, in among the trees of the deep forest.
   scatter(random, Math.round(UNDERSTORY_PER_HECTARE * HECTARES), (x, z) => {
     const deep = THREE.MathUtils.smoothstep(terrain.forest(x, z), ...DEEP_FROM);
-    if (deep < random.range(0.2, 1) || !isFree(x, z, UNDERSTORY_SPACING)) return null;
+    if (deep < random.range(0.2, 1) || !isFree(x, z, UNDERSTORY_SPACING) || !soil(x, z)) return null;
     const kind = UNDERSTORY_MIX[placedTrees++ % UNDERSTORY_MIX.length];
     const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.6, 1.1));
     forest[kind].push(tree);
@@ -215,7 +217,7 @@ export function buildWorld(scene, seed) {
     scatterAround(random, massif, Math.round(SPRUCE_PER_HECTARE * hectares), (x, z) => {
       const up = terrain.mountainAt(x, z);
       // Thinner the higher you go, and none above the treeline.
-      if (up < 0.02 || up > TREELINE * random.range(0.8, 1.05) || !isFree(x, z, FOREST_SPACING.open * 0.6)) return null;
+      if (up < 0.02 || up > TREELINE * random.range(0.8, 1.05) || !isFree(x, z, FOREST_SPACING.open * 0.6) || !soil(x, z)) return null;
       const kind = random.pick(up > SNOWY_ABOVE ? SNOWY_SPRUCE : SPRUCE);
       const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
       forest[kind].push(tree);
