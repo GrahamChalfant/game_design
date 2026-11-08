@@ -26,8 +26,7 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `trap.glb` | Spring-pole snare: stake, bent sapling with needle tufts, cord and a wide noose lying open in front (-Y), ~0.7 m across | 336 | camp_props.py |
 | `pine.glb`, `pine-small.glb`, `pine-skinny.glb`, `pine-tall.glb`, `pine-wide.glb` | Spruce | 1,752–4,165 | blender/conifers.py |
 | `pine-snow.glb`, `pine-small-snow.glb` | Snowy spruce | 2,243 / 1,749 | blender/conifers.py |
-| `sapling-pine.glb`, `sapling-broadleaf.glb` | Saplings | 897 / 288 | blender/conifers.py / trees.blend |
-| `broadleaf.glb` | Field tree | 614 | trees.blend |
+| `sapling-pine.glb` | Sapling | 897 | blender/conifers.py |
 | `tree-dead.glb` | Bare dead tree | 272 | trees.blend |
 | `rock.glb`, `rock-small.glb`, `rock-flat.glb`, `rock-tall.glb`, `rock-large.glb` | Rocks | 44–140 | rock.blend |
 | `grass-tuft.glb`, `grass-short.glb`, `grass-clump.glb`, `grass-sparse.glb`, `grass-wide.glb`, `grass-wisp.glb`, `grass-tall.glb`, `grass-seed.glb`, `grass-fern.glb` | Grass tufts, painted grey (tinted by the ground) | 9–45 | grass.blend |

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { NEW_LOOK, paintedCover } from './look.js';
 
 // The small things on the forest floor and in the meadows, so the ground isn't bare: moss
 // mounds, ferns, low shrubs (Labrador tea and blueberry), fallen branches, rust-brown drifts of
@@ -17,7 +18,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 const DEEP = { chance: 0.62, weights: { moss: 26, litter: 22, fern: 16, shrub: 14, branch: 12, stones: 5, mushrooms: 5 } };
 const OPEN = { chance: 0.11, weights: { shrub: 46, stones: 26, fern: 8, moss: 8, branch: 6, litter: 0, mushrooms: 0 } };
 export const COVER_KINDS = ['moss', 'litter', 'fern', 'shrub', 'branch', 'stones', 'mushrooms', 'roots'];
-// The spruce whose roots show (the others are birch, saplings and the like).
+// The spruce whose roots show (the others are saplings, dead snags and the like).
 const ROOTED = new Set(['pine', 'pine-tall', 'pine-wide', 'pine-skinny', 'pine-snow', 'tree-dead']);
 
 // One kind's shape: a list of triangles, each [colour, a, b, c], as a flat-shaded geometry.
@@ -185,6 +186,11 @@ function mossCushion(r) {
 export function coverParts() {
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, side: THREE.DoubleSide });
   const smooth = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  if (NEW_LOOK) {
+    // (The new look: mottled like the ground, and the moss darker, see look.js.)
+    paintedCover(material, 0.8);
+    paintedCover(smooth, 0.62);
+  }
   return { material, materials: { moss: smooth }, shapes: buildShapes() };
 }
 

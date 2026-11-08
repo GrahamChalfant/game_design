@@ -17,7 +17,16 @@ import math, os, random, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy
 from mathutils import Vector
-from kit import PAL, Builder, build, export, g, material, reset
+from kit import OUT, PAL, Builder, build, export, g, material, reset
+
+# The look being tried at the crash site (index.html?look=new): every bough also gets needle
+# fringes, thin cards hanging off its edges and tip that the game paints with a see-through
+# needle texture, so the silhouettes are soft and feathery instead of hard facets. Those trees
+# go to public/models/look/. Run with LOOK = 'new' set (runpy's init_globals) to make them.
+LOOK = globals().get('LOOK', 'old')
+FRINGE = 0.55  # how far a fringe hangs, as a share of the bough's width there
+CARDS = None  # the current tree's fringe cards, while it's being built (LOOK 'new' only)
+fringe_random = random.Random()  # (its own, so adding fringes doesn't change the trees' shapes)
 
 PAL.update(
     bark=0x4a3a2e, bark_dark=0x3a2e26,
@@ -69,6 +78,47 @@ def face(b, points, c, out):
     b.add([g(*p) for p in points], [tuple(range(len(points)))], c)
 
 
+def shared(name):
+    """One material per name, reused run after run (a new one each time, an open Blender
+    numbers them: needles.001, needles.002...)."""
+    return bpy.data.materials.get(name) or material(name, 0.95)
+
+
+def fringe_colour(t, out):
+    names = ('needles', 'needles_mid', 'needles_light', 'needles_tip')
+    i = min(len(names) - 1, max(0, int(out * 3 + fringe_random.uniform(-0.7, 0.7))))
+    h = PAL[names[i]]
+    k = (1 + fringe_random.uniform(-0.08, 0.08)) * (0.9 + 0.16 * t)
+    return (*[min(1, (((h >> s) & 255) / 255) * k) ** 2.2 for s in (16, 8, 0)], 1.0)
+
+
+def card(points, uvs, c, out):
+    """A needle card (game space quad) with texture coordinates, facing `out`."""
+    n = (points[1] - points[0]).cross(points[2] - points[0])
+    if n.dot(out) < 0:
+        points, uvs = points[::-1], uvs[::-1]
+    f = CARDS.bm.faces.new([CARDS.bm.verts.new(g(*p)) for p in points])
+    f[CARDS.lay] = len(CARDS.cols)
+    CARDS.cols.append(c)
+    for loop, uv in zip(f.loops, uvs):
+        loop[CARDS.uv].uv = uv
+
+
+def fringes(sections, out, side, t):
+    """Needles hanging off both edges of a bough. u runs along
+    the bough (one texture repeat per 0.45 m), v from where they grow (0) to their tips (1)."""
+    for edge, sgn in ((1, 1), (2, -1)):
+        u = fringe_random.uniform(0, 1)
+        for s in range(len(sections) - 1):
+            e0, e1 = sections[s][edge], sections[s + 1][edge]
+            w0, w1 = (sections[s][0] - e0).length, (sections[s + 1][0] - e1).length
+            hang0 = side * sgn * w0 * 0.5 - UP * max(0.1, w0 * FRINGE)
+            hang1 = side * sgn * w1 * 0.5 - UP * max(0.1, w1 * FRINGE)
+            u1 = u + (e1 - e0).length / 0.45
+            card([e0, e1, e1 + hang1, e0 + hang0], [(u, 0), (u1, 0), (u1, 1), (u, 1)], fringe_colour(t, 0.4 + 0.2 * s), side * sgn)
+            u = u1
+
+
 def ring_point(angle, r, y):
     return Vector((math.cos(angle) * r, y, math.sin(angle) * r))
 
@@ -101,14 +151,55 @@ def bough(b, y, a, reach, t, snowy, droop=None):
         f = s / (len(sections) - 1)
         for e0, e1, sgn in ((l0, l1, 1), (q0, q1, -1)):
             top = snow() if snowy and random.random() < 0.85 - f * 0.25 else needles(t, 0.4 + f * 0.6)
-            face(b, [r0, e0, e1, r1], top, side * sgn + Vector((0, 0.7, 0)))
-        face(b, [l0, q0, q1, l1], colour('needles_under', 0.07, shade), Vector((0, -1, 0)))
+            if CARDS:
+                # The top as a needle card, reaching a little past the edge, so its outline is
+                # ragged needles instead of a hard line (the solid underside still closes it).
+                o0, o1 = e0 + (e0 - r0) * 0.45, e1 + (e1 - r1) * 0.45
+                u0, u1 = s * 0.8, (s + 1) * 0.8
+                # Folded along its middle, the crease raised, so the bough arches over its sides
+                # instead of lying flat...
+                lift0, lift1 = UP * (r0 - e0).length * 0.22, UP * (r1 - e1).length * 0.22
+                c0, c1 = r0.lerp(o0, 0.45) + lift0, r1.lerp(o1, 0.45) + lift1
+                card([r0, c0, c1, r1], [(u0, 0), (u0, 0.45), (u1, 0.45), (u1, 0)], top, side * sgn + Vector((0, 0.7, 0)))
+                card([c0, o0, o1, c1], [(u0, 0.45), (u0, 1), (u1, 1), (u1, 0.45)], top, side * sgn + Vector((0, 0.7, 0)))
+                # ...and a second, smaller layer of sprays over its outer half, raised and turned a
+                # little, so up close you see layers of needles, not one sheet.
+                if s > 0:
+                    turn = fringe_random.uniform(-0.12, 0.12)
+                    a0, a1 = c0 + lift0 * 0.6, c1 + lift1 * 0.6
+                    b0 = o0 + (o0 - c0) * 0.15 + UP * turn
+                    b1 = o1 + (o1 - c1) * 0.15 - UP * turn
+                    card([a0, b0, b1, a1], [(u0 + 0.37, 0.05), (u0 + 0.37, 1), (u1 + 0.37, 1), (u1 + 0.37, 0.05)], fringe_colour(t, 0.6 + 0.2 * s), side * sgn + Vector((0, 0.9, 0)))
+            else:
+                face(b, [r0, e0, e1, r1], top, side * sgn + Vector((0, 0.7, 0)))
+        under = colour('needles_under', 0.07, shade)
+        if CARDS:
+            # The underside as needle cards too: from the bough's middle out past each edge,
+            # ragged, a shade darker than the top (no flat faces to see from below).
+            m0, m1 = (l0 + q0) / 2 - UP * 0.04, (l1 + q1) / 2 - UP * 0.04
+            low = tuple(min(1, c * 1.9) for c in under[:3]) + (1.0,)
+            for e0, e1 in ((l0, l1), (q0, q1)):
+                o0, o1 = e0 + (e0 - m0) * 0.35, e1 + (e1 - m1) * 0.35
+                u0, u1 = s * 0.8, (s + 1) * 0.8
+                card([m0, o0, o1, m1], [(u0, 0), (u0, 1), (u1, 1), (u1, 0)], low, Vector((0, -1, 0)))
+        else:
+            face(b, [l0, q0, q1, l1], under, Vector((0, -1, 0)))
     r, l, q = sections[-1]
-    face(b, [r, l, q], needles(t, 1.0), out)
+    tip_colour = needles(t, 1.0)
+    if CARDS:
+        fringes(sections, out, side, t)  # (no tip face: seen edge-on, it pokes out as a stick)
+    else:
+        face(b, [r, l, q], tip_colour, out)
 
 
 def conifer(name, height, radius, tiers, tips, bare, snowy, seed):
+    """Returns the tree's objects: the tree, and (LOOK 'new') its needle cards."""
+    global CARDS
     random.seed(seed)
+    fringe_random.seed(seed * 7919)
+    if LOOK == 'new':
+        CARDS = Builder()
+        CARDS.uv = CARDS.bm.loops.layers.uv.new('UVMap')
     b = Builder()
     # The trunk: slim for the crown's width (a skinny spruce has a slim trunk), with a little
     # flare at the foot, tapering steadily up inside the crown. It stops well short of the top,
@@ -146,13 +237,19 @@ def conifer(name, height, radius, tiers, tips, bare, snowy, seed):
     b.pole((0, hi - 0.25, 0), (0, height, 0), radius * 0.05 + 0.05, lambda: colour(random.choice(('needles_light', 'needles_mid', 'needles_tip')), 0.05), n=5, taper=0.3)
     if snowy:
         b.pole((0, height - 0.12, 0), (0, height + 0.02, 0), (radius * 0.05 + 0.05) * 0.45, lambda: colour('snow', 0.02), n=5, taper=0.5)
-    return build(name, b, material('tree', 0.95))
+    parts = [build(name, b, shared('tree'))]
+    if CARDS:
+        parts.append(build(f'{name}-needles', CARDS, shared('needles')))
+        CARDS = None
+    return parts
 
 
+FOLDER = 'look/' if LOOK == 'new' else ''
+os.makedirs(os.path.join(OUT, FOLDER), exist_ok=True)
 if bpy.app.background:
     reset()
     for name, spec in TREES.items():
-        export([conifer(name, *spec)], f'{name}.glb')
+        export(conifer(name, *spec), f'{FOLDER}{name}.glb')
 else:
     # In an open Blender: export each, then keep a copy in the "Spruce" collection to look at.
     shelf = bpy.data.collections.get('Spruce') or bpy.data.collections.new('Spruce')
@@ -161,9 +258,9 @@ else:
     for o in list(shelf.objects):
         bpy.data.objects.remove(o)
     for i, (name, spec) in enumerate(TREES.items()):
-        export([conifer(name, *spec)], f'{name}.glb')
-        o = conifer(name, *spec)
-        bpy.context.scene.collection.objects.unlink(o)
-        shelf.objects.link(o)
-        o.location = (i * 5.5, 20, 0)  # (clear of anything at the origin)
+        export(conifer(name, *spec), f'{FOLDER}{name}.glb')
+        for o in conifer(name, *spec):
+            bpy.context.scene.collection.objects.unlink(o)
+            shelf.objects.link(o)
+            o.location = (i * 5.5, 20, 0)  # (clear of anything at the origin)
 print('@@ done')

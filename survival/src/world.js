@@ -20,11 +20,9 @@ const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into 
 const HECTARES = ((WORLD_SIZE - 4) / 100) ** 2; // the area things are scattered over
 // How many of each thing to scatter, per hectare (100 m × 100 m).
 const FOREST_PER_HECTARE = 300; // (the most tried for: open woods take fewer)
-const BROADLEAF_PER_HECTARE = 13;
 const ROCKS_PER_HECTARE = 140;
 // Each forest tree's collision radius.
 const FOREST_RADIUS = {
-  birch: 0.2,
   pine: 0.5,
   'pine-small': 0.3,
   'pine-skinny': 0.35,
@@ -33,26 +31,28 @@ const FOREST_RADIUS = {
   'pine-snow': 0.5,
   'pine-small-snow': 0.3,
   'sapling-pine': 0.15,
-  'sapling-broadleaf': 0.15,
   'tree-dead': 0.4,
 };
 // Forest trees take their kind from these lists in turn, so anything listed once is the rarest.
-// At the forest's edges it's open birch woods, thin trunks with room to walk between them;
-// deeper in it closes into boreal forest, mostly spruce, crowded together.
+// Far north, it's all spruce. At the forest's edges it's open spruce woodland: slim, scattered
+// spruce, young ones and dead snags, with room to walk between them; deeper in it closes into
+// boreal forest, crowded together.
 const FOREST_MIX = [
-  'birch', 'birch', 'pine-small', 'birch', 'sapling-broadleaf', 'birch', 'birch', 'pine',
-  'birch', 'birch', 'tree-dead', 'birch', 'birch', 'pine-skinny', 'birch', 'birch',
+  'pine-skinny', 'pine-small', 'pine', 'sapling-pine', 'pine-skinny', 'tree-dead', 'pine-small', 'pine-skinny',
+  'pine', 'sapling-pine', 'pine-skinny', 'pine-wide', 'pine-small', 'tree-dead', 'pine-skinny', 'pine-tall',
 ];
 const DEEP_FOREST_MIX = [
-  'pine-skinny', 'pine', 'birch', 'pine-skinny', 'pine-tall', 'pine-small', 'pine-skinny', 'pine',
-  'tree-dead', 'pine-skinny', 'birch', 'pine', 'pine-skinny', 'pine-tall', 'pine-small', 'birch',
+  'pine-skinny', 'pine', 'pine-small', 'pine-skinny', 'pine-tall', 'pine-small', 'pine-skinny', 'pine',
+  'tree-dead', 'pine-skinny', 'pine-wide', 'pine', 'pine-skinny', 'pine-tall', 'pine-small', 'pine',
 ];
 // Meters of open ground kept between forest trees: at the edges, and in the thick of it.
-const FOREST_SPACING = { open: 2.7, deep: 2.1 }; // (spruce boughs reach about 2 m: any closer and it's a wall of branches)
+// (Spruce boughs reach about 2 m: any closer and it's a wall of branches. The open woodland is
+// spaced well apart, so it reads as scattered trees you can see between.)
+const FOREST_SPACING = { open: 4.2, deep: 2.1 };
 const DEEP_FROM = [0.25, 0.7]; // forest() values where it goes from open woods to deep forest
 // Under the trees in the deep forest: saplings, young spruce and dead snags, close together.
 const UNDERSTORY_PER_HECTARE = 200;
-const UNDERSTORY_MIX = ['sapling-pine', 'sapling-pine', 'pine-small', 'sapling-broadleaf', 'sapling-pine', 'tree-dead', 'pine-small', 'sapling-pine'];
+const UNDERSTORY_MIX = ['sapling-pine', 'sapling-pine', 'pine-small', 'sapling-pine', 'sapling-pine', 'tree-dead', 'pine-small', 'sapling-pine'];
 const UNDERSTORY_SPACING = 1.2;
 // Up the mountains, dark spruce grow on the lower slopes and snowy ones higher up, thinning
 // out to nothing at the treeline (see mountainAt in terrain.js: 0 at a mountain's foot, 1 at the top).
@@ -180,7 +180,7 @@ export function buildWorld(scene, seed) {
 
   const trees = new Trees(scene);
 
-  // Open birch woods grow in clumps across the valley...
+  // Open spruce woodland grows in clumps across the valley, closing into deep forest further in.
   const forest = Object.fromEntries(Object.keys(FOREST_RADIUS).map((kind) => [kind, []]));
   let placedTrees = 0;
   scatter(random, Math.round(FOREST_PER_HECTARE * HECTARES), (x, z) => {
@@ -216,15 +216,8 @@ export function buildWorld(scene, seed) {
     });
   }
   for (const [kind, spots] of Object.entries(forest)) {
-    trees.add(kind, kind === 'birch' ? placeholders.birch() : placeholders.conifer(), spots);
+    trees.add(kind, placeholders.conifer(), spots);
   }
-
-  // ...while round leafy trees stand alone or in small groups out in the fields.
-  const broadleaves = scatter(random, Math.round(BROADLEAF_PER_HECTARE * HECTARES), (x, z) => {
-    if (terrain.forest(x, z) > 0 || terrain.mountainAt(x, z) > 0.02 || !isFree(x, z, 4)) return null;
-    return place(x, z, 0.45, random.range(0.8, 1.25));
-  });
-  trees.add('broadleaf', placeholders.broadleaf(), broadleaves);
 
   // Boulders lie in clusters on rocky ground (and the odd one out in the grass), each
   // squashed or stretched a little differently.

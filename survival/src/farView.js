@@ -116,16 +116,12 @@ export class FarView {
     this.group.add(ground);
   }
 
-  // Every standing tree as a simple shape: dark blue-green cones for spruce, round olive crowns
-  // for birch and the field trees (the colours of the trees up close, seen through the haze).
+  // Every standing tree as a simple shape: dark blue-green cones (the colour of the spruce up
+  // close, seen through the haze).
   buildTrees() {
     this.treesBuilt = true;
     const trees = this.world.trees.all.filter((tree) => tree.state === 'standing');
-    const spruce = trees.filter((tree) => tree.kind.startsWith('pine') || tree.kind === 'sapling-pine' || tree.kind === 'tree-dead');
-    const leafy = trees.filter((tree) => !spruce.includes(tree));
     const cone = new THREE.ConeGeometry(1.6, 8, 6, 1, true).translate(0, 4.6, 0);
-    const crown = new THREE.IcosahedronGeometry(1.6, 0).scale(1, 1.4, 1).translate(0, 5.6, 0);
-    const trunk = new THREE.CylinderGeometry(0.12, 0.18, 5, 4, 1, true).translate(0, 2.5, 0);
     const material = (color) => skipNearTrees(new THREE.MeshStandardMaterial({ color, roughness: 0.95, flatShading: true }));
     const matrix = new THREE.Matrix4();
     // The trees go in square tiles, each its own mesh, so the camera skips the tiles behind
@@ -149,10 +145,7 @@ export class FarView {
         this.group.add(mesh);
       }
     };
-    place(trunk, 0xc8c4b6, leafy.filter((tree) => tree.kind === 'birch'));
-    place(trunk, 0x4a3a2e, leafy.filter((tree) => tree.kind !== 'birch'));
-    place(cone, 0x34493f, spruce);
-    place(crown, 0x606a40, leafy); // (the canopies' olive and gold, mixed, as they read from far off: paler and the far forest is a band of mustard)
+    place(cone, 0x34493f, trees);
   }
 
 }

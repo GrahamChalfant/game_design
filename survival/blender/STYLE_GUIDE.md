@@ -32,7 +32,6 @@ painted look; never use pure black (#000) or pure white (#fff) in albedo.
 | | rust | `#A0643A` | autumn shrubs (willow, dwarf birch) in the open |
 | | moss | `#5E7444` | dark grass blotches, moss on wood |
 | | forest floor | `#435440` | under trees, bough beds |
-| Birch | bark | `#D9D4C6` | birch trunks (with `#3A3632` marks) |
 | | leaves | `#8E9452` / `#B39A52` | muted olive and autumn gold |
 | Spruce | needles-dark | `#1F3A2A` | inside of spruce tiers |
 | | needles | `#2E5E38` | conifer needles, bough highlights |
