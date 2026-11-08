@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sound Check</title>
+<style>
+  body { font: 15px system-ui, sans-serif; background: #1c1f22; color: #e8e4dc; margin: 0; padding: 24px 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p { color: #a9a49a; margin: 0 0 20px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: #c9a86a; margin: 22px 0 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  button { font: inherit; background: #2d3236; color: inherit; border: 1px solid #454b50; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+  button:hover { background: #3a4045; }
+  button.rec { border-color: #7fae66; }
+  .key { font-size: 13px; color: #a9a49a; margin-top: 20px; }
+  .key span { border: 1px solid #7fae66; border-radius: 4px; padding: 1px 6px; }
+</style>
+</head>
+<body>
+<!-- Every sound in the game, to listen to on its own: python3 serve.py, then open
+     http://localhost:8000/listen.html -->
+<h1>Sound check</h1>
+<p>Click to play a sound as the game plays it (full volume, right beside you). A sound with several takes plays one at random; its numbered buttons play one take each.</p>
+<div id="list"></div>
+<p class="key">Click anything once to start the sound; each recording's takes appear as they load.<br>
+<span>green border</span> a recording from public/sounds/ &nbsp;·&nbsp; plain: made up in code</p>
+<script type="module">
+import { Sound, SOUNDS } from './src/sounds.js';
+
+const sound = new Sound();
+sound.muted = false; // (even if the game is muted)
+const GROUPS = {
+  'Northern sounds': ['ice', 'junco', 'chickadee', 'lynx', 'jay', 'raven', 'owl', 'wolf'],
+  'Deer': ['deer-snort', 'deer-bleat', 'deer-step', 'deer-run'],
+  'Footsteps': ['step-grass', 'step-dirt', 'step-gravel', 'step-rock', 'step-snow', 'step-wood', 'step-water', 'swim', 'splash', 'land'],
+  'Doing things': ['chop', 'tree-creak', 'tree-fall', 'bow-draw', 'bow-shoot', 'arrow-hit', 'arrow-land', 'stab', 'hit', 'hurt', 'chew', 'gulp', 'rummage', 'bandage', 'cloth', 'pickup', 'fire-light', 'add-wood', 'trap-set'],
+  'Underground': ['drip', 'bat'],
+};
+const list = document.getElementById('list');
+const buttons = {};
+for (const [title, names] of Object.entries(GROUPS)) {
+  const heading = document.createElement('h2');
+  heading.textContent = title;
+  const row = document.createElement('div');
+  row.className = 'row';
+  for (const name of names.filter((n) => n in SOUNDS)) {
+    const button = document.createElement('button');
+    button.textContent = name;
+    button.onclick = () => play(name);
+    row.append(button);
+    buttons[name] = { button, last: button, shown: 0 };
+  }
+  list.append(heading, row);
+}
+
+// Plays `name`, or just its take number `take` (0 is the first).
+function play(name, take = null) {
+  if (!sound.ctx) sound.start();
+  sound.ctx.resume();
+  if (take !== null && sound.files[name]) {
+    const all = sound.files[name];
+    sound.files[name] = [all[take]];
+    sound.play(name);
+    sound.files[name] = all;
+  } else if (name === 'drip') sound.drip();
+  else if (name === 'bat') sound.bat();
+  else sound.play(name);
+}
+
+// As the recordings load (one after another, over half a minute or so), mark them, and add a
+// button for each take.
+document.addEventListener('pointerdown', () => {
+  if (!sound.ctx) sound.start();
+  markRecordings(0);
+}, { once: true });
+function markRecordings(tick) {
+  for (const [name, takes] of Object.entries(sound.files)) {
+    const entry = buttons[name];
+    if (!entry) continue;
+    entry.button.classList.add('rec');
+    if (takes.length < 2) continue;
+    entry.button.textContent = `${name} (random of ${takes.length})`;
+    for (let i = entry.shown; i < takes.length; i++) {
+      const button = document.createElement('button');
+      button.className = 'rec';
+      button.textContent = `${name} ${i + 1}`;
+      button.onclick = () => play(name, i);
+      entry.last.after(button);
+      entry.last = button;
+    }
+    entry.shown = takes.length;
+  }
+  if (tick < 30) setTimeout(() => markRecordings(tick + 1), 2000);
+}
+</script>
+</body>
+</html>

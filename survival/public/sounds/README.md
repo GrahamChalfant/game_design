@@ -6,6 +6,9 @@ it plays the recording in place of the made-up sound.
 A one-off sound can have several takes (`ice.mp3`, `ice-2.mp3`, `ice-3.mp3`, and so on, up to
 8): each time it plays, one is picked at random.
 
+To listen to every sound on its own, run the game's server (`python3 serve.py`) and open
+http://localhost:8000/listen.html: a button per sound, and one per take of each recording.
+
 The recordings here now (wind, water, fire, cave, owl, wolf, raven, the lake ice, juncos,
 chickadees, chop, tree-fall and the grass, dirt, gravel and snow footsteps) are public-domain (CC0) field recordings from
 Freesound, cut and levelled for the game. [CREDITS.md](CREDITS.md) lists where each came from.
