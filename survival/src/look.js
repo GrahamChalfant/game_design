@@ -73,6 +73,18 @@ export function needleMaterial(material) {
   return result;
 }
 
+// Window glass (material 'glass' in a model, as in the plane's windows): see-through, tinted
+// by its vertex colours (darker low down, catching the sky higher up), glossy.
+export function glassMaterial(material) {
+  material.transparent = true;
+  material.opacity = 0.55;
+  material.depthWrite = false;
+  material.side = THREE.DoubleSide;
+  if ('roughness' in material) material.roughness = 0.08;
+  if ('metalness' in material) material.metalness = 0.2;
+  return material;
+}
+
 // Lights a tree as one soft, rounded mass instead of facet by facet: every face's normal is
 // bent toward pointing out and a little up from the trunk (SOFT: how far), and the back of a
 // face is lit like its front, so a needle card or a bough's underside doesn't go dark just

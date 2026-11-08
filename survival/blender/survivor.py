@@ -16,11 +16,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import bpy  # (before bmesh, which Blender registers along with it)
 import bmesh
-from mathutils import Vector
+from mathutils import Matrix, Vector
 from kit import PAL, Builder, g, material
 
 OUT = os.path.join(HERE, '..', 'public', 'models', 'player.glb')
 RIG = globals().get('RIG', OUT)
+PACK_ON_BACK = (0, 0.84, -0.295)  # (game axes: where backpack.glb hangs on his back)
 
 PAL.update(
     skin=0xc8987a, skin_shade=0xae8066, skin_rose=0xc47a6a, skin_lip=0x8a5a4c, stubble=0x5a4436, brow=0x4a3628, hair=0x4a3628,
@@ -641,7 +642,7 @@ before, actions = set(bpy.data.objects), set(bpy.data.actions)
 bpy.ops.import_scene.gltf(filepath=os.path.abspath(RIG))
 brought = [ob for ob in bpy.data.objects if ob not in before]
 arm = next(ob for ob in brought if ob.type == 'ARMATURE')
-for ob in [ob for ob in brought if ob.type == 'MESH' and ob.name.split('.')[0] in ('player', 'player-details', 'player-hair')]:
+for ob in [ob for ob in brought if ob.type == 'MESH' and ob.name.split('.')[0] in ('player', 'player-details', 'player-hair', 'player-pack')]:
     brought.remove(ob)
     bpy.data.objects.remove(ob)
 parts = []
@@ -650,7 +651,21 @@ torso(parts)
 arms(parts)
 head(parts)
 body = build(arm, parts)
-for ob in (body,):
+# The backpack on his back: the same mesh as backpack.glb (the one you pick up), hung on the
+# spine (shown once you've found it).
+before_pack = set(bpy.data.objects)
+bpy.ops.import_scene.gltf(filepath=os.path.abspath(os.path.join(HERE, '..', 'public', 'models', 'backpack.glb')))
+pack = next(ob for ob in bpy.data.objects if ob not in before_pack and ob.type == 'MESH')
+for ob in [ob for ob in bpy.data.objects if ob not in before_pack and ob is not pack]:
+    bpy.data.objects.remove(ob)
+for coll in list(pack.users_collection):
+    coll.objects.unlink(pack)
+pack.data.transform(pack.matrix_world)
+pack.matrix_world = Matrix.Identity(4)
+pack.data.transform(Matrix.Translation(g(*PACK_ON_BACK)))
+pack.vertex_groups.new(name='spine').add(range(len(pack.data.vertices)), 1.0, 'REPLACE')
+pack.name = pack.data.name = 'player-pack'
+for ob in (body, pack):
     work.objects.link(ob)
     ob.parent = arm
     mod = ob.modifiers.new('Armature', 'ARMATURE')

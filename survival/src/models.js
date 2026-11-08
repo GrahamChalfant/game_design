@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CHUNK_SIZE, chunkKey, chunkOf, chunksAround } from './stream.js';
-import { paintedSurface, surfaceFor } from './look.js';
+import { glassMaterial, paintedSurface, surfaceFor } from './look.js';
 
 const loader = new GLTFLoader();
 // Vite serves public/ at the site root; a plain web server serves it at /public/.
@@ -18,7 +18,10 @@ export function loadModel(name, folders = MODEL_FOLDERS) {
         // Every model's surfaces are painted, by what they're made of (look.js).
         gltf.scene.traverse((child) => {
           if (!child.isMesh) return;
-          for (const material of [child.material].flat()) paintedSurface(material, surfaceFor(material.name));
+          for (const material of [child.material].flat()) {
+            if (material.name.startsWith('glass')) glassMaterial(material);
+            else paintedSurface(material, surfaceFor(material.name));
+          }
         });
         resolve(gltf.scene);
       },

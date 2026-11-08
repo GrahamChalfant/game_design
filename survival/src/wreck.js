@@ -36,7 +36,7 @@ function weather(model) {
   const floor = { value: 0 };
   let measured = false;
   model.traverse((child) => {
-    if (!child.isMesh) return;
+    if (!child.isMesh || child.material.name.startsWith('glass')) return; // (the windows stay clear)
     const material = child.material.clone();
     material.roughness = Math.max(material.roughness ?? 1, 0.85);
     material.onBeforeCompile = (shader) => {
@@ -87,7 +87,10 @@ export function buildWreck(scene, world) {
     holder.add(placeholder);
     loadModel(name).then((model) => {
       if (!model) return;
-      model.traverse((child) => (child.castShadow = child.receiveShadow = true));
+      model.traverse((child) => {
+        child.castShadow = child.receiveShadow = true;
+        if (child.isMesh && child.material.name?.startsWith('glass')) child.castShadow = false; // (light comes through the windows)
+      });
       prepare?.(model);
       holder.clear();
       holder.add(model);
