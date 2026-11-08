@@ -4,68 +4,64 @@ import { redrawModels } from './models.js';
 import { createSky } from './sky.js';
 import { setNearFade } from './seeThrough.js';
 
-// The three ways of looking at the game, switched with V:
-// - 'top': the usual camera, looking down on the player from above and behind.
+// The two ways of looking at the game, switched with V:
 // - 'third': over the player's shoulder, looking where the mouse points.
 // - 'first': through the player's eyes.
-// In the last two, click to capture the mouse (Esc lets it go); moving the mouse turns your
-// head, and WASD walks relative to where you're looking. You can see much further, so more
-// of the land is drawn in full detail, with a rough version of the rest beyond (farView.js).
-export const VIEWS = ['top', 'third', 'first'];
-const NAMES = { top: 'Top-down view', third: 'Over-the-shoulder view', first: 'First-person view' };
+// Click to capture the mouse (Esc lets it go); moving the mouse turns your head, and WASD
+// walks relative to where you're looking. The land near you is drawn in full detail, with a
+// rough version of the rest beyond (farView.js).
+export const VIEWS = ['third', 'first'];
+const NAMES = { third: 'Over-the-shoulder view', first: 'First-person view' };
 
 const LOOK_SPEED = 0.0024; // radians per pixel the mouse moves
 const PITCH = [-1.2, 1.0]; // how far you can look down and up (radians)
 const EYE = 1.62; // eye height when standing, in meters...
 const CROUCHED_EYE = 1.1; // ...and crouched
 const SHOULDER = { back: 4.2, up: 1.75, side: 0.55 }; // where the over-the-shoulder camera sits
-const NEAR_CHUNKS = 3; // detailed chunks out from the player in these views (2 from above)
+const NEAR_CHUNKS = 3; // detailed chunks out from the player
 const FOG_REACH = 2.6; // the haze is pushed this much further back in these views
-// In these views: how dark sun shadows are (1 = as from above), how much more sky light, and a
-// little more exposure. From the ground most of what you see is ground, much of it in shade
+// How dark sun shadows are (1 = full), how much more sky light, and a little more exposure. From the ground most of what you see is ground, much of it in shade
 // under the trees: without these the forest floor is close to black.
 const SHADE = { shadow: 0.55, fill: 1.6, exposure: 1.12 };
 // How close to the camera trees fade out (dotted, like the see-through hole), so branches don't
 // fill the view when you stand under a spruce or the camera backs into one.
-const NEAR_FADE = { top: 0, third: 3.2, first: 0.9 };
-const FAR = 650; // meters the camera draws to in these views (300 from above): past the haze on the clearest day
+const NEAR_FADE = { third: 3.2, first: 0.9 };
+const FAR = 650; // meters the camera draws to: past the haze on the clearest day
 
-export function createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour, start = 'top' }) {
+export function createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour, start = 'third' }) {
   const sky = createSky(scene, ambient, hour);
-  let view = VIEWS.includes(start) ? start : 'top';
-  let yaw = player.facing + Math.PI; // 0 looks north (-z), like the top-down camera
+  let view = VIEWS.includes(start) ? start : 'third';
+  let yaw = player.facing + Math.PI; // 0 looks north (-z)
   let pitch = -0.08;
   const canvas = renderer.domElement;
-  const exposure = renderer.toneMappingExposure; // (as set up for the view from above)
+  const exposure = renderer.toneMappingExposure; // (as set up in main.js)
   const locked = () => document.pointerLockElement === canvas;
   const lookDir = new THREE.Vector3();
   const pivot = new THREE.Vector3();
 
   document.addEventListener('mousemove', (e) => {
-    if (!locked() || view === 'top') return;
+    if (!locked()) return;
     yaw -= e.movementX * LOOK_SPEED;
     pitch = THREE.MathUtils.clamp(pitch - e.movementY * LOOK_SPEED, ...PITCH);
   });
   let panelOpen = false; // (the inventory, map or menu: they need the mouse pointer)
   canvas.addEventListener('pointerdown', () => {
-    if (view !== 'top' && !locked() && !panelOpen) canvas.requestPointerLock?.();
+    if (!locked() && !panelOpen) canvas.requestPointerLock?.();
   });
 
   function apply() {
-    const looking = view !== 'top';
-    setDrawChunks(looking ? NEAR_CHUNKS : 2);
+    setDrawChunks(NEAR_CHUNKS);
     redrawModels();
     world.drawAround(player.position.x, player.position.z); // (build the newly drawn ground now)
-    farView.setAlways(looking);
-    camera.far = looking ? FAR : 300;
-    camera.fov = view === 'first' ? 70 : view === 'third' ? 60 : 45;
+    farView.setAlways(true);
+    camera.far = FAR;
+    camera.fov = view === 'first' ? 70 : 60;
     camera.updateProjectionMatrix();
     player.hideFromCamera(view === 'first');
     setNearFade(NEAR_FADE[view]);
-    renderer.toneMappingExposure = exposure * (looking ? SHADE.exposure : 1);
-    sky.visible = looking;
-    input.yaw = looking ? yaw : 0;
-    if (!looking && locked()) document.exitPointerLock();
+    renderer.toneMappingExposure = exposure * SHADE.exposure;
+    sky.visible = true;
+    input.yaw = yaw;
   }
   apply();
 
@@ -76,19 +72,14 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     // Puts the camera's draw distance and field of view back (after the binoculars).
     restoreCamera() {
       camera.near = 0.1;
-      camera.far = view === 'top' ? 300 : FAR;
-      camera.fov = view === 'first' ? 70 : view === 'third' ? 60 : 45;
+      camera.far = FAR;
+      camera.fov = view === 'first' ? 70 : 60;
       camera.updateProjectionMatrix();
-    },
-    // True in the views that look out across the land (third and first person).
-    get looking() {
-      return view !== 'top';
     },
     cycle() {
       view = VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length];
-      if (view !== 'top') yaw = player.facing + Math.PI; // start looking the way you face
       apply();
-      hud.toast(`${NAMES[view]} (V)${view === 'top' ? '' : ' · click to look around with the mouse'}`);
+      hud.toast(`${NAMES[view]} (V) · click to look around with the mouse`);
     },
     // Turns your head to look `yawTo` (0 = north) and `pitchTo` up (radians).
     lookAt(yawTo, pitchTo = pitch) {
@@ -97,14 +88,14 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     },
     // Where to aim (the middle of the screen, while the mouse is captured), in -1..1 screen units.
     aim(pointer) {
-      if (view !== 'top' && locked()) return pointer.set(0, 0);
+      if (locked()) return pointer.set(0, 0);
       return pointer.set((input.pointer.x / innerWidth) * 2 - 1, -(input.pointer.y / innerHeight) * 2 + 1);
     },
     // Keeps the rough far view out of the detailed chunks round the player.
     updateFar() {
       if (sky.visible) sky.update(camera, performance.now() / 1000);
       const [cx, cz] = chunkOf(player.position.x, player.position.z);
-      const n = view === 'top' ? 2 : NEAR_CHUNKS;
+      const n = NEAR_CHUNKS;
       farView.setNear((cx - n) * CHUNK_SIZE, (cz - n) * CHUNK_SIZE, (cx + n + 1) * CHUNK_SIZE, (cz + n + 1) * CHUNK_SIZE);
     },
     // Lets go of the mouse while a panel (inventory, map, menu) is open, so you can click in it.
@@ -114,13 +105,13 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     },
     // Before the player moves: which way "forward" is for WASD.
     beforeMove() {
-      input.yaw = view === 'top' ? 0 : yaw;
+      input.yaw = yaw;
     },
     // Pushes the haze back (after Daylight sets it), so you can see across the valley.
     widenFog() {
-      sky.visible = view !== 'top' && !player.cave;
+      sky.visible = !player.cave;
       // From the ground you mostly see the ground, and under the trees most of it is in shade:
-      // fill the shade in more than from above, so the forest floor isn't near black.
+      // fill the shade in, so the forest floor isn't near black.
       if (sun) sun.shadow.intensity = sky.visible ? SHADE.shadow : 1;
       if (!sky.visible) return;
       ambient.intensity *= SHADE.fill;

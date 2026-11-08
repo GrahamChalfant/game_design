@@ -5,14 +5,22 @@ import { CHUNK_SIZE, DRAW_CHUNKS, chunksAround } from './stream.js';
 
 const { smoothstep, clamp } = THREE.MathUtils;
 
-// A muted, cool northern palette (after an autumn morning in the Rockies): sage and olive
-// grass, rusty-orange patches of autumn shrubs, ochre dry ground, mossy blotches, cool grey
-// stone and scree.
-const SAGE = new THREE.Color(0x7d8f5e);
-const OLIVE = new THREE.Color(0x948f58);
+// A northern autumn palette (after the tundra along the Dempster Highway): broad fields of
+// gold, burnt orange, deep red and olive on the open ground, the darker forest floor, ochre
+// dry ground, cool grey stone and scree.
 const OCHRE = new THREE.Color(0xae8d58);
-const RUST = new THREE.Color(0xa0643a); // autumn shrubs: willow and dwarf birch turned orange
 const MOSS = new THREE.Color(0x5e7444);
+// The open tundra in autumn, in broad fields: straw gold, burnt orange where the dwarf birch
+// and willow have turned, deep red where the bilberry and bearberry have, olive-brown where
+// crowberry and Labrador tea stay dark; a muted green only down in the wet hollows.
+// (Written lighter than they show: the ground's colours are darkened on the way to the
+// screen, see createGround, so these land on gold (176,150,100), orange (185,115,60), red
+// (150,75,50), olive (120,115,70) and green (105,115,75).)
+const TUNDRA_GOLD = new THREE.Color(0xd7c8a7);
+const TUNDRA_ORANGE = new THREE.Color(0xdcb284);
+const TUNDRA_RED = new THREE.Color(0xc8927a);
+const TUNDRA_OLIVE = new THREE.Color(0xb5b28e);
+const TUNDRA_WET = new THREE.Color(0xaab292);
 const FOREST_FLOOR = new THREE.Color(0x435440);
 const STONE = new THREE.Color(0x8a8c8e);
 const SNOW = new THREE.Color(0xe8eef2);
@@ -371,14 +379,17 @@ export function createTerrain(random, noise, size) {
   // `withSnow` false leaves the snow out of the colour (the ground's mesh blends it in itself,
   // smoothly, from snowAt: see createGround).
   const groundAt = (x, z, withSnow = true) => {
-    // Broad sage and olive areas, ochre dry patches and dark mossy blotches, like brush strokes.
-    color.copy(SAGE).lerp(OLIVE, clamp(noise(x * 0.025 + 300, z * 0.025) + 0.5, 0, 1));
-    color.lerp(OCHRE, smoothstep(noise(x * 0.07 + 600, z * 0.07) + noise(x * 0.3, z * 0.3) * 0.25, 0.15, 0.6) * 0.7);
-    color.lerp(MOSS, smoothstep(noise(x * 0.18 + 800, z * 0.18), 0.1, 0.5) * 0.5);
-    // Patches of autumn shrubs in the open (not under the trees or up the mountains).
-    const shrubs = smoothstep(noise(x * 0.045 + 1500, z * 0.045) + noise(x * 0.22 + 1600, z * 0.22) * 0.3, 0.1, 0.55);
-    color.lerp(RUST, shrubs * 0.45 * (1 - smoothstep(forest(x, z), -0.1, 0.4)) * (1 - smoothstep(mountainAt(x, z), 0.05, 0.3)));
-    color.lerp(FOREST_FLOOR, smoothstep(forest(x, z), 0.05, 0.5) * 0.7);
+    // The open tundra: broad fields of colour tens of meters across that shade gently into
+    // one another (not spots), each softly mottled within.
+    const wide = (sx, sz, off) => noise(x * sx + off, z * sz + off * 0.7) + noise(x * sx * 3.1 + off, z * sz * 3.1) * 0.25;
+    color.copy(TUNDRA_GOLD);
+    color.lerp(TUNDRA_ORANGE, smoothstep(wide(0.011, 0.011, 2100), 0.08, 0.42) * 0.75);
+    color.lerp(TUNDRA_RED, smoothstep(wide(0.014, 0.014, 2300), 0.22, 0.58) * 0.55);
+    color.lerp(TUNDRA_OLIVE, smoothstep(wide(0.017, 0.017, 2500), 0.12, 0.5) * 0.65);
+    color.lerp(TUNDRA_WET, smoothstep(-hills(x, z) * 0.12 + noise(x * 0.03 + 2700, z * 0.03) * 0.4, 0.15, 0.45) * 0.6); // (down in the hollows)
+    color.multiplyScalar(0.92 + 0.16 * (noise(x * 0.09 + 2900, z * 0.09) + 0.5)); // (gentle mottling within a field)
+    // Under the trees: the darker, mossy forest floor.
+    color.lerp(FOREST_FLOOR, smoothstep(forest(x, z), 0.05, 0.5) * 0.75);
 
     let kind = 'grass';
     // Grey stone showing through.
@@ -746,7 +757,11 @@ function paintedGround(shader) {
         float clumps = groundNoise(q * 2.1 + broad * 3.0);
         float grain = groundNoise(q * 11.0) * 0.6 + groundNoise(q * 29.0) * 0.4;
         float specks = smoothstep(0.72, 0.9, groundNoise(q * 61.0)); // (bits of old needle and twig, at your feet)
-        vec3 detail = mix(vec3(0.84, 0.89, 0.83), vec3(1.1, 1.05, 0.9), broad) * (0.88 + 0.2 * clumps) * (0.88 + 0.22 * grain) * (1.0 - 0.18 * specks) * 1.35; // (and a little lighter: from the ground, the forest floor read near black)
+        vec3 detail = mix(vec3(0.9, 0.88, 0.85), vec3(1.08, 1.02, 0.93), broad) * (0.88 + 0.2 * clumps) * (0.86 + 0.24 * grain) * (1.0 - 0.18 * specks) * 1.3; // (and a little lighter: from the ground, the forest floor read near black)
+        // Close up, the low shrubs' leaves: flecks of red and of gold through the colour.
+        float fleckRed = smoothstep(0.7, 0.85, groundNoise(q * 23.0 + 11.0));
+        float fleckGold = smoothstep(0.72, 0.86, groundNoise(q * 31.0 + 37.0));
+        detail *= mix(vec3(1.0), vec3(1.08, 0.92, 0.86), fleckRed * 0.35) * mix(vec3(1.0), vec3(1.08, 1.05, 0.9), fleckGold * 0.35);
         diffuseColor.rgb *= mix(detail, vec3(0.97 + 0.05 * grain), smoothstep(0.4, 0.6, vSnow));
       }`);
 }

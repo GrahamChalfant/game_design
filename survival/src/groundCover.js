@@ -403,7 +403,7 @@ export function pickCarpet(random, x, z, woods) {
   const chance = THREE.MathUtils.lerp(0.3, 0.95, open) * THREE.MathUtils.smoothstep(patch, 0.12, 0.5);
   if (random.next() > chance) return null;
   const dry = patchNoise(x * 0.11 + 70, z * 0.11 - 40);
-  if (open > 0.5 && dry > 0.62 && random.next() < 0.7) return { kind: 'lichen', tint: null };
+  if (open > 0.5 && dry > 0.68 && random.next() < 0.35) return { kind: 'lichen', tint: null };
   if (random.next() < 0.08 + 0.1 * (1 - open)) return { kind: 'shrub', tint: random.pick(HEATH_TINTS.tea) };
   const zone = HEATH_ZONES[Math.floor(patchNoise(x * 0.05 - 9, z * 0.05 + 23) * HEATH_ZONES.length * 0.999)];
   const plant = open > 0.5 ? random.pick(zone) : random.pick(['bilberry', 'lingonberry', 'crowberry']);

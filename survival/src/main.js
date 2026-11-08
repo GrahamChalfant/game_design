@@ -420,7 +420,6 @@ const SPOTTING_SHOW = 900; // through the binoculars, places this far away are d
 // and you're down in the cave; at the top of its first passage, the same takes you back up.
 // Down there it's dark but for your torch, and the view closes in round you.
 const CAVE_FADE = 0.4; // seconds to fade out, and the same to fade back in
-const CAVE_ZOOM = 11; // the camera comes in this close underground
 const CAVE_FOG = [3, 16]; // and you can't see further than this
 const BLACK = new THREE.Color(0);
 let caveMove = null; // { target: the cave you're going down (or null, going up), t, moved }
@@ -508,20 +507,15 @@ function updateCompass() {
   );
 }
 
-// --- The camera: top-down, over the shoulder or first person (V switches; see views.js) ---
-// Add ?view=third or ?view=first to the URL to start in one of the others.
+// --- The camera: over the shoulder or first person (V switches; see views.js) ---
+// Add ?view=first to the URL to start in first person.
 const views = createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour: () => survival.hourOfDay, start: new URLSearchParams(location.search).get('view') });
 // Your hands and what's in them, in the first-person view (see handView.js).
 const hands = new HandView(camera, scene);
 
-// --- Top-down camera that follows the player ---
-const MAX_ZOOM = 30; // the furthest the camera pulls back, in meters
-let zoom = 20; // distance from the player (scroll to change it)
-let shownZoom = zoom; // eases towards the zoom it should be at
-const INSIDE_ZOOM = 10; // closer in while you're inside a building
-const CAMERA_ANGLE = THREE.MathUtils.degToRad(55); // 90 = straight down
+// Where the camera looks (on the player; the shadows and snow follow it).
 const cameraTarget = player.position.clone();
-const cameraGoal = new THREE.Vector3();
+let shownZoom = 240; // (the binoculars' pull-back, easing to where it should be)
 
 // --- Looking through the lookout's binoculars: the camera pulls way back ---
 // WASD looks around, scrolling zooms, and E or Esc stops.
@@ -575,28 +569,9 @@ function updateSpottingCamera(dt) {
   pois.update(dt, null, 0, spotting.target, SPOTTING_SHOW); // far-off cabins and stands show too
 }
 
-function updateTopCamera(dt) {
-  zoom = THREE.MathUtils.clamp(zoom + input.scroll * 0.02, 8, MAX_ZOOM);
-  // Inside a roofed building (like the lookout's cab), zoom in.
-  const { x, z } = player.position;
-  const inside = world.structures.some((structure) => structure.roofOver(x, z, player.feet));
-  const closest = player.cave ? CAVE_ZOOM : inside ? INSIDE_ZOOM : Infinity;
-  shownZoom += (Math.min(zoom, closest) - shownZoom) * Math.min(1, dt * 4);
-  // Follow the player up stairs and onto rocks (but not their jumps, so it doesn't bob).
-  cameraGoal.set(x, player.standingOn, z);
-  cameraTarget.lerp(cameraGoal, Math.min(1, dt * 6));
-  camera.position.set(
-    cameraTarget.x,
-    cameraTarget.y + Math.sin(CAMERA_ANGLE) * shownZoom,
-    cameraTarget.z + Math.cos(CAMERA_ANGLE) * shownZoom,
-  );
-  camera.lookAt(cameraTarget);
-}
-
 function updateCamera(dt) {
   if (spotting) return updateSpottingCamera(dt);
-  if (views.looking) views.place(dt, cameraTarget);
-  else updateTopCamera(dt);
+  views.place(dt, cameraTarget);
   camera.updateMatrixWorld();
   hands.update(dt, views.mode === 'first' && !spotting, inventory.selectedItem, inventory.outfit, player);
   // Fade whatever part of a building is between the camera and the player.
@@ -716,7 +691,7 @@ renderer.setAnimationLoop(() => {
   blood.update(dt);
   ambientLife.update(dt, survival.hourOfDay, player.position, Boolean(player.cave));
   updateSound(dt, !survival.alive, actions);
-  snow.update(dt, clock.elapsedTime, views.looking && !spotting ? camera.position : cameraTarget, { close: views.looking && !spotting, roofs: world.structures, cave: Boolean(player.cave) });
+  snow.update(dt, clock.elapsedTime, !spotting ? camera.position : cameraTarget, { close: !spotting, roofs: world.structures, cave: Boolean(player.cave) });
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);
   views.widenFog();
