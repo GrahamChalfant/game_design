@@ -1,7 +1,7 @@
 # Builds the player (player.glb): a survivor with realistic proportions, smooth shaded.
 # A sculpted head (eye sockets, brow ridge, cheekbones, a nose, lips, ears, domed eyes under
-# their lids) with a full beard, moustache, brows and hair made of cards of strands (a mesh of
-# its own, 'player-hair': the game gives it the strand texture, look.js) under a beanie; a red
+# their lids) with a full beard, moustache, thick brows and hair, sculpted and combed into
+# clumps (crests lit, grooves dark, pointed at the tips), under a ribbed knit beanie; a red
 # hooded jacket with a high collar, zip, pockets and cuffs; work trousers; boots; wool gloves.
 # Run in an open Blender (Blender MCP or the Text Editor).
 #
@@ -23,8 +23,8 @@ OUT = os.path.join(HERE, '..', 'public', 'models', 'player.glb')
 RIG = globals().get('RIG', OUT)
 
 PAL.update(
-    skin=0xc8987a, skin_shade=0xae8066, skin_rose=0xc68a74, skin_lip=0x9a6656, stubble=0x5a4436, brow=0x4a3628, hair=0x4a3628,
-    beard=0x5a4232, eye_white=0xbab2a6, iris=0x4e5a48, pupil=0x141210, lash=0x2a1e18, glove=0x3a3632, glove_cuff=0x2e2a28, beanie=0x2e3a52, beanie_band=0x26304a, pompom=0xd8d0c0,
+    skin=0xc8987a, skin_shade=0xae8066, skin_rose=0xc47a6a, skin_lip=0x8a5a4c, stubble=0x5a4436, brow=0x4a3628, hair=0x4a3628,
+    beard=0x4a3426, eye_white=0xbab2a6, iris=0x4e5a48, pupil=0x141210, lash=0x2a1e18, glove=0x3a3632, glove_cuff=0x2e2a28, beanie=0x2e3a52, beanie_band=0x26304a, pompom=0xd8d0c0,
     coat=0xa82a22, coat_dark=0x8a2420, coat_fold=0x96261f, lining=0xc8b07a, zip=0x2a2a2a,
     trousers=0x4a4f44, trousers_dark=0x3a3e36, boot=0x4a3426, boot_dark=0x3a281e, sole=0x1e1a18, lace=0x8a7a5a,
 )
@@ -205,16 +205,14 @@ def arms(parts):
 
 # The head is a dense surface, sculpted: its outline from PROFILE (rings from the chin up:
 # height, half width, front, back, how far the front sits forward), then pushed in and out for
-# the eye sockets, brow ridge, cheekbones, mouth and chin (relief). The hair (beard, moustache,
-# brows, the hair under the beanie) is cards of fine strands on that surface, in a mesh of its
-# own ('player-hair', material 'hair': the game gives it its strand texture, look.js).
+# the eye sockets, brow ridge, cheekbones, mouth and chin (relief). The beard, moustache, brows
+# and the hair under the beanie are sculpted over that surface, groomed into clumps.
 HEAD_CZ = 0.005
 PROFILE = ((1.505, 0.034, 0.055, 0.02, 0.04), (1.54, 0.076, 0.085, 0.06, 0.012), (1.575, 0.088, 0.1, 0.085, 0.0),
            (1.615, 0.095, 0.104, 0.098, 0.0), (1.655, 0.099, 0.1, 0.105, 0.0), (1.695, 0.098, 0.104, 0.106, 0.0),
            (1.735, 0.089, 0.094, 0.1, 0.0), (1.775, 0.076, 0.078, 0.088, 0.0), (1.805, 0.048, 0.05, 0.06, 0.0))
 HEAD_POWER = 2.1
 HEAD_SCALE = 0.9
-LOCKS = 4  # (as many as the hair texture has: look.js)
 
 
 def profile_at(y):
@@ -277,24 +275,36 @@ def head_angle(x, y):
     return (lo + hi) / 2
 
 
+# Where the beard reaches up to, by angle round from the front (A): under the lower lip, up
+# the cheeks, the sideburns up to the hair, then the jaw back toward the neck.
+BEARD_EDGE = ((0.0, 1.566), (0.3, 1.568), (0.5, 1.598), (1.2, 1.626), (1.32, 1.725), (1.45, 1.735), (1.62, 1.6), (2.05, 1.548))
+BEARD_REACH = 2.05
+# Where the hair below the beanie comes down to, round the back from the sideburns.
+HAIR_EDGE = ((1.3, 1.735), (1.4, 1.705), (1.75, 1.69), (2.05, 1.62), (2.5, 1.585), (math.pi, 1.575))
+
+
+def edge_at(edge, A):
+    A = max(edge[0][0], min(edge[-1][0], A))
+    for (a0, y0), (a1, y1) in zip(edge, edge[1:]):
+        if A <= a1:
+            t = (A - a0) / (a1 - a0)
+            t = t * t * (3 - 2 * t)
+            return y0 + (y1 - y0) * t
+    return edge[-1][1]
+
+
+def moustache_at(y, A):
+    return A < 0.5 and 1.584 < y < 1.607
+
+
 def beard_at(y, A):
     """Whether the beard grows at height y, angle A (from the front, either side)."""
-    if A > 2.1:
-        return False
-    if y < 1.55:
-        return True  # (along the jaw and under it)
-    if A < 0.42:
-        return y < 1.566 or 1.587 < y < 1.606  # (the chin, and the moustache over the mouth)
-    if A < 1.25:
-        return y < 1.6 + 0.03 * (A - 0.42) / 0.83  # (the cheeks, rising toward the ears)
-    if A < 1.45:
-        return y < 1.735  # (the sideburns, up to the hair)
-    return y < 1.62 - 0.07 * (A - 1.45) / 0.65  # (the jaw, back toward the neck)
+    return (A <= BEARD_REACH and y < edge_at(BEARD_EDGE, A)) or moustache_at(y, A)
 
 
 def hair_at(y, A):
     """Whether the hair under the beanie shows at height y, angle A."""
-    return (A > 1.3 and y > 1.695) or (A > 1.8 and y > 1.63)
+    return A >= 1.3 and y > edge_at(HAIR_EDGE, A)
 
 
 def blend(a, b, t):
@@ -321,11 +331,11 @@ def skin_colour(q):
     c = blend(c, tone('skin_shade', 0.0, 0.92), socket * 0.75)
     flush = max(gauss(q.x - 0.06 * s, y - 1.622, 0.026, 0.022) for s in (1, -1)) * max(0.0, front)
     flush = max(flush, gauss(q.x, y - 1.612, 0.016, 0.014), 0.35 if abs(q.x) > 0.095 else 0.0)  # (and the nose tip, the ears)
-    c = blend(c, tone('skin_rose', 0.0), flush * 0.85)
+    c = blend(c, tone('skin_rose', 0.0), flush)
     return c
 
 
-def head(parts, hair):
+def head(parts):
     p = Part(['spine', 'head'])
     # The neck (stubble up its front, under the beard).
     tube_between(p, (0, 1.4, -0.005), (0, 1.53, 0.0), [(0.052, 0.05), (0.05, 0.048)],
@@ -418,118 +428,139 @@ def head(parts, hair):
                  lambda i, k, c, n: tone('skin_lip', 0.0, 0.92), sides=6)
 
     # The beanie: a dome over the crown, a folded, ribbed band, and a pompom.
-    beanie = [section(Vector((0, y, HEAD_CZ)), w, f, b, 12, power=2.3) for y, w, f, b in ((1.745, 0.1, 0.104, 0.11), (1.785, 0.096, 0.098, 0.106), (1.82, 0.082, 0.084, 0.092), (1.852, 0.056, 0.058, 0.064), (1.872, 0.018, 0.018, 0.02))]
-    loft(h, beanie, lambda i, k, c, n: tone('beanie', 0.0, 0.96 if k % 2 else 1.0), cap_start=False)
-    band = [section(Vector((0, y, HEAD_CZ)), w, f, b, 12, power=2.3) for y, w, f, b in ((1.726, 0.103, 0.109, 0.113), (1.75, 0.106, 0.112, 0.116), (1.772, 0.104, 0.11, 0.114))]
-    loft(h, band, lambda i, k, c, n: tone('beanie_band', 0.0, 0.84 if k % 2 else 1.0), cap_start=False, cap_end=False)
-    pom = Part(['head'])
-    tmp = bmesh.new()
-    bmesh.ops.create_icosphere(tmp, subdivisions=2, radius=0.03)
-    for f in tmp.faces:
-        pom.add([Vector((v.co.x, v.co.z + 1.89, v.co.y + HEAD_CZ)) for v in f.verts], tone('pompom', 0.06))
-    tmp.free()
-    grow_hair(hair)
+    # (Knitted in ribs: every other column of the rings stands out a little, drawing in toward
+    # the crown, where the ribs gather.)
+    def ribbed(ring, depth):
+        mid = sum(ring, Vector()) / len(ring)
+        return [mid + (q - mid) * (1 + depth * (1 if k % 2 else -1)) for k, q in enumerate(ring)]
+    knit = lambda shade: lambda i, k, c, n: tone(shade, 0.0, 0.9 + 0.06 * math.sin(k * 1.7) + 0.05 * random.random())
+    beanie = [ribbed(section(Vector((0, y, HEAD_CZ)), w, f, b, 22, power=2.3), rib) for y, w, f, b, rib in (
+        (1.745, 0.1, 0.104, 0.11, 0.025), (1.785, 0.097, 0.1, 0.107, 0.028), (1.82, 0.085, 0.087, 0.094, 0.03),
+        (1.85, 0.062, 0.064, 0.07, 0.03), (1.868, 0.032, 0.033, 0.036, 0.02), (1.874, 0.008, 0.008, 0.009, 0.0))]
+    loft(h, beanie, knit('beanie'), cap_start=False)
+    band = [ribbed(section(Vector((0, y, HEAD_CZ)), w, f, b, 22, power=2.3), 0.035) for y, w, f, b in ((1.724, 0.104, 0.11, 0.114), (1.75, 0.108, 0.114, 0.118), (1.775, 0.106, 0.112, 0.116))]
+    loft(h, band, knit('beanie_band'), cap_start=False, cap_end=False)
+    beard(h)
+    hair_below_beanie(h)
+    brows(h)
     # (Modelled a little large: scaled down about the chin, to about one eighth of his height.)
     pivot = Vector((0, 1.5, 0.0))
     shrink = lambda q: pivot + (q - pivot) * HEAD_SCALE
-    for part in (h, pom):
+    for part in (h,):
         part.faces = [([shrink(q) for q in pts], colour, smooth) for pts, colour, smooth in part.faces]
         if part.corner:
             corner = part.corner
             part.corner = lambda q, corner=corner: corner(pivot + (q - pivot) / HEAD_SCALE)
-    hair.cards = [([shrink(q) for q in pts], uvs, colour) for pts, uvs, colour in hair.cards]
-    parts += [p, h, pom]
+    parts += [p, h]
 
 
-# ---- hair: cards of fine strands ----
-class Hair:
-    def __init__(self):
-        self.cards = []  # ([points], [uvs], colour)
+# ---- hair: sculpted and groomed ----
+# The beard, moustache and hair are masses laid over the head, combed into clumps: each a ridge
+# running down the strands, lit along its crest and dark in the groove between, the clumps
+# wavering a little and ending in points along the bottom edge. The brows are thick strokes.
+def groomed(part, size, at, colour, clump=5.0, wave=2.0, tips=0.0):
+    """A combed mass over the grid at(u, j) -> (point on the head, its normal, thickness,
+    hang): size = (rows, columns); u runs 0 (the bottom edge, where the tips are) to 1 (the
+    top, where it thins into the skin); colour(u, ridge) per corner."""
+    rows, cols = size
+    grid, ridges = [], []
+    for i in range(rows + 1):
+        u = i / rows
+        row, rrow = [], []
+        for j in range(cols + 1):
+            p, n, t, hang = at(u, j)
+            c = (j + wave * math.sin(u * 5.0 + j * 0.37)) / clump
+            ridge = 1 - (2 * (c % 1) - 1) ** 2  # (1 along a clump's crest, 0 in the grooves)
+            t *= 0.72 + 0.4 * ridge
+            hang += tips * ridge ** 3 * max(0.0, 1 - u * 6)  # (the clumps' points)
+            row.append(p + n * t + Vector((0, -hang, 0)))
+            rrow.append(ridge)
+        grid.append(row)
+        ridges.append(rrow)
+    for i in range(rows):
+        for j in range(cols):
+            quad = [grid[i][j], grid[i][j + 1], grid[i + 1][j + 1], grid[i + 1][j]]
+            corner = [colour((i + di) / rows, ridges[i + di][j + dj]) for di, dj in ((0, 0), (0, 1), (1, 1), (1, 0))]
+            under, _, _, _ = at((i + 0.5) / rows, j + 0.5)
+            centre = sum(quad, Vector()) / 4
+            if (quad[1] - quad[0]).cross(quad[3] - quad[0]).dot(centre - under) < 0:
+                quad, corner = quad[::-1], corner[::-1]
+            part.add(quad, corner)
+    return grid
 
 
-def card(hair, root, n, d, length, width, colour, curl=0.3, droop=0.35):
-    """A card of strands from `root` (on the skin, facing out along n) growing along d, curving
-    in toward the skin and down toward its tip."""
-    d = d.normalized()
-    side = n.cross(d).normalized() * (width / 2)
-    r = root - n * 0.0015
-    m = r + d * (length * 0.5)
-    d2 = (d + Vector((0, -droop, 0)) - n * curl).normalized()
-    t = m + d2 * (length * 0.5)
-    # (One of the texture's LOCKS (look.js) per card, the whole width of it.)
-    lock = random.randrange(LOCKS)
-    u0, du = (lock + 0.02) / LOCKS, 0.96 / LOCKS
-    if random.random() < 0.5:
-        u0, du = u0 + du, -du  # (mirrored)
-    pts = [r - side, r + side, m + side * 0.95, m - side * 0.95, t + side * 0.85, t - side * 0.85]
-    uv = [(u0, 1.0), (u0 + du, 1.0), (u0 + du, 0.5), (u0, 0.5), (u0 + du, 0.0), (u0, 0.0)]
-    for f in ((0, 1, 2, 3), (3, 2, 4, 5)):
-        quad = [pts[i] for i in f]
-        if (quad[1] - quad[0]).cross(quad[3] - quad[0]).dot(n) < 0:
-            f = f[::-1]
-        hair.cards.append(([pts[i] for i in f], [uv[i] for i in f], colour))
+def strand_colour(base, light=0.45):
+    def colour(u, ridge):
+        k = 0.7 + light * ridge + random.uniform(-0.04, 0.04)
+        return tone(base, 0.0, k)
+    return colour
 
 
-def down_along(n, out=0.35):
-    """Down, along the skin at normal n, and a little out from it."""
-    down = Vector((0, -1, 0))
-    t = down - n * down.dot(n)
-    if t.length < 1e-3:
-        t = Vector((0, 0, -1))
-    return t.normalized() + n * out
+def beard(h):
+    cols, A = 140, BEARD_REACH
 
-
-def swirl(d, n, amount):
-    """d turned a random amount round n, so the hairs don't all lie the same way."""
-    side = n.cross(d.normalized())
-    t = random.uniform(-amount, amount)
-    return d.normalized() * math.cos(t) + side * math.sin(t) + n * d.dot(n)
-
-
-def scatter(count, ylo, yhi, alo, ahi, keep):
-    pts = []
-    while len(pts) < count:
-        y = random.uniform(ylo, yhi)
-        A = random.uniform(alo, ahi)
-        if keep(y, A):
-            pts.append((y, A * random.choice((1, -1))))
-    return pts
-
-
-def grow_hair(hair):
-    rnd = lambda: random.uniform(0.82, 1.18)
-    shade = lambda name: tone(name, 0.0, rnd())
-    # The beard: short, full, lying over the jaw and cheeks, longer at the chin.
-    for y, a in scatter(1700, 1.5, 1.735, 0.0, 2.1, lambda y, A: beard_at(y, A) and not (A < 0.42 and y > 1.586)):
+    def at(u, j):
+        a = -A + 2 * A * j / cols
+        y = 1.505 + (edge_at(BEARD_EDGE, abs(a)) - 1.505) * u
         p, n = head_point(y, a), head_normal(y, a)
-        A = abs(a)
-        chin = gauss(A, y - 1.52, 0.6, 0.035)
-        length = random.uniform(0.012, 0.024) + 0.016 * chin
-        if 1.25 < A < 1.45 and y > 1.6:
-            length *= 0.6  # (sideburns, shorter)
-        card(hair, p, n, swirl(down_along(n, 0.3), n, 0.45), length, random.uniform(0.01, 0.015), shade('beard'))
-    # The moustache: from the upper lip, down and out over the corners of the mouth.
-    for y, a in scatter(200, 1.584, 1.606, 0.0, 0.45, lambda y, A: True):
+        fade = (1 - u) ** 0.65 * max(0.0, min(1.0, (A - abs(a)) / 0.35))
+        chin = gauss(a, 0, 0.8, 1)
+        bulk = 0.011 + 0.017 * chin  # (fullest at the chin)
+        return p, n, 0.0015 + bulk * fade, (0.004 + 0.03 * chin) * fade ** 2.2
+    grid = groomed(h, (30, cols), at, strand_colour('beard'), clump=5.0, tips=0.01)
+    # (Closed underneath, where it ends below the chin.)
+    bottom = grid[0]
+    c = sum(bottom, Vector()) / len(bottom) + Vector((0, 0.01, 0))
+    for j in range(len(bottom) - 1):
+        h.add_out([c, bottom[j], bottom[j + 1]], Vector((0, -1, 0.3)), tone('beard', 0.0, 0.6), smooth=True)
+    # The moustache: over the upper lip, drooping at the corners into the beard.
+    mcols = 40
+
+    def mat(u, j):
+        a = -0.5 + j / mcols
+        y = 1.584 + 0.023 * u
         p, n = head_point(y, a), head_normal(y, a)
-        sx = 1 if p.x >= 0 else -1
-        d = Vector((sx * (0.25 + 1.4 * abs(p.x) / 0.03), -1, 0))
-        d = d - n * d.dot(n) + n * 0.45
-        card(hair, p, n, d, random.uniform(0.014, 0.02), random.uniform(0.011, 0.016), shade('beard'), curl=0.2, droop=0.4)
-    # The brows: short hairs along the brow ridge, combed outward.
+        fade = (1 - u) ** 0.5 * min(1.0, (0.5 - abs(a)) / 0.12 + 0.3)
+        return p, n, 0.0015 + 0.009 * fade, 0.008 * (1 - u) ** 2 * (1 + 2.5 * abs(a))
+    groomed(h, (10, mcols), mat, strand_colour('beard', 0.5), clump=3.0, wave=0.8, tips=0.004)
+
+
+def hair_below_beanie(h):
+    cols = 90
+    lo, hi = 1.3, math.tau - 1.3
+
+    def at(u, j):
+        a = lo + (hi - lo) * j / cols
+        A = abs(math.atan2(math.sin(a), math.cos(a)))
+        bottom = edge_at(HAIR_EDGE, A)
+        y = bottom + (1.745 - bottom) * u
+        p, n = head_point(y, a), head_normal(y, a)
+        side = min(1.0, (A - 1.3) / 0.12 + 0.2)
+        return p, n, (0.0015 + 0.009 * u ** 0.6) * side, 0.0
+    groomed(h, (16, cols), at, strand_colour('hair', 0.5), clump=4.0, wave=1.5, tips=0.007)
+
+
+def brows(h):
+    """Thick strokes along the brow ridge, full at the inner end and tapering outward."""
     for s in (1, -1):
-        for j in range(26):
-            u = j / 25
-            x = s * (0.016 + 0.044 * u)
-            y = 1.692 + 0.007 * math.sin(math.pi * (0.25 + 0.75 * u)) - 0.004 * u + random.uniform(-0.002, 0.002)
+        path = []
+        for j in range(12):
+            u = j / 11
+            x = s * (0.014 + 0.046 * u)
+            y = 1.691 + 0.008 * math.sin(math.pi * (0.2 + 0.8 * u)) - 0.004 * u
             a = head_angle(x, y)
-            p, n = head_point(y, a), head_normal(y, a)
-            d = Vector((s, 0.35 - 0.6 * u, 0))
-            d = d - n * d.dot(n) + n * 0.25
-            card(hair, p, n, d, random.uniform(0.009, 0.013), random.uniform(0.005, 0.007), shade('brow'), curl=0.25, droop=0.1)
-    # The hair below the beanie: over the ears' tops, round the back, down to the nape.
-    for y, a in scatter(480, 1.62, 1.745, 1.3, math.pi, hair_at):
-        p, n = head_point(y, a), head_normal(y, a)
-        card(hair, p, n, swirl(down_along(n, 0.1), n, 0.3), random.uniform(0.016, 0.028), random.uniform(0.014, 0.02), shade('hair'), curl=0.5, droop=0.15)
+            path.append((head_point(y, a), head_normal(y, a), u))
+        rings = []
+        for i, (p, n, u) in enumerate(path):
+            d = (path[min(i + 1, 11)][0] - path[max(i - 1, 0)][0]).normalized()
+            up = n.cross(d).normalized()
+            if up.y < 0:
+                up = -up
+            w = 0.0052 * (1 - 0.75 * u ** 1.5) + 0.0008  # (half its height)
+            depth = 0.0028 * (1 - 0.5 * u)
+            centre = p + n * (depth * 0.4) + up * (0.0015 * u)
+            rings.append([centre + up * math.cos(t) * w + n * math.sin(t) * depth for t in (math.tau * k / 8 for k in range(8))])
+        loft(h, rings, lambda i, k, c, n: tone('brow', 0.0, 0.85 + 0.25 * (k in (1, 2))), res=1)
 
 
 # ---- skinning ----
@@ -582,8 +613,8 @@ def build(arm, parts):
                 vs.append(v)
             f = bm.faces.new(vs)
             f[smooth_layer] = int(smooth)
-            for loop, q in zip(f.loops, pts):
-                loop[col_layer] = colour if colour is not None else part.corner(q)
+            for idx, (loop, q) in enumerate(zip(f.loops, pts)):
+                loop[col_layer] = part.corner(q) if colour is None else colour[idx] if isinstance(colour, list) else colour
     # Weld the skins, so they shade smooth across their faces (the colours are per corner,
     # and corners in the same place have the same bone weights).
     bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
@@ -602,41 +633,6 @@ def build(arm, parts):
     return o
 
 
-def build_hair(hair):
-    """The hair cards as their own mesh, 'player-hair', following the head; UVs for the strand
-    texture, colours per card."""
-    me = bpy.data.meshes.new('player-hair')
-    o = bpy.data.objects.new('player-hair', me)
-    group = o.vertex_groups.new(name='head')
-    bm = bmesh.new()
-    deform = bm.verts.layers.deform.verify()
-    uv = bm.loops.layers.uv.new('UVMap')
-    cols = []
-    layer = bm.faces.layers.int.new('ci')
-    for pts, uvs, colour in hair.cards:
-        vs = [bm.verts.new(g(*q)) for q in pts]
-        for v in vs:
-            v[deform][group.index] = 1.0
-        f = bm.faces.new(vs)
-        for loop, t in zip(f.loops, uvs):
-            loop[uv].uv = t
-        f[layer] = len(cols)
-        cols.append(colour)
-    bmesh.ops.triangulate(bm, faces=bm.faces[:])
-    bm.to_mesh(me)
-    bm.free()
-    a = me.color_attributes.new('Col', 'FLOAT_COLOR', 'CORNER')
-    ci = me.attributes['ci'].data
-    for poly in me.polygons:
-        poly.use_smooth = True
-        for li in poly.loop_indices:
-            a.data[li].color = cols[ci[poly.index].value]
-    me.attributes.remove(me.attributes['ci'])
-    m = bpy.data.materials.get('hair') or material('hair', 0.8)
-    me.materials.append(m)
-    return o
-
-
 # ---- put it together ----
 work = bpy.data.collections.new('survivor')
 bpy.context.scene.collection.children.link(work)
@@ -649,14 +645,12 @@ for ob in [ob for ob in brought if ob.type == 'MESH' and ob.name.split('.')[0] i
     brought.remove(ob)
     bpy.data.objects.remove(ob)
 parts = []
-hair = Hair()
 legs(parts)
 torso(parts)
 arms(parts)
-head(parts, hair)
+head(parts)
 body = build(arm, parts)
-hair_mesh = build_hair(hair)
-for ob in (body, hair_mesh):
+for ob in (body,):
     work.objects.link(ob)
     ob.parent = arm
     mod = ob.modifiers.new('Armature', 'ARMATURE')
@@ -677,7 +671,7 @@ for ob in brought:
 bpy.context.view_layer.objects.active = arm
 bpy.ops.export_scene.gltf(filepath=os.path.abspath(OUT), export_format='GLB', use_selection=True, export_apply=True,
                           export_animations=True, export_animation_mode='ACTIONS', export_skins=True)
-print(f'@@ player.glb: {len(body.data.polygons)} tris in the body, {len(hair_mesh.data.polygons)} in the hair')
+print(f'@@ player.glb: {len(body.data.polygons)} tris in the body')
 for ob in brought:
     bpy.data.objects.remove(ob)
 bpy.data.collections.remove(work)

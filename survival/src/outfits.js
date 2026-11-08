@@ -57,7 +57,7 @@ function showParkaParts(model, show) {
 function addParkaParts(model) {
   let body = null;
   model.traverse((child) => {
-    if (child.isSkinnedMesh && !body && !['player-pack', 'player-hair'].includes(child.name)) body = child;
+    if (child.isSkinnedMesh && !body && child.name !== 'player-pack') body = child;
   });
   if (!body) return []; // (the stand-in shown until player.glb loads has no skeleton)
   const { color, fur } = OUTFITS.parka;

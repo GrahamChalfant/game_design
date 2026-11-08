@@ -133,8 +133,7 @@ export class Player {
     loadModel('player').then((model) => {
       if (!model) return;
       model.traverse((child) => {
-        // (Not the hair cards: they'd cast their whole cards' shadows, not their strands'.)
-        child.castShadow = child.name !== 'player-hair';
+        child.castShadow = true;
         // Its animations move it beyond where three.js thinks it is, so always draw it.
         child.frustumCulled = false;
       });
