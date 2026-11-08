@@ -254,6 +254,7 @@ export function bladeTuft(name) {
 export const REMADE = new Set([
   'rock', 'rock-small', 'rock-flat', 'rock-tall', 'rock-large',
   'fallen-log', 'stump', 'tree-dead', 'logs',
+  'plane', 'plane-wing',
 ]);
 
 // Which surface each of the models' materials gets, by its name in the model.
