@@ -20,3 +20,7 @@ loop, filtered of low rumble, faded and levelled for the game, from Freesound's 
 | `step-dirt.mp3` | [Footsteps - Exterior - various steps, stumble, stops, dirty](https://freesound.org/people/TILIADESIGN/sounds/591534/) | TILIADESIGN | one step, at 7 s |
 | `step-gravel.mp3` | [Right Gravel Footstep 5](https://freesound.org/people/Ali_6868/sounds/384880/) | Ali_6868 | whole |
 | `step-snow.mp3` | [Footstep in the snow_02 [RAW]](https://freesound.org/people/cabled_mess/sounds/384422/) | cabled_mess | first 0.5 s |
+| `ice.mp3`, `ice-2.mp3` … `ice-5.mp3` | [Ice - Lake fractures](https://freesound.org/people/Vrymaa/sounds/737896/) | Vrymaa | a frozen lake cracking and singing: 39.85–42.05, 52.3–55, 22.6–25.6, 42.1–51.5 (the long rumble, 6 dB down) and 7.8–10.2 s |
+| `junco.mp3`, `junco-2.mp3` … `junco-5.mp3` | [210407 Dark-eyed Juncos, calls, urban residential](https://freesound.org/people/TRP/sounds/616956/) | TRP | trills and "tsip" calls: 0.3–3, 5.9–7.8, 8.7–10.6, 13–16.8 and 17.3–19.1 s, filtered below 2.2 kHz (the city behind them) |
+| `chickadee.mp3` | [Black Capped Chickadee bird call](https://freesound.org/people/nfrae/sounds/703254/) | nfrae | whole: "chick-a-dee-dee-dee-dee" |
+| `chickadee-2.mp3` … `chickadee-5.mp3` | [210411 Black-capped Chickadee, main and high pitched calls](https://freesound.org/people/TRP/sounds/616954/) | TRP | 1.1–2.9, 12.8–14.5, 33.7–35.5 and 41.5–42.55 s, filtered below 2.2 kHz |

@@ -3,9 +3,11 @@
 The game can make all of its sounds itself (see `src/sounds.js`). To use a recording instead,
 put a file here named after the sound, as `.mp3`, `.ogg` or `.wav`. When the game finds one,
 it plays the recording in place of the made-up sound.
+A one-off sound can have several takes (`ice.mp3`, `ice-2.mp3`, `ice-3.mp3`, and so on, up to
+8): each time it plays, one is picked at random.
 
-The recordings here now (wind, water, fire, cave, owl, wolf, raven, chop, tree-fall and
-the grass, dirt, gravel and snow footsteps) are public-domain (CC0) field recordings from
+The recordings here now (wind, water, fire, cave, owl, wolf, raven, the lake ice, juncos,
+chickadees, chop, tree-fall and the grass, dirt, gravel and snow footsteps) are public-domain (CC0) field recordings from
 Freesound, cut and levelled for the game. [CREDITS.md](CREDITS.md) lists where each came from.
 
 | File name | When it plays | How |
@@ -14,7 +16,7 @@ Freesound, cut and levelled for the game. [CREDITS.md](CREDITS.md) lists where e
 | `water` | Near a lake or the river | Looping |
 | `fire` | Near a burning campfire | Looping |
 | `cave` | Down a cave (a low hum) | Looping |
-| `junco`, `chickadee`, `jay`, `raven` | By day, now and then (rarely: the north is quiet, and quieter still in the cold): a dark-eyed junco's "tsip" calls or trill, a boreal chickadee, a Canada jay, or a common raven | Played once each time, from somewhere around you, a little higher or lower (every one-off sound is) |
+| `junco`, `chickadee`, `jay`, `raven` | By day, now and then (rarely: the north is quiet, and quieter still in the cold): a dark-eyed junco's "tsip" calls or trill, a chickadee (black-capped: they winter in the southern Yukon too), a Canada jay, or a common raven | Played once each time, from somewhere around you, a little higher or lower (every one-off sound is) |
 | `birds` | If there's a recording called this, it's played in place of all four birds above | Played once |
 | `owl` | At night, now and then (a great horned or a boreal owl) | Played once |
 | `wolf` | At night, now and then, far off | Played once |

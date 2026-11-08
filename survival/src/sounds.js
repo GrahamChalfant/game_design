@@ -1,6 +1,6 @@
 // The sounds of the place, the far north (the Yukon, the Northwest Territories) as the cold
 // sets in. Mostly a great quiet: the wind, and now and then a bird of the boreal winter (the
-// "tsip" of a junco, a boreal chickadee, a Canada jay, a raven's croak). Out by a lake, the new
+// "tsip" of a junco, a chickadee, a Canada jay, a raven's croak). Out by a lake, the new
 // ice along its edges sings as the cold works on it: pings, groans, whip cracks, a whale-like
 // moan, more at night when the cold deepens. By night, owls, wolves far off, and the yowl of a
 // lynx. Deer moving about nearby; water lapping, a campfire crackling, and dripping and bats
@@ -44,6 +44,7 @@ const FORMATS = ['mp3', 'ogg', 'wav'];
 // Vite serves public/ at the site root; a plain web server serves it at /public/.
 const SOUND_FOLDERS = ['sounds/', 'public/sounds/'];
 const VOLUME = 0.7;
+const MAX_TAKES = 8; // recordings of one sound (name.mp3, name-2.mp3, ...)
 
 export class Sound {
   constructor() {
@@ -94,19 +95,35 @@ export class Sound {
     for (const name of Object.keys(SOUNDS)) this.load(name);
   }
 
-  // Looks for a recording of `name` in public/sounds/.
+  // Looks for a recording of `name` in public/sounds/. A one-off sound can have more than one
+  // (name.mp3, name-2.mp3, name-3.mp3, ...): each time, one of them is picked.
   async load(name) {
-    for (const file of SOUND_FOLDERS.flatMap((folder) => FORMATS.map((format) => `${folder}${name}.${format}`))) {
+    const first = await this.fetchSound(name);
+    if (!first) return;
+    this.files[name] = [first];
+    if (SOUNDS[name] === 'loop') {
+      this.useRecordedLoop(name);
+      return;
+    }
+    for (let i = 2; i <= MAX_TAKES; i++) {
+      const take = await this.fetchSound(`${name}-${i}`);
+      if (!take) break;
+      this.files[name].push(take);
+    }
+  }
+
+  // The recording called `file` (any format, either folder), decoded, or null.
+  async fetchSound(file) {
+    for (const path of SOUND_FOLDERS.flatMap((folder) => FORMATS.map((format) => `${folder}${file}.${format}`))) {
       try {
-        const response = await fetch(file);
+        const response = await fetch(path);
         if (!response.ok || !(response.headers.get('content-type') ?? '').startsWith('audio')) continue;
-        this.files[name] = await this.ctx.decodeAudioData(await response.arrayBuffer());
-        if (SOUNDS[name] === 'loop') this.useRecordedLoop(name);
-        return;
+        return await this.ctx.decodeAudioData(await response.arrayBuffer());
       } catch {
         // (Not there, or not a sound: keep the made-up one.)
       }
     }
+    return null;
   }
 
   noiseLoop(type, frequency, q) {
@@ -128,7 +145,7 @@ export class Sound {
   useRecordedLoop(name) {
     const old = this.loops[name];
     const source = this.ctx.createBufferSource();
-    source.buffer = this.files[name];
+    source.buffer = this.files[name][0];
     source.loop = true;
     const gain = this.ctx.createGain();
     gain.gain.value = 0;
@@ -315,10 +332,10 @@ export class Sound {
 
   // Plays a recording of `name` if there is one; returns false if there isn't.
   playFile(name, volume, pan = 0, echo = false) {
-    const buffer = this.files[name];
-    if (!buffer) return false;
+    const takes = this.files[name];
+    if (!takes) return false;
     const source = this.ctx.createBufferSource();
-    source.buffer = buffer;
+    source.buffer = takes[Math.floor(Math.random() * takes.length)];
     source.playbackRate.value = rand(0.9, 1.1);
     source.connect(this.voice(volume, pan, echo || name === 'drip' || name === 'bat'));
     source.start();
