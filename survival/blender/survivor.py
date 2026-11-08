@@ -26,7 +26,7 @@ OUT = os.path.join(HERE, '..', 'public', 'models', 'player.glb')
 RIG = globals().get('RIG', OUT)
 # The jacket's body, from its hem up to the shoulders: (height, half width, front, back).
 TORSO = ((0.84, 0.205, 0.135, 0.125), (0.9, 0.195, 0.128, 0.12), (1.02, 0.18, 0.122, 0.115), (1.16, 0.184, 0.135, 0.12),
-         (1.27, 0.19, 0.13, 0.125), (1.34, 0.186, 0.115, 0.115), (1.39, 0.16, 0.1, 0.105), (1.43, 0.12, 0.085, 0.095))
+         (1.27, 0.19, 0.13, 0.125), (1.35, 0.192, 0.12, 0.118), (1.41, 0.184, 0.105, 0.108), (1.445, 0.15, 0.09, 0.098), (1.465, 0.105, 0.08, 0.088))
 TORSO_POWER = 2.6
 # The animations hold the right hand turned this far (radians, about x, bending it back: it was
 # made to grip the axe), so the right glove is modelled turned the other way, about the wrist,
@@ -35,6 +35,8 @@ RIGHT_HAND_TURN = 2 * math.asin(0.5851)
 # How far out from the middle the arms' joints are (shoulder, elbow, wrist), so they hang close
 # at his sides. The skeleton is moved to match (its arm bones only turn in the animations).
 ARM_X = {'upperarm': 0.2, 'lowerarm': 0.212, 'hand': 0.222}
+# ...and how high (the shoulders square and high on the frame, the arms their own length below).
+ARM_Y = {'upperarm': 1.4, 'lowerarm': 1.1, 'hand': 0.85}
 PACK_ON_BACK = (0, 0.84, -0.295)  # (game axes: where backpack.glb hangs on his back)
 
 PAL.update(
@@ -329,7 +331,7 @@ def seam_at(y, lo=QUILT[0], hi=QUILT[1]):
 
 
 SHIRT = ((0.8, 0.19, 0.122, 0.116), (0.9, 0.18, 0.116, 0.11), (1.02, 0.167, 0.112, 0.105), (1.16, 0.171, 0.122, 0.11),
-         (1.27, 0.177, 0.118, 0.115), (1.34, 0.17, 0.105, 0.105), (1.39, 0.143, 0.09, 0.095), (1.43, 0.098, 0.075, 0.085))
+         (1.27, 0.177, 0.118, 0.115), (1.35, 0.178, 0.108, 0.108), (1.41, 0.168, 0.094, 0.1), (1.44, 0.135, 0.082, 0.09), (1.455, 0.095, 0.074, 0.084))
 
 
 def plaid_at(across, up):
@@ -499,7 +501,7 @@ def on_jacket(part, x0, x1, y0, y1, lift, colour, cols=6, rows=6):
 def arms(parts):
     for s, side in ((1, 'L'), (-1, 'R')):
         p = Part(['spine', f'upperarm_{side}', f'lowerarm_{side}', f'hand_{side}'])
-        shoulder, elbow, wrist = Vector((ARM_X['upperarm'] * s, 1.36, 0)), Vector((ARM_X['lowerarm'] * s, 1.04, -0.01)), Vector((ARM_X['hand'] * s, 0.8, 0.0))
+        shoulder, elbow, wrist = Vector((ARM_X['upperarm'] * s, ARM_Y['upperarm'] + 0.03, 0)), Vector((ARM_X['lowerarm'] * s, ARM_Y['lowerarm'] + 0.01, -0.01)), Vector((ARM_X['hand'] * s, ARM_Y['hand'] + 0.02, 0.0))
         # (The sleeve starts inside the shoulder and rounds into it, not perched on top.)
         def sleeve(a, b, base, n):
             # (radii along it, each swelled by the quilting: baffles every BAFFLE along the arm)
@@ -1073,8 +1075,11 @@ for side, s_ in (('L', 1), ('R', -1)):
         eb = arm.data.edit_bones[f'{bone}_{side}']
         eb.use_connect = False
         dx = s_ * x - eb.head.x
+        dz = ARM_Y[bone] - eb.head.z
         eb.head.x += dx
         eb.tail.x += dx
+        eb.head.z += dz
+        eb.tail.z += dz
 bpy.ops.object.mode_set(mode='OBJECT')
 # The animations, authored fresh (player_anim.py; it adds the foot bones too). Any older copies
 # of them in the file go, so only these are exported.
