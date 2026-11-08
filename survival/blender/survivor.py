@@ -21,6 +21,14 @@ from kit import PAL, Builder, g, material
 
 OUT = os.path.join(HERE, '..', 'public', 'models', 'player.glb')
 RIG = globals().get('RIG', OUT)
+# The jacket's body, from its hem up to the shoulders: (height, half width, front, back).
+TORSO = ((0.84, 0.205, 0.135, 0.125), (0.9, 0.195, 0.128, 0.12), (1.02, 0.18, 0.122, 0.115), (1.16, 0.184, 0.135, 0.12),
+         (1.27, 0.19, 0.13, 0.125), (1.34, 0.186, 0.115, 0.115), (1.39, 0.16, 0.1, 0.105), (1.43, 0.12, 0.085, 0.095))
+TORSO_POWER = 2.6
+# The animations hold the right hand turned this far (radians, about x, bending it back: it was
+# made to grip the axe), so the right glove is modelled turned the other way, about the wrist,
+# to line up with the forearm when it plays (player.js hangs the tools on that turned hand).
+RIGHT_HAND_TURN = 2 * math.asin(0.5851)
 # How far out from the middle the arms' joints are (shoulder, elbow, wrist), so they hang close
 # at his sides. The skeleton is moved to match (its arm bones only turn in the animations).
 ARM_X = {'upperarm': 0.2, 'lowerarm': 0.212, 'hand': 0.222}
@@ -52,6 +60,7 @@ class Part:
         self.bones = bones
         self.faces = []  # ([points], colour); colour None: each corner's from self.corner(point)
         self.corner = None
+        self.drape = None  # (below height, extra bones, how much they pull): see build
 
     def add(self, pts, colour, smooth=True):
         self.faces.append((list(pts), colour, smooth))
@@ -146,9 +155,9 @@ def box(part, lo, hi, colour):
 def legs(parts):
     for s, side in ((1, 'L'), (-1, 'R')):
         p = Part(['hips', f'thigh_{side}', f'shin_{side}'])
-        x = 0.115 * s
+        x = 0.105 * s
         rings = []
-        for y, w, d, dz in ((0.96, 0.095, 0.1, 0.0), (0.82, 0.088, 0.095, 0.0), (0.66, 0.075, 0.08, 0.005), (0.49, 0.062, 0.068, 0.012),
+        for y, w, d, dz in ((0.96, 0.08, 0.095, 0.0), (0.82, 0.086, 0.094, 0.0), (0.66, 0.075, 0.08, 0.005), (0.49, 0.062, 0.068, 0.012),
                             (0.36, 0.062, 0.066, -0.005), (0.22, 0.052, 0.055, 0.0), (0.14, 0.05, 0.052, 0.0)):
             rings.append(section(Vector((x, y, dz)), w, d, d, 8))
         loft(p, rings, lambda i, k, c, n: tone('trousers_dark' if i in (2, 3) and n.z > 0.3 else 'trousers', 0.03), cap_start=False)
@@ -163,11 +172,9 @@ def legs(parts):
 
 def torso(parts):
     p = Part(['hips', 'spine'])
+    p.drape = (0.97, ['thigh_L', 'thigh_R'], 0.55)  # (below the hips, the jacket half follows the thighs)
     # The jacket: hips (its hem) up to the shoulders, a little fuller at the chest.
-    rings = []
-    for y, w, front, back in ((0.84, 0.19, 0.13, 0.12), (0.9, 0.185, 0.125, 0.12), (1.02, 0.176, 0.12, 0.115), (1.16, 0.182, 0.135, 0.12),
-                              (1.27, 0.19, 0.13, 0.125), (1.34, 0.186, 0.115, 0.115), (1.39, 0.16, 0.1, 0.105), (1.43, 0.12, 0.085, 0.095)):
-        rings.append(section(Vector((0, y, 0)), w, front, back, 14, power=2.6))
+    rings = [section(Vector((0, y, 0)), w, front, back, 14, power=TORSO_POWER) for y, w, front, back in TORSO]
     def coat(i, k, c, n):
         if i == 0 and n.y < 0.3:
             return tone('coat_dark', 0.02)  # (the hem)
@@ -175,18 +182,53 @@ def torso(parts):
             return tone('coat_fold', 0.02)  # (side seams and folds)
         return tone('coat', 0.025)
     loft(p, rings, coat, cap_start=True, cap_end=False)
-    # The high collar, open at the throat, its lining showing.
-    collar = [section(Vector((0, y, 0.0)), w, f, b, 14, power=2.2) for y, w, f, b in ((1.39, 0.125, 0.08, 0.09), (1.47, 0.105, 0.075, 0.085), (1.5, 0.11, 0.08, 0.09))]
-    loft(p, collar, lambda i, k, c, n: tone('lining' if c.z > 0.05 and i == 1 else 'coat_dark', 0.02), cap_start=False, cap_end=False)
-    # The hood, folded down at the back of the neck.
-    hood = [section(Vector((0, y, -0.1)), w, 0.05, 0.07, 10) for y, w in ((1.38, 0.13), (1.44, 0.15), (1.5, 0.12))]
-    loft(p, hood, lambda i, k, c, n: tone('coat_dark' if n.y < 0 else 'coat', 0.02))
-    # The zip, the pockets, and a seam across the shoulders.
-    box(p, (-0.006, 0.84, 0.126), (0.006, 1.42, 0.138), tone('zip'))
+    # The high collar, zipped up snug round the neck, standing higher at the back.
+    collar = [section(Vector((0, y, 0.0)), w, f, b, 14, power=2.2) for y, w, f, b in ((1.38, 0.13, 0.09, 0.1), (1.44, 0.088, 0.072, 0.086), (1.5, 0.077, 0.066, 0.08), (1.54, 0.079, 0.068, 0.082))]
+    collar = [[q + Vector((0, 0.035 * max(0.0, -q.z) / 0.08 * (i / 3), 0)) for q in ring] for i, ring in enumerate(collar)]
+    loft(p, collar, lambda i, k, c, n: tone('coat_dark' if i >= 2 else 'coat', 0.0), cap_start=False, cap_end=False)
+    # The hood, rolled up and stowed at the back of the collar: a soft, low roll.
+    hood = [section(Vector((0, y, -0.075)), w, f, b, 12, power=2.0) for y, w, f, b in ((1.385, 0.115, 0.03, 0.05), (1.43, 0.13, 0.035, 0.058), (1.47, 0.12, 0.03, 0.05), (1.495, 0.09, 0.02, 0.032))]
+    loft(p, hood, lambda i, k, c, n: tone('coat_fold' if n.y < 0 else 'coat', 0.0), cap_end=True)
+    # The zip and the pockets, laid on the jacket's own surface (they follow its curve).
+    on_jacket(p, -0.007, 0.007, 0.86, 1.41, 0.0025, tone('zip', 0.0), rows=26)
     for s in (1, -1):
-        box(p, (s * 0.06 - 0.055, 0.9, 0.118), (s * 0.06 + 0.055, 1.0, 0.132), tone('coat_dark'))
-        box(p, (s * 0.1 - 0.045, 1.17, 0.13), (s * 0.1 + 0.045, 1.24, 0.142), tone('coat_dark'))
+        lo, hi = sorted((s * 0.06 - 0.055, s * 0.06 + 0.055))
+        on_jacket(p, lo, hi, 0.9, 1.0, 0.004, tone('coat_dark', 0.0, 1.05))  # (hand-warmer pockets)
+        on_jacket(p, lo, hi, 0.985, 1.0, 0.008, tone('coat_dark', 0.0, 0.85))  # (their flaps)
+        lo, hi = sorted((s * 0.1 - 0.045, s * 0.1 + 0.045))
+        on_jacket(p, lo, hi, 1.17, 1.24, 0.004, tone('coat_dark', 0.0, 1.05))  # (chest pockets)
+        on_jacket(p, lo, hi, 1.225, 1.245, 0.008, tone('coat_dark', 0.0, 0.85))
     parts.append(p)
+
+
+def jacket_front(x, y):
+    """How far forward the jacket's front is at x, y (the same shape the loft makes)."""
+    ys = [t[0] for t in TORSO]
+    y = max(ys[0], min(ys[-1], y))
+    i = max(0, min(len(ys) - 2, next(j for j in range(len(ys) - 1) if y <= ys[j + 1])))
+    t = (y - ys[i]) / (ys[i + 1] - ys[i])
+    at = lambda j: TORSO[max(0, min(len(TORSO) - 1, j))]
+    w, front = (curve(at(i - 1)[k], at(i)[k], at(i + 1)[k], at(i + 2)[k], t) for k in (1, 2))
+    sx = min(1.0, abs(x) / w) ** (TORSO_POWER / 2)
+    return math.sqrt(max(0.0, 1 - sx * sx)) ** (2 / TORSO_POWER) * front
+
+
+def on_jacket(part, x0, x1, y0, y1, lift, colour, cols=6, rows=6):
+    """A patch over the jacket's front from x0..x1, y0..y1, standing `lift` off it, with its
+    edges down to the cloth."""
+    pt = lambda x, y, up: Vector((x, y, jacket_front(x, y) + up))
+    grid = [[pt(x0 + (x1 - x0) * i / cols, y0 + (y1 - y0) * j / rows, lift) for i in range(cols + 1)] for j in range(rows + 1)]
+    fwd = Vector((0, 0, 1))
+    for j in range(rows):
+        for i in range(cols):
+            part.add_out([grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]], fwd, colour)
+    edge = [(i, 0) for i in range(cols + 1)] + [(cols, j) for j in range(1, rows + 1)] + [(i, rows) for i in range(cols - 1, -1, -1)] + [(0, j) for j in range(rows - 1, 0, -1)]
+    mid = Vector(((x0 + x1) / 2, (y0 + y1) / 2, 0))
+    for (i0, j0), (i1, j1) in zip(edge, edge[1:] + edge[:1]):
+        a, b = grid[j0][i0], grid[j1][i1]
+        a0, b0 = pt(a.x, a.y, -0.003), pt(b.x, b.y, -0.003)
+        out = Vector((a.x + b.x - 2 * mid.x, a.y + b.y - 2 * mid.y, 0))
+        part.add_out([a, b, b0, a0], out, colour)
 
 
 def arms(parts):
@@ -201,9 +243,16 @@ def arms(parts):
         h = Part([f'hand_{side}'])
         glove = lambda i, k, c, n: tone('glove', 0.0, 0.9 if n.y < -0.5 else 1.0)
         tube_between(h, wrist + Vector((0, 0.03, 0)), wrist - Vector((0, 0.015, 0)), [(0.05, 0.046), (0.046, 0.042), (0.04, 0.032)], lambda i, k, c, n: tone('glove_cuff', 0.0, 0.92 if k % 2 else 1.0), sides=9)
-        tube_between(h, wrist - Vector((0, 0.01, 0)), wrist + Vector((0.005 * s, -0.095, 0.012)), [(0.036, 0.024), (0.044, 0.022), (0.043, 0.02)], glove, sides=8)
-        tube_between(h, wrist + Vector((0.005 * s, -0.09, 0.012)), wrist + Vector((0.002 * s, -0.175, 0.03)), [(0.042, 0.019), (0.038, 0.017), (0.032, 0.015), (0.02, 0.011)], glove, sides=8)
-        tube_between(h, wrist + Vector((-0.022 * s, -0.035, 0.022)), wrist + Vector((-0.032 * s, -0.105, 0.045)), [0.015, 0.013, 0.011, 0.007], glove, sides=7)
+        # (Hanging relaxed: the palm toward the thigh, so the hand is broad seen from the side
+        # and narrow from the front; the fingers curl a little in toward the leg, the thumb
+        # lies along the front of the hand.)
+        tube_between(h, wrist - Vector((0, 0.01, 0)), wrist + Vector((-0.004 * s, -0.095, 0.004)), [(0.025, 0.037), (0.023, 0.045), (0.021, 0.044)], glove, sides=10)
+        tube_between(h, wrist + Vector((-0.004 * s, -0.09, 0.004)), wrist + Vector((-0.02 * s, -0.17, 0.0)), [(0.02, 0.043), (0.018, 0.039), (0.016, 0.033), (0.011, 0.02)], glove, sides=10)
+        tube_between(h, wrist + Vector((-0.008 * s, -0.03, 0.03)), wrist + Vector((-0.016 * s, -0.095, 0.042)), [0.016, 0.014, 0.012, 0.008], glove, sides=8)
+        if side == 'R':
+            c, sn = math.cos(-RIGHT_HAND_TURN), math.sin(-RIGHT_HAND_TURN)
+            turn = lambda q: wrist + Vector((q.x - wrist.x, (q.y - wrist.y) * c - (q.z - wrist.z) * sn, (q.y - wrist.y) * sn + (q.z - wrist.z) * c))
+            h.faces = [([turn(q) for q in pts], colour, smooth) for pts, colour, smooth in h.faces]
         parts += [p, h]
 
 
@@ -342,7 +391,7 @@ def skin_colour(q):
 def head(parts):
     p = Part(['spine', 'head'])
     # The neck (stubble up its front, under the beard).
-    tube_between(p, (0, 1.4, -0.005), (0, 1.53, 0.0), [(0.052, 0.05), (0.05, 0.048)],
+    tube_between(p, (0, 1.4, -0.005), (0, 1.53, 0.0), [(0.062, 0.06), (0.057, 0.056)],
                  lambda i, k, c, n: tone('stubble' if c.y > 1.47 and n.z > 0.2 else 'skin_shade', 0.004), sides=8)
     h = Part(['head'])
     ys = [1.505 + (1.805 - 1.505) * i / 33 for i in range(34)]
@@ -439,8 +488,8 @@ def head(parts):
         return [mid + (q - mid) * (1 + depth * (1 if k % 2 else -1)) for k, q in enumerate(ring)]
     knit = lambda shade: lambda i, k, c, n: tone(shade, 0.0, 0.9 + 0.06 * math.sin(k * 1.7) + 0.05 * random.random())
     beanie = [ribbed(section(Vector((0, y, HEAD_CZ)), w, f, b, 22, power=2.3), rib) for y, w, f, b, rib in (
-        (1.745, 0.1, 0.104, 0.11, 0.025), (1.785, 0.097, 0.1, 0.107, 0.028), (1.82, 0.085, 0.087, 0.094, 0.03),
-        (1.85, 0.062, 0.064, 0.07, 0.03), (1.868, 0.032, 0.033, 0.036, 0.02), (1.874, 0.008, 0.008, 0.009, 0.0))]
+        (1.745, 0.1, 0.104, 0.11, 0.025), (1.785, 0.098, 0.101, 0.108, 0.028), (1.825, 0.09, 0.092, 0.099, 0.03),
+        (1.858, 0.073, 0.075, 0.081, 0.03), (1.88, 0.048, 0.05, 0.054, 0.025), (1.893, 0.02, 0.02, 0.022, 0.01), (1.896, 0.004, 0.004, 0.004, 0.0))]
     loft(h, beanie, knit('beanie'), cap_start=False)
     band = [ribbed(section(Vector((0, y, HEAD_CZ)), w, f, b, 22, power=2.3), 0.035) for y, w, f, b in ((1.724, 0.104, 0.11, 0.114), (1.75, 0.108, 0.114, 0.118), (1.775, 0.106, 0.112, 0.116))]
     loft(h, band, knit('beanie_band'), cap_start=False, cap_end=False)
@@ -610,7 +659,15 @@ def build(arm, parts):
             vs = []
             for q in pts:
                 v = bm.verts.new(g(*q))
-                for name, w in weights(q, part.bones, segs):
+                bones = part.bones
+                if part.drape and q.y < part.drape[0]:
+                    bones = bones + part.drape[1]
+                ws = weights(q, bones, segs)
+                if part.drape and q.y < part.drape[0]:
+                    ws = [(n_, w_ * (part.drape[2] if n_ in part.drape[1] else 1.0)) for n_, w_ in ws]
+                    total = sum(w_ for _, w_ in ws)
+                    ws = [(n_, w_ / total) for n_, w_ in ws]
+                for name, w in ws:
                     if name not in groups:
                         groups[name] = o.vertex_groups.new(name=name).index
                     v[deform][groups[name]] = w
