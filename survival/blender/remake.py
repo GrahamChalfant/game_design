@@ -1022,6 +1022,73 @@ def axe_ground():
     return build('axe-ground', b, shared('metal', 0.6))
 
 
+# ---- the hide shelter you build ----
+PAL.update(hide=0x8a6a4a, hide_pale=0xa8865e, hide_dark=0x6a4e36, sinew=0x5a4636, bough=0x34493b, bough_dark=0x26362c)
+
+
+def hide_sheet(b, corners, nu, nv, sag, colour):
+    """A hide stretched over a frame: a grid between four corners (game space, in order round
+    it), sagging `sag` in the middle between the poles, its lower edge ragged, seen from both
+    sides."""
+    p00, p10, p11, p01 = (Vector(c) for c in corners)
+    grid = []
+    for j in range(nv + 1):
+        v = j / nv
+        row = []
+        for i in range(nu + 1):
+            u = i / nu
+            p = p00.lerp(p10, u).lerp(p01.lerp(p11, u), v)
+            p -= Vector((0, sag * math.sin(u * math.pi) * math.sin(v * math.pi), 0))  # (it hangs between the poles)
+            if j == 0:
+                p += Vector((0, random.uniform(-0.04, 0.06), 0))  # (the ragged bottom)
+            row.append(p)
+        grid.append(row)
+    for j in range(nv):
+        for i in range(nu):
+            quad = [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]]
+            c = colour(i, j)
+            b.add([g(*p) for p in quad], [(0, 1, 2, 3)], c)
+            b.add([g(*p) for p in quad[::-1]], [(0, 1, 2, 3)], tone('hide_dark', 0.05))
+
+
+def shelter():
+    """An A-frame shelter of poles and stitched hides, 3.2 m wide, 2.3 m tall, 2.8 m deep,
+    open at the front (+z), a bed of spruce boughs inside; base centre at the origin."""
+    random.seed(801)
+    b = Builder()
+    pole = bark_colour(8, peel=0.3)
+    ridge_y, half_w, half_d = 2.3, 1.6, 1.4
+    # The frame: an A of two poles at each end, crossing over the ridge pole.
+    for z in (-half_d, half_d):
+        for s in (-1, 1):
+            tube(b, [(Vector((s * half_w, -0.1, z)), 0.06), (Vector((-s * 0.12, ridge_y + 0.25, z)), 0.045)], 8, pole, rough=0.06)
+        for k in range(3):  # lashing where they cross
+            tube(b, [(Vector((-0.05, ridge_y - 0.05 + k * 0.04, z - 0.07)), 0.07), (Vector((0.05, ridge_y - 0.03 + k * 0.04, z + 0.07)), 0.07)], 6, lambda t, a, n: tone('sinew', 0.05))
+    tube(b, [(Vector((0, ridge_y, -half_d - 0.25)), 0.055), (Vector((0, ridge_y + 0.02, 0)), 0.05), (Vector((0, ridge_y, half_d + 0.3)), 0.045)], 8, pole, rough=0.06)
+    # Hides over both slopes: a patchwork of skins in slightly different tones, stitched.
+    patches = [[random.choice(('hide', 'hide', 'hide_pale', 'hide_dark')) for _ in range(6)] for _ in range(2)]
+    for side, s in enumerate((-1, 1)):
+        def skin(i, j, side=side):
+            if i % 2 == 1 and random.random() < 0.6:
+                return tone('sinew', 0.05)  # (a seam)
+            return tone(patches[side][min(5, i // 2)], 0.04)
+        hide_sheet(b, [(s * (half_w - 0.05), 0.0, -half_d + 0.05), (s * (half_w - 0.05), 0.0, half_d - 0.1), (s * 0.04, ridge_y + 0.04, half_d - 0.1), (s * 0.04, ridge_y + 0.04, -half_d + 0.05)], 10, 6, 0.12, skin)
+    # The back, closed with a triangle of hide.
+    back = [Vector((-half_w + 0.1, 0, -half_d + 0.02)), Vector((half_w - 0.1, 0, -half_d + 0.02)), Vector((0, ridge_y, -half_d + 0.02))]
+    b.add([g(*p) for p in back], [(0, 1, 2)], tone('hide_dark', 0.04))
+    b.add([g(*p) for p in back[::-1]], [(0, 1, 2)], tone('hide', 0.04))
+    # A bed of spruce boughs on the floor inside.
+    for k in range(14):
+        c = (random.uniform(-0.9, 0.9), 0.06, random.uniform(-1.1, 0.8))
+        b.stone(c, (0.3, 0.06, 0.18), lambda: tone(random.choice(('bough', 'bough', 'bough_dark')), 0.06), points=10)
+    # Guy lines and pegs at the front corners.
+    for s in (-1, 1):
+        peg = Vector((s * (half_w + 0.35), 0.0, half_d + 0.4))
+        rod(b, peg - Vector((0, 0.15, 0)), peg + Vector((0, 0.12, 0)), 0.02, 0.015, lambda c, n: tone('bark_grey', 0.05))
+        rod(b, peg + Vector((0, 0.08, 0)), Vector((s * 0.9, 1.1, half_d - 0.1)), 0.006, 0.006, lambda c, n: tone('sinew', 0.05), sides=4)
+    return build('shelter', b, shared('shelter'))
+
+
 def remake():
     made = []
     for name, (size, seed, cuts, detail) in ROCKS.items():
@@ -1032,6 +1099,7 @@ def remake():
     made += [('barrel', [barrel()]), ('chest', chest()), ('supply-crate', supply_crate()), ('ammo-box', ammo_box()), ('locker', locker()), ('cupboard', cupboard()), ('weathered-pack', weathered_pack())]
     made += [('campfire', [campfire()]), ('log-pile', [log_pile()]), ('fire-ring', [fire_ring()]), ('torch', [torch()]), ('bedroll', [bedroll()]), ('trap', [trap()]), ('berry-bush', berry_bush()), ('grass-fern', [fern()])]
     made += [('bones', [bones()]), ('stalagmite', [stalagmite()]), ('stone', [throwing_stone()]), ('axe', [axe()]), ('axe-ground', [axe_ground()])]
+    made += [('shelter', [shelter()])]
     return made
 
 

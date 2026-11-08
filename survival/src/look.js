@@ -257,7 +257,7 @@ export const REMADE = new Set([
   'plane', 'plane-wing', 'suitcase', 'debris', 'landing-wheel', 'clod',
   'barrel', 'chest', 'supply-crate', 'ammo-box', 'locker', 'cupboard', 'weathered-pack',
   'campfire', 'log-pile', 'fire-ring', 'torch', 'bedroll', 'trap', 'berry-bush', 'grass-fern',
-  'bones', 'stalagmite', 'stone', 'axe', 'axe-ground',
+  'bones', 'stalagmite', 'stone', 'axe', 'axe-ground', 'shelter',
   // (These keep their old layouts, built from finer parts: blender/fine.py.)
   'cabin', 'hunting-stand', 'lean-to', 'campsite', 'truck', 'fence', 'fence-broken', 'lookout',
   'cot', 'fire-finder', 'binoculars', 'fire-gate', 'signpost', 'crystals', 'glow-fungus',
