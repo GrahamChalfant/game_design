@@ -18,10 +18,13 @@ You don't need Node.js or npm.
 From inside the `survival` folder, run:
 
 ```bash
-python3 -m http.server 8000
+python3 serve.py
 ```
 
-Then open http://localhost:8000. After you edit a file, refresh the browser to see the change.
+Then open http://localhost:8000. After you pull or edit a file, refresh the browser to see the
+change. (`serve.py` tells the browser not to cache the game's files. With the plain
+`python3 -m http.server 8000` the browser can keep showing old code after a pull: if you use it,
+refresh with **Ctrl+Shift+R**, or **Cmd+Shift+R** on a Mac.)
 To stop the server, press **Ctrl+C** in the terminal.
 
 > You can't just double-click `index.html`. Browsers block this kind of code when it's
