@@ -42,3 +42,9 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 
 Style, palette and poly budgets: `survival/blender/STYLE_GUIDE.md`.
 See "Adding models from Blender" in `survival/README.md` for sizes and orientation.
+
+**The new look (`index.html?look=new`, see `src/look.js`):** `look/` holds richer versions of most of these models, loaded in their place in that look only (`REMADE` in look.js). They're the same sizes, part names, hinges, skeletons and animations, so the game uses them the same way:
+- `blender/remake.py` rebuilds rocks, dead wood, the plane and its wreckage, the containers, camp props, the shelter, bones, the axe and more from scratch;
+- `blender/fine.py` re-runs `places.py`, `lookout.py` and `props.py` with finer parts (rounder logs, bevelled boards);
+- `blender/smooth_rigged.py` rounds off the rigged animals and the player under their rigs;
+- `blender/conifers.py` (with `LOOK = 'new'`) makes the needle-card spruce drawn near the player.
