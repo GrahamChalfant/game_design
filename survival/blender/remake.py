@@ -46,6 +46,14 @@ def tone(name, var=0.06, shade=1.0):
 # ---- rocks ----
 def boulder(name, size, seed, cuts=6, rough=0.22, sink=0.12, subdivisions=3):
     """A boulder `size` (x, y, z half-extents above ground) across, base at the origin."""
+    b = Builder()
+    stone_into(b, size, seed, cuts, rough, sink, subdivisions)
+    return build(name, b, shared('rock'))
+
+
+def stone_into(b, size, seed, cuts=6, rough=0.22, sink=0.12, subdivisions=3, at=(0, 0, 0), turn=0.0, mossy=True, sooty=0.0):
+    """Adds a stone like boulder()'s to `b`, at `at`, turned `turn` about y. (sooty: how far up
+    from its base it's blackened by a fire beside it, 0 for none.)"""
     random.seed(seed)
     off = Vector((random.uniform(0, 50), random.uniform(0, 50), random.uniform(0, 50)))
     planes = []
@@ -60,15 +68,15 @@ def boulder(name, size, seed, cuts=6, rough=0.22, sink=0.12, subdivisions=3):
         p = d * r
         # Cleavage: everything past a plane is pushed back onto it, so the rock has a few big
         # flat faces and sharp-ish edges, like split granite.
-        for n, at in planes:
-            over = p.dot(n) - at
+        for n, offset in planes:
+            over = p.dot(n) - offset
             if over > 0:
                 p -= n * over * 0.9
         p = Vector((p.x * size[0], (p.y * 0.5 + 0.5) * (size[1] + sink) - sink, p.z * size[2]))
         p.y = max(p.y, -sink)
-        v.co = p
+        c_, s_ = math.cos(turn), math.sin(turn)
+        v.co = Vector((p.x * c_ - p.z * s_, p.y, p.x * s_ + p.z * c_)) + Vector(at)
     tmp.normal_update()
-    b = Builder()
     index = {v: i for i, v in enumerate(tmp.verts)}
     verts = [g(*v.co) for v in tmp.verts]
     for f in tmp.faces:
@@ -77,7 +85,9 @@ def boulder(name, size, seed, cuts=6, rough=0.22, sink=0.12, subdivisions=3):
         up = n.y
         height = (c.y + sink) / (size[1] + sink)
         hollow = noise.noise(c * 2.2 + off)
-        if up > 0.62 and noise.noise(c * 1.6 + off * 2) > 0.05:
+        if sooty and (c.y - at[1] + sink) / (size[1] + sink) < sooty:
+            colour = tone(random.choice(('granite_deep', 'granite_deep', 'granite_dark')), 0.05, 0.6)
+        elif mossy and up > 0.62 and noise.noise(c * 1.6 + off * 2) > 0.05:
             colour = tone(random.choice(('moss_rock', 'moss_rock_dark')), 0.08)
         elif up > 0.2 and random.random() < 0.12:
             colour = tone(random.choice(('lichen_pale', 'lichen_gold')), 0.06)
@@ -88,7 +98,6 @@ def boulder(name, size, seed, cuts=6, rough=0.22, sink=0.12, subdivisions=3):
             colour = tone(name_, 0.07, 0.86 + 0.2 * height)
         b.add(verts, [tuple(index[v] for v in f.verts)], colour)
     tmp.free()
-    return build(name, b, shared('rock'))
 
 
 # name: (half-extents x, height, z; seed; cuts; detail: 3 is 320 faces, 4 is 1,280)
@@ -709,6 +718,190 @@ def weathered_pack():
     return [build('weathered-pack', body, shared('cloth')), build_hinged('weathered-pack-flap', flap, shared('cloth'), (0, 0.45, -0.17))]
 
 
+# ---- camp and nature ----
+PAL.update(
+    char=0x2a2623, char_light=0x3d3833, ash=0x6b6863, ember=0xa0482a, ember_hot=0xc8682e,
+    wool=0x8c3a2a, wool_dark=0x6e2e24, wool_stripe=0xc2b48a, rag=0x8a7a5a, rag_dark=0x5e5240, cord=0x9a8a6a,
+    leaf=0x3f5230, leaf_dark=0x2f3f25, leaf_light=0x56693c, berry=0x3c3f6e, berry_dark=0x2a2c50, twig=0x4a3a2c,
+    frond=0xd8d8d0, frond_dark=0xb8b8b0,
+)
+
+
+def log_into(b, a, z, r, seed, charred=0.0):
+    """A round log from a to z with bark, ringed ends, and (charred) its ends burnt black."""
+    a, z = Vector(a), Vector(z)
+    path = [(a.lerp(z, t), r * random.uniform(0.95, 1.05)) for t in (0, 0.33, 0.66, 1)]
+    colour = bark_colour(seed, peel=0.15)
+    def burnt(t, ang, n):
+        if charred and (t < charred or t > 1 - charred):
+            return tone(random.choice(('char', 'char', 'char_light')), 0.06)
+        return colour(t, ang, n)
+    rings = tube(b, path, 9, burnt, rough=0.07, seed=seed)
+    end_grain(b, rings[0], a, (a - z).normalized())
+    end_grain(b, rings[-1], z, (z - a).normalized())
+
+
+def campfire():
+    """A fire ring of stones round a teepee of logs, charred where they burn, on a bed of ash
+    and embers (the flames are a separate model)."""
+    random.seed(601)
+    b = Builder()
+    for k in range(13):
+        a = math.tau * k / 13 + random.uniform(-0.06, 0.06)
+        r = 0.4 + random.uniform(-0.02, 0.03)
+        size = (random.uniform(0.09, 0.12), random.uniform(0.08, 0.12), random.uniform(0.07, 0.09))
+        stone_into(b, size, 610 + k, cuts=4, sink=0.03, subdivisions=2, at=(math.cos(a) * r, 0, math.sin(a) * r), turn=-a, mossy=False, sooty=0.5)
+    # Ash and embers inside the ring.
+    bed = [Vector((math.cos(math.tau * k / 14) * 0.33, 0.015, math.sin(math.tau * k / 14) * 0.33)) for k in range(14)]
+    centre = Vector((0, 0.04, 0))
+    for k in range(14):
+        tri = [centre, bed[(k + 1) % 14], bed[k]]
+        c = tone(random.choice(('ember', 'ember_hot', 'ash', 'char')), 0.08) if random.random() < 0.5 else tone(random.choice(('ash', 'char', 'char_light')), 0.06)
+        b.add([g(*p) for p in tri], [(0, 1, 2)], c)
+    # The teepee: logs leaning in, their lower ends burnt.
+    for k in range(5):
+        a = math.tau * k / 5 + 0.3
+        foot = Vector((math.cos(a) * 0.3, 0.03, math.sin(a) * 0.3))
+        top = Vector((math.cos(a) * 0.04, 0.5, math.sin(a) * 0.04))
+        log_into(b, foot, top, 0.045, 620 + k, charred=0.45)
+    return build('campfire', b, shared('campfire'))
+
+
+def log_pile():
+    """Split logs stacked 4-3-2 between two stakes, 1.2 m long along z."""
+    random.seed(602)
+    b = Builder()
+    r = 0.11
+    for row, count in enumerate((4, 3, 2)):
+        for i in range(count):
+            x = (i - (count - 1) / 2) * r * 2.05
+            y = r + row * r * 1.75
+            log_into(b, (x, y, -0.6), (x + random.uniform(-0.02, 0.02), y, 0.6 + random.uniform(-0.04, 0.04)), r * random.uniform(0.92, 1.05), 630 + row * 4 + i)
+    for x in (-0.5, 0.5):  # stakes
+        rod(b, (x, -0.1, 0.0), (x * 1.04, 0.5, 0.0), 0.03, 0.022, lambda c, n: tone(random.choice(('bark', 'bark_grey')), 0.06))
+    return build('log-pile', b, shared('log-pile'))
+
+
+def fire_ring():
+    """An old fire ring in the cave: blackened stones round cold ash."""
+    random.seed(603)
+    b = Builder()
+    for k in range(11):
+        a = math.tau * k / 11 + random.uniform(-0.08, 0.08)
+        size = (random.uniform(0.12, 0.16), random.uniform(0.09, 0.14), random.uniform(0.09, 0.12))
+        stone_into(b, size, 640 + k, cuts=4, sink=0.03, subdivisions=2, at=(math.cos(a) * 0.47, 0, math.sin(a) * 0.47), turn=-a, mossy=False, sooty=0.6)
+    bed = [Vector((math.cos(math.tau * k / 12) * 0.38, 0.01, math.sin(math.tau * k / 12) * 0.38)) for k in range(12)]
+    for k in range(12):
+        b.add([g(*p) for p in (Vector((0, 0.03, 0)), bed[(k + 1) % 12], bed[k])], [(0, 1, 2)], tone(random.choice(('ash', 'char', 'char_light')), 0.06))
+    return build('fire-ring', b, shared('rock'))
+
+
+def torch():
+    """A torch: a stick with a rag bound round its head, charred at the top."""
+    random.seed(604)
+    b = Builder()
+    tube(b, [(Vector((0, -0.15, 0)), 0.018), (Vector((0, 0.2, 0)), 0.021), (Vector((0, 0.4, 0)), 0.024)], 7, bark_colour(4, peel=0.4), rough=0.05)
+    for i in range(4):  # the rag, wound in bands
+        y0 = 0.33 + i * 0.045
+        tube(b, [(Vector((0, y0, 0)), 0.04 + 0.006 * (i % 2)), (Vector((0, y0 + 0.05, 0)), 0.042 - 0.004 * (i % 2))], 8,
+             lambda t, a, n, i=i: tone('char' if i == 3 else random.choice(('rag', 'rag_dark')), 0.06))
+    return build('torch', b, shared('wood'))
+
+
+def bedroll():
+    """A rolled wool blanket tied with two straps, 1 m long along x."""
+    random.seed(605)
+    b = Builder()
+    def wool(t, a, n):
+        if 0.42 < t < 0.48 or 0.55 < t < 0.6:
+            return tone('wool_stripe', 0.04)
+        return tone(random.choice(('wool', 'wool', 'wool_dark')), 0.04)
+    path = [(Vector((x, 0.11, 0)), 0.105 * (1 - 0.06 * abs(x) * 2)) for x in (-0.5, -0.3, -0.1, 0.1, 0.3, 0.5)]
+    rings = tube(b, path, 14, wool, rough=0.04)
+    for ring, c, out in ((rings[0], path[0][0], Vector((-1, 0, 0))), (rings[-1], path[-1][0], Vector((1, 0, 0)))):
+        n = len(ring)
+        for k in range(n):  # the end, showing its spiral of layers
+            tri = [c, ring[k], ring[(k + 1) % n]]
+            if (tri[1] - tri[0]).cross(tri[2] - tri[0]).dot(out) < 0:
+                tri = tri[::-1]
+            b.add([g(*p) for p in tri], [(0, 1, 2)], tone('wool_dark' if k % 3 else 'wool_stripe', 0.05))
+    for x in (-0.3, 0.3):
+        tube(b, [(Vector((x - 0.02, 0.11, 0)), 0.112), (Vector((x + 0.02, 0.11, 0)), 0.112)], 14, lambda t, a, n: tone('leather', 0.05))
+    return build('bedroll', b, shared('cloth'))
+
+
+def trap():
+    """A spring-pole snare: a stake, a sapling bent over and tied down, the cord, and a noose
+    lying open in front (-z), about 0.7 m across."""
+    random.seed(606)
+    b = Builder()
+    rod(b, (0.2, -0.1, 0.35), (0.2, 0.3, 0.35), 0.022, 0.018, lambda c, n: tone(random.choice(('bark', 'bark_grey')), 0.06))
+    # The bent sapling: a curve from its root up and over to where it's tied.
+    pts = [Vector((-0.4, 0, 0.4)), Vector((-0.35, 0.35, 0.35)), Vector((-0.15, 0.62, 0.28)), Vector((0.08, 0.6, 0.2)), Vector((0.2, 0.45, 0.12))]
+    tube(b, [(p, 0.025 - i * 0.004) for i, p in enumerate(pts)], 6, bark_colour(5, peel=0.0), rough=0.04)
+    for p in pts[1:4]:  # a few needle tufts still on it
+        b.stone((p.x, p.y + 0.02, p.z), (0.06, 0.03, 0.05), lambda: tone(random.choice(('leaf', 'leaf_dark')), 0.06), points=8)
+    rod(b, pts[-1], (0.12, 0.08, -0.05), 0.004, 0.004, lambda c, n: tone('cord', 0.05), sides=4)  # the cord down to the noose
+    loop = [Vector((0.12 + math.cos(math.tau * k / 10) * 0.12, 0.03, -0.12 + math.sin(math.tau * k / 10) * 0.12)) for k in range(10)]
+    for k in range(10):
+        rod(b, loop[k], loop[(k + 1) % 10], 0.004, 0.004, lambda c, n: tone('cord', 0.05), sides=4)
+    return build('trap', b, shared('trap'))
+
+
+def berry_bush():
+    """A low blueberry bush: twiggy, with small clusters of leaves; its berries a separate part
+    ('berries', hidden once picked)."""
+    random.seed(607)
+    bush, berries = Builder(), Builder()
+    tips = []
+    for k in range(9):
+        a = math.tau * k / 9 + random.uniform(-0.3, 0.3)
+        lean = random.uniform(0.2, 0.32)
+        top = Vector((math.cos(a) * lean, random.uniform(0.4, 0.62), math.sin(a) * lean))
+        rod(bush, (math.cos(a) * 0.03, 0, math.sin(a) * 0.03), top, 0.012, 0.005, lambda c, n: tone('twig', 0.06), sides=4)
+        tips.append(top)
+        for f in (0.45, 0.75):  # side shoots
+            p = Vector((0, 0, 0)).lerp(top, f)
+            side = p + Vector((random.uniform(-0.12, 0.12), random.uniform(0.02, 0.1), random.uniform(-0.12, 0.12)))
+            rod(bush, p, side, 0.006, 0.003, lambda c, n: tone('twig', 0.06), sides=3)
+            tips.append(side)
+    for t in tips:  # leaf clusters on every tip and along the stems
+        for _ in range(2):
+            c = t + Vector((random.uniform(-0.05, 0.05), random.uniform(-0.04, 0.03), random.uniform(-0.05, 0.05)))
+            bush.stone(tuple(c), (0.07, 0.04, 0.06), lambda: tone(random.choice(('leaf', 'leaf', 'leaf_dark', 'leaf_light')), 0.06), points=9)
+    for t in random.sample(tips, 9):  # berries, in little clusters
+        for _ in range(3):
+            c = t + Vector((random.uniform(-0.05, 0.05), random.uniform(-0.06, -0.01), random.uniform(-0.05, 0.05)))
+            berries.stone(tuple(c), (0.014, 0.014, 0.014), lambda: tone(random.choice(('berry', 'berry_dark')), 0.06), points=8)
+    return [build('berry-bush', bush, shared('berry-bush')), build('berries', berries, shared('berry-bush'))]
+
+
+def fern():
+    """A fern: arching fronds, each a stem with leaflets getting shorter toward its tip (pale:
+    the game tints it with the ground)."""
+    random.seed(608)
+    b = Builder()
+    for k in range(8):
+        a = math.tau * k / 8 + random.uniform(-0.2, 0.2)
+        d = Vector((math.cos(a), 0, math.sin(a)))
+        side = Vector((-d.z, 0, d.x))
+        length = random.uniform(0.55, 0.75)
+        rise = random.uniform(0.35, 0.5)
+        spine = []
+        for i in range(9):
+            t = i / 8
+            spine.append(d * length * t + Vector((0, rise * math.sin(t * math.pi * 0.8) * (1 - 0.3 * t), 0)))
+        for i in range(8):
+            p, q = spine[i], spine[i + 1]
+            w = 0.11 * math.sin((i + 0.5) / 8 * math.pi) + 0.02
+            for s in (-1, 1):  # a leaflet each side, swept forward
+                tip = p.lerp(q, 0.7) + side * s * w + (q - p) * 0.4 - Vector((0, w * 0.25, 0))
+                tri = [p, q, tip]
+                for t_ in (tri, tri[::-1]):
+                    b.add([g(*v) for v in t_], [(0, 1, 2)], tone(random.choice(('frond', 'frond', 'frond_dark')), 0.03))
+    return build('grass-fern', b, shared('grass'))
+
+
 def remake():
     made = []
     for name, (size, seed, cuts, detail) in ROCKS.items():
@@ -717,6 +910,7 @@ def remake():
     made += [('plane', [plane()]), ('plane-wing', [plane_wing()])]
     made += [('suitcase', suitcase()), ('debris', [debris()]), ('landing-wheel', [landing_wheel()]), ('clod', [clod()])]
     made += [('barrel', [barrel()]), ('chest', chest()), ('supply-crate', supply_crate()), ('ammo-box', ammo_box()), ('locker', locker()), ('cupboard', cupboard()), ('weathered-pack', weathered_pack())]
+    made += [('campfire', [campfire()]), ('log-pile', [log_pile()]), ('fire-ring', [fire_ring()]), ('torch', [torch()]), ('bedroll', [bedroll()]), ('trap', [trap()]), ('berry-bush', berry_bush()), ('grass-fern', [fern()])]
     return made
 
 
