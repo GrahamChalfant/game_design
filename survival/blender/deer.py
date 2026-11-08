@@ -146,8 +146,8 @@ def build_body(parts):
 
     # The neck, from inside the shoulders up and forward to the head; the throat patch white.
     nk = Part(['spine', 'neck', 'head'])
-    path = [Vector((0, -0.46, 1.0)), Vector((0, -0.62, 1.18)), Vector((0, -0.73, 1.4)), Vector((0, -0.79, 1.56))]
-    rings = along(path, [(0.125, 0.19), (0.1, 0.135), (0.08, 0.1), (0.068, 0.08)], sides=20, steps=4, up=Vector((0, -1, 0)))
+    path = [Vector((0, -0.4, 0.96)), Vector((0, -0.6, 1.16)), Vector((0, -0.73, 1.4)), Vector((0, -0.79, 1.56))]
+    rings = along(path, [(0.11, 0.15), (0.1, 0.135), (0.08, 0.1), (0.068, 0.08)], sides=20, steps=4, up=Vector((0, -1, 0)))
 
     def neck(q, n):
         c = coat(q, Vector((n.x, n.y, n.z * 0.5)))
@@ -231,19 +231,19 @@ def build_legs(parts):
         # bone, the fetlock, to the hoof.
         f = Part(['spine', f'thigh_F{side}', f'shin_F{side}'])
         x = 0.13 * s
-        path = [Vector((x, -0.42, 1.02)), Vector((x, -0.45, 0.78)), Vector((x * 1.05, -0.43, 0.62)), Vector((x * 1.05, -0.42, 0.48)),
-                Vector((x * 1.05, -0.42, 0.34)), Vector((x * 1.05, -0.42, 0.14)), Vector((x * 1.05, -0.45, 0.07)), Vector((x * 1.05, -0.47, 0.03))]
-        radii = [(0.08, 0.12), (0.055, 0.075), (0.036, 0.042), (0.03, 0.034), (0.022, 0.026), (0.021, 0.024), (0.026, 0.028), (0.024, 0.03)]
-        rings = along(path, radii, sides=12, steps=3, up=Vector((0, -1, 0)))
+        path = [Vector((x * 0.75, -0.43, 0.93)), Vector((x, -0.44, 0.72)), Vector((x * 1.05, -0.43, 0.48)),
+                Vector((x * 1.05, -0.43, 0.14)), Vector((x * 1.05, -0.46, 0.03))]
+        radii = [(0.07, 0.1), (0.05, 0.065), (0.03, 0.034), (0.024, 0.027), (0.024, 0.03)]
+        rings = along(path, radii, sides=12, steps=4, up=Vector((0, -1, 0)))
         skin(f, rings, leg_colour(s), cap_end=True)
         parts.append(f)
         # Hind: the haunch, the thigh down to the hock (bent back), then the cannon to the hoof.
         b = Part(['hips', f'thigh_B{side}', f'shin_B{side}'])
         x = 0.14 * s
-        path = [Vector((x, 0.42, 1.04)), Vector((x, 0.38, 0.8)), Vector((x, 0.48, 0.6)), Vector((x, 0.55, 0.46)),
-                Vector((x * 1.02, 0.52, 0.3)), Vector((x * 1.02, 0.49, 0.14)), Vector((x * 1.02, 0.47, 0.07)), Vector((x * 1.02, 0.45, 0.03))]
-        radii = [(0.1, 0.17), (0.075, 0.11), (0.045, 0.06), (0.03, 0.04), (0.022, 0.028), (0.021, 0.025), (0.026, 0.028), (0.024, 0.03)]
-        rings = along(path, radii, sides=12, steps=3, up=Vector((0, -1, 0)))
+        path = [Vector((x * 0.7, 0.4, 0.98)), Vector((x, 0.42, 0.78)), Vector((x, 0.5, 0.52)), Vector((x * 1.02, 0.49, 0.3)),
+                Vector((x * 1.02, 0.47, 0.1)), Vector((x * 1.02, 0.46, 0.03))]
+        radii = [(0.09, 0.15), (0.07, 0.1), (0.032, 0.042), (0.022, 0.027), (0.025, 0.028), (0.024, 0.03)]
+        rings = along(path, radii, sides=12, steps=4, up=Vector((0, -1, 0)))
         skin(b, rings, leg_colour(s), cap_end=True)
         parts.append(b)
     # The tail: short and flat, brown above, white below.

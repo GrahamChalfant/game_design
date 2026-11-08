@@ -10,7 +10,7 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | --- | --- | --- | --- |
 | `player.glb` | Survivor: realistic proportions, smooth shaded (sculpted face; beard, moustache, brows and hair sculpted and groomed into clumps; ribbed knit beanie, red hooded jacket, gloves, boots); rigged and animated, `hand_R` bone, `player-pack` mesh = the backpack.glb mesh, skinned to `spine` | 23,400 | blender/survivor.py |
 | `axe.glb` | Hand axe held by the player (material `tool`) | 128 | blender/remake.py |
-| `deer.glb` | Deer (rigged) | 3,464 | blender/smooth_rigged.py |
+| `deer.glb` | White-tailed buck in winter coat, smooth shaded, antlers; rigged, animations `deer-graze`, `deer-idle`, `deer-walk`, `deer-run` | 5,774 | blender/deer.py |
 | `rabbit.glb` | Rabbit (rigged) | 1,632 | blender/smooth_rigged.py |
 | `suitcase.glb` | Washed-up suitcase with `lid` | 720 | blender/remake.py |
 | `plane.glb` | Crashed bush plane: smooth hull, window openings with seals and glass (material `glass`, see-through in the game), cracked and smashed windscreen, cabin interior (panel, yokes, seats), bent propeller | 14,900 | blender/plane.py |
