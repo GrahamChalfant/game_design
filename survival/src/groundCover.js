@@ -158,6 +158,145 @@ function buildShapes() {
   return shapes;
 }
 
+// ---- the new look's finer shapes (look.js), the same sizes as the ones above ----
+
+// A rounded lump: a finer icosahedron, its corners jittered smoothly by noise-like offsets,
+// squashed to `size`; colour(up) picks a face's colour from how far it faces up (-1 to 1).
+function fineLump(center, size, colour, random, triangles, detail = 1) {
+  const ico = new THREE.IcosahedronGeometry(1, detail).toNonIndexed();
+  const p = ico.attributes.position;
+  const seeds = [random() * 6, random() * 6, random() * 6];
+  const at = (i) => {
+    const [x, y, z] = [p.getX(i), p.getY(i), p.getZ(i)];
+    const k = 0.86 + 0.14 * Math.sin(x * 3.1 + seeds[0]) * Math.sin(y * 2.7 + seeds[1]) + 0.08 * Math.sin(z * 4.3 + seeds[2]);
+    return [center[0] + x * size[0] * k, center[1] + y * size[1] * k, center[2] + z * size[2] * k];
+  };
+  for (let i = 0; i < p.count; i += 3) {
+    const tri = [at(i), at(i + 1), at(i + 2)];
+    const a = new THREE.Vector3(...tri[1]).sub(new THREE.Vector3(...tri[0]));
+    const b = new THREE.Vector3(...tri[2]).sub(new THREE.Vector3(...tri[0]));
+    triangles.push([colour(a.cross(b).normalize().y), ...tri]);
+  }
+}
+
+// A bent, tapering stick along `path` (points), radii from r0 to r1, coloured by colour(i).
+function bentStick(path, r0, r1, colour, triangles, sides = 7) {
+  const rings = path.map((point, i) => {
+    const next = new THREE.Vector3(...path[Math.min(i + 1, path.length - 1)]);
+    const prev = new THREE.Vector3(...path[Math.max(i - 1, 0)]);
+    const axis = next.sub(prev).normalize();
+    const side = new THREE.Vector3().crossVectors(axis, Math.abs(axis.y) < 0.9 ? UP : new THREE.Vector3(1, 0, 0)).normalize();
+    const up = new THREE.Vector3().crossVectors(side, axis);
+    const r = r0 + (r1 - r0) * (i / (path.length - 1));
+    return Array.from({ length: sides }, (_, k) => {
+      const t = (k / sides) * Math.PI * 2;
+      return new THREE.Vector3(...point).addScaledVector(side, Math.cos(t) * r).addScaledVector(up, Math.sin(t) * r).toArray();
+    });
+  });
+  for (let i = 0; i < rings.length - 1; i++) {
+    for (let k = 0; k < sides; k++) {
+      const k1 = (k + 1) % sides;
+      const c = colour(i);
+      triangles.push([c, rings[i][k], rings[i + 1][k], rings[i][k1]], [c, rings[i][k1], rings[i + 1][k], rings[i + 1][k1]]);
+    }
+  }
+}
+
+const pick = (random, colours) => colours[Math.floor(random() * colours.length)];
+
+function buildFineShapes() {
+  const r = maker(11);
+  const shapes = buildShapes(); // (moss, and anything not remade here)
+  // Needle litter: a finer ragged drift, sunk at its rim, with a few twigs lying in it.
+  let t = [];
+  const rim = Array.from({ length: 30 }, (_, i) => {
+    const a = (i / 30) * Math.PI * 2;
+    const d = 0.6 + r() * 0.5;
+    return [Math.cos(a) * d, -0.03, Math.sin(a) * d];
+  });
+  const mid = rim.map(([x, , z]) => [x * 0.55 + (r() - 0.5) * 0.06, 0.015 + r() * 0.012, z * 0.55 + (r() - 0.5) * 0.06]);
+  for (let i = 0; i < rim.length; i++) {
+    const j = (i + 1) % rim.length;
+    const shade = pick(r, [0x4f402d, 0x463826, 0x54442f, 0x5a4a34]);
+    t.push([shade, [0, 0.022, 0], mid[j], mid[i]], [shade, mid[i], mid[j], rim[j]], [pick(r, [0x463826, 0x4f402d]), mid[i], rim[j], rim[i]]);
+  }
+  for (let k = 0; k < 4; k++) {
+    const a = r() * Math.PI * 2;
+    const [x, z] = [(r() - 0.5) * 0.7, (r() - 0.5) * 0.7];
+    const l = 0.15 + r() * 0.2;
+    bentStick([[x, 0.03, z], [x + Math.cos(a) * l, 0.03, z + Math.sin(a) * l]], 0.008, 0.004, () => 0x5e4e3e, t, 4);
+  }
+  shapes.litter = shape(t);
+  // A fern: fronds arching out, each a stem with leaflets that shorten toward its tip.
+  t = [];
+  for (let f = 0; f < 8; f++) {
+    const a = (f / 8) * Math.PI * 2 + r() * 0.35;
+    const [dx, dz] = [Math.cos(a), Math.sin(a)];
+    const [sx, sz] = [-dz, dx];
+    const length = 0.55 + r() * 0.15;
+    const spine = Array.from({ length: 9 }, (_, i) => {
+      const s = i / 8;
+      return [dx * length * s, 0.3 * Math.sin(s * Math.PI * 0.8) * (1 - 0.3 * s) + 0.01, dz * length * s];
+    });
+    const colour = f % 2 ? 0x5f7a3c : 0x6c8644;
+    for (let i = 0; i < 8; i++) {
+      const [p, q] = [spine[i], spine[i + 1]];
+      const w = 0.09 * Math.sin(((i + 0.5) / 8) * Math.PI) + 0.015;
+      for (const s of [-1, 1]) {
+        const tip = [p[0] * 0.3 + q[0] * 0.7 + sx * s * w + (q[0] - p[0]) * 0.4, p[1] * 0.3 + q[1] * 0.7 - w * 0.25, p[2] * 0.3 + q[2] * 0.7 + sz * s * w + (q[2] - p[2]) * 0.4];
+        t.push([colour, p, q, tip]);
+      }
+    }
+  }
+  shapes.fern = shape(t);
+  // A low Labrador-tea shrub: woody stems, each with clusters of small leathery leaves.
+  t = [];
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2 + r() * 0.5;
+    const reach = 0.12 + r() * 0.14;
+    const top = [Math.cos(a) * reach, 0.16 + r() * 0.12, Math.sin(a) * reach];
+    bentStick([[0, 0, 0], [top[0] * 0.5, top[1] * 0.55, top[2] * 0.5], top], 0.014, 0.006, () => 0x4a3a2c, t, 4);
+    for (let c = 0; c < 3; c++) {
+      const centre = [top[0] + (r() - 0.5) * 0.12, top[1] + (r() - 0.6) * 0.08, top[2] + (r() - 0.5) * 0.12];
+      const s = 0.07 + r() * 0.05;
+      fineLump(centre, [s, s * 0.6, s], (up) => (up > 0.3 ? pick(r, [0x37492d, 0x3e5131, 0x525a38]) : pick(r, [0x263222, 0x2a3724])), r, t, 0);
+    }
+  }
+  shapes.shrub = shape(t);
+  // A fallen branch: a bent, tapering stick (length 1) with forked side twigs.
+  t = [];
+  const bark = () => pick(r, [0x6b5a48, 0x5e4e3e, 0x75655a]);
+  bentStick([[-0.5, 0.035, 0], [-0.2, 0.04, 0.03], [0.15, 0.03, 0.01], [0.5, 0.025, 0.05]], 0.034, 0.014, bark, t, 7);
+  bentStick([[0.05, 0.035, 0.015], [0.2, 0.04, 0.12], [0.33, 0.035, 0.23]], 0.016, 0.005, bark, t, 5);
+  bentStick([[0.2, 0.04, 0.12], [0.24, 0.05, 0.02]], 0.007, 0.003, bark, t, 4);
+  bentStick([[-0.2, 0.04, 0.02], [-0.3, 0.06, -0.08], [-0.37, 0.07, -0.16]], 0.014, 0.004, bark, t, 5);
+  shapes.branch = shape(t);
+  // Stones: a few rounded grey ones together, lichen pale on their tops.
+  t = [];
+  for (const [c, s] of [[[0, 0.04, 0], [0.11, 0.07, 0.09]], [[0.15, 0.025, 0.08], [0.07, 0.045, 0.06]], [[-0.1, 0.02, 0.12], [0.06, 0.035, 0.05]], [[0.06, 0.015, -0.13], [0.05, 0.03, 0.045]]]) {
+    fineLump(c, s, (up) => (up > 0.7 && r() < 0.35 ? 0x8f8d72 : up > 0.2 ? pick(r, [0x8a8a84, 0x92928a, 0x7e7e78]) : 0x62625e), r, t);
+  }
+  shapes.stones = shape(t);
+  // Mushrooms: pale stems under domed caps, the gills darker underneath.
+  t = [];
+  for (const [x, z, h] of [[0, 0, 0.09], [0.08, 0.05, 0.06], [-0.06, 0.07, 0.05]]) {
+    bentStick([[x, 0, z], [x + 0.004, h * 0.6, z], [x, h, z]], 0.012, 0.009, () => 0xd8ccb0, t, 6);
+    const w = 0.042 * (h / 0.07);
+    fineLump([x, h, z], [w, 0.022, w], (up) => (up > 0.1 ? pick(r, [0xb88a5a, 0xa87a4c]) : 0x6e5a44), r, t);
+  }
+  shapes.mushrooms = shape(t);
+  // Roots: spreading from a trunk's foot, curving down into the ground (for a tree of scale 1).
+  t = [];
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2 + r() * 0.5;
+    const reach = 0.75 + r() * 0.45;
+    const [cx, cz] = [Math.cos(a), Math.sin(a)];
+    bentStick([[cx * 0.18, 0.14, cz * 0.18], [cx * reach * 0.4, 0.09, cz * reach * 0.4], [cx * reach * 0.75, 0.02, cz * reach * 0.75], [cx * reach, -0.05, cz * reach]], 0.08, 0.018, () => pick(r, [0x4e3e30, 0x5a4a3a, 0x463628]), t, 7);
+  }
+  shapes.roots = shape(t);
+  return shapes;
+}
+
 // A moss cushion: a squashed sphere with a lumpy top and a flat underside, its colour going
 // from dark at the base to a lighter, mossy green on top. Smooth-shaded, so it looks soft.
 function mossCushion(r) {
@@ -191,7 +330,7 @@ export function coverParts() {
     paintedCover(material, 0.8);
     paintedCover(smooth, 0.62);
   }
-  return { material, materials: { moss: smooth }, shapes: buildShapes() };
+  return { material, materials: { moss: smooth }, shapes: NEW_LOOK ? buildFineShapes() : buildShapes() };
 }
 
 // Picks something to grow at (x, z) in a chunk, or null. `random` is the chunk's own;
