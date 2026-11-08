@@ -181,7 +181,7 @@ function updateSound(dt, paused, busy = {}) {
 // Meters per step or stroke, for swimming and for before player.glb has loaded (a step
 // every half of the walk or sneak cycle, at full speed).
 const STRIDE = { walk: 1.77, sneak: 1.33, swim: 1.6 };
-const GROUND_SOUNDS = { grass: 'grass', rock: 'rock', snow: 'snow', dirt: 'dirt', road: 'dirt', shore: 'gravel', water: 'water' };
+const GROUND_SOUNDS = { grass: 'grass', rock: 'rock', stony: 'gravel', snow: 'snow', dirt: 'dirt', road: 'dirt', shore: 'gravel', water: 'water' };
 let stride = 0;
 const lastStep = { x: 0, z: 0 };
 let wasAirborne = false;

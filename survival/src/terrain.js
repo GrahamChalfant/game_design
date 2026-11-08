@@ -14,21 +14,21 @@ const MOSS = new THREE.Color(0x5e7444);
 // and willow have turned, deep red where the bilberry and bearberry have, olive-brown where
 // crowberry and Labrador tea stay dark; a muted green only down in the wet hollows.
 // (Written lighter than they show: the ground's colours are darkened on the way to the
-// screen, see createGround, so these land on gold (176,150,100), orange (185,115,60), red
+// screen, see createGround, so these land on gold (176,150,100), orange (178,125,72), red
 // (150,75,50), olive (120,115,70) and green (105,115,75).)
 const TUNDRA_GOLD = new THREE.Color(0xd7c8a7);
-const TUNDRA_ORANGE = new THREE.Color(0xdcb284);
+const TUNDRA_ORANGE = new THREE.Color(0xd8b890);
 const TUNDRA_RED = new THREE.Color(0xc8927a);
 const TUNDRA_OLIVE = new THREE.Color(0xb5b28e);
 const TUNDRA_WET = new THREE.Color(0xaab292);
 const FOREST_FLOOR = new THREE.Color(0x435440);
-const STONE = new THREE.Color(0x8a8c8e);
+const STONE = new THREE.Color(0xb0b2b4);
 const SNOW = new THREE.Color(0xe8eef2);
-const MUD = new THREE.Color(0x6e6352);
-const GRAVEL = new THREE.Color(0x8e8e8a);
+const MUD = new THREE.Color(0xa49884);
+const GRAVEL = new THREE.Color(0xb0b0aa);
 const WATER_BED = new THREE.Color(0x3e5a5c);
-const TORN_SOIL = new THREE.Color(0xa89880);
-const DARK_SOIL = new THREE.Color(0x8c806e);
+const TORN_SOIL = new THREE.Color(0xb89a78);
+const DARK_SOIL = new THREE.Color(0x9c8064);
 const ROAD = new THREE.Color(0x9a8668); // the old fire road's packed dirt...
 const RUT = new THREE.Color(0x7e6c54); // ...its wheel ruts...
 const ROAD_GRASS = new THREE.Color(0x848e5c); // ...and the grass growing back down the middle
@@ -395,9 +395,11 @@ export function createTerrain(random, noise, size) {
     // Grey stone showing through.
     const rock = noise(x * 0.05 + 900, z * 0.05) + noise(x * 0.4 + 950, z * 0.4) * 0.25;
     if (rock > 0.38) {
+      // (Stony ground: grey stones and gravel with the tundra's plants still between them,
+      // bare stone only at the heart of it.)
       tint.copy(STONE).lerp(OCHRE, clamp(noise(x * 0.8, z * 0.8) * 0.3 + 0.1, 0, 0.25));
-      color.lerp(tint, Math.min(1, (rock - 0.38) / 0.05));
-      kind = 'rock';
+      color.lerp(tint, Math.min(1, (rock - 0.38) / 0.05) * (0.5 + 0.5 * smoothstep(rock, 0.5, 0.68)));
+      kind = rock > 0.58 ? 'rock' : 'stony';
     }
     // A little lingering snow, in the odd patch (see snowAt).
     const lowSnow = noise(x * 0.06 + 400, z * 0.06) + noise(x * 0.4 + 500, z * 0.4) * 0.22;
@@ -463,8 +465,11 @@ export function createTerrain(random, noise, size) {
       const level = Math.max(byLake ? near.lake.level : -Infinity, river.nearest(x, z)?.level ?? -Infinity);
       const wet = 1 - smoothstep(h, level, level + 0.45);
       if (wet > 0) {
-        color.lerp(h < level ? WATER_BED : byLake ? MUD : GRAVEL, wet);
-        if (wet > 0.4) kind = h < level ? 'water' : 'shore';
+        // (The bed only where there's water over it: a dip below the river's level but off its
+        // channel is damp ground, not a dark bed with nothing on it.)
+        const under = h < level && waterDepth(x, z) > 0;
+        color.lerp(under ? WATER_BED : byLake ? MUD : GRAVEL, wet);
+        if (wet > 0.4) kind = under ? 'water' : 'shore';
       }
     }
     return { color, kind };
@@ -744,6 +749,8 @@ function paintedGround(shader) {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', `#include <common>
       varying vec2 vGroundXZ;
+      varying float vVeg;
+      varying float vStone;
       float groundHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float groundNoise(vec2 p) {
         vec2 i = floor(p), f = fract(p);
@@ -762,6 +769,25 @@ function paintedGround(shader) {
         float fleckRed = smoothstep(0.7, 0.85, groundNoise(q * 23.0 + 11.0));
         float fleckGold = smoothstep(0.72, 0.86, groundNoise(q * 31.0 + 37.0));
         detail *= mix(vec3(1.0), vec3(1.08, 0.92, 0.86), fleckRed * 0.35) * mix(vec3(1.0), vec3(1.08, 1.05, 0.9), fleckGold * 0.35);
+        // Where plants carpet the ground: no bare earth, but low cushions of dwarf shrub, dark in
+        // the gaps between them, leafy over their tops, a little lighter where the light catches.
+        float cushion = groundNoise(q * 3.3 + 5.0) * 0.65 + groundNoise(q * 7.3 + 9.0) * 0.35;
+        float gap = 1.0 - smoothstep(0.22, 0.52, cushion);
+        float leaves = groundNoise(q * 19.0 + 3.0) * 0.6 + groundNoise(q * 43.0) * 0.4;
+        // ...and a mottle a meter or two across, of the different plants: darker olive crowberry
+        // and Labrador tea, redder bilberry and bearberry, through each field of colour.
+        float plants = groundNoise(q * 0.8 + 21.0) * 0.7 + groundNoise(q * 1.9 + 33.0) * 0.3;
+        vec3 mottle = mix(vec3(0.8, 0.84, 0.7), vec3(1.1, 0.86, 0.76), smoothstep(0.3, 0.7, plants));
+        mottle = mix(mottle, vec3(1.0), smoothstep(0.42, 0.5, plants) * (1.0 - smoothstep(0.5, 0.58, plants)));
+        detail *= mix(vec3(1.0), (1.0 - 0.42 * gap) * (0.86 + 0.26 * leaves) * mottle * mix(vec3(1.0), vec3(1.05, 1.03, 0.96), smoothstep(0.55, 0.8, cushion)), vVeg);
+        // Bare rock: slabs of lighter and darker stone, dark cracks between them, and crusts of
+        // lichen, pale green-grey and orange.
+        float slab = groundNoise(q * 0.55 + 51.0) * 0.6 + groundNoise(q * 1.7 + 53.0) * 0.4;
+        float crack = 1.0 - smoothstep(0.0, 0.035, abs(groundNoise(q * 1.3 + 71.0) - 0.5));
+        float crust = smoothstep(0.6, 0.72, groundNoise(q * 4.3 + 91.0));
+        vec3 lichen = mix(vec3(1.12, 1.12, 0.92), vec3(1.25, 0.98, 0.72), smoothstep(0.4, 0.6, groundNoise(q * 0.9 + 97.0)));
+        vec3 rockDetail = vec3(0.8 + 0.32 * slab) * (1.0 - 0.45 * crack) * mix(vec3(1.0), lichen, crust * 0.7);
+        detail *= mix(vec3(1.0), rockDetail, vStone);
         diffuseColor.rgb *= mix(detail, vec3(0.97 + 0.05 * grain), smoothstep(0.4, 0.6, vSnow));
       }`);
 }
@@ -778,8 +804,8 @@ function createGround(size, heightAt, groundAt, snowAt) {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uSnowColor = snowColor;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float snow;\nvarying float vSnow;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSnow = snow;');
+      .replace('#include <common>', '#include <common>\nattribute float snow;\nvarying float vSnow;\nattribute float veg;\nvarying float vVeg;\nattribute float stone;\nvarying float vStone;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSnow = snow;\nvVeg = veg;\nvStone = stone;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 uSnowColor;\nvarying float vSnow;')
       .replace('#include <color_fragment>', `#include <color_fragment>
@@ -823,9 +849,13 @@ function createGround(size, heightAt, groundAt, snowAt) {
     // yards come out as a checkerboard of brown and green.)
     const cornerColors = new Float32Array(corners.count * 3);
     const cornerSnow = new Float32Array(corners.count);
+    const cornerVeg = new Float32Array(corners.count); // (1 where plants carpet the ground)
+    const cornerStone = new Float32Array(corners.count); // (1 on bare rock, 0.5 on stony ground)
     for (let i = 0; i < corners.count; i++) {
       cornerSnow[i] = snowAt(corners.getX(i), corners.getZ(i)).amount;
-      const { color } = groundAt(corners.getX(i), corners.getZ(i), false);
+      const { color, kind } = groundAt(corners.getX(i), corners.getZ(i), false);
+      cornerVeg[i] = kind === 'grass' ? 1 : kind === 'stony' ? 0.5 : 0;
+      cornerStone[i] = kind === 'rock' ? 1 : kind === 'stony' ? 0.5 : 0;
       cornerColors[i * 3] = color.r;
       cornerColors[i * 3 + 1] = color.g;
       cornerColors[i * 3 + 2] = color.b;
@@ -852,6 +882,12 @@ function createGround(size, heightAt, groundAt, snowAt) {
     const snow = new Float32Array(position.count);
     for (let i = 0; i < position.count; i++) snow[i] = cornerSnow[cornerOf[i]];
     geometry.setAttribute('snow', new THREE.BufferAttribute(snow, 1));
+    const veg = new Float32Array(position.count);
+    for (let i = 0; i < position.count; i++) veg[i] = cornerVeg[cornerOf[i]];
+    geometry.setAttribute('veg', new THREE.BufferAttribute(veg, 1));
+    const stone = new Float32Array(position.count);
+    for (let i = 0; i < position.count; i++) stone[i] = cornerStone[cornerOf[i]];
+    geometry.setAttribute('stone', new THREE.BufferAttribute(stone, 1));
     geometry.computeBoundingSphere();
 
     const mesh = new THREE.Mesh(geometry, material);
