@@ -7,12 +7,13 @@ import { COVER_KINDS, coverParts, pickCarpet, pickCover, placeCover, rootsFor } 
 import { bladeMaterial, bladeTuft, isBladeTuft } from './look.js';
 
 const FOREST_THINNING = 0.75; // the share of tufts left out where trees grow
-const TUFT_BRIGHTNESS = 1.5;
+const TUFT_BRIGHTNESS = 0.92;
+const STRAW = new THREE.Color(0x9e8650);
 const TRIES_PER_CHUNK = 900; // spots tried per chunk; the ones on grassy ground get a tuft
 const COVER_TRIES_PER_CHUNK = 650; // ...and for the moss, ferns, shrubs and so on (see groundCover.js)
-const COVER_GROUND = new Set(['grass', 'dirt']); // what ground they grow on
+const COVER_GROUND = new Set(['grass', 'dirt', 'stony']); // what ground they grow on
 const CARPET_TRIES_PER_CHUNK = 3600; // ...and for the heath and lichen carpeting the ground (pickCarpet)
-const HEATH_BRIGHTNESS = 2.6; // (the leaf texture is mid-grey)
+const HEATH_BRIGHTNESS = 2.5; // (the leaf texture is mid-grey; a little darker than the ground, for depth)
 // The road's verges: from this far inside its edge to this far outside it, the grass grows
 // long and thick, from these tufts.
 const VERGE = [0.35, 1.1];
@@ -25,6 +26,16 @@ const TUFT_MIX = [
   'grass-tuft', 'grass-tuft', 'grass-short', 'grass-short', 'grass-short', 'grass-clump', 'grass-clump',
   'grass-sparse', 'grass-sparse', 'grass-wide', 'grass-wisp', 'grass-tall', 'grass-seed', 'grass-fern',
 ];
+
+// A heath plant takes the colour of the ground it grows in (the ground is painted in the
+// tundra's broad fields of colour: terrain.js), nudged a quarter of the way toward its own
+// plant's colour, so the plants are texture within a field of colour, not spots on it.
+const plantTint = new THREE.Color();
+function tintLikeGround(tuft, terrain, x, z, own) {
+  const { r, g, b } = terrain.groundAt(x, z).color;
+  const shade = tuft.color.r; // (each copy's own lightness, from placeCover)
+  tuft.color.setRGB(r, g, b, THREE.SRGBColorSpace).lerp(plantTint.set(own), 0.25).multiplyScalar(HEATH_BRIGHTNESS * shade);
+}
 
 // Light the tufts as if they were the ground, so they blend into it instead of looking dark.
 function faceUp(geometry) {
@@ -98,7 +109,7 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
       const hue = random.range(-0.015, 0.015);
       // (Narrow, so up close a tuft is blades of grass rather than a few wide paper strips.)
       const width = random.range(0.5, 0.85);
-      let height = random.range(0.35, 0.8);
+      let height = random.range(0.25, 0.55); // (tundra grass and sedge: short)
       const spin = random.range(0, Math.PI * 2);
       const thin = random.next();
       if (Math.abs(x) > half || Math.abs(z) > half) continue;
@@ -116,7 +127,8 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
       if (!cleared.isClear(x, z, 0)) continue;
       // The same colour the ground is drawn in, a little brighter so tufts stand out from it.
       const { r, g, b } = ground.color;
-      const color = new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace);
+      // (Autumn grass and sedge: straw, picking up a little of the ground's colour.)
+      const color = new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace).lerp(STRAW, 0.6);
       color.multiplyScalar(TUFT_BRIGHTNESS * shade);
       color.offsetHSL(hue, 0, 0);
       const scale = new THREE.Vector3(width, height, width);
@@ -135,7 +147,9 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
       if (!kind) continue;
       if (!COVER_GROUND.has(terrain.groundAt(x, z).kind) || terrain.waterDepth(x, z) > 0) continue;
       if (!cleared.isClear(x, z, 0) || (obstacles && !obstacles.isClear(x, z, 0.12))) continue;
-      tufts[kind].push(placeCover(kind, x, z, random, terrain));
+      const cover = placeCover(kind, x, z, random, terrain);
+      if (kind === 'shrub') tintLikeGround(cover, terrain, x, z, 0x7e8452);
+      tufts[kind].push(cover);
     }
     // The carpet: heath, lichen and Labrador tea, in patches and zones.
     for (let tries = 0; tries < CARPET_TRIES_PER_CHUNK; tries++) {
@@ -146,10 +160,12 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
       const carpet = pickCarpet(random, x, z, Math.max(0, terrain.forest(x, z)));
       if (!carpet) continue;
       const ground = terrain.groundAt(x, z).kind;
-      if (!(ground === 'grass' || (ground === 'rock' && carpet.kind === 'lichen')) || terrain.waterDepth(x, z) > 0) continue;
+      // (On stony ground, every other plant: lichen and heath among the stones.)
+      const stony = ground === 'stony' && random.next() < 0.5;
+      if (!(ground === 'grass' || stony || ((ground === 'rock' || ground === 'stony') && carpet.kind === 'lichen')) || terrain.waterDepth(x, z) > 0) continue;
       if (!cleared.isClear(x, z, 0) || (obstacles && !obstacles.isClear(x, z, 0.25))) continue;
       const tuft = placeCover(carpet.kind, x, z, random, terrain);
-      if (carpet.tint !== null) tuft.color.set(carpet.tint).multiplyScalar(HEATH_BRIGHTNESS * tuft.color.r);
+      if (carpet.tint !== null) tintLikeGround(tuft, terrain, x, z, carpet.tint);
       tufts[carpet.kind].push(tuft);
     }
     if (trees) tufts.roots = rootsFor(trees, cx, cz, CHUNK_SIZE, terrain, random);

@@ -86,7 +86,7 @@ export function choosePois(random, terrain, worldSize, lookout) {
       (terrain.nearWater(x, z, 40) || terrain.forest(x, z) > -0.1 || random.next() < 0.3),
     // Caves dug into a slope on rocky ground or up the mountains.
     cave: (x, z) => {
-      const rocky = terrain.mountainAt(x, z) > 0.04 || terrain.groundAt(x, z).kind === 'rock';
+      const rocky = terrain.mountainAt(x, z) > 0.04 || ['rock', 'stony'].includes(terrain.groundAt(x, z).kind);
       return rocky && terrain.mountainAt(x, z) < 0.5 && terrain.isDry(x, z, 6, 1) && slope(terrain, x, z) > 0.12 && slope(terrain, x, z) < 0.38;
     },
     // Campsites by the water or at the edges of the woods.

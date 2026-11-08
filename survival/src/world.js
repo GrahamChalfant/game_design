@@ -232,7 +232,7 @@ export function buildWorld(scene, seed) {
   let placedRocks = 0;
   const snowyRocks = Object.fromEntries(Object.keys(ROCK_SHAPES).map((name) => [name, []])); // the rocks in snowy places, for their snow
   scatter(random, Math.round(ROCKS_PER_HECTARE * HECTARES), (x, z) => {
-    if (terrain.groundAt(x, z).kind !== 'rock' && random.next() > 0.08) return null;
+    if (!['rock', 'stony'].includes(terrain.groundAt(x, z).kind) && random.next() > 0.08) return null;
     const name = ROCK_MIX[placedRocks % ROCK_MIX.length];
     const shape = ROCK_SHAPES[name];
     const size = random.range(...shape.scale);
