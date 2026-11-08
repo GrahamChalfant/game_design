@@ -1,6 +1,5 @@
-# Rebuilds models for the new look (index.html?look=new, see src/look.js) into
-# survival/public/models/look/, at the same sizes as the originals (so collisions still fit).
-# The game loads these instead of the originals, in the new look only (REMADE in look.js).
+# Builds most of the game's models from scratch, into survival/public/models/, at the sizes
+# the game expects (so collisions still fit), with the part names and hinges it looks for.
 # Run in an open Blender (Blender MCP or the Text Editor), or: blender -b --python remake.py
 #
 # The aim is the needle-card spruce's level: natural, irregular shapes with enough faces to
@@ -19,7 +18,7 @@ PAL.update(
     granite=0x7e7d76, granite_warm=0x86806f, granite_dark=0x5a5a57, granite_deep=0x45464a,
     lichen_pale=0x93937c, lichen_gold=0x968c66, moss_rock=0x46553a, moss_rock_dark=0x36432d,
 )
-LOOK = 'look/'
+LOOK = ''  # (the folder under public/models/ they go into)
 os.makedirs(os.path.join(OUT, LOOK), exist_ok=True)
 
 
@@ -186,30 +185,6 @@ def bark_colour(seed, peel=0.35, mossy=0.0):
     return colour
 
 
-def fallen_log():
-    """1 m long along x, 1 m thick, lying on the ground (the game stretches each copy)."""
-    random.seed(66)
-    b = Builder()
-    path = []
-    for i in range(11):
-        t = i / 10
-        x = -0.5 + t
-        r = 0.5 * (1.02 - abs(t - 0.5) * 0.1) * random.uniform(0.97, 1.03)
-        path.append((Vector((x, 0.5 + math.sin(t * math.pi) * 0.03, math.sin(t * 5) * 0.02)), r))
-    rings = tube(b, path, 12, bark_colour(6, peel=0.05, mossy=1.0), rough=0.06, seed=6)
-    end_grain(b, rings[0], path[0][0], Vector((-1, 0, 0)), jagged=0.02)
-    end_grain(b, rings[-1], path[-1][0], Vector((1, 0, 0)), jagged=0.02)
-    for x, a, length in ((-0.18, 0.5, 0.22), (0.24, 2.6, 0.18)):  # branch stubs, short
-        base = Vector((x, 0.5 + math.sin(a) * 0.42, math.cos(a) * 0.42))
-        tip = Vector((x + 0.04, 0.5 + math.sin(a) * (0.5 + length), math.cos(a) * (0.5 + length)))
-        stub = tube(b, [(base, 0.07), (base.lerp(tip, 0.6), 0.055), (tip, 0.04)], 6, bark_colour(9, peel=0.8))
-        end_grain(b, stub[-1], tip, (tip - base).normalized(), jagged=0.03)
-    for i in range(6):  # moss cushions over the top
-        c = (random.uniform(-0.4, 0.4), 0.97, random.uniform(-0.15, 0.15))
-        b.stone(c, (0.14, 0.05, 0.12), lambda: tone(random.choice(('moss_log', 'moss_log_dark')), 0.08), points=9)
-    return build('fallen-log', b, shared('wood'))
-
-
 def stump():
     """A cut stump about 0.45 m tall, base at the origin (scaled to its tree in the game)."""
     random.seed(101)
@@ -321,134 +296,7 @@ def section(centre, half_w, half_h, sides=14, power=2.6):
     return pts
 
 
-def airfoil(x, lead_z, chord, thick, y, droop=0.0):
-    """A wing's cross-section at span position x: rounded leading edge at lead_z, thin
-    trailing edge, `thick` deep (in the y-z plane)."""
-    pts = []
-    profile = ((0.0, 0.0), (0.03, 0.55), (0.15, 0.95), (0.4, 1.0), (0.75, 0.6), (1.0, 0.06), (1.0, -0.04), (0.75, -0.3), (0.4, -0.45), (0.15, -0.4), (0.03, -0.3))
-    for f, t in profile:
-        pts.append(Vector((x, y + t * thick * 0.5 - f * droop, lead_z - f * chord)))
-    return pts
-
-
-def dent(p, amount, seed):
-    """Pushes a point in a little by noise: crumpled sheet metal."""
-    return p + Vector((noise.noise(p * 2.5 + Vector((seed, 0, 0))), noise.noise(p * 2.5 + Vector((0, seed, 0))), noise.noise(p * 2.5 + Vector((0, 0, seed))))) * amount
-
-
-def plane():
-    """The crashed bush plane: nose toward +z, its cowl dug into the ground, the high wing
-    torn off on the right (that piece is plane-wing), base at the origin."""
-    random.seed(301)
-    b = Builder()
-    pitch = math.radians(7)  # nose down
-
-    def place(p):
-        # Tip the plane nose-down about its middle, and sink it into the ground.
-        y = p.y * math.cos(pitch) - p.z * math.sin(pitch)
-        z = p.z * math.cos(pitch) + p.y * math.sin(pitch)
-        return Vector((p.x, y - 0.12, z))
-
-    # Fuselage: (z, centre height, half width, half height)
-    stations = [(4.05, 1.0, 0.16, 0.16), (3.85, 1.0, 0.5, 0.5), (3.1, 1.02, 0.6, 0.6), (2.35, 1.06, 0.6, 0.66), (1.6, 1.08, 0.62, 0.74),
-                (0.6, 1.08, 0.61, 0.74), (-0.3, 1.1, 0.56, 0.68), (-1.4, 1.17, 0.44, 0.55), (-2.6, 1.28, 0.3, 0.4), (-3.7, 1.4, 0.16, 0.24), (-4.4, 1.46, 0.07, 0.12)]
-    rings = []
-    for z, cy, hw, hh in stations:
-        ring = section(Vector((0, cy, z)), hw, hh, 16)
-        crumple = 0.07 * max(0, (z - 1.5) / 2.5) + 0.02  # (most at the nose, which hit first)
-        rings.append([place(dent(p, crumple, 3)) for p in ring])
-
-    def body_colour(c, n):
-        # Work in the plane's own frame (undo the tip) to place windows and trim.
-        z = c.z * math.cos(pitch) - (c.y + 0.12) * math.sin(pitch)
-        y = (c.y + 0.12) * math.cos(pitch) + c.z * math.sin(pitch)
-        if z > 3.0:
-            return tone(random.choice(('cowl', 'cowl', 'cowl_dark')), 0.05)
-        if 0.3 < z < 2.0 and abs(n.x) > 0.55 and 1.25 < y < 1.72:
-            return tone(random.choice(('glass_dark', 'glass_dark', 'glass_sky')), 0.05)
-        if 2.0 < z < 2.6 and n.y > 0.25 and y > 1.4:
-            return tone('glass_dark', 0.05)
-        if -1.6 < z < -1.2:
-            return tone('stripe', 0.05)
-        return tone(random.choice(('paint', 'paint', 'paint_dull')), 0.04)
-
-    loft(b, rings, body_colour)
-    # Wing: one piece across the top of the cabin, from the red left tip to a torn stub on the right.
-    wing = []
-    for x in (-5.5, -5.1, -4.2, -3.2, -2.2, -1.2, -0.4, 0.4, 1.2, 1.8, 2.3):
-        dihedral = abs(x) * 0.035
-        sec = airfoil(x, 1.75, 1.55, 0.16, 2.12 + dihedral)  # (overhead: you can walk under it)
-        if x >= 2.3:  # torn end: ragged
-            sec = [p + Vector((random.uniform(-0.25, 0.1), random.uniform(-0.04, 0.04), 0)) for p in sec]
-        wing.append([place(dent(p, 0.025, 5)) for p in sec])
-
-    def wing_colour(c, n):
-        x = c.x
-        if x < -5.0:
-            return tone('stripe', 0.05)
-        return tone(random.choice(('paint', 'paint', 'paint_dull')), 0.04)
-
-    loft(b, wing, wing_colour, cap=tone('torn', 0.05))
-    # Struts: the left one whole, the right one snapped.
-    for x0, x1, frac in ((-0.55, -2.7, 1.0), (0.55, 2.2, 0.45)):
-        a = place(Vector((x0, 0.55, 1.0)))
-        z = place(Vector((x1, 2.05, 1.0)))
-        end = a.lerp(z, frac)
-        rings_ = []
-        for p in (a, end):
-            rings_.append(section(Vector((0, 0, 0)), 0.035, 0.035, 6))
-        d = (end - a)
-        u, v = frame(d.normalized())
-        r0 = [a + u * q.x + v * q.y for q in rings_[0]]
-        r1 = [end + u * q.x + v * q.y for q in rings_[1]]
-        loft(b, [r0, r1], lambda c, n: tone('cowl_dark', 0.05))
-    # Tail: horizontal stabiliser and the fin, with a red rudder top.
-    for side in (-1, 1):
-        sec = [airfoil(side * x, -3.55, 0.85 - x * 0.18, 0.06, 1.45) for x in (0.12, 0.8, 1.45)]
-        loft(b, [[place(p) for p in s] for s in sec], lambda c, n: tone('paint', 0.04))
-    fin = []
-    for y, lead, chord in ((1.5, -3.3, 1.15), (2.2, -3.75, 0.85), (2.9, -4.1, 0.5)):
-        fin.append([place(Vector((p.y - 1.45, y, p.z))) for p in airfoil(0, lead, chord, 0.07, 1.45)])
-    loft(b, fin, lambda c, n: tone('stripe' if c.y > 2.2 else 'paint', 0.04))
-    # Propeller: two blades bent back where they hit.
-    hub = place(Vector((0, 1.0, 4.08)))
-    for side in (-1, 1):
-        root = hub + Vector((side * 0.08, 0, 0))
-        mid = hub + Vector((side * 0.55, -0.15 * side, -0.05))
-        tip = hub + Vector((side * 0.85, -0.35 * side, -0.45))
-        for a_, z_ in ((root, mid), (mid, tip)):
-            u, v = frame((z_ - a_).normalized())
-            r0 = [a_ + u * q.x + v * q.y for q in section(Vector(), 0.08, 0.02, 6)]
-            r1 = [z_ + u * q.x + v * q.y for q in section(Vector(), 0.07, 0.015, 6)]
-            loft(b, [r0, r1], lambda c, n: tone('prop', 0.05))
-    # One landing gear leg left, bent, with no wheel (the wheel lies back along the trail).
-    a = place(Vector((-0.5, 0.45, 1.9)))
-    z = place(Vector((-1.0, -0.15, 2.2)))
-    u, v = frame((z - a).normalized())
-    loft(b, [[a + u * q.x + v * q.y for q in section(Vector(), 0.05, 0.05, 6)], [z + u * q.x + v * q.y for q in section(Vector(), 0.04, 0.04, 6)]], lambda c, n: tone('cowl_dark', 0.05))
-    return build('plane', b, shared('plane', 0.6))
-
-
-def plane_wing():
-    """The wing that broke off, lying on the ground: the torn root at -x, the red tip at +x,
-    the top about 0.45 m up (the player can hop onto it)."""
-    random.seed(302)
-    b = Builder()
-    tilt = math.radians(-6)
-    secs = []
-    for x in (-3.0, -2.4, -1.4, -0.4, 0.6, 1.6, 2.4, 2.75):
-        sec = airfoil(x, 0.78, 1.55, 0.16, 0.3 + x * 0.02)
-        sec = [Vector((p.x, p.y + (p.z - 0.0) * math.sin(tilt) * 0.3, p.z)) for p in sec]
-        if x <= -3.0:
-            sec = [p + Vector((random.uniform(-0.1, 0.25), random.uniform(-0.04, 0.04), 0)) for p in sec]
-        secs.append([dent(p, 0.03, 9) for p in sec])
-    loft(b, secs, lambda c, n: tone('stripe', 0.05) if c.x > 2.35 else tone(random.choice(('paint', 'paint', 'paint_dull')), 0.04), cap=tone('torn', 0.05))
-    # The stub of its strut, torn off.
-    a = Vector((-1.2, 0.22, 0.0))
-    z = Vector((-1.7, -0.05, -0.1))
-    u, v = frame((z - a).normalized())
-    loft(b, [[a + u * q.x + v * q.y for q in section(Vector(), 0.035, 0.035, 6)], [z + u * q.x + v * q.y for q in section(Vector(), 0.03, 0.03, 6)]], lambda c, n: tone('cowl_dark', 0.05))
-    return build('plane-wing', b, shared('plane', 0.6))
+# (The plane and its broken-off wing: plane.py.)
 
 
 # ---- shared builders for made things ----
@@ -508,75 +356,6 @@ def suitcase():
     rounded_box(lid, (-0.36, 0.12, -0.25), (0.36, 0.235, 0.25), 0.035, leather)
     rounded_box(lid, (-0.05, 0.12, -0.252), (0.05, 0.24, 0.252), 0.008, lambda c, n: tone('case_dark', 0.05))
     return [build('suitcase', base, shared('suitcase', 0.7)), build_hinged('lid', lid, shared('suitcase', 0.7), (0, 0.12, -0.24))]
-
-
-def debris():
-    """Torn sheet metal off the plane: a few bent, ragged panels, about 0.9 x 0.6 m."""
-    random.seed(402)
-    b = Builder()
-    for (x, z, turn, w, d, bend, painted) in ((-0.15, 0.0, 0.3, 0.55, 0.4, 0.12, True), (0.2, 0.08, -0.5, 0.45, 0.3, -0.08, False), (0.05, -0.12, 1.4, 0.35, 0.25, 0.15, True)):
-        rings = []
-        for i in range(5):
-            t = i / 4
-            row = []
-            for j in range(4):
-                s = j / 3
-                p = Vector(((t - 0.5) * w, 0.05 + bend * math.sin(t * math.pi) + random.uniform(-0.015, 0.015), (s - 0.5) * d))
-                if i in (0, 4) or j in (0, 3):
-                    p += Vector((random.uniform(-0.03, 0.03), 0, random.uniform(-0.03, 0.03)))  # (ragged edges)
-                c, s_ = math.cos(turn), math.sin(turn)
-                row.append(Vector((p.x * c - p.z * s_ + x, p.y, p.x * s_ + p.z * c + z)))
-            rings.append(row)
-        for i in range(4):
-            for j in range(3):
-                quad = [rings[i][j], rings[i + 1][j], rings[i + 1][j + 1], rings[i][j + 1]]
-                col_ = tone(random.choice(('paint', 'paint_dull')), 0.05) if painted and random.random() < 0.8 else tone(random.choice(('alu', 'alu_dark')), 0.05)
-                b.add([g(*p) for p in quad], [(0, 1, 2, 3)], col_)
-                b.add([g(*p) for p in quad[::-1]], [(0, 1, 2, 3)], col_)  # (seen from both sides)
-    return build('debris', b, shared('metal', 0.6))
-
-
-def landing_wheel():
-    """The wheel off the plane's landing gear, on its side, with its bent leg."""
-    random.seed(403)
-    b = Builder()
-    rings = []
-    sides, around = 14, 8
-    for i in range(around):
-        a = math.tau * i / around
-        ring = []
-        for k in range(sides):
-            t = math.tau * k / sides
-            r = 0.26 + 0.08 * math.cos(a)
-            ring.append(Vector((math.cos(t) * r, 0.15 + 0.07 * math.sin(a), math.sin(t) * r)))
-        rings.append(ring)
-    rings.append(rings[0])
-    loft(b, rings, lambda c, n: tone('tyre', 0.05), close_start=False, close_end=False)
-    hub = [Vector((math.cos(math.tau * k / 10) * 0.17, 0.2, math.sin(math.tau * k / 10) * 0.17)) for k in range(10)]
-    loft(b, [hub, [p - Vector((0, 0.1, 0)) for p in hub]], lambda c, n: tone('alu', 0.05))
-    rod(b, (0, 0.24, 0), (0.05, 0.36, 0.9), 0.04, 0.035, lambda c, n: tone('cowl_dark', 0.05))
-    return build('landing-wheel', b, shared('metal', 0.6))
-
-
-def clod():
-    """A clod of soil thrown out by the plane: lumpy earth with roots and a bit of turf."""
-    random.seed(404)
-    b = Builder()
-    tmp = bmesh.new()
-    bmesh.ops.create_icosphere(tmp, subdivisions=2, radius=1)
-    for v in tmp.verts:
-        d = v.co.normalized()
-        r = 1 + 0.3 * noise.noise(d * 2.0 + Vector((4, 4, 4)))
-        v.co = Vector((d.x * 0.14 * r, max(-0.02, (d.y * 0.5 + 0.5) * 0.2 * r - 0.03), d.z * 0.13 * r))
-    tmp.normal_update()
-    index = {v: i for i, v in enumerate(tmp.verts)}
-    verts = [g(*v.co) for v in tmp.verts]
-    for f in tmp.faces:
-        n = f.normal
-        c = tone('grass_bit', 0.08) if n.y > 0.7 and random.random() < 0.5 else tone(random.choice(('soil', 'soil', 'soil_dark', 'soil_root')), 0.06)
-        b.add(verts, [tuple(index[v] for v in f.verts)], c)
-    tmp.free()
-    return build('clod', b, shared('clod'))
 
 
 # ---- containers you search ----
@@ -949,31 +728,6 @@ def bones():
     return build('bones', b, shared('rock'))
 
 
-def stalagmite():
-    """A dripstone rising from the cave floor: lumpy, ringed with growth, wet and dark low down."""
-    random.seed(702)
-    b = Builder()
-    path = []
-    for i in range(10):
-        t = i / 9
-        r = 0.33 * (1 - t) ** 1.3 + 0.02
-        r *= 1 + 0.12 * math.sin(t * 19)  # growth rings
-        path.append((Vector((math.sin(t * 3) * 0.03, -0.04 + t * 1.04, math.cos(t * 2) * 0.02)), r))
-    def drip(t, a, n):
-        if t < 0.15:
-            return tone('drip_wet', 0.05)
-        return tone(random.choice(('drip', 'drip', 'drip_dark')), 0.05, 0.9 + 0.2 * t)
-    tube(b, path, 10, drip, rough=0.12, seed=7)
-    return build('stalagmite', b, shared('rock'))
-
-
-def throwing_stone():
-    """A fist-sized throwing stone, base at the origin."""
-    b = Builder()
-    stone_into(b, (0.05, 0.07, 0.035), 703, cuts=3, sink=0.0, subdivisions=2, mossy=False)
-    return build('stone', b, shared('stone'))
-
-
 def axe_into(b, place):
     """A felling axe: a curved hickory handle along +y (its end at -0.16) and a forged head at
     the top, its blade toward +z. `place` maps the axe's own points to the model's."""
@@ -1093,12 +847,11 @@ def remake():
     made = []
     for name, (size, seed, cuts, detail) in ROCKS.items():
         made.append((name, [boulder(name, size, seed, cuts, subdivisions=detail)]))
-    made += [('fallen-log', [fallen_log()]), ('stump', [stump()]), ('tree-dead', [dead_tree()]), ('logs', [firewood()])]
-    made += [('plane', [plane()]), ('plane-wing', [plane_wing()])]
-    made += [('suitcase', suitcase()), ('debris', [debris()]), ('landing-wheel', [landing_wheel()]), ('clod', [clod()])]
+    made += [('stump', [stump()]), ('tree-dead', [dead_tree()]), ('logs', [firewood()])]
+    made += [('suitcase', suitcase()), ]
     made += [('barrel', [barrel()]), ('chest', chest()), ('supply-crate', supply_crate()), ('ammo-box', ammo_box()), ('locker', locker()), ('cupboard', cupboard()), ('weathered-pack', weathered_pack())]
     made += [('campfire', [campfire()]), ('log-pile', [log_pile()]), ('fire-ring', [fire_ring()]), ('torch', [torch()]), ('bedroll', [bedroll()]), ('trap', [trap()]), ('berry-bush', berry_bush()), ('grass-fern', [fern()])]
-    made += [('bones', [bones()]), ('stalagmite', [stalagmite()]), ('stone', [throwing_stone()]), ('axe', [axe()]), ('axe-ground', [axe_ground()])]
+    made += [('bones', [bones()]), ('axe', [axe()]), ('axe-ground', [axe_ground()])]
     made += [('shelter', [shelter()])]
     return made
 

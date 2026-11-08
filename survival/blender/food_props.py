@@ -1,4 +1,4 @@
-# Food-ladder props (issues #74–76): berry-bush.glb, berry.glb, knife.glb in survival/public/models/ (boar.glb: see boar.py).
+# Food-ladder props (issues #74–76): knife.glb in survival/public/models/ (and an older berry-bush.glb, now remade by remake.py; berry.glb: props_smooth.py) (boar.glb: see boar.py).
 # Run: blender -b --python food_props.py      (Blender 4.2+)
 # STYLE_GUIDE.md: one vertex-colour material per model ('Col'), palette colours, flat shading,
 # 1 unit = 1 m, front faces Blender -Y (glTF +Z ... see README for per-model notes). Fixed seeds.
@@ -136,12 +136,7 @@ bush = build('berry-bush', b, bush_mat); zmin = min(v.co.z for v in bush.data.ve
 berries = build('berries', bb, bush_mat); berries.data.transform(Matrix.Translation((0, 0, -zmin))); berries.parent = bush
 models.append((bush, 'berry-bush.glb'))
 
-# ---------------- berry (pickup): three berries and a leaf, ~0.05 m ----------------
-random.seed(741); b = Builder()
-for p in ((-0.01, 0, 0.012), (0.012, 0.004, 0.012), (0.0, -0.006, 0.03)):
-    berry(b, p, 0.012)
-b.add([Vector((0, -0.006, 0.04)), Vector((0.02, 0.012, 0.046)), Vector((0.004, 0.02, 0.044))], [(0, 1, 2)], col('moss'))
-models.append((ground(build('berry', b, material('berry', 0.8))), 'berry.glb'))
+# (The berry pickup, berry.glb: props_smooth.py. berry-bush.glb is remade by remake.py.)
 
 # ---------------- knife (#75): wood handle, hide wrap, knapped slate blade ----------------
 random.seed(75); b = Builder()

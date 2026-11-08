@@ -19,13 +19,13 @@ import bpy
 from mathutils import Vector
 from kit import OUT, PAL, Builder, build, export, g, material, reset
 
-# The look being tried at the crash site (index.html?look=new): every bough also gets needle
-# fringes, thin cards hanging off its edges and tip that the game paints with a see-through
-# needle texture, so the silhouettes are soft and feathery instead of hard facets. Those trees
-# go to public/models/look/. Run with LOOK = 'new' set (runpy's init_globals) to make them.
-LOOK = globals().get('LOOK', 'old')
+# The detailed versions drawn near the player (see trees.js): every bough is made of needle
+# cards the game paints with a see-through needle texture, so the silhouettes are soft and
+# feathery instead of hard facets. Those trees go to public/models/near/. Run with
+# DETAIL = True set (runpy's init_globals) to make them; without it, the plain ones.
+DETAIL = globals().get('DETAIL', False)
 FRINGE = 0.55  # how far a fringe hangs, as a share of the bough's width there
-CARDS = None  # the current tree's fringe cards, while it's being built (LOOK 'new' only)
+CARDS = None  # the current tree's needle cards, while it's being built (DETAIL only)
 fringe_random = random.Random()  # (its own, so adding fringes doesn't change the trees' shapes)
 
 PAL.update(
@@ -193,11 +193,11 @@ def bough(b, y, a, reach, t, snowy, droop=None):
 
 
 def conifer(name, height, radius, tiers, tips, bare, snowy, seed):
-    """Returns the tree's objects: the tree, and (LOOK 'new') its needle cards."""
+    """Returns the tree's objects: the tree, and (DETAIL) its needle cards."""
     global CARDS
     random.seed(seed)
     fringe_random.seed(seed * 7919)
-    if LOOK == 'new':
+    if DETAIL:
         CARDS = Builder()
         CARDS.uv = CARDS.bm.loops.layers.uv.new('UVMap')
     b = Builder()
@@ -244,7 +244,7 @@ def conifer(name, height, radius, tiers, tips, bare, snowy, seed):
     return parts
 
 
-FOLDER = 'look/' if LOOK == 'new' else ''
+FOLDER = 'near/' if DETAIL else ''
 os.makedirs(os.path.join(OUT, FOLDER), exist_ok=True)
 if bpy.app.background:
     reset()

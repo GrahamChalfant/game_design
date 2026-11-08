@@ -3,7 +3,6 @@ import { CHUNK_SIZE, chunkOf, setDrawChunks } from './stream.js';
 import { redrawModels } from './models.js';
 import { createSky } from './sky.js';
 import { setNearFade } from './seeThrough.js';
-import { NEW_LOOK } from './look.js';
 
 // The three ways of looking at the game, switched with V:
 // - 'top': the usual camera, looking down on the player from above and behind.
@@ -127,12 +126,10 @@ export function createViews({ camera, renderer, input, player, world, farView, h
       ambient.intensity *= SHADE.fill;
       scene.fog.far *= FOG_REACH;
       scene.fog.near = scene.fog.far * 0.35;
-      // The new look (look.js): haze that starts close and thickens slowly, so the land fades
-      // back in layers, each treeline paler than the one in front.
-      if (NEW_LOOK) {
-        scene.fog.far *= 0.5;
-        scene.fog.near = scene.fog.far * 0.04;
-      }
+      // ...and then the haze starts close and thickens slowly, so the land fades back in
+      // layers, each treeline paler than the one in front.
+      scene.fog.far *= 0.5;
+      scene.fog.near = scene.fog.far * 0.04;
     },
     // Places the camera for the third- and first-person views. `target` is kept on the
     // player (the shadows and snow follow it).

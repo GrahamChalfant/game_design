@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { CRASH, createCrashTrail } from './crashTrail.js';
 import { createWater } from './water.js';
 import { CHUNK_SIZE, DRAW_CHUNKS, chunksAround } from './stream.js';
-import { NEW_LOOK } from './look.js';
 
 const { smoothstep, clamp } = THREE.MathUtils;
 
@@ -42,8 +41,6 @@ const RUTS = { at: 0.8, width: 0.45, depth: 0.1, crown: 0.04 };
 const SNOW_PATCH = { from: 0.86, depth: 0.22 };
 const SNOW_FIELD_DEPTH = 0.35;
 const GROUND_CELL = 0.5; // meters along each side of a ground square: bigger gives bigger facets
-const FACET = 0.5; // how much each ground triangle is lit as its own flat facet (1) or with the land's smooth slope (0)
-const SNOW_FACET = 0.12; // ...and snow, which is soft
 const GROUND_BUDGET_MS = 3; // the most time per frame spent building ground
 const LAKE_GAP = [12, 18]; // meters from the plane to the crash lake's shore
 // More lakes around the lowlands: how many, how big (meters), and how far apart.
@@ -502,7 +499,7 @@ export function createTerrain(random, noise, size) {
     },
     // Makes the ground and water meshes (slow, so only for the map you keep).
     build() {
-      const ground = createGround(size, heightAt, groundAt, noise, snowAt);
+      const ground = createGround(size, heightAt, groundAt, snowAt);
       terrain.ground = ground.group;
       terrain.drawAround = ground.drawAround;
       terrain.water = createWater(lakes, river, creeks.list);
@@ -716,7 +713,7 @@ function channelIndex(courses, reach) {
   return { nearest };
 }
 
-// The new look's ground (look.js): painted-looking detail at three sizes, by world position:
+// The ground's painted-looking detail at three sizes, by world position:
 // broad patches meters across, drier and warmer or darker and mossier; clumps; and a fine
 // grain. (Lighter on snow, which stays clean.)
 function paintedGround(shader) {
@@ -746,7 +743,7 @@ function paintedGround(shader) {
 
 // The ground: faceted hilly meshes where every triangle is one flat colour, one per chunk,
 // built as the player comes near (see drawAround) and dropped again once they're far away.
-function createGround(size, heightAt, groundAt, noise, snowAt) {
+function createGround(size, heightAt, groundAt, snowAt) {
   const group = new THREE.Group();
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
   // Snow is blended in per pixel from each corner's `snow` amount, not painted per triangle:
@@ -760,8 +757,20 @@ function createGround(size, heightAt, groundAt, noise, snowAt) {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSnow = snow;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 uSnowColor;\nvarying float vSnow;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uSnowColor, smoothstep(0.4, 0.6, vSnow));');
-    if (NEW_LOOK) paintedGround(shader);
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        {
+          // Old snow, not a sheet of white: its edge broken up (thinning in tongues and
+          // holes, the ground showing through), blue-grey in its hollows, crusted and a
+          // little grubby where it thins out.
+          vec2 q = vGroundXZ;
+          float edge = vSnow + (groundNoise(q * 1.3) - 0.5) * 0.35 + (groundNoise(q * 6.0) - 0.5) * 0.16;
+          float cover = smoothstep(0.42, 0.6, edge);
+          float drift = groundNoise(q * 0.9 + 3.0);
+          vec3 snow = uSnowColor * mix(vec3(0.8, 0.86, 0.95), vec3(1.0), drift * 0.7 + 0.3) * (0.94 + 0.08 * groundNoise(q * 23.0));
+          snow = mix(snow * vec3(0.84, 0.82, 0.78), snow, smoothstep(0.45, 0.85, edge));
+          diffuseColor.rgb = mix(diffuseColor.rgb, snow, cover);
+        }`);
+    paintedGround(shader);
   };
   const built = new Map(); // chunk key → mesh (its `userData.cell` is the size of its squares)
   const half = size / 2;
@@ -798,62 +807,21 @@ function createGround(size, heightAt, groundAt, noise, snowAt) {
       if (i % 100 === 99) yield;
     }
     const cornerOf = grid.index.array; // (each corner of each triangle, in the order toNonIndexed lays them out)
-    // Triangles that don't share corners get hard edges between them. Their lighting is half
-    // each facet's own and half the land's smooth slope: fully flat facets, side by side at
-    // slightly different tilts, light up as a checkerboard of diamonds from the ground.
+    // The land is lit by its smooth slope, and each corner keeps its own colour, blended
+    // across the triangles (the shader adds the painted detail: paintedGround), so there are
+    // no flat-coloured, faceted triangles to see.
     grid.computeVertexNormals();
     yield;
     const geometry = grid.toNonIndexed(); // (keeps the smooth normals, one per corner)
     yield;
-    const normals = geometry.attributes.normal;
-    const p = geometry.attributes.position;
-    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
-    for (let i = 0; i < p.count; i += 3) {
-      a.fromBufferAttribute(p, i);
-      b.fromBufferAttribute(p, i + 1);
-      c.fromBufferAttribute(p, i + 2);
-      const facet = b.sub(a).cross(c.sub(a)).normalize();
-      // Snow is lit smooth, so drifts look soft and rounded.
-      const snowy = (cornerSnow[cornerOf[i]] + cornerSnow[cornerOf[i + 1]] + cornerSnow[cornerOf[i + 2]]) / 3;
-      const facetShare = NEW_LOOK ? 0 : THREE.MathUtils.lerp(FACET, SNOW_FACET, snowy); // (the new look is lit smooth)
-      for (let k = 0; k < 3; k++) {
-        n.fromBufferAttribute(normals, i + k).lerp(facet, facetShare).normalize();
-        normals.setXYZ(i + k, n.x, n.y, n.z);
-      }
-      if (i % 600 === 597) yield;
-    }
-    yield;
-
     const position = geometry.attributes.position;
     const colors = new Float32Array(position.count * 3);
     const shade = new THREE.Color();
-    for (let i = 0; i < position.count; i += 3) {
-      const x = (position.getX(i) + position.getX(i + 1) + position.getX(i + 2)) / 3;
-      const z = (position.getZ(i) + position.getZ(i + 1) + position.getZ(i + 2)) / 3;
-      let r = 0, gr = 0, bl = 0;
-      for (let k = 0; k < 3; k++) {
-        const corner = cornerOf[i + k] * 3;
-        r += cornerColors[corner];
-        gr += cornerColors[corner + 1];
-        bl += cornerColors[corner + 2];
-      }
-      // (The fine speckle is kept small: from the ground, neighbouring triangles flipping
-      // lighter and darker read as a checkerboard.)
-      if (NEW_LOOK) {
-        // Each corner keeps its own colour, blended smoothly across the triangle (the shader
-        // adds the fine detail), so there are no flat-coloured triangles to see.
-        for (let k = 0; k < 3; k++) {
-          const corner = cornerOf[i + k] * 3;
-          shade.setRGB(cornerColors[corner], cornerColors[corner + 1], cornerColors[corner + 2], THREE.SRGBColorSpace);
-          shade.toArray(colors, (i + k) * 3);
-        }
-        if (i % 300 === 297) yield;
-        continue;
-      }
-      const speckle = noise(x * 1.3, z * 1.3) * 0.08 + noise(x * 7.3, z * 7.3) * 0.045;
-      shade.setRGB(r / 3, gr / 3, bl / 3, THREE.SRGBColorSpace).multiplyScalar(1 + speckle);
-      for (let corner = 0; corner < 3; corner++) shade.toArray(colors, (i + corner) * 3);
-      if (i % 300 === 297) yield;
+    for (let i = 0; i < position.count; i++) {
+      const corner = cornerOf[i] * 3;
+      shade.setRGB(cornerColors[corner], cornerColors[corner + 1], cornerColors[corner + 2], THREE.SRGBColorSpace);
+      shade.toArray(colors, i * 3);
+      if (i % 900 === 899) yield;
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     const snow = new Float32Array(position.count);

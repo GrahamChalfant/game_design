@@ -1,12 +1,10 @@
 import * as THREE from 'three';
 
-// A test of a richer, less blocky look, at the crash site and everywhere else: add ?look=new to
-// the URL. The spruce near the player are made of needle cards (public/models/look/, made by
-// blender/conifers.py with LOOK = 'new'; further off they're the plain ones, see trees.js), lit
-// as soft rounded masses; the ground's colours blend smoothly with painted-looking detail
-// instead of flat triangles, and so do the moss and litter; the haze comes in closer, so the
-// land fades back in layers; and the picture gets a gentle colour grade.
-export const NEW_LOOK = new URLSearchParams(location.search).get('look') === 'new';
+// The game's look, beyond the models themselves: the needle texture the spruce near the player
+// are painted with (their needle cards: public/models/near/, made by blender/conifers.py with
+// DETAIL = True; further off they're the plain ones, see trees.js), and how they're lit as soft
+// rounded masses; the grass, as cards of fine blades; the painted surfaces every model gets by
+// what it's made of; the forest floor's mottling; and the colour grade on the finished picture.
 
 let needles = null;
 
@@ -73,6 +71,18 @@ export function needleMaterial(material) {
   result.alphaTest = 0.45;
   result.side = THREE.DoubleSide;
   return result;
+}
+
+// Window glass (material 'glass' in a model, as in the plane's windows): see-through, tinted
+// by its vertex colours (darker low down, catching the sky higher up), glossy.
+export function glassMaterial(material) {
+  material.transparent = true;
+  material.opacity = 0.55;
+  material.depthWrite = false;
+  material.side = THREE.DoubleSide;
+  if ('roughness' in material) material.roughness = 0.08;
+  if ('metalness' in material) material.metalness = 0.2;
+  return material;
 }
 
 // Lights a tree as one soft, rounded mass instead of facet by facet: every face's normal is
@@ -210,7 +220,7 @@ function bladeTexture() {
 export function bladeMaterial(material) {
   material.map = bladeTexture();
   material.alphaTest = 0.4;
-  // (The blades' texture is mid-grey, the old tufts' paint near white; and the new look's ground
+  // (The blades' texture is mid-grey, and the ground
   // is lifted (terrain.js), so the grass is lifted to match.)
   material.color.setScalar(2.2);
   return material;
@@ -248,22 +258,6 @@ export function bladeTuft(name) {
   geometry.setIndex(index);
   return geometry;
 }
-
-// The models rebuilt for the new look (blender/remake.py), loaded from public/models/look/ in
-// its place (see models.js).
-export const REMADE = new Set([
-  'rock', 'rock-small', 'rock-flat', 'rock-tall', 'rock-large',
-  'fallen-log', 'stump', 'tree-dead', 'logs',
-  'plane', 'plane-wing', 'suitcase', 'debris', 'landing-wheel', 'clod',
-  'barrel', 'chest', 'supply-crate', 'ammo-box', 'locker', 'cupboard', 'weathered-pack',
-  'campfire', 'log-pile', 'fire-ring', 'torch', 'bedroll', 'trap', 'berry-bush', 'grass-fern',
-  'bones', 'stalagmite', 'stone', 'axe', 'axe-ground', 'shelter',
-  // (Rounded off under their rigs, same skeletons and animations: blender/smooth_rigged.py.)
-  'rabbit', 'deer', 'boar', 'player',
-  // (These keep their old layouts, built from finer parts: blender/fine.py.)
-  'cabin', 'hunting-stand', 'lean-to', 'campsite', 'truck', 'fence', 'fence-broken', 'lookout',
-  'cot', 'fire-finder', 'binoculars', 'fire-gate', 'signpost', 'crystals', 'glow-fungus',
-]);
 
 // Which surface each of the models' materials gets, by its name in the model.
 const SURFACE_OF = {

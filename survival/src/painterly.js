@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { GradeShader, NEW_LOOK } from './look.js';
+import { GradeShader } from './look.js';
 
 // The painterly finish: after the scene is drawn, a Kuwahara filter runs over the whole
 // picture. Each pixel takes the average colour of whichever neighbouring patch is most
@@ -45,13 +45,13 @@ const KuwaharaShader = {
 export function createPainterlyRenderer(renderer, scene, camera) {
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  // (The new look tried screen-space ambient occlusion here too. It drew the whole forest a
+  // (Screen-space ambient occlusion was tried here too. It drew the whole forest a
   // second time, at even half resolution costing about 40% of the frame rate, for shading you
   // could barely see through the haze and brush strokes, so it's left out.)
   const kuwahara = new ShaderPass(KuwaharaShader);
   composer.addPass(kuwahara);
   composer.addPass(new OutputPass());
-  if (NEW_LOOK) composer.addPass(new ShaderPass(GradeShader)); // (the new look's colour grade, see look.js)
+  composer.addPass(new ShaderPass(GradeShader)); // (a gentle colour grade, see look.js)
   const resize = () => {
     composer.setSize(window.innerWidth, window.innerHeight);
     renderer.getDrawingBufferSize(kuwahara.uniforms.resolution.value);
