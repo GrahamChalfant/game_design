@@ -39,12 +39,10 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `berry-bush.glb` | Berry bush, rust berry clusters; origin base centre | 1,298 | blender/remake.py |
 | `berry.glb` | Berry pickup (a sprig of 3 berries, stems, 2 leaves) | 1,268 | blender/props_smooth.py |
 | `knife.glb` | Stone knife, wood handle, slate blade; origin at the guard (top of the handle wrap), blade along +Z Blender / +Y glTF (like axe), edge toward -Y | 76 | food_props.py |
-| `boar.glb` | Wild boar: rigged, with `boar-idle`, `boar-walk`, `boar-run`, `boar-graze` clips; wedge body with a dark mane that reads from above; faces -Y, origin at feet | 2,832 | blender/smooth_rigged.py |
 
 **Wanted (placeholders in code until these land):**
 - `berry-bush.glb` — low bush ~0.9 m, origin base centre; berries as a child node named `berries` (hidden when picked).
 - `knife.glb` — landed; origin at the guard, blade +Y, on `hand_R` (code nudges it 1 cm so the fist holds the handle).
-- `boar.glb` — rebuilt by `boar.py`: rigged and animated, so it walks, runs (charges) and roots in the ground.
 
 Style, palette and poly budgets: `survival/blender/STYLE_GUIDE.md`.
 See "Adding models from Blender" in `survival/README.md` for sizes and orientation.
@@ -54,6 +52,6 @@ See "Adding models from Blender" in `survival/README.md` for sizes and orientati
 - `blender/props_smooth.py` (with `blender/smoothkit.py`) builds the clods, debris, landing wheel, throwing stone, berries, fallen log, stalagmite and backpack;
 - `blender/remake.py` builds rocks, dead wood, the plane's scattered wreckage, the containers, camp props, the shelter, bones, the axe and more from scratch;
 - `blender/fine.py` runs `places.py`, `lookout.py` and `props.py` with finer parts (rounder logs, bevelled boards). Run on their own, those make the old low-poly versions;
-- `blender/smooth_rigged.py` rounds off the rigged animals (made by `boar.py` and the like) under their rigs;
+- `blender/smooth_rigged.py` rounds off the rigged animals (the deer, rabbit and the like) under their rigs;
 - `blender/conifers.py` makes the spruce, and with `DETAIL = True` the needle-card versions in `near/` that are drawn near the player.
 The grass tufts are cards of fine blades, drawn in code (`src/look.js`).

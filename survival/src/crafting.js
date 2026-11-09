@@ -79,7 +79,7 @@ export const RECIPES = [
     name: 'Stone knife',
     count: 1,
     cost: { wood: 1, stone: 1 },
-    description: `Equip it and click to stab up close. Boars take a few stabs. Breaks after ${KNIFE_DURABILITY} hits`,
+    description: `Equip it and click to stab up close. A deer takes two. Breaks after ${KNIFE_DURABILITY} hits`,
   },
   {
     item: 'arrow',

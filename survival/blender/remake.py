@@ -856,22 +856,24 @@ def remake():
     return made
 
 
-if bpy.app.background:
-    reset()
-shelf = None
-if not bpy.app.background:
-    shelf = bpy.data.collections.get('Remade') or bpy.data.collections.new('Remade')
-    if shelf.name not in bpy.context.scene.collection.children:
-        bpy.context.scene.collection.children.link(shelf)
-    for o in list(shelf.objects):
-        bpy.data.objects.remove(o)
-for i, (name, parts) in enumerate(remake()):
-    if shelf:
-        # A copy to look at, in a row clear of the spruce and birch.
-        for o in parts:
-            copy = o.copy()
-            copy.data = o.data.copy()
-            shelf.objects.link(copy)
-            copy.location = (i * 3, 50, 0)
-    export(parts, f'{LOOK}{name}.glb')
-print('@@ done')
+# (stand.py runs this file for its shapes alone: DEFS_ONLY.)
+if not globals().get('DEFS_ONLY'):
+    if bpy.app.background:
+        reset()
+    shelf = None
+    if not bpy.app.background:
+        shelf = bpy.data.collections.get('Remade') or bpy.data.collections.new('Remade')
+        if shelf.name not in bpy.context.scene.collection.children:
+            bpy.context.scene.collection.children.link(shelf)
+        for o in list(shelf.objects):
+            bpy.data.objects.remove(o)
+    for i, (name, parts) in enumerate(remake()):
+        if shelf:
+            # A copy to look at, in a row clear of the spruce and birch.
+            for o in parts:
+                copy = o.copy()
+                copy.data = o.data.copy()
+                shelf.objects.link(copy)
+                copy.location = (i * 3, 50, 0)
+        export(parts, f'{LOOK}{name}.glb')
+    print('@@ done')

@@ -11,8 +11,8 @@ export const gameMinutesPerSecond = (hour) => (isNight(hour) ? NIGHT_MINUTES_PER
 const START_HOUR = 8; // the first day starts at 8 in the morning
 
 // Drain rates, in points (out of 100) per in-game hour.
-const HUNGER_PER_HOUR = 2.8; // empty after about 36 in-game hours
-const THIRST_PER_HOUR = 5; // empty after about 20 in-game hours
+const HUNGER_PER_HOUR = 4.2; // empty after about 24 in-game hours
+const THIRST_PER_HOUR = 7.5; // empty after about 13 in-game hours
 const STARVING_DAMAGE_PER_HOUR = 25; // health lost per empty stat: dead about 4 hours later
 const HEALING_PER_HOUR = 5; // health regained while well fed and watered
 const WELL_FED = 25; // hunger and thirst both need to be at least this to heal
@@ -47,8 +47,8 @@ export const OUTFIT_WARMTH = {
   parka: { mountainChill: 0.15, nightChill: 0.5, day: DAY_TEMPERATURE },
 };
 export const FREEZING = 15; // at or below this you're Freezing
-const FREEZING_DAMAGE_PER_HOUR = 10;
-const FROZEN_DAMAGE_PER_HOUR = 25; // at temperature 0
+const FREEZING_DAMAGE_PER_HOUR = 20;
+const FROZEN_DAMAGE_PER_HOUR = 50; // at temperature 0
 const COSY = 80; // healing needs this temperature (a shelter or a fire gets you there)...
 const COSY_HOURS = 1; // ...held for this many in-game hours in a row
 
@@ -144,7 +144,7 @@ export class Survival {
     this.thirst = clamp(this.thirst + amount);
   }
 
-  // Takes `amount` health (e.g. a boar's gore).
+  // Takes `amount` health (e.g. a fall).
   hurt(amount) {
     this.health = clamp(this.health - amount);
     if (this.health === 0) this.alive = false;

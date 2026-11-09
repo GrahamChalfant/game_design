@@ -1,5 +1,5 @@
 // Berry foraging (issue #74): the first rung of the food ladder (berries → traps →
-// knife/boar → bow/deer). Every number to tune is here. Pure logic only (no three.js),
+// knife → bow/deer). Every number to tune is here. Pure logic only (no three.js),
 // so it can be simulated outside the game: see sim/food-sim.mjs.
 
 export const BUSH_COUNT = 8;

@@ -1,8 +1,8 @@
-# Food-ladder props (issues #74–76): knife.glb in survival/public/models/ (and an older berry-bush.glb, now remade by remake.py; berry.glb: props_smooth.py) (boar.glb: see boar.py).
+# Food-ladder props (issues #74–76): knife.glb in survival/public/models/ (and an older berry-bush.glb, now remade by remake.py; berry.glb: props_smooth.py).
 # Run: blender -b --python food_props.py      (Blender 4.2+)
 # STYLE_GUIDE.md: one vertex-colour material per model ('Col'), palette colours, flat shading,
 # 1 unit = 1 m, front faces Blender -Y (glTF +Z ... see README for per-model notes). Fixed seeds.
-# Origins: berry-bush, berry and boar at base/feet centre (z = 0); knife at grip centre,
+# Origins: berry-bush and berry at base/feet centre (z = 0); knife at grip centre,
 # blade pointing up the handle axis (+Z Blender / +Y glTF) like axe.glb, cutting edge toward -Y.
 import bpy, bmesh, math, os, random
 from mathutils import Vector, Matrix
@@ -155,6 +155,5 @@ b.add([v.co.copy() for v in bl.verts], [tuple(vi[v] for v in f.verts) for f in b
       lambda: col(random.choice(('slate_dark', 'slate')), 0.1)); bl.free()
 models.append((build('knife', b, material('knife', 0.7)), 'knife.glb'))
 
-# The boar is built (and rigged and animated) by boar.py.
 
 for o, f in models: export(o, f)

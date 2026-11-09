@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// A little blood when the player is hurt (a boar's gore): a few drops fly out and leave dark
+// A little blood when the player or an animal is hurt: a few drops fly out and leave dark
 // red splats on the ground, which soak in and fade away after a while.
 const SPLATS_PER_HIT = 5;
 const DROPS_PER_HIT = 10;

@@ -1,5 +1,5 @@
 # The rigged, animated animals: they can't be rebuilt from scratch without rebuilding their
-# skeletons and animations too, so instead each is brought in as its generator made it (boar.py
+# skeletons and animations too, so instead each is brought in as its generator made it (deer.py
 # and the like), rounded off with one level of subdivision (before its rig, so it still bends
 # with the bones), shaded smooth, and written back in place with the same skeleton, animations
 # and part names. A model already rounded off (shaded smooth) is left alone, so running this
@@ -13,7 +13,7 @@ import bmesh
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELS = os.path.join(HERE, '..', 'public', 'models')
-NAMES = [n for n in globals().get('NAMES', ['rabbit', 'boar'])]  # (the deer: deer.py)
+NAMES = [n for n in globals().get('NAMES', ['rabbit'])]  # (the deer: deer.py)
 LEVELS = {'player': 1}  # (default 1 for all; the player's hands are small, so no more)
 
 

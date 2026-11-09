@@ -4,7 +4,7 @@ The game can make all of its sounds itself (see `src/sounds.js`). To use a recor
 put a file here named after the sound, as `.mp3`, `.ogg` or `.wav`. When the game finds one,
 it plays the recording in place of the made-up sound.
 
-The recordings here now (wind, water, fire, cave, owl, wolf, loon, raven, chop, tree-fall and
+The recordings here now (wind, water, fire, cave, owl, wolf, raven, chop, tree-fall and
 the grass, dirt, gravel and snow footsteps) are public-domain (CC0) field recordings from
 Freesound, cut and levelled for the game. [CREDITS.md](CREDITS.md) lists where each came from.
 
@@ -14,12 +14,12 @@ Freesound, cut and levelled for the game. [CREDITS.md](CREDITS.md) lists where e
 | `water` | Near a lake or the river | Looping |
 | `fire` | Near a burning campfire | Looping |
 | `cave` | Down a cave (a low hum) | Looping |
-| `sparrow`, `chickadee`, `jay`, `raven`, `grouse` | By day, now and then: a white-throated sparrow, a boreal chickadee, a Canada jay, a common raven, or a ruffed grouse drumming (more often deep in the trees) | Played once each time, from somewhere around you, a little higher or lower (every one-off sound is) |
-| `birds` | If there's a recording called this, it's played in place of all five birds above | Played once |
+| `junco`, `chickadee`, `jay`, `raven` | By day, now and then (rarely: the north is quiet, and quieter still in the cold): a dark-eyed junco's "tsip" calls or trill, a boreal chickadee, a Canada jay, or a common raven | Played once each time, from somewhere around you, a little higher or lower (every one-off sound is) |
+| `birds` | If there's a recording called this, it's played in place of all four birds above | Played once |
 | `owl` | At night, now and then (a great horned or a boreal owl) | Played once |
 | `wolf` | At night, now and then, far off | Played once |
-| `loon` | A common loon on the lake, mostly at night; more often near the water | Played once |
-| `mosquito` | One flying past your ear, by the water and at night, unless it's cold | Played once |
+| `lynx` | At night, now and then: a Canada lynx yowling out in the woods | Played once |
+| `ice` | Out by a lake: the ice along its edges cracking, pinging, groaning and singing as it cools, more at night | Played once, from somewhere around you |
 | `deer-snort`, `deer-bleat`, `deer-step`, `deer-run` | A deer nearby: snorting as it spots you and bolts, bleating now and then while it grazes, walking, and galloping off | Played once, from where the deer is |
 | `drip` | Down a cave, now and then (with an echo) | Played once |
 | `bat` | Down a cave, now and then | Played once |
@@ -28,7 +28,6 @@ Freesound, cut and levelled for the game. [CREDITS.md](CREDITS.md) lists where e
 | `swim` | One swimming stroke | Played once |
 | `splash` | Wading into deep water | Played once |
 | `land` | Landing from a jump | Played once |
-| `boar-charge` | A boar starting to charge | Played once, from where the boar is |
 | `hit`, `hurt` | Getting hit (a thud), and the player's grunt | Played once |
 | `chop` | The axe biting into a tree | Once per swing |
 | `tree-creak`, `tree-fall` | A tree giving way, then crashing down a second later | Played once |
