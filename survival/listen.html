@@ -21,17 +21,18 @@
 <!-- Every sound in the game, to listen to on its own: python3 serve.py, then open
      http://localhost:8000/listen.html -->
 <h1>Sound check</h1>
-<p>Click to play a sound as the game plays it (full volume, right beside you). A sound with several takes plays one at random; its numbered buttons play one take each.</p>
+<p>Click to play a sound as the game plays it (full volume, right beside you). A sound with several takes plays one at random; its numbered buttons play one take each. Sounds play at their in-game level, from right beside you.</p>
 <div id="list"></div>
 <p class="key">Click anything once to start the sound; each recording's takes appear as they load.<br>
-<span>green border</span> a recording from public/sounds/ &nbsp;·&nbsp; plain: made up in code</p>
+<span>green border</span> loaded &nbsp;·&nbsp; plain: no recording yet (silent). Loops play until clicked again.</p>
 <script type="module">
 import { Sound, SOUNDS } from './src/sounds.js';
 
 const sound = new Sound();
 sound.muted = false; // (even if the game is muted)
 const GROUPS = {
-  'Northern sounds': ['ice', 'junco', 'chickadee', 'lynx', 'jay', 'raven', 'owl', 'wolf'],
+  'Outdoors': ['ice', 'junco', 'chickadee', 'raven', 'owl', 'wolf'],
+  'Loops': ['wind', 'water', 'fire', 'cave', 'sizzle'],
   'Deer': ['deer-snort', 'deer-bleat', 'deer-step', 'deer-run'],
   'Footsteps': ['step-grass', 'step-dirt', 'step-gravel', 'step-rock', 'step-snow', 'step-wood', 'step-water', 'swim', 'splash', 'land'],
   'Doing things': ['chop', 'tree-creak', 'tree-fall', 'bow-draw', 'bow-shoot', 'arrow-hit', 'arrow-land', 'stab', 'hit', 'hurt', 'chew', 'gulp', 'rummage', 'bandage', 'cloth', 'pickup', 'fire-light', 'add-wood', 'trap-set'],
@@ -63,9 +64,17 @@ function play(name, take = null) {
     sound.files[name] = [all[take]];
     sound.play(name);
     sound.files[name] = all;
-  } else if (name === 'drip') sound.drip();
-  else if (name === 'bat') sound.bat();
+  } else if (SOUNDS[name] === 'loop') toggleLoop(name);
   else sound.play(name);
+}
+
+// A loop: turn it up to its in-game level, or back off.
+function toggleLoop(name) {
+  const loop = sound.loops[name];
+  if (!loop) return;
+  const on = loop.gain.gain.value < 0.01;
+  loop.gain.gain.setTargetAtTime(on ? 0.3 : 0, sound.ctx.currentTime, 0.1);
+  buttons[name].button.textContent = on ? `${name} (playing)` : name;
 }
 
 // As the recordings load (one after another, over half a minute or so), mark them, and add a
