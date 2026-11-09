@@ -1,12 +1,16 @@
 # Sounds
 
-The game can make all of its sounds itself (see `src/sounds.js`). To use a recording instead,
-put a file here named after the sound, as `.mp3`, `.ogg` or `.wav`. When the game finds one,
-it plays the recording in place of the made-up sound.
+Every sound in the game is a recording here, named after the sound (`.mp3`, `.ogg` or `.wav`);
+the game makes no sounds of its own, so a sound with no recording isn't heard. A one-off sound
+can have several takes (`raven.mp3`, `raven-2.mp3`, `raven-3.mp3`, and so on, up to 8): each
+time it plays, one is picked at random.
 
-The recordings here now (wind, water, fire, cave, owl, wolf, raven, chop, tree-fall and
-the grass, dirt, gravel and snow footsteps) are public-domain (CC0) field recordings from
-Freesound, cut and levelled for the game. [CREDITS.md](CREDITS.md) lists where each came from.
+They're recordings from Freesound, public domain (CC0) or free to use with credit (CC BY), cut
+and levelled for the game. [CREDITS.md](CREDITS.md) lists each one: where it came from, who
+recorded it, its licence and the stretch used.
+
+To listen to every sound on its own, run the game's server (`python3 serve.py`) and open
+http://localhost:8000/listen.html: a button per sound, and one per take.
 
 | File name | When it plays | How |
 | --- | --- | --- |
@@ -14,13 +18,11 @@ Freesound, cut and levelled for the game. [CREDITS.md](CREDITS.md) lists where e
 | `water` | Near a lake or the river | Looping |
 | `fire` | Near a burning campfire | Looping |
 | `cave` | Down a cave (a low hum) | Looping |
-| `junco`, `chickadee`, `jay`, `raven` | By day, now and then (rarely: the north is quiet, and quieter still in the cold): a dark-eyed junco's "tsip" calls or trill, a boreal chickadee, a Canada jay, or a common raven | Played once each time, from somewhere around you, a little higher or lower (every one-off sound is) |
-| `birds` | If there's a recording called this, it's played in place of all four birds above | Played once |
+| `junco`, `chickadee`, `raven` | By day, now and then (rarely: the north is quiet, and quieter still in the cold): a dark-eyed junco's "tsip" calls or trill, a chickadee (black-capped: they winter in the southern Yukon too), or a common raven's croak | Played once each time, from somewhere around you, a little higher or lower (every one-off sound is) |
 | `owl` | At night, now and then (a great horned or a boreal owl) | Played once |
 | `wolf` | At night, now and then, far off | Played once |
-| `lynx` | At night, now and then: a Canada lynx yowling out in the woods | Played once |
-| `ice` | Out by a lake: the ice along its edges cracking, pinging, groaning and singing as it cools, more at night | Played once, from somewhere around you |
-| `deer-snort`, `deer-bleat`, `deer-step`, `deer-run` | A deer nearby: snorting as it spots you and bolts, bleating now and then while it grazes, walking, and galloping off | Played once, from where the deer is |
+| `ice` | Out by a lake, now and then: the ice along its edges booming and cracking, far off and low (more at night) | Played once, from somewhere around you |
+| `deer-snort`, `deer-bleat`, `deer-step`, `deer-run` | A deer nearby: snorting as it spots you and bolts (a horse's snort: it's the same sharp blow), bleating now and then while it grazes, walking on the leaves, and running off | Played once, from where the deer is |
 | `drip` | Down a cave, now and then (with an echo) | Played once |
 | `bat` | Down a cave, now and then | Played once |
 | `sizzle` | Meat cooking on a fire | Looping |
@@ -44,12 +46,11 @@ Freesound, cut and levelled for the game. [CREDITS.md](CREDITS.md) lists where e
 
 Loops should start and end cleanly, so the join can't be heard. Keep the files short and
 small (under about 1 MB each), because they're downloaded when the game starts. Free
-recordings are available at freesound.org (check each one's licence) or sonniss.com; add
-each one you use to [CREDITS.md](CREDITS.md).
+recordings are at freesound.org: use only CC0 or CC BY ones (not NonCommercial), and add each
+one you use to [CREDITS.md](CREDITS.md).
 
-How loud to make a file: the game turns each sound up or down itself, so match these. Footsteps
-play at full volume, so they peak around -14 dB; the chop around -8 dB; the tree falling -3 dB;
-animals call from 20–50 m away, so they peak at -1 dB. Loops are levelled to about -20 LUFS
-(the cave -22).
+How loud to make a file: level each take by how loud it sounds, not by its peak: about -20 LUFS
+(EBU R128) for one-off sounds, -26 for footsteps, its peaks under -1.5 dB. The game sets them
+against each other (LEVEL in `src/sounds.js`) and makes far-off ones quieter.
 
 Press N in the game to turn the sound off and on.

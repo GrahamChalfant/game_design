@@ -115,17 +115,15 @@ fences** run across the meadows and round some of the cabins' yards, with rails 
 to slip through.
 
 A few birds fly over by day. The north is quiet: you hear the wind (louder up the mountains)
-and, now and then by day, a bird of the boreal winter (a junco's "tsip", boreal chickadees,
-Canada jays, ravens); out by a lake, the new ice cracking, pinging, groaning and singing (more
-at night); owls, wolves far off and a lynx yowling at night; deer walking,
-bleating, and snorting as they bolt from you; water nearby, a campfire's crackle, and
-dripping and bats down a cave. Your footsteps sound
-like what's underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things
-you do have a sound: chopping and trees crashing down, the bow, arrows landing, eating,
-drinking, cooking, searching, bandaging, lighting a fire, and
-you'll hear it when you're hurt. All the sounds are made
-by the game itself; to use recordings instead, see `public/sounds/README.md`. Press N to turn
-the sound off and on.
+and, now and then by day, a bird of the boreal winter (a junco's "tsip", chickadees, a raven's
+croak); out by a lake, the ice booming and cracking far off (more at night); owls and wolves far
+off at night; deer walking, bleating, and snorting as they bolt from you; water nearby, a
+campfire's crackle, and dripping and bats down a cave. Your footsteps sound like what's
+underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things you do have a
+sound: chopping and trees crashing down, the bow, arrows landing, eating, drinking, cooking,
+searching, bandaging, lighting a fire, and you'll hear it when you're hurt. Every sound is a real
+recording (from Freesound: see `public/sounds/README.md` and its credits), and `listen.html`
+plays each on its own. Press N to turn the sound off and on.
 
 What's in each is decided by the map's seed. The first time you come across each kind of place,
 you'll say so. Cabins and caves are marked on the map. All the numbers are at the top of
@@ -293,7 +291,7 @@ src/caves.js          Cave entrances, and the cave systems underground
 src/roads.js          The old fire road: where it goes, and the gate, signs and fallen trees on it
 src/details.js        Fallen trees and old fences
 src/ambientLife.js    Birds flying over
-src/sounds.js         All the sounds (made with Web Audio; recordings in public/sounds/ replace them)
+src/sounds.js         All the sounds: when and where each recording in public/sounds/ plays
 src/poiModels.js      Stand-in models for the cabins, stands, campsites, lean-tos, truck, logs and fences
 src/cutaway.js        Fades the parts of a building between the camera and the player
 src/models.js         Loads Blender models and draws many copies efficiently
