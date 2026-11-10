@@ -6,7 +6,14 @@ export const RECIPES = [
     item: 'campfire',
     count: 1,
     cost: { wood: 5 },
-    description: 'Place it on open ground, then light it with a lighter (E)',
+    description: 'Place it on open ground, then light it with a lighter or a match (E)',
+  },
+  {
+    item: 'spit',
+    name: 'Cooking spit',
+    count: 1,
+    cost: { wood: 3 },
+    description: 'Set it up over a campfire (click next to one), then put raw meat on it to cook',
   },
   {
     item: 'shelter',
@@ -18,7 +25,7 @@ export const RECIPES = [
     item: 'torch',
     count: 1,
     cost: { wood: 2 },
-    description: 'Hold it at a burning campfire and click to light it. Lights up the dark for a few hours',
+    description: 'Click to light it with a lighter or a match (or at a burning campfire). Lights up the dark for a few hours',
   },
   {
     item: 'parka',

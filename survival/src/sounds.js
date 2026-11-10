@@ -1,7 +1,6 @@
 // The sounds of the place, the far north (the Yukon, the Northwest Territories) as the cold
 // sets in. Mostly a great quiet: the wind, and now and then a bird of the boreal winter (a
-// junco, a chickadee, a raven). Out by a lake, the ice along its edges booms and cracks as the
-// cold works on it, more at night. By night, owls, and wolves far off. Deer moving about
+// junco, a chickadee, a raven). By night, owls, and wolves far off. Deer moving about
 // nearby; water lapping, a campfire crackling, and dripping and bats down a cave.
 //
 // Every sound is a recording in public/sounds/ named after it (see SOUNDS below), e.g.
@@ -17,13 +16,11 @@ export const SOUNDS = {
   wind: 'loop', // stronger up the mountains
   water: 'loop', // by a lake or the river
   fire: 'loop', // by a burning campfire (crackle and all)
-  cave: 'loop', // the hum underground
   sizzle: 'loop', // meat cooking on a fire
   // By day, now and then, a bird somewhere around you.
   junco: 'once', chickadee: 'once', raven: 'once',
   owl: 'once', // at night, now and then
   wolf: 'once', // at night, far off
-  ice: 'once', // the lake ice booming and cracking, out by the water (more at night)
   // Deer nearby, from where the deer is:
   'deer-snort': 'once', 'deer-bleat': 'once', 'deer-step': 'once', 'deer-run': 'once',
   drip: 'once', // underground
@@ -33,15 +30,15 @@ export const SOUNDS = {
   'step-snow': 'once', 'step-wood': 'once', 'step-water': 'once', swim: 'once',
   // Things happening (see Sound.play):
   hit: 'once', hurt: 'once', chop: 'once', 'tree-creak': 'once', 'tree-fall': 'once',
-  'bow-draw': 'once', 'bow-shoot': 'once', 'arrow-hit': 'once', 'arrow-land': 'once', stab: 'once',
+  'bow-draw': 'once', 'bow-shoot': 'once', 'arrow-hit': 'once', 'arrow-land': 'once', stab: 'once', swing: 'once',
   chew: 'once', gulp: 'once', rummage: 'once', bandage: 'once', pickup: 'once', 'fire-light': 'once',
   'add-wood': 'once', 'trap-set': 'once', cloth: 'once', splash: 'once', land: 'once',
 };
 // How loud each one-off sound plays, from right beside you (the recordings are all levelled to
 // about the same loudness; this sets them against each other). Anything not listed plays at 1.
 const LEVEL = {
-  ice: 0.35, // (far out on the lake: a deep boom, not a bang)
   junco: 0.6, chickadee: 0.6, raven: 0.8, owl: 0.8, wolf: 0.9,
+  'deer-snort': 0.35, // (a sharp blast, close by as it bolts: much quieter than its loudness says)
   'deer-run': 0.8, 'deer-bleat': 0.7,
   drip: 0.5, bat: 0.45,
   'step-grass': 0.5, 'step-dirt': 0.5, 'step-gravel': 0.5, 'step-snow': 0.5,
@@ -62,11 +59,11 @@ export class Sound {
     this.files = {}; // name → [AudioBuffer, ...]: its takes
     this.folder = null; // where the recordings turned out to be served from
     this.loops = {};
-    this.timers = { birds: 6, owl: 8, wolf: 40, ice: 6, drip: 1, bat: 5, busy: 0 };
+    this.timers = { birds: 6, owl: 8, wolf: 40, drip: 1, bat: 5, busy: 0 };
     this.deer = new WeakMap(); // deer → seconds until its next footstep (or bleat)
     this.muted = readMuted();
     this.time = 0;
-    this.listener = { x: 0, z: 0 };
+    this.listener = { x: 0, z: 0, right: { x: 1, z: 0 } }; // where you are, and which way is your right
     this.cave = false;
     const start = () => {
       if (this.ctx) return;
@@ -174,8 +171,7 @@ export class Sound {
     set('wind', outside * (0.05 + 0.3 * env.cold) * gust);
     set('water', outside * 0.27 * env.water, 0.3);
     set('fire', outside * 0.35 * env.fire, 0.2);
-    set('cave', env.underground * 0.13); // a low background, under the drips and your steps
-    set('sizzle', env.cooking ? 0.6 : 0); // (a quiet recording)
+    set('sizzle', 0.6 * (env.cooking || 0)); // (a quiet recording)
     this.echoOut.gain.setTargetAtTime(env.underground ? 0.35 : 0, now, 0.3);
     if (env.paused) return;
 
@@ -195,11 +191,6 @@ export class Sound {
     if (!env.underground && env.night && this.timers.wolf <= 0) {
       this.timers.wolf = rand(60, 150);
       this.play('wolf', this.around(42, 48));
-    }
-    // The ice along the lake: only out by the water, now and then, more at night.
-    if (!env.underground && env.water && this.timers.ice <= 0) {
-      this.timers.ice = rand(15, 45) * (env.night ? 1 : 2) / (0.5 + env.water);
-      this.play('ice', this.around(20, 40));
     }
     // Deer nearby: their hooves as they walk or bolt, and a bleat now and then while they graze.
     // (The snort as one spots you is played by main.js.)
@@ -251,9 +242,14 @@ export class Sound {
     let gain = volume * (LEVEL[name] ?? 1);
     if (at) {
       const dx = at.x - this.listener.x;
-      const distance = Math.hypot(dx, at.z - this.listener.z);
+      const dz = at.z - this.listener.z;
+      const distance = Math.hypot(dx, dz);
       if (distance > 50) return;
-      pan = Math.max(-1, Math.min(1, dx / 14));
+      // Panned toward the side it's on, as you face (seen from the camera), but never all the
+      // way into one ear, and less so close by (right beside you, you hear it with both).
+      const { right } = this.listener;
+      const side = distance > 0.01 ? (dx * right.x + dz * right.z) / distance : 0;
+      pan = 0.7 * side * Math.min(1, distance / 3);
       gain *= 1 / (1 + distance / 9);
     }
     const source = this.ctx.createBufferSource();

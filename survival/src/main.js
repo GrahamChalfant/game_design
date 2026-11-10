@@ -134,6 +134,7 @@ const pois = buildPois(scene, world);
 const ambientLife = new AmbientLife(scene, world);
 const sound = new Sound();
 // What the sounds need to know about where you are.
+const hearing = new THREE.Vector3(); // (the camera's right, for which ear sounds come to)
 function updateSound(dt, paused, busy = {}) {
   const { x, z } = player.position;
   const { terrain } = world;
@@ -141,6 +142,10 @@ function updateSound(dt, paused, busy = {}) {
     if (!campfires.isBurning(f)) return loudest;
     return Math.max(loudest, 1 - Math.hypot(f.x - x, f.z - z) / 9);
   }, 0);
+  // Which way is your right, as the camera sees it (in every view, even looking straight
+  // down): sounds off that way come from the right.
+  hearing.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  const across = Math.hypot(hearing.x, hearing.z) || 1;
   sound.update(dt, {
     paused,
     night: isNight(survival.hourOfDay),
@@ -149,9 +154,9 @@ function updateSound(dt, paused, busy = {}) {
     water: player.cave ? 0 : terrain.nearWater(x, z, 3) ? 1 : terrain.nearWater(x, z, 12) ? 0.45 : 0,
     fire: player.cave ? 0 : fire,
     woods: Math.min(1, Math.max(0, terrain.forest(x, z) + 0.3)),
-    listener: { x, z },
+    listener: { x, z, right: { x: hearing.x / across, z: hearing.z / across } },
     animals: animals.all,
-    cooking: !paused && busy.cooking,
+    cooking: paused ? 0 : campfires.sizzleAt(x, z), // meat on a spit, over a burning fire
     eating: !paused && busy.eating,
     drinking: !paused && busy.drinking,
     searching: !paused && busy.searching,

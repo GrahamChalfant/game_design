@@ -17,11 +17,9 @@ http://localhost:8000/listen.html: a button per sound, and one per take.
 | `wind` | Always outdoors; louder up the mountains | Looping |
 | `water` | Near a lake or the river | Looping |
 | `fire` | Near a burning campfire | Looping |
-| `cave` | Down a cave (a low hum) | Looping |
 | `junco`, `chickadee`, `raven` | By day, now and then (rarely: the north is quiet, and quieter still in the cold): a dark-eyed junco's "tsip" calls or trill, a chickadee (black-capped: they winter in the southern Yukon too), or a common raven's croak | Played once each time, from somewhere around you, a little higher or lower (every one-off sound is) |
 | `owl` | At night, now and then (a great horned or a boreal owl) | Played once |
 | `wolf` | At night, now and then, far off | Played once |
-| `ice` | Out by a lake, now and then: the ice along its edges booming and cracking, far off and low (more at night) | Played once, from somewhere around you |
 | `deer-snort`, `deer-bleat`, `deer-step`, `deer-run` | A deer nearby: snorting as it spots you and bolts (a horse's snort: it's the same sharp blow), bleating now and then while it grazes, walking on the leaves, and running off | Played once, from where the deer is |
 | `drip` | Down a cave, now and then (with an echo) | Played once |
 | `bat` | Down a cave, now and then | Played once |
@@ -36,6 +34,7 @@ http://localhost:8000/listen.html: a button per sound, and one per take.
 | `bow-draw`, `bow-shoot` | Drawing the bow, and letting go | Played once |
 | `arrow-hit`, `arrow-land` | An arrow hitting an animal, or the ground | Played once, from where it lands |
 | `stab` | A knife stab | Played once |
+| `swing` | The axe swung through the air (missing) | Played once |
 | `chew`, `gulp` | Eating, drinking (from the water or a flask) | Over and over while you eat or drink |
 | `rummage` | Searching a suitcase, crate or chest | Over and over while you search |
 | `bandage` | Winding a bandage | Over and over while you bandage up |

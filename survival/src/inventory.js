@@ -14,6 +14,8 @@ export const ITEMS = {
   campfire: { name: 'Campfire', stack: 3 },
   shelter: { name: 'Shelter', stack: 1 },
   lighter: { name: 'Lighter', stack: 1 },
+  // A box of matches: each one lights a campfire or a torch, once.
+  matches: { name: 'Matches', stack: 20 },
   flare: { name: 'Flare', stack: 3 },
   bandage: { name: 'Bandage', stack: 10 },
   rope: { name: 'Rope', stack: 10 },
@@ -31,7 +33,11 @@ export const ITEMS = {
   berries: { name: 'Berries', stack: BERRY_STACK },
   rawMeat: { name: 'Raw meat', stack: 10 },
   cookedMeat: { name: 'Cooked meat', stack: 10 },
-  // Made from wood; light it at a burning campfire (#94).
+  // Left on the spit too long.
+  burntMeat: { name: 'Burnt meat', stack: 10 },
+  // Set it up over a campfire to cook meat on.
+  spit: { name: 'Cooking spit', stack: 2 },
+  // Made from wood; light it at a burning campfire, or with a lighter or a match (#94).
   torch: { name: 'Torch', stack: 1 },
   // Lights up the dark around you. Burns down only while you hold it: the in-game minutes
   // it has left are kept on its slot as `burn`.

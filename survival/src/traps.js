@@ -9,6 +9,15 @@ const SPACING = 1.5; // traps can't be placed closer together than this
 // so its head rests in the loop.
 const CATCH_SPOT = new THREE.Vector3(0, 0, 0.5);
 
+// The snare model (trap.glb), loaded once, up front, and copied for each trap set: so a new trap
+// shows it straight away, not the stand-in first.
+let snareModel = null;
+loadModel('trap').then((model) => {
+  if (!model) return;
+  model.traverse((child) => (child.castShadow = true));
+  snareModel = model;
+});
+
 // The rabbit model, loaded once and copied for each trap that catches one.
 let rabbitModel = null;
 const rabbitLoaded = () => (rabbitModel ??= loadModel('rabbit'));
@@ -51,13 +60,7 @@ export class Traps {
     object.rotation.y = facing;
 
     const snare = new THREE.Group();
-    snare.add(placeholders.trap());
-    loadModel('trap').then((model) => {
-      if (!model) return;
-      model.traverse((child) => (child.castShadow = true));
-      snare.clear();
-      snare.add(model);
-    });
+    snare.add(snareModel ? snareModel.clone(true) : placeholders.trap());
 
     // A caught rabbit lies in the trap until it's collected.
     // It starts as the stand-in and swaps to the Blender model once that loads.

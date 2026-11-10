@@ -16,6 +16,7 @@ const uniforms = {
   uSeeDepth: { value: 0 }, // how far the player is from the camera
   uNearFade: { value: 0 }, // meters: closer to the camera than this, it fades out (0: never)
   uUnderFill: { value: UNDER_FILL }, // extra light on faces turned down (see seeThroughMaterial)
+  uLodCenter: { value: new THREE.Vector2(1e9, 1e9) }, // the player, on the ground (see lodFade)
 };
 
 // Fades trees out within `meters` of the camera, so in the close-up views branches don't fill
@@ -104,11 +105,52 @@ export function seeThroughMaterial(material) {
   return patched;
 }
 
+// Makes a copy of `material` (already given its onBeforeCompile) fade by distance from the
+// player, in a fine stipple: a detailed model (`fadeIn` true) shows within `near` meters and
+// fades out to `far`; its plain stand-in does the opposite. Each pixel in between is drawn by
+// exactly one of the two, so as you walk the one hands over to the other gradually instead of
+// popping. The distance is to the copy's own origin, so a whole tree fades together.
+export function lodFade(material, fadeIn, near, far) {
+  const patched = material.clone();
+  const before = material.onBeforeCompile;
+  const key = material.customProgramCacheKey();
+  patched.customProgramCacheKey = () => `${key}|lod-${fadeIn ? 'in' : 'out'}-${near}-${far}`;
+  patched.onBeforeCompile = (shader, renderer) => {
+    before?.call(patched, shader, renderer);
+    shader.uniforms.uLodCenter = uniforms.uLodCenter;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vLodRoot;')
+      .replace(
+        '#include <project_vertex>',
+        `#include <project_vertex>
+        #ifdef USE_INSTANCING
+          vLodRoot = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
+        #else
+          vLodRoot = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
+        #endif`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec2 uLodCenter;\nvarying vec2 vLodRoot;')
+      .replace(
+        '#include <clipping_planes_fragment>',
+        `#include <clipping_planes_fragment>
+        {
+          // 1 where the detailed model shows, 0 where the plain one does.
+          float detailShown = 1.0 - smoothstep(${near.toFixed(1)}, ${far.toFixed(1)}, distance(vLodRoot, uLodCenter));
+          float lodDot = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+          ${fadeIn ? 'if (lodDot >= detailShown) discard;' : 'if (lodDot < detailShown) discard;'}
+        }`,
+      );
+  };
+  return patched;
+}
+
 const projected = new THREE.Vector3();
 const size = new THREE.Vector2();
 
 // Call every frame with the point to keep visible (the player's chest).
 export function updateSeeThrough(camera, renderer, target) {
+  uniforms.uLodCenter.value.set(target.x, target.z);
   renderer.getDrawingBufferSize(size);
   projected.copy(target).project(camera);
   uniforms.uSeeCenter.value.set((projected.x * 0.5 + 0.5) * size.x, (projected.y * 0.5 + 0.5) * size.y);

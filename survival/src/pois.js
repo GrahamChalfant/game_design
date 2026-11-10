@@ -31,11 +31,11 @@ const LOOT = {
   cabin: [
     ['bandage', [1, 3], 3], ['rope', [1, 3], 3], ['torch', [1, 2], 2], ['cookedMeat', [1, 3], 2],
     ['arrow', [2, 5], 1.5], ['hide', [1, 2], 1], ['wood', [2, 5], 1.5], ['flask', [1, 1], 0.6],
-    ['lighter', [1, 1], 0.5], ['knife', [1, 1], 0.6], ['map', [1, 1], 0.25], ['berries', [3, 6], 1],
+    ['lighter', [1, 1], 0.5], ['matches', [3, 8], 1.5], ['knife', [1, 1], 0.6], ['map', [1, 1], 0.25], ['berries', [3, 6], 1],
   ],
   cave: [
     ['bandage', [1, 2], 2], ['rope', [1, 3], 2], ['torch', [1, 3], 3], ['hide', [1, 3], 2],
-    ['arrow', [2, 4], 1], ['flask', [1, 1], 0.7], ['lighter', [1, 1], 0.6], ['cookedMeat', [1, 2], 1],
+    ['arrow', [2, 4], 1], ['flask', [1, 1], 0.7], ['lighter', [1, 1], 0.6], ['matches', [2, 6], 1], ['cookedMeat', [1, 2], 1],
   ],
   // A miner's chest deep in a cave: the best finds on the map.
   deepCave: [
@@ -44,17 +44,17 @@ const LOOT = {
   ],
   camp: [
     ['cookedMeat', [1, 2], 2], ['berries', [3, 6], 2], ['rope', [1, 2], 2], ['bandage', [1, 2], 1.5],
-    ['torch', [1, 2], 1.5], ['arrow', [1, 3], 1], ['flask', [1, 1], 0.4], ['lighter', [1, 1], 0.3],
+    ['torch', [1, 2], 1.5], ['arrow', [1, 3], 1], ['flask', [1, 1], 0.4], ['lighter', [1, 1], 0.3], ['matches', [2, 6], 1.5],
   ],
   trapper: [
     ['trap', [1, 2], 3], ['rope', [2, 3], 2], ['hide', [2, 3], 2], ['knife', [1, 1], 1], ['cookedMeat', [1, 3], 1.5], ['gut', [1, 2], 1],
   ],
   truck: [
-    ['bandage', [2, 3], 2], ['flare', [1, 1], 1], ['lighter', [1, 1], 1], ['map', [1, 1], 0.8], ['torch', [1, 2], 1], ['rope', [1, 2], 1],
+    ['bandage', [2, 3], 2], ['flare', [1, 1], 1], ['lighter', [1, 1], 1], ['matches', [3, 8], 1], ['map', [1, 1], 0.8], ['torch', [1, 2], 1], ['rope', [1, 2], 1],
   ],
   stand: [
     ['arrow', [3, 6], 4], ['cookedMeat', [1, 2], 2], ['rope', [1, 2], 1.5], ['bandage', [1, 2], 1],
-    ['bow', [1, 1], 0.5], ['torch', [1, 1], 1],
+    ['bow', [1, 1], 0.5], ['torch', [1, 1], 1], ['matches', [2, 5], 1],
   ],
 };
 // How many different things each container holds: [fewest, most]. A stand's ammo box is

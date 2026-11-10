@@ -116,7 +116,7 @@ to slip through.
 
 A few birds fly over by day. The north is quiet: you hear the wind (louder up the mountains)
 and, now and then by day, a bird of the boreal winter (a junco's "tsip", chickadees, a raven's
-croak); out by a lake, the ice booming and cracking far off (more at night); owls and wolves far
+croak); owls and wolves far
 off at night; deer walking, bleating, and snorting as they bolt from you; water nearby, a
 campfire's crackle, and dripping and bats down a cave. Your footsteps sound like what's
 underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things you do have a
@@ -155,8 +155,8 @@ Each one can be searched once:
 
 You crouch down to search things on the ground (and stand to search the ranger's locker).
 Select a bandage and click and hold to bandage yourself up (+30 health); craft more from a hide
-(2 bandages each). Eating also takes a moment: click and hold. Keep the lighter: you need it to Keep the lighter: you need it to
-light fires. Save the flare for signalling a rescue (coming later).
+(2 bandages each). Eating also takes a moment: click and hold. Keep the lighter (or matches, one used
+each time): you need it to light fires and torches. Save the flare for signalling a rescue (coming later).
 
 To take off your outfit or backpack, open the menu (Tab) and drag it from your character: onto an
 empty slot to carry the outfit, or off the menu to leave it on the ground. A backpack put down keeps
@@ -186,7 +186,8 @@ To change the colours and light at each time of day, edit the table at the top o
 `src/daylight.js`.
 
 Once you have the axe, face a tree, take it out and click and hold to chop it down
-for wood. Hard work makes you hungry faster.
+for wood. Hard work makes you hungry faster. Anywhere else, click to swing the axe: it hurts an
+animal right in front of you (two blows kill a deer, one a rabbit).
 
 Your hotbar has 6 slots, and the backpack (Tab, once you've found it) has 12 more. If something doesn't fit,
 it's left on the ground with a floating icon above it; walk over and press E to pick it up.
@@ -198,7 +199,7 @@ of the screen. In the crafting list, each ingredient shows how many you have out
 you need (like 2/3 wood): red until you have enough, then green.
 
 To make a campfire, press Tab and craft one (5 wood), then select it and click to
-place it on open ground. Stand next to it and press E to light it (you need the lighter).
+place it on open ground. Stand next to it and press E to light it (with the lighter, or a match).
 A fire burns for 6 in-game hours; stand next to it and press E to add a log
 (2 more hours each, up to 16). A fire that's gone out needs more wood (E) and lighting again.
 
@@ -228,15 +229,19 @@ Craft a shelter (20 wood, 6 rope, 4 hides), select it and click to build it a fe
 ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
-Nights are dark away from a fire. Craft a torch (2 wood), hold it at a burning campfire and click
-to light it. A lit torch lights up the ground around you and burns for 8 in-game hours (about 5 real
+Nights are dark away from a fire. Craft a torch (2 wood), then click to light it with your lighter or a
+match (or hold it at a burning campfire and click). A lit torch lights up the ground around you and burns for 8 in-game hours (about 5 real
 minutes at night) while you hold it, with your arm bent up in front of you; put away in your inventory, it
 keeps. Its slot shows how long it has left.
 Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows in your Outfit
 slot, and on your character as a knee-length hide coat with a fur-trimmed hood. It keeps out most of the mountain cold, so you can climb up there by
 day, and halves the chill of a night outdoors. Nights up the mountains still need a fire.
-Hold raw meat at a burning fire and click and hold to cook it, then click away from
-the fire to eat. Eating meat raw works in a pinch, but it makes you sick.
+To cook, craft a cooking spit (3 wood), hold it next to a campfire and click to set it up over
+the fire. Then hold raw meat there and click to put it on the spit: over a burning fire it's
+cooked in 30 seconds, and burnt if you leave it on for a minute (it darkens as it starts to
+burn). Click to take it off, and away from the fire click and hold to eat. Eating meat raw
+works in a pinch, but it makes you sick, and burnt meat isn't worth much. When you're full you
+won't eat any more, and when you're not thirsty you won't drink.
 
 To tune the difficulty, edit the numbers at the top of `src/survival.js`.
 
