@@ -7,14 +7,14 @@ no credit required, though we credit them anyway); some are
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), free to use with credit to the person who
 recorded it, given here. Each was cut to one take from Freesound's preview, filtered of rumble (the
 lake ice also of its high "ping", and the birds of the traffic behind them), faded in and out,
-made mono and levelled to the same loudness (EBU R128). No NonCommercial recordings are used.
+made mono and levelled to the same loudness (EBU R128). No NonCommercial recordings are used. (The lake ice, `ice*.mp3`, is kept here but not played
+in the game for now.)
 
 | File | Recording | By | Licence | Used |
 | --- | --- | --- | --- | --- |
 | `wind.mp3` | [Wind in a forest](https://freesound.org/people/Magnesus/sounds/606960/) | Magnesus | CC0 | 24 s loop |
 | `water.mp3` | [Water-lap-against-rocks-lake.wav](https://freesound.org/people/salilnair/sounds/524688/) | salilnair | CC0 | 24 s loop, from 2 s |
 | `fire.mp3` | [fire small campfire crackling short +air tone.flac](https://freesound.org/people/kyles/sounds/637523/) | kyles | CC0 | 30 s loop |
-| `cave.mp3` | [ambience cave7.ogg](https://freesound.org/people/fonografico/sounds/636125/) | fonografico | CC0 | 24 s loop, from 3 s |
 | `owl.mp3` | [owl_hooting_000102_0145S3 002-070 000-002 007-015.wav](https://freesound.org/people/Gerent/sounds/558398/) | Gerent | CC0 | 1.1–3.7 s |
 | `wolf.mp3` | [Cooper Creek 20160313_014852 solitary wolf howl very clear](https://freesound.org/people/betchkal/sounds/500646/) | betchkal | CC0 | one howl, 29–38.5 s |
 | `chop.mp3` | [Wood Chop 8.wav](https://freesound.org/people/wavecal22/sounds/537435/) | wavecal22 | CC0 | 0.2–1.3 s |
@@ -28,7 +28,7 @@ made mono and levelled to the same loudness (EBU R128). No NonCommercial recordi
 | `chickadee-2.mp3` … `chickadee-5.mp3` | [210411 Black-capped Chickadee, main and high pitched calls](https://freesound.org/people/TRP/sounds/616954/) | TRP | CC0 | 1.1–2.9, 12.8–14.5, 33.7–35.5 and 41.5–42.55 s, filtered below 2.2 kHz |
 | `ice.mp3`, `ice-2.mp3`, `ice-3.mp3`, `ice-4.mp3`, `ice-5.mp3` | [Ice - Lake fractures](https://freesound.org/people/Vrymaa/sounds/737896/) | Vrymaa | CC0 | 39.75–42.55 s, 52.2–55.4 s, 22.5–26 s, 42.1–51.5 s, 7.7–10.5 s |
 | `raven.mp3`, `raven-2.mp3`, `raven-3.mp3`, `raven-4.mp3` | [Common Raven croaks overhead 77mel 9am B 181117.mp3](https://freesound.org/people/TRP/sounds/572720/) | TRP | CC0 | 0.62–1.32 s, 1.6–2.35 s, 2.5–3.5 s, 4.6–5.2 s |
-| `deer-snort.mp3`, `deer-snort-2.mp3`, `deer-snort-3.mp3`, `deer-snort-4.mp3` | [G38-16-Four Horse Snorts.wav](https://freesound.org/people/craigsmith/sounds/437111/) | craigsmith | CC0 | 0.38–1.63 s, 3.98–5.58 s, 5.92–7.07 s, 8.46–9.16 s |
+| `deer-snort.mp3`, `deer-snort-2.mp3`, `deer-snort-3.mp3` | [G38-16-Four Horse Snorts.wav](https://freesound.org/people/craigsmith/sounds/437111/) | craigsmith | CC0 | 3.98–5.58 s, 5.92–7.07 s, 8.46–9.16 s |
 | `deer-bleat.mp3`, `deer-bleat-2.mp3`, `deer-bleat-3.mp3`, `deer-bleat-4.mp3` | [Deer Meewing 01.wav](https://freesound.org/people/msantoro11/sounds/351113/) | msantoro11 | CC0 | 4.47–5.22 s, 5.27–6.27 s, 7.53–8.13 s, 10.9–11.55 s |
 | `deer-step.mp3`, `deer-step-2.mp3`, `deer-step-3.mp3`, `deer-step-4.mp3`, `deer-step-5.mp3` | [Animal footsteps on dry leaves](https://freesound.org/people/melle_teich/sounds/628400/) | melle_teich | CC0 | 2.3–2.75 s, 8.4–8.9 s, 6.4–6.85 s, 9.74–10.16 s, 3.92–4.52 s |
 | `deer-run.mp3`, `deer-run-2.mp3` | [small_person_animal(s)_in_leaves.wav](https://freesound.org/people/superEGsonic/sounds/167572/) | superEGsonic | CC BY 4.0 | 3.5–5.2 s, 7.95–9.55 s |
@@ -39,7 +39,7 @@ made mono and levelled to the same loudness (EBU R128). No NonCommercial recordi
 | `step-rock-5.mp3`, `step-rock-6.mp3` | [Footsteps - Stone, Rock, Concrete, Cement](https://freesound.org/people/SecureSubset/sounds/813622/) | SecureSubset | CC0 | 2.15–2.6 s, 3.4–3.85 s |
 | `step-wood.mp3`, `step-wood-2.mp3`, `step-wood-3.mp3`, `step-wood-4.mp3`, `step-wood-5.mp3`, `step-wood-6.mp3` | [Footsteps on hollow wood](https://freesound.org/people/florianreichelt/sounds/459970/) | florianreichelt | CC0 | 5.88–6.28 s, 6.3–6.75 s, 8.84–9.22 s, 12.1–12.55 s, 13.55–13.95 s, 16.3–16.75 s |
 | `step-water.mp3`, `step-water-2.mp3`, `step-water-3.mp3`, `step-water-4.mp3`, `step-water-5.mp3` | [Splashing Footsteps Shallow Water](https://freesound.org/people/ChristopherJngs/sounds/861369/) | ChristopherJngs | CC0 | 0.7–1.2 s, 1.3–1.8 s, 5.05–5.55 s, 5.6–6.15 s, 6.8–7.25 s |
-| `swim.mp3`, `swim-2.mp3`, `swim-3.mp3`, `swim-4.mp3`, `swim-5.mp3` | [G54-26-Person Swimming.wav](https://freesound.org/people/craigsmith/sounds/438845/) | craigsmith | CC0 | 0.2–1.45 s, 3.8–4.65 s, 8.85–9.75 s, 15.25–16 s, 22–22.85 s |
+| `swim.mp3`, `swim-2.mp3`, `swim-3.mp3`, `swim-4.mp3` | [G54-26-Person Swimming.wav](https://freesound.org/people/craigsmith/sounds/438845/) | craigsmith | CC0 | 3.8–4.65 s, 8.85–9.75 s, 15.25–16 s, 22–22.85 s |
 | `splash.mp3` | [SPLASH (by blaukreuz)](https://freesound.org/people/qubodup/sounds/212143/) | qubodup | CC0 | 0–1.8 s |
 | `splash-2.mp3` | [water splash](https://freesound.org/people/audiosmedia/sounds/243519/) | audiosmedia | CC0 | 1–3.2 s |
 | `splash-3.mp3`, `splash-4.mp3` | [Foley_Natural_Water_Jump_Mono.wav](https://freesound.org/people/Nox_Sound/sounds/585744/) | Nox_Sound | CC0 | 0–2.2 s, 9.6–11.2 s |
@@ -52,18 +52,18 @@ made mono and levelled to the same loudness (EBU R128). No NonCommercial recordi
 | `bow-draw-2.mp3` | [Regular Arrow Shot with rattle slow draw](https://freesound.org/people/brendan89/sounds/321554/) | brendan89 | CC BY 3.0 | 0.3–2.75 s |
 | `bow-shoot.mp3` | [Regular Arrow Shot with rattle slow draw](https://freesound.org/people/brendan89/sounds/321554/) | brendan89 | CC BY 3.0 | 2.75–3.8 s |
 | `bow-shoot-2.mp3` | [ARCHERY.wav](https://freesound.org/people/xtrgamr/sounds/253548/) | xtrgamr | CC BY 4.0 | 0.05–1.2 s |
-| `bow-shoot-3.mp3` | [BC arrow shoot.wav](https://freesound.org/people/cmusounddesign/sounds/119878/) | cmusounddesign | CC BY 4.0 | 2.85–3.9 s |
 | `arrow-hit.mp3` | [Arrow Impact](https://freesound.org/people/Twisted_Euphoria/sounds/205938/) | Twisted_Euphoria | CC0 | 0.03–0.53 s |
-| `arrow-hit-2.mp3` | [Arrow Impact](https://freesound.org/people/omerbhatti34/sounds/521552/) | omerbhatti34 | CC0 | 0–0.3 s |
 | `arrow-land.mp3` | [Dart-Thud-1](https://freesound.org/people/CosmicEmbers/sounds/387478/) | CosmicEmbers | CC BY 3.0 | 0–0.42 s |
 | `arrow-land-2.mp3` | [Dart Thud 3](https://freesound.org/people/CosmicEmbers/sounds/387479/) | CosmicEmbers | CC BY 3.0 | 0–0.45 s |
 | `arrow-land-3.mp3` | [ARROW_WOOD_IMPACT_SINGLE_ARCHERY_01.wav](https://freesound.org/people/JoeDinesSound/sounds/534956/) | JoeDinesSound | CC0 | 0.05–0.65 s |
 | `stab.mp3` | [Knife Stab.wav](https://freesound.org/people/Mixedupmoviestuff/sounds/179222/) | Mixedupmoviestuff | CC0 | 0.1–0.65 s |
+| `swing.mp3` | [Wooden Stick Swing 1_4](https://freesound.org/people/Joao_Janz/sounds/485279/) | Joao_Janz | CC0 | 0–0.55 s |
+| `swing-2.mp3` | [Swosh Sword Swing](https://freesound.org/people/qubodup/sounds/59992/) | qubodup | CC0 | 0–0.4 s |
+| `swing-3.mp3` | [FX - Swoosh - Low Pitch](https://freesound.org/people/bolkmar/sounds/475135/) | bolkmar | CC0 | 0–1.1 s |
 | `chew.mp3` | [Chewing, Carrot, A.wav](https://freesound.org/people/InspectorJ/sounds/412068/) | InspectorJ | CC BY 4.0 | 0.22–1.22 s |
 | `chew-2.mp3` | [Eating a Toastie.wav](https://freesound.org/people/squashy555/sounds/235905/) | squashy555 | CC0 | 0.1–0.8 s |
 | `gulp.mp3` | [Drinking and swallow](https://freesound.org/people/dersuperanton/sounds/433645/) | dersuperanton | CC BY 4.0 | 0.05–0.7 s |
-| `gulp-2.mp3`, `gulp-3.mp3` | [Water_Drink.wav](https://freesound.org/people/Q.K./sounds/56270/) | Q.K. | CC0 | 1.75–2.17 s, 3.42–3.8 s |
-| `gulp-4.mp3` | [Drinking.wav](https://freesound.org/people/craigglenday/sounds/517173/) | craigglenday | CC0 | 2.6–3.65 s |
+| `gulp-2.mp3` | [Water_Drink.wav](https://freesound.org/people/Q.K./sounds/56270/) | Q.K. | CC0 | 1.75–2.17 s |
 | `rummage.mp3` | [Unzip, dig through bag, zip](https://freesound.org/people/jeffdutton10/sounds/332538/) | jeffdutton10 | CC0 | 1.9–2.7 s |
 | `rummage-2.mp3`, `rummage-3.mp3`, `rummage-4.mp3` | [Purse rummaging](https://freesound.org/people/emainta/sounds/785689/) | emainta | CC0 | 4.4–5.4 s, 6.5–7.5 s, 9.3–10.3 s |
 | `bandage.mp3`, `bandage-2.mp3`, `bandage-3.mp3`, `bandage-4.mp3` | [Wrapping cloth](https://freesound.org/people/ChuckleNutsDev/sounds/718668/) | ChuckleNutsDev | CC0 | 0.15–0.7 s, 0.8–1.45 s, 1.78–2.38 s, 2.63–3.03 s |

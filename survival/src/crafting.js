@@ -6,7 +6,7 @@ export const RECIPES = [
     item: 'campfire',
     count: 1,
     cost: { wood: 5 },
-    description: 'Place it on open ground, then light it with a lighter (E)',
+    description: 'Place it on open ground, then light it with a lighter or a match (E)',
   },
   {
     item: 'shelter',

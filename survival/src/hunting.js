@@ -63,7 +63,7 @@ export const KNIFE_HITS_TO_KILL = { rabbit: 1, deer: 2 };
 // The axe hits harder than the knife but swings slower. It reaches as far as a knife stab
 // (see knifeHitTest), and doesn't wear out on animals.
 export const AXE_HITS_TO_KILL = { rabbit: 1, deer: 2 };
-export const AXE_COOLDOWN = 0.8; // seconds between swings at an animal
+export const AXE_COOLDOWN = 0.8; // seconds between swings
 // What each animal gives when you take it from a trap or butcher it.
 export const ANIMAL_DROPS = {
   rabbit: { rawMeat: 2, hide: 1, gut: 1 },

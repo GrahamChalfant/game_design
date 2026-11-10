@@ -37,7 +37,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
   let chopBeat = 0; // seconds into the current axe swing (for the sound of it biting)
   const CHOP_BEAT = 0.83; // one swing of player.glb's chop animation
   let knifeReady = 0; // seconds until the knife can stab again
-  let axeReady = 0; // seconds until the axe can swing at an animal again
+  let axeReady = 0; // seconds until the axe can swing again
 
   // Adds items to the inventory. Anything that doesn't fit is dropped on the ground at
   // (dropX, dropZ), or at the player's feet.
@@ -49,6 +49,26 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       if (!pickups.drop(item, leftOver, dropX, dropZ)) pickups.drop(item, leftOver, player.position.x, player.position.z);
       hud.toast(`Inventory full: ${leftOver} ${ITEMS[item].name.toLowerCase()} left on the ground`);
     }
+  };
+
+  // What you can light a fire or a torch with: your lighter, or else a match (one used up
+  // each time). Null if you've neither.
+  const fireStarter = () => (inventory.count('lighter') > 0 ? 'lighter' : inventory.count('matches') > 0 ? 'matches' : null);
+  const withStarter = (starter) => (starter === 'lighter' ? 'with your lighter' : 'with a match');
+  // Uses up a match if that's what you lit it with, with the sound of it catching.
+  const strike = (starter, at) => {
+    if (starter === 'matches') {
+      inventory.remove('matches', 1);
+      hud.toast(`-1 match (${inventory.count('matches')} left)`);
+    }
+    sfx('fire-light', at);
+  };
+  // The torch in your hand catches: from a burning fire, or struck with `starter`.
+  const lightTorch = (starter = null) => {
+    if (starter) strike(starter);
+    inventory.remove('torch', 1);
+    give('litTorch', 1);
+    hud.toast('The torch catches');
   };
 
   const eat = (food) => {
@@ -111,14 +131,14 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     };
 
     if (fire) {
-      // Tending a fire: E lights it (with a lighter) or adds a log.
+      // Tending a fire: E lights it (with a lighter or a match) or adds a log.
       // Raw meat in hand: hold the mouse button to cook it.
       const wood = inventory.count('wood');
-      const hasLighter = inventory.count('lighter') > 0;
+      const starter = fireStarter();
       const needsLighting = !campfires.isBurning(fire) && fire.fuel > 0;
-      if (pressedE && needsLighting && hasLighter) {
+      if (pressedE && needsLighting && starter) {
         campfires.light(fire);
-        sfx('fire-light', fire);
+        strike(starter, fire);
         hud.toast('The fire catches');
       } else if (pressedE && !needsLighting && wood > 0 && campfires.addWood(fire)) {
         inventory.remove('wood', 1);
@@ -133,7 +153,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         tend = wood > 0 ? 'E to add wood' : 'no wood to add';
       } else if (fire.fuel > 0) {
         status = 'Campfire: not lit';
-        tend = hasLighter ? 'E to light it' : 'you need a lighter to light it';
+        tend = starter ? `E to light it ${withStarter(starter)}` : 'you need a lighter or matches to light it';
       } else {
         status = 'The fire is out';
         tend = wood > 0 ? 'E to add wood' : 'it needs wood';
@@ -154,12 +174,12 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         prompt = `${status} · light it to cook`;
       } else if (held === 'torch' && burning) {
         prompt = `Click to light the torch · ${tend}`;
-        if (input.startedUsingTool()) {
-          inventory.remove('torch', 1);
-          give('litTorch', 1);
-        }
+        if (input.startedUsingTool()) lightTorch();
+      } else if (held === 'torch' && fireStarter()) {
+        prompt = `Click to light the torch ${withStarter(fireStarter())} · ${tend}`;
+        if (input.startedUsingTool()) lightTorch(fireStarter());
       } else if (held === 'torch') {
-        prompt = `${status} · light it to light your torch`;
+        prompt = `${status} · light it, or find a lighter or matches, to light your torch`;
       }
     }
 
@@ -313,7 +333,12 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     } else if (!fire && held === 'map') {
       prompt = 'Press M to look at the map';
     } else if (!fire && held === 'torch') {
-      prompt = 'Hold it at a burning campfire and click to light it';
+      // Light it with your lighter or a match, or at a burning campfire.
+      const starter = fireStarter();
+      if (starter) {
+        prompt = `Click to light the torch ${withStarter(starter)}`;
+        if (input.startedUsingTool()) lightTorch(starter);
+      } else prompt = 'Light it at a burning campfire, or with a lighter or matches';
     } else if (!fire && held === 'litTorch') {
       const { burn } = inventory.slots[inventory.selected];
       prompt = `Lit torch · burns for ${formatFuel(burn)} more`;
@@ -330,7 +355,9 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         onDressed(held);
       }
     } else if (!fire && held === 'lighter') {
-      prompt = 'Keep it on you to light campfires (E next to one)';
+      prompt = 'Keep it on you to light campfires (E next to one) and torches';
+    } else if (!fire && held === 'matches') {
+      prompt = `${inventory.count('matches')} matches · each lights a campfire (E next to one) or a torch`;
     } else if (!fire && held === 'flask') {
       // Click at the water's edge (or in it) to fill up; anywhere else to take a drink.
       const flask = inventory.slots[inventory.selected];
@@ -393,6 +420,8 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       } else {
         prompt = `Bow ${bow.durability}/${ITEMS.bow.durability} · ${arrowsLeft} arrows · hold the mouse button to draw, let go to shoot`;
       }
+    } else if (!fire && held === 'axe') {
+      prompt = axeTarget ? `Click to swing at the ${axeTarget.kind}` : 'Axe · click to swing it · hold at a tree to chop';
     } else if (!fire && held === 'knife') {
       const knife = inventory.slots[inventory.selected];
       prompt = `Stone knife ${knife.durability}/${ITEMS.knife.durability} · click to stab`;
@@ -426,20 +455,23 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       if (done) eat('berries');
     }
 
-    // The axe: click or hold to swing it at an animal right in front of you.
-    if (axeTarget && input.usingTool() && axeReady === 0 && !player.airborne) {
+    // The axe: click or hold to swing it, whenever it isn't biting into a tree. An animal
+    // right in front of you takes the blow.
+    if (held === 'axe' && !chopping && (input.usingTool() || input.startedUsingTool()) && axeReady === 0 && !player.airborne && !player.swimming) {
       axeReady = AXE_COOLDOWN;
       player.swingAxe();
-      sfx('arrow-hit', axeTarget.position);
-      if (hitAnimal(axeTarget, 'axe')) {
-        animals.kill(axeTarget);
-        hud.toast(`You killed a ${axeTarget.kind}! Hold E next to it to butcher it`);
-      } else hud.toast(`You hit the ${axeTarget.kind} with your axe`);
+      if (axeTarget) {
+        sfx('arrow-hit', axeTarget.position);
+        if (hitAnimal(axeTarget, 'axe')) {
+          animals.kill(axeTarget);
+          hud.toast(`You killed a ${axeTarget.kind}! Hold E next to it to butcher it`);
+        } else hud.toast(`You hit the ${axeTarget.kind} with your axe`);
+      } else sfx('swing');
     }
 
     // Stone knife (#75): click or hold to stab whatever's right in front of you. Only stabs
     // that land wear it down. Works next to a carcass or bush too.
-    if (held === 'knife' && input.usingTool() && knifeReady === 0 && !player.swimming && !player.airborne) {
+    if (held === 'knife' && (input.usingTool() || input.startedUsingTool()) && knifeReady === 0 && !player.swimming && !player.airborne) {
       knifeReady = KNIFE_COOLDOWN;
       player.stab();
       sfx('stab');

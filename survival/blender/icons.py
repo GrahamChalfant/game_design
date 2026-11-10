@@ -25,6 +25,7 @@ PAL.update(
     meat=0xb8474a, meat_dark=0x93343a, fat=0xf0d6c6, cooked=0x8a4a24, cooked_dark=0x6a3418, fur=0x9a7a58,
     fur_dark=0x7c6046, skin=0xcfae86, gut=0xc98a8a, gut_dark=0xb07272, cord=0xe8dcc0, leather=0x7a5236,
     leather_dark=0x5e3e28, cork=0xc9a46a, shirt=0x8d9aa6, shirt_dark=0x6f7c88, button=0xe0e0d8,
+    matchbox=0x3d6a8a, matchbox_dark=0x2e5470, match_tray=0xd9c49a, match_wood=0xe2c690, match_head=0xb83224,
     jacket=0xb5432f, jacket_dark=0x8a3324, zip=0x3a2a20, flame=0xff7a2a, flame_core=0xffd36a,
 )
 
@@ -148,6 +149,20 @@ def lighter():
         b.box((x, 0.83, 0.101), (0.05, 0.05, 0.01), col('steel_dark', 0.02))
     b.pole((-0.1, 0.95, -0.07), (-0.1, 0.95, 0.07), 0.07, col('steel_dark', 0.02), n=8)
     return made('lighter', b) + [flame((0.08, 0.92, 0), 0.7)]
+
+
+def matches():
+    # A box of matches, its tray pushed half out, a row of red heads showing.
+    b = Builder()
+    b.box((-0.12, 0.11, 0), (0.75, 0.22, 0.5), col('matchbox', 0.03))
+    b.box((-0.12, 0.221, 0), (0.42, 0.01, 0.32), col('white', 0.02))
+    b.box((-0.12, 0.226, 0), (0.18, 0.01, 0.12), col('red', 0.02))
+    b.box((-0.495, 0.11, 0), (0.01, 0.16, 0.42), col('matchbox_dark', 0.04))  # the striking strip
+    b.box((0.36, 0.09, 0), (0.5, 0.18, 0.46), col('match_tray', 0.03))
+    for k, z in enumerate((-0.16, -0.08, 0, 0.08, 0.16)):
+        b.box((0.36, 0.2, z), (0.44, 0.035, 0.035), col('match_wood', 0.03))
+        ball(b, (0.6, 0.2, z), (0.045, 0.04, 0.035), col('match_head', 0.03))
+    return made('matches', b)
 
 
 def map_():
@@ -392,6 +407,7 @@ ITEMS = {
     'trap': (trap, [('y', 0.4)]),
     'campfire': (campfire, []),
     'lighter': (lighter, [('z', -0.2)]),
+    'matches': (matches, [('x', 0.5), ('y', -0.4)]),
     'map': (map_, [('x', 0.5)]),
     'compass': (compass, [('x', 0.6)]),
     'torch': (torch, [('z', -0.6)]),

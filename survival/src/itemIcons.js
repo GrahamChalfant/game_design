@@ -93,6 +93,16 @@ const MODELS = {
     return group(body, top, wheel, flame(0.7).translateX(0.08).translateY(0.9)).rotateZ(-0.2);
   },
 
+  // A box of matches, its tray pushed half out, red heads showing.
+  matches: () => {
+    const sleeve = mesh(new THREE.BoxGeometry(0.75, 0.22, 0.5), flat(0x3d6a8a), [-0.12, 0.11, 0]);
+    const label = mesh(new THREE.BoxGeometry(0.4, 0.01, 0.3), WHITE, [-0.12, 0.225, 0]);
+    const tray = mesh(new THREE.BoxGeometry(0.5, 0.18, 0.46), flat(0xd9c49a), [0.36, 0.1, 0]);
+    const sticks = [-0.15, -0.05, 0.05, 0.15].map((z) => mesh(new THREE.BoxGeometry(0.42, 0.04, 0.04), CUT_WOOD, [0.36, 0.2, z]));
+    const heads = [-0.15, -0.05, 0.05, 0.15].map((z) => mesh(new THREE.BoxGeometry(0.07, 0.06, 0.06), flat(0xb83224), [0.6, 0.2, z]));
+    return group(sleeve, label, tray, ...sticks, ...heads).rotateX(0.6).rotateY(-0.4);
+  },
+
   // A folded paper map, with a red route marked on it (#94).
   map: () => {
     const paper = flat(0xe6d8b4);
