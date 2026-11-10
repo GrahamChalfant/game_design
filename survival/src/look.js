@@ -261,12 +261,12 @@ export function bladeTuft(name) {
 
 // Which surface each of the models' materials gets, by its name in the model.
 const SURFACE_OF = {
-  wood: 'wood', 'log-pile': 'wood', stump: 'wood', campfire: 'wood', tool: 'wood', bow: 'wood', arrow: 'wood', knife: 'wood', trap: 'wood',
+  wood: 'wood', 'log-pile': 'wood', stump: 'wood', campfire: 'wood', tool: 'wood', bow: 'wood', arrow: 'wood', knife: 'wood', trap: 'wood', 'spit-wood': 'wood',
   rock: 'rock', stone: 'rock',
   metal: 'metal', truck: 'metal',
   cloth: 'cloth', backpack: 'cloth', suitcase: 'cloth', player: 'cloth',
   animal: 'fur',
-  shelter: 'plain', 'berry-bush': 'plain', berry: 'plain',
+  shelter: 'plain', 'berry-bush': 'plain', berry: 'plain', 'spit-meat': 'plain',
 };
 export const surfaceFor = (materialName) => SURFACE_OF[materialName.split('.')[0]];
 

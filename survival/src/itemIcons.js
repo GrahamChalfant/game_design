@@ -180,6 +180,20 @@ const MODELS = {
     return group(meat, bone, ...knobs).rotateY(0.9).rotateX(-0.3);
   },
 
+  burntMeat: () => {
+    const meat = mesh(new THREE.IcosahedronGeometry(0.5, 0).scale(1, 0.85, 1.3), flat(0x3a2a22), [0, 0, -0.2]);
+    const bone = mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.35, 6), flat(0xb9b0a0), [0, 0, 0.55], [Math.PI / 2, 0, 0]);
+    return group(meat, bone).rotateY(0.9).rotateX(-0.3);
+  },
+
+  // A cooking spit: two forked sticks and a skewer across them.
+  spit: () => {
+    const wood = flat(0x5d4a3a);
+    const legs = [-0.6, 0.6].map((x) => mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.9, 6), wood, [x, 0.45, 0]));
+    const bar = mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.5, 6), flat(0xc9b48a), [0, 0.85, 0], [0, 0, Math.PI / 2]);
+    return group(...legs, bar).rotateY(0.35).rotateX(0.25);
+  },
+
   // A folded, furry rabbit/deer pelt.
   hide: () => {
     const fur = flat(0x9a7a58);

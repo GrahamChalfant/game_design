@@ -171,7 +171,7 @@ export class Sound {
     set('wind', outside * (0.05 + 0.3 * env.cold) * gust);
     set('water', outside * 0.27 * env.water, 0.3);
     set('fire', outside * 0.35 * env.fire, 0.2);
-    set('sizzle', env.cooking ? 0.6 : 0); // (a quiet recording)
+    set('sizzle', 0.6 * (env.cooking || 0)); // (a quiet recording)
     this.echoOut.gain.setTargetAtTime(env.underground ? 0.35 : 0, now, 0.3);
     if (env.paused) return;
 

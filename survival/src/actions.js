@@ -1,10 +1,9 @@
-import { formatFuel } from './campfires.js';
+import { BURN_TIME, COOK_TIME, formatFuel, meatAfter } from './campfires.js';
 import { isNight } from './daylight.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 import { ANIMAL_DROPS, AXE_COOLDOWN, BOW_COOLDOWN, BOW_DRAW_TIME, BOW_MIN_DRAW, BUTCHER_TIME, KNIFE_COOLDOWN, arrowFlight, hitAnimal, knifeHitTest } from './hunting.js';
 import { BERRY_HUNGER, hasBerries, regrowLeft } from './foraging.js';
 
-const COOK_TIME = 3; // seconds of holding the mouse button at a fire to cook one piece of meat
 const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
 const EAT_TIME = 1.2; // seconds of holding the mouse button to eat something
 const BANDAGE_TIME = 2.5; // ...and to bandage yourself up
@@ -17,9 +16,11 @@ const BANDAGE_HEALING = 30;
 // ground are out of reach, and you can't put things down. (Higher than the tallest rock.)
 const UP_HIGH = 2.5;
 const FLASK_DRINK = 35; // thirst one drink from the flask restores
+const FULL = 95; // with hunger (or thirst) this high you're full: you won't eat (or drink) more
 // What eating each food does to hunger and health.
 const FOOD = {
   cookedMeat: { hunger: 35, health: 0, message: 'Delicious' },
+  burntMeat: { hunger: 10, health: 0, message: 'Charred and bitter' },
   rawMeat: { hunger: 12, health: -15, message: 'You feel sick' },
   berries: { hunger: BERRY_HUNGER, health: 0, message: 'Tart, but it helps' }, // no spoiling in v1 (#74)
 };
@@ -27,7 +28,6 @@ const FOOD = {
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
 export function createActions({ sfx = () => {}, input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, aimPoint }) {
-  let cooking = 0;
   let searching = 0;
   let using = 0; // seconds spent eating or bandaging so far
   let usingItem = null;
@@ -38,6 +38,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
   const CHOP_BEAT = 0.83; // one swing of player.glb's chop animation
   let knifeReady = 0; // seconds until the knife can stab again
   let axeReady = 0; // seconds until the axe can swing again
+  let drinkingBefore = false; // drinking at the water last frame
 
   // Adds items to the inventory. Anything that doesn't fit is dropped on the ground at
   // (dropX, dropZ), or at the player's feet.
@@ -92,7 +93,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     const offGround = upHigh || Boolean(player.cave);
     const onGround = (thing) => (offGround ? null : thing);
     const canDrink = !offGround && player.canDrink(world);
-    const drinking = canDrink && input.isDown('KeyE');
+    // You drink until you've had enough (and won't start when you're not thirsty).
+    const thirsty = survival.thirst < (drinkingBefore ? 100 : FULL);
+    const drinking = canDrink && thirsty && input.isDown('KeyE');
+    drinkingBefore = drinking;
     const fire = onGround(campfires.near(x, z, 1.2));
     const trap = onGround(traps.near(x, z, 1.3));
     const pile = onGround(pickups.near(x, z, 1.3));
@@ -114,7 +118,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     const chopping = Boolean(tree && held === 'axe' && input.usingTool() && !player.airborne && !axeTarget);
     let prompt = null;
     let progress = null;
-    let cookingNow = false;
+    let clickUsed = false; // the click went to the fire's spit (so it doesn't swing the axe too)
     let usingNow = false;
     let drawingNow = false;
     let busy = null; // what the player's hands are doing, for their pose (see Player.busy)
@@ -160,18 +164,44 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       }
       prompt = `${status} · ${tend}`;
 
-      if (held === 'rawMeat' && burning) {
-        cookingNow = input.usingTool();
-        cooking = cookingNow ? cooking + dt : 0;
-        progress = cooking / COOK_TIME;
-        prompt = `${cookingNow ? 'Cooking…' : 'Click and hold to cook'} · ${tend}`;
-        if (cooking >= COOK_TIME) {
-          cooking = 0;
+      // Cooking: set a spit up over the fire, put raw meat on it, and take it off once it's
+      // cooked (COOK_TIME), before it burns (BURN_TIME). Click takes it off, whatever's in hand.
+      const { spit } = fire;
+      if (spit?.meat) {
+        const { cooked } = spit.meat;
+        const state = meatAfter(cooked);
+        const take = 'click to take it off';
+        if (state === 'rawMeat') {
+          progress = cooked / COOK_TIME;
+          prompt = burning ? `Meat cooking… ${Math.ceil(COOK_TIME - cooked)} s · ${take}` : `Meat on the spit · light the fire to cook it · ${take}`;
+        } else if (state === 'cookedMeat') {
+          prompt = cooked > BURN_TIME - 15 && burning ? `It's starting to burn! · ${take}` : `Cooked! · ${take} before it burns`;
+        } else prompt = `The meat's burnt · ${take}`;
+        if (input.startedUsingTool()) {
+          clickUsed = true;
+          give(campfires.takeMeat(fire), 1);
+        }
+      } else if (held === 'spit' && !spit) {
+        prompt = `Click to set the spit up over the fire · ${tend}`;
+        if (input.startedUsingTool()) {
+          clickUsed = true;
+          inventory.remove('spit', 1);
+          campfires.addSpit(fire, player.facing);
+          sfx('add-wood', fire);
+          hud.toast('The spit is up. Put raw meat on it to cook');
+        }
+      } else if (held === 'spit') {
+        prompt = `This fire has a spit already · ${tend}`;
+      } else if (held === 'rawMeat' && spit) {
+        prompt = burning ? `Click to put the meat on the spit · ${tend}` : `Click to put the meat on the spit · light the fire to cook it`;
+        if (input.startedUsingTool()) {
+          clickUsed = true;
           inventory.remove('rawMeat', 1);
-          give('cookedMeat', 1);
+          campfires.putMeat(fire);
+          sfx('rummage', fire);
         }
       } else if (held === 'rawMeat') {
-        prompt = `${status} · light it to cook`;
+        prompt = `${status} · you need a spit to cook on: craft one (Tab, 3 wood)`;
       } else if (held === 'torch' && burning) {
         prompt = `Click to light the torch · ${tend}`;
         if (input.startedUsingTool()) lightTorch();
@@ -371,6 +401,8 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         }
       } else if (flask.water === 0) {
         prompt = 'The flask is empty · fill it at the lake or river';
+      } else if (survival.thirst >= FULL) {
+        prompt = `Water flask ${flask.water}/${holds} · you're not thirsty`;
       } else {
         prompt = `Water flask ${flask.water}/${holds} · click to drink`;
         if (input.startedUsingTool()) {
@@ -438,26 +470,26 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       prompt = 'Save the flare to signal a rescue plane';
     } else if (!fire && held === 'rope') {
       prompt = 'Rope is used to craft traps (Tab)';
-    } else if (!fire && held === 'cookedMeat') {
-      const done = holdToUse(EAT_TIME);
-      prompt = usingNow ? 'Eating…' : 'Click and hold to eat';
-      if (usingNow) busy = 'eat';
-      if (done) eat('cookedMeat');
-    } else if (!fire && held === 'rawMeat') {
-      const done = holdToUse(EAT_TIME);
-      prompt = usingNow ? 'Eating…' : 'Cook it at a campfire · hold the mouse button to eat it raw (risky)';
-      if (usingNow) busy = 'eat';
-      if (done) eat('rawMeat');
-    } else if (!fire && held === 'berries') {
-      const done = holdToUse(EAT_TIME);
-      prompt = usingNow ? 'Eating…' : `Click and hold to eat (+${BERRY_HUNGER} hunger)`;
-      if (usingNow) busy = 'eat';
-      if (done) eat('berries');
+    } else if (!fire && FOOD[held]) {
+      // Food: click and hold to eat it (unless you're full).
+      const ready = {
+        cookedMeat: 'Click and hold to eat',
+        burntMeat: 'Click and hold to eat (charred: not much in it)',
+        rawMeat: 'Cook it on a spit over a campfire · hold the mouse button to eat it raw (risky)',
+        berries: `Click and hold to eat (+${BERRY_HUNGER} hunger)`,
+      }[held];
+      if (survival.hunger >= FULL) prompt = held === 'rawMeat' ? "You're full · cook it on a spit over a campfire" : "You're full";
+      else {
+        const done = holdToUse(EAT_TIME);
+        prompt = usingNow ? 'Eating…' : ready;
+        if (usingNow) busy = 'eat';
+        if (done) eat(held);
+      }
     }
 
     // The axe: click or hold to swing it, whenever it isn't biting into a tree. An animal
     // right in front of you takes the blow.
-    if (held === 'axe' && !chopping && (input.usingTool() || input.startedUsingTool()) && axeReady === 0 && !player.airborne && !player.swimming) {
+    if (held === 'axe' && !chopping && !clickUsed && (input.usingTool() || input.startedUsingTool()) && axeReady === 0 && !player.airborne && !player.swimming) {
       axeReady = AXE_COOLDOWN;
       player.swingAxe();
       if (axeTarget) {
@@ -471,7 +503,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
 
     // Stone knife (#75): click or hold to stab whatever's right in front of you. Only stabs
     // that land wear it down. Works next to a carcass or bush too.
-    if (held === 'knife' && (input.usingTool() || input.startedUsingTool()) && knifeReady === 0 && !player.swimming && !player.airborne) {
+    if (held === 'knife' && !clickUsed && (input.usingTool() || input.startedUsingTool()) && knifeReady === 0 && !player.swimming && !player.airborne) {
       knifeReady = KNIFE_COOLDOWN;
       player.stab();
       sfx('stab');
@@ -490,7 +522,6 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       }
     }
 
-    if (!cookingNow) cooking = 0;
     if (!searchingNow) searching = 0;
     if (!usingNow) using = 0;
     if (!drawingNow) drawing = 0;
@@ -509,7 +540,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       give('wood', tree.wood, tree.spot.x + Math.sin(away) * 1.6, tree.spot.z + Math.cos(away) * 1.6);
     }
     // (With a flask in hand, the flask's prompt already says how to drink here.)
-    if (canDrink && !(held === 'flask' && !drinking)) prompt = drinking ? 'Drinking…' : 'Hold E to drink';
+    if (canDrink && !(held === 'flask' && !drinking)) prompt = drinking ? 'Drinking…' : thirsty ? 'Hold E to drink' : "You're not thirsty";
 
     // Under a shelter you're warm, and at night E sleeps until morning.
     // So are you inside a cabin or a cave.
@@ -532,7 +563,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     return {
       drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, cold, outfit: inventory.outfit, prompt, progress,
       // (What the player's busy with, for the sounds.)
-      cooking: cookingNow, eating: busy === 'eat', searching: searchingNow, bandaging: busy === 'bandage',
+      eating: busy === 'eat', searching: searchingNow, bandaging: busy === 'bandage',
     };
   };
 }

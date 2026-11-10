@@ -22,7 +22,7 @@ PAL.update(
     moss=0x5e7444, red=0xb0392b, red_dark=0x8a3324, steel=0x9aa3ab, steel_dark=0x5d646b, white=0xf1ece2, cloth_grey=0xb9b0a0,
     paper=0xe6d8b4, paper_fold=0xcdbd94, map_lake=0x4a7d9c, map_hill=0x86877f, map_route=0xa83a2a, map_wood=0x6f7d58,
     brass=0xc9a24a, brass_dark=0x9a7a34, flare_cap=0x2f2a28, flare_tip=0x6a5240, hemp=0xc7a46a, hemp_dark=0xa8864e,
-    meat=0xb8474a, meat_dark=0x93343a, fat=0xf0d6c6, cooked=0x8a4a24, cooked_dark=0x6a3418, fur=0x9a7a58,
+    burnt=0x3a2a22, burnt_dark=0x1f1814, meat=0xb8474a, meat_dark=0x93343a, fat=0xf0d6c6, cooked=0x8a4a24, cooked_dark=0x6a3418, fur=0x9a7a58,
     fur_dark=0x7c6046, skin=0xcfae86, gut=0xc98a8a, gut_dark=0xb07272, cord=0xe8dcc0, leather=0x7a5236,
     leather_dark=0x5e3e28, cork=0xc9a46a, shirt=0x8d9aa6, shirt_dark=0x6f7c88, button=0xe0e0d8,
     matchbox=0x3d6a8a, matchbox_dark=0x2e5470, match_tray=0xd9c49a, match_wood=0xe2c690, match_head=0xb83224,
@@ -259,6 +259,27 @@ def cooked_meat():
     return made('cookedMeat', b)
 
 
+def burnt_meat():
+    b = Builder()
+    random.seed(5)
+    ball(b, (0, 0, -0.2), (0.46, 0.4, 0.6), col('burnt', 0.1), subdivisions=1)
+    for k in range(7):  # charred, cracked crust
+        b.box((random.uniform(-0.25, 0.25), random.uniform(0.2, 0.35), -0.55 + k * 0.12), (0.18, 0.06, 0.05), col('burnt_dark', 0.05), turn=random.uniform(-0.5, 0.5))
+    b.pole((0, 0, 0.3), (0, 0, 0.72), 0.07, col('cloth_grey', 0.04), n=8, taper=0.85)
+    ball(b, (-0.08, 0, 0.75), (0.1, 0.1, 0.1), col('cloth_grey', 0.04), subdivisions=0)
+    ball(b, (0.08, 0, 0.75), (0.1, 0.1, 0.1), col('cloth_grey', 0.04), subdivisions=0)
+    return made('burntMeat', b)
+
+
+def spit():
+    # The spit's sticks, without the meat.
+    objects = model('spit')
+    for o in [o for o in objects if o.name.startswith('spit-meat')]:
+        objects.remove(o)
+        bpy.data.objects.remove(o)
+    return objects
+
+
 def hide():
     b = Builder()
     def at(u, v):
@@ -417,6 +438,8 @@ ITEMS = {
     'rope': (rope, []),
     'rawMeat': (raw_meat, [('y', 0.3)]),
     'cookedMeat': (cooked_meat, [('y', 0.9), ('x', -0.3)]),
+    'burntMeat': (burnt_meat, [('y', 0.9), ('x', -0.3)]),
+    'spit': (spit, [('y', 0.6), ('x', 0.45)]),
     'hide': (hide, [('y', 0.2)]),
     'gut': (gut, []),
     'stone': (stone, [('y', 0.5)]),
