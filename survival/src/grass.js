@@ -47,7 +47,7 @@ function faceUp(geometry) {
 // tuft model, grown chunk by chunk around the player. Each tuft is a single blade until its
 // model loads. The forest floor's moss, ferns, shrubs, branches and so on (groundCover.js)
 // grow with them, kept clear of `obstacles` (trunks, rocks), with roots round the `trees`.
-export function createGrass(seed, terrain, area, { trees = null, obstacles = null } = {}) {
+export function createGrass(seed, terrain, bounds, { trees = null, obstacles = null } = {}) {
   const geometry = new THREE.PlaneGeometry(0.2, 1, 1, 4).translate(0, 0.5, 0);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i++) {
@@ -92,7 +92,7 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
 
   // Each chunk grows its own tufts from the map's seed, so they're the same every time it's
   // drawn. Chunks out of sight are forgotten and grown again when you come back.
-  const half = area / 2;
+  const outside = (x, z) => x < bounds.minX - 5 || x > bounds.maxX + 5 || z < bounds.minZ - 5 || z > bounds.maxZ + 5;
   const cleared = new SpatialGrid(); // circles where the grass was cleared, e.g. under a campfire
   const chunks = new Map(); // chunk key → { [model name]: [tuft] }
   // Grows one chunk a little at a time: it pauses (yields) every so often, so the work can be
@@ -112,7 +112,7 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
       let height = random.range(0.25, 0.55); // (tundra grass and sedge: short)
       const spin = random.range(0, Math.PI * 2);
       const thin = random.next();
-      if (Math.abs(x) > half || Math.abs(z) > half) continue;
+      if (outside(x, z)) continue;
       const ground = terrain.groundAt(x, z);
       // Along the fire road's edges the grass grows long and thick (the verges).
       const road = terrain.roadAt(x, z);
@@ -142,7 +142,7 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
       if (tries % 40 === 39) yield;
       const x = (cx + random.next()) * CHUNK_SIZE;
       const z = (cz + random.next()) * CHUNK_SIZE;
-      if (Math.abs(x) > half || Math.abs(z) > half) continue;
+      if (outside(x, z)) continue;
       const kind = pickCover(random, Math.max(0, terrain.forest(x, z)));
       if (!kind) continue;
       if (!COVER_GROUND.has(terrain.groundAt(x, z).kind) || terrain.waterDepth(x, z) > 0) continue;
@@ -156,7 +156,7 @@ export function createGrass(seed, terrain, area, { trees = null, obstacles = nul
       if (tries % 60 === 59) yield;
       const x = (cx + random.next()) * CHUNK_SIZE;
       const z = (cz + random.next()) * CHUNK_SIZE;
-      if (Math.abs(x) > half || Math.abs(z) > half) continue;
+      if (outside(x, z)) continue;
       const carpet = pickCarpet(random, x, z, Math.max(0, terrain.forest(x, z)));
       if (!carpet) continue;
       const ground = terrain.groundAt(x, z).kind;

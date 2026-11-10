@@ -32,20 +32,11 @@ import { createViews } from './views.js';
 import { HandView } from './handView.js';
 import { CRASH } from './crashTrail.js';
 import { Survival } from './survival.js';
-import { buildWorld, WORLD_SIZE } from './world.js';
+import { buildWorld, BOUNDS } from './world.js';
+import { MAP_SEED } from './layout.js';
 
-// Each game grows a new map from a random seed. Add ?seed=1234 to the address to play (or
-// share) a particular map: the same seed always gives the same map.
-const SEED = parseInt(new URLSearchParams(location.search).get('seed'), 10) || newSeed();
-function newSeed() {
-  return 1 + Math.floor(Math.random() * 999999);
-}
-// Starts a new game on a fresh map (reloads the page with a new seed in the address).
-function playNewMap() {
-  const url = new URL(location.href);
-  url.searchParams.set('seed', newSeed());
-  location.href = url;
-}
+// The map is the same every game (see layout.js); so are the bushes and the animals' start.
+const SEED = MAP_SEED;
 // Add ?speed=20 to the URL to make time pass 20x faster (handy for testing hunger and thirst).
 const TIME_SPEED = Number(new URLSearchParams(location.search).get('speed')) || 1;
 // Add ?classic to the URL to turn off the painterly filter (e.g. to compare, or on a slow computer).
@@ -95,7 +86,7 @@ const mapView = new MapView(world);
 // A rough view of the whole map, for the lookout's binoculars (built a little each frame).
 const farView = new FarView(scene, world);
 // Start south of the crashed plane, facing it (north) but just out of sight of it.
-const player = new Player(scene, world.spawn, WORLD_SIZE, Math.PI);
+const player = new Player(scene, world.spawn, BOUNDS, Math.PI);
 const snow = new Snowfall(scene);
 const daylight = new Daylight(scene, sun, ambient, snow);
 const survival = new Survival();
@@ -240,8 +231,6 @@ const placeStartItems = () => {
 };
 placeStartItems();
 const hud = new Hud({
-  seed: SEED,
-  onNewMap: playNewMap,
   onRestart: () => {
     survival.reset();
     inventory.reset();
@@ -369,7 +358,7 @@ const aimPoint = () => {
 const onDressed = (outfit) => {
   if (outfit === 'jacket') hud.say("That's better. I'll warm up in no time.", 5);
 };
-const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: () => startSpotting(), onDressed, aimPoint });
+const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: (from) => startSpotting(from), onDressed, aimPoint });
 
 // The player says things out loud when they're in trouble, in a speech bubble.
 // Each line is said at most once per evening/cold spell.
@@ -383,8 +372,21 @@ const LOW = 25;
 let saidHungry = false;
 let saidThirsty = false;
 const COME_TO_MINUTES = 4; // in-game minutes after the start before you say it (~2 s)
+// What you say when the sea, the lake or the mountainside turns you back (see canClimb).
+const TURNED_BACK = {
+  sea: "The sea's too cold and rough to go any further out.",
+  lake: "The lake's far too wide to swim. I'd need a boat to get across.",
+  mountain: "Too steep to climb here… there must be a way up somewhere.",
+};
+let turnedBackSaid = 0; // when you last said so (seconds), so you don't keep saying it
 function thinkAloud({ fire, shelter, cold = 0 }) {
   if (!survival.alive) return;
+  const turned = player.turnedBack;
+  player.turnedBack = null;
+  if (turned && clock.elapsedTime - turnedBackSaid > 25) {
+    turnedBackSaid = clock.elapsedTime;
+    hud.say(TURNED_BACK[turned], 5);
+  }
   const warm = fire || shelter;
   if (survival.hunger <= LOW && !saidHungry) {
     saidHungry = true;
@@ -544,11 +546,12 @@ const SPOTTING = {
 };
 let spotting = null; // { target, zoom } while looking through them
 const stillInput = { moveAxis: () => ({ x: 0, z: 0 }), wasPressed: () => false, isDown: () => false };
-function startSpotting() {
-  const { look } = lookout;
-  const x = lookout.x + look.x * SPOTTING.startAhead;
-  const z = lookout.z + look.z * SPOTTING.startAhead;
-  spotting = { target: new THREE.Vector3(x, world.terrain.heightAt(x, z), z), zoom: SPOTTING.startZoom };
+// `from`: where you look from ({ x, z, look }: the observatory's telescope), or the tower.
+function startSpotting(from = lookout) {
+  const length = Math.hypot(from.look.x, from.look.z) || 1;
+  const x = from.x + (from.look.x / length) * SPOTTING.startAhead;
+  const z = from.z + (from.look.z / length) * SPOTTING.startAhead;
+  spotting = { target: new THREE.Vector3(x, world.terrain.heightAt(x, z), z), zoom: SPOTTING.startZoom, origin: { x: from.x, z: from.z } };
   farView.show(true);
   camera.near = 1;
   camera.far = SPOTTING.far;
@@ -566,10 +569,11 @@ function updateSpottingCamera(dt) {
   const t = spotting.target;
   t.x += x * spotting.zoom * 0.8 * dt;
   t.z += z * spotting.zoom * 0.8 * dt;
-  const out = Math.hypot(t.x - lookout.x, t.z - lookout.z);
+  const { origin } = spotting;
+  const out = Math.hypot(t.x - origin.x, t.z - origin.z);
   if (out > SPOTTING.reach) {
-    t.x = lookout.x + ((t.x - lookout.x) / out) * SPOTTING.reach;
-    t.z = lookout.z + ((t.z - lookout.z) / out) * SPOTTING.reach;
+    t.x = origin.x + ((t.x - origin.x) / out) * SPOTTING.reach;
+    t.z = origin.z + ((t.z - origin.z) / out) * SPOTTING.reach;
   }
   t.y = world.terrain.heightAt(t.x, t.z);
   shownZoom += (spotting.zoom - shownZoom) * Math.min(1, dt * 3);
@@ -655,7 +659,7 @@ renderer.setAnimationLoop(() => {
   if (stopped) stopSpotting();
   const actions = spotting || stopped
     ? {
-        prompt: 'Binoculars · WASD to look around · scroll to zoom · E to stop',
+        prompt: 'Looking out · WASD to look around · scroll to zoom · E to stop',
         cold: world.terrain.coldAt(player.position.x, player.position.z),
         outfit: inventory.outfit,
       }

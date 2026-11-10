@@ -102,8 +102,10 @@ function waterMaterial(flows, look = {}) {
 }
 
 // The lakes (each a flat sheet a bit bigger than it; the shore hides the edges), a ribbon of
-// water following the river down its channel, and narrower, clearer ones down the creeks.
-export function createWater(lakes, river, creeks = []) {
+// water following the river down its channel, narrower, clearer ones down the creeks, and
+// `open` water reaching right across the map (the sea and the big lake): each a flat sheet
+// { level, minX, maxX, minZ, maxZ, sea } with the land hiding its edges.
+export function createWater(lakes, river, creeks = [], open = []) {
   const lakeMaterial = waterMaterial(false);
   const sheets = lakes.map((lake) => {
     const shape = new THREE.Shape();
@@ -129,8 +131,17 @@ export function createWater(lakes, river, creeks = []) {
   const creekMaterial = waterMaterial(true, { color: 0x6f9a94, opacity: 0.38 });
   const creekRibbons = creeks.map(({ points }) => ribbon(points, 0.25, 14, creekMaterial));
 
+  // (The sea darker and bluer than the lakes, and less clear.)
+  const seaMaterial = waterMaterial(false, { color: 0x2c4f5e, opacity: 0.92 });
+  const openSheets = open.map(({ level, minX, maxX, minZ, maxZ, sea }) => {
+    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(maxX - minX, maxZ - minZ, 1, 1).rotateX(-Math.PI / 2), sea ? seaMaterial : lakeMaterial);
+    sheet.position.set((minX + maxX) / 2, level, (minZ + maxZ) / 2);
+    sheet.receiveShadow = true;
+    return sheet;
+  });
+
   const mesh = new THREE.Group();
-  mesh.add(...sheets, stream, ...creekRibbons);
+  mesh.add(...sheets, ...openSheets, stream, ...creekRibbons);
 
   let next = 0; // the ring to reuse next
   let lastRipple = new THREE.Vector2(Infinity, Infinity);

@@ -28,6 +28,11 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `campfire.glb` | Ring of 15 nearly-touching stones built from `rock-small`/`rock` (mossy vertex paint), log teepee, embers, crossed-blade flame, ~0.95 m across | 1,594 | blender/remake.py |
 | `spit.glb` | A cooking spit over the campfire: two forked sticks 1.24 m apart and a peeled skewer 0.8 m up, with a lumpy roast on it (`spit-meat`, its origin on the skewer, pale for the game to tint raw, cooked or burnt) | 472 | blender/spit.py |
 | `sticks.glb` | Three fallen spruce branches lying together, barked, with twigs and broken ends: a pile of sticks on the ground, and the Sticks icon | 368 | blender/sticks.py |
+| `observatory.glb` | The observatory: a round dry-stone tower 4.2 m in radius, a copper dome (`observatory-roof`) with its shutter slit open to the front, the door at the front (+z), a plank floor and the big telescope on its pier inside, and a paved terrace out in front (to 10.5 m) with an iron railing and a spyglass on a tripod | 6,498 | blender/landmarks.py |
+| `bridge-broken.glb` | The footbridge over the ravine, broken: each end's planks on two log stringers out to 4.4 m from the middle, posts and hand ropes, planks and rope hanging into the gap | 692 | blender/landmarks.py |
+| `dock.glb` | The lakeshore dock: weathered planks on joists and posts, from the shore (origin, deck top) 14 m out along +z, a cleat and a coil of rope | 1,024 | blender/landmarks.py |
+| `barn.glb` | The farm's barn: red board-and-batten walls 10 × 14 m, white trim, big doors open at the front (+z), hay inside, a gambrel roof (`barn-roof`) | 4,872 | blender/landmarks.py |
+| `stone-hut.glb` | The blizzard shelter: a dry-stone hut 3.6 × 4.2 m with a low door at the front, a bench and an iron stove inside, a turf roof (`stone-hut-roof`) | 10,988 | blender/landmarks.py |
 | `log-pile.glb` | 4-3-2 stack of 1.2 m logs with two stakes | 1,020 | blender/remake.py |
 | `stump.glb` | Tree stump with root flares, ~0.45 m tall | 248 | blender/remake.py |
 | `trap.glb` | Spring-pole snare: stake, bent sapling with needle tufts, cord and a wide noose lying open in front (-Y), ~0.7 m across | 278 | blender/remake.py |

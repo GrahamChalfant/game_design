@@ -1,56 +1,48 @@
 import * as THREE from 'three';
 import { swappable } from './models.js';
+import { FARM } from './layout.js';
 
-// An old fire road: a dirt track from the lookout tower out to a few of the cabins, long
-// abandoned. Trees keep off it, but it's ruined in places: fallen trees lie across it, a
-// rusted truck was left on it, and a gate at the tower end hangs open.
+// The roads: the old fire road, a dirt track from the lookout tower out to the map's east edge,
+// long abandoned (trees keep off it, but it's ruined in places: fallen trees lie across it, a
+// rusted truck was left on it, and a gate at the tower end hangs open); and the farm's dirt
+// road north off the map.
 export const ROAD_WIDTH = 4;
-const MAX_CABINS = 4; // the road reaches this many cabins, nearest first
-const MAX_LEG = 450; // meters: past the first cabin, one further than this from the last stop isn't joined up
 const STEP = 5; // meters per step when finding the way
-const TRUCKS = 2;
 const LOGS_ACROSS = 3;
 // How far the road's middle keeps from each kind of place (meters from its centre): a cabin's
 // half-length, plus half the road, plus a little.
 export const KEEP_CLEAR = { cabin: 6, stand: 4.5, camp: 5, leanto: 5, cave: 5 };
 
 // Works out where the road goes. Returns { paths: [[{x, z}]], trucks: [poi], stops }.
-export function layRoads(random, terrain, lookout, pois) {
-  const cabins = pois.filter((p) => p.kind === 'cabin');
-  // Stops: the lookout, then the nearest cabin to the last stop, and so on.
-  const front = (poi, distance) => ({ x: poi.x + Math.sin(poi.heading) * distance, z: poi.z + Math.cos(poi.heading) * distance });
-  const stops = [{ x: lookout.x + 9 * Math.cos(lookout.heading), z: lookout.z - 9 * Math.sin(lookout.heading) }];
-  const left = [...cabins];
-  while (stops.length <= MAX_CABINS && left.length) {
-    const last = stops[stops.length - 1];
-    left.sort((a, b) => Math.hypot(a.x - last.x, a.z - last.z) - Math.hypot(b.x - last.x, b.z - last.z));
-    const next = left.shift();
-    if (stops.length > 1 && Math.hypot(next.x - last.x, next.z - last.z) > MAX_LEG) break; // (the tower always gets its road)
-    stops.push(front(next, 6)); // up to the cabin's door
-  }
-  // (The road keeps clear of every cabin, camp and stand on the way, not just the ones it
-  // goes to: it never runs through a building.)
+// The fixed map's roads: the old fire road from the tower out to the map's east edge (where it
+// once came in from), with an old truck left by it, and the farm's dirt road north off the map.
+export function fixedRoads(terrain, lookout, pois) {
   const blocked = pois.map((p) => ({ x: p.x, z: p.z, r: KEEP_CLEAR[p.kind] ?? 4 }));
-  const paths = [];
-  for (let i = 1; i < stops.length; i++) paths.push(smooth(findWay(terrain, stops[i - 1], stops[i], blocked)));
-
-  // A truck or two left by the side of the road, partway along.
+  const start = { x: lookout.x + 9 * Math.cos(lookout.heading), z: lookout.z - 9 * Math.sin(lookout.heading) };
+  const fireRoad = smooth(findWay(terrain, start, FIRE_ROAD_END, blocked));
+  const farmRoad = [];
+  for (let i = 1; i < FARM.road.length; i++) {
+    const [a, b] = [FARM.road[i - 1], FARM.road[i]];
+    const steps = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / STEP);
+    for (let k = 0; k < steps; k++) farmRoad.push({ x: a.x + ((b.x - a.x) * k) / steps, z: a.z + ((b.z - a.z) * k) / steps });
+  }
+  farmRoad.push(FARM.road.at(-1));
+  const paths = [fireRoad, smooth(farmRoad)];
+  // The truck, half off the fire road partway along.
   const trucks = [];
-  for (let i = 0; i < TRUCKS && paths.length; i++) {
-    const path = random.pick(paths);
-    if (path.length < 12) continue;
-    const k = Math.floor(random.range(0.3, 0.7) * path.length);
-    const [a, b] = [path[k], path[k + 1]];
+  if (fireRoad.length > 12) {
+    const k = Math.floor(fireRoad.length * 0.45);
+    const [a, b] = [fireRoad[k], fireRoad[k + 1]];
     const dx = b.x - a.x;
     const dz = b.z - a.z;
     const d = Math.hypot(dx, dz);
-    const side = random.next() < 0.5 ? 1 : -1;
-    const x = a.x + (-dz / d) * side * 1.3; // half off the road
-    const z = a.z + (dx / d) * side * 1.3;
-    trucks.push({ kind: 'truck', x, z, heading: Math.atan2(dx, dz) + random.range(-0.3, 0.3), base: terrain.heightAt(x, z), seed: Math.floor(random.next() * 1e9) });
+    const x = a.x + (-dz / d) * 1.3;
+    const z = a.z + (dx / d) * 1.3;
+    trucks.push({ kind: 'truck', x, z, heading: Math.atan2(dx, dz) + 0.2, base: terrain.heightAt(x, z), seed: 424242 });
   }
-  return { paths, trucks, stops };
+  return { paths, trucks, stops: [start, FIRE_ROAD_END] };
 }
+const FIRE_ROAD_END = { x: 1010, z: -330 };
 
 // Finds a way from a to b, a few meters at a time, steering round water and steep ground.
 function findWay(terrain, a, b, blocked = []) {

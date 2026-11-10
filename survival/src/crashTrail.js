@@ -27,6 +27,34 @@ export function trailPoint(back, side) {
   return { x: CRASH.x - sin * back + cos * across, z: CRASH.z - cos * back - sin * across };
 }
 
+// Before it touched down, the plane came in low over the trees along this line: past the skid
+// trail's far end (LENGTH), on back the way it came, for FLIGHT_PATH.to meters, snapping trees
+// off along a swath FLIGHT_PATH.half meters either side (higher up the further back, where it was
+// still descending). See world.js and wreck.js.
+export const FLIGHT_PATH = { to: 190, half: 6 };
+const flightStart = trailPoint(LENGTH, 0);
+const flightBefore = trailPoint(LENGTH - 1, 0);
+const flightDir = (() => {
+  const dx = flightStart.x - flightBefore.x;
+  const dz = flightStart.z - flightBefore.z;
+  const d = Math.hypot(dx, dz);
+  return { x: dx / d, z: dz / d };
+})();
+// The point `back` meters behind the plane (past the skid trail), `side` meters off the line.
+export function flightPoint(back, side) {
+  const out = back - LENGTH;
+  return { x: flightStart.x + flightDir.x * out - flightDir.z * side, z: flightStart.z + flightDir.z * out + flightDir.x * side };
+}
+// How far back along the flight path (x, z) is, and how far off its line: { back, side }, or
+// null if it's not beside it.
+export function onFlightPath(x, z) {
+  const dx = x - flightStart.x;
+  const dz = z - flightStart.z;
+  const out = dx * flightDir.x + dz * flightDir.z;
+  if (out < 0 || out > FLIGHT_PATH.to - LENGTH) return null;
+  return { back: LENGTH + out, side: -dx * flightDir.z + dz * flightDir.x };
+}
+
 function curve(back) {
   return (back / LENGTH) ** 2 * BEND;
 }

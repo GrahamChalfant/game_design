@@ -275,6 +275,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         animals.remove(carcass);
         for (const [item, count] of Object.entries(ANIMAL_DROPS[carcass.kind])) give(item, count, cx, cz);
       }
+    } else if (!fire && pois.telescopeNear(x, z, player.feet)) {
+      // The observatory terrace's telescope: E to look out through it, over the lake.
+      prompt = 'Telescope · E to look through it';
+      if (pressedE) onBinoculars(pois.telescopeNear(x, z, player.feet));
     } else if (!fire && lookout.binocularsNear(x, z, player.feet)) {
       // The lookout's binoculars: E to look through them and see far across the land.
       prompt = 'Binoculars · E to look through them';
@@ -290,6 +294,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       if (searching >= SEARCH_TIME) {
         searching = 0;
         if (container.note) hud.toast(`You found ${container.note}`);
+        if (container.read) hud.say(container.read, 12); // (a note: read it out)
         const source = crate ? lookout : poiContainer ? pois : wreck;
         const loot = source.search(container);
         sfx('pickup');

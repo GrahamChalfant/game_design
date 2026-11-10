@@ -1,3 +1,4 @@
+import { REGIONS } from './layout.js';
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { loadModel } from './models.js';
@@ -342,8 +343,8 @@ export class Animals {
 
   // Somewhere on dry land, clear of trees and rocks and inside the map.
   isFree(x, z, radius) {
-    const limit = this.world.size / 2 - 1;
-    if (Math.abs(x) > limit || Math.abs(z) > limit) return false;
+    const { minX, maxX, minZ, maxZ } = this.world.bounds;
+    if (x < minX + 1 || x > maxX - 1 || z < minZ + 1 || z > maxZ - 1) return false;
     if (this.world.terrain.waterDepth(x, z) > 0.35) return false; // (they wade the creeks and shallows)
     return this.world.obstacles.isClear(x, z, radius);
   }
@@ -355,7 +356,10 @@ export class Animals {
       const distance = this.random.range(...SPAWN_DISTANCE);
       const x = playerPosition.x + Math.cos(angle) * distance;
       const z = playerPosition.z + Math.sin(angle) * distance;
-      if (this.isFree(x, z, radius + 0.5)) return { x, z };
+      if (!this.isFree(x, z, radius + 0.5)) continue;
+      // How common this kind is in the region there (see REGIONS in layout.js).
+      const common = REGIONS[this.world.regionAt(x, z)]?.animals[kind] ?? 1;
+      if (this.random.next() < common) return { x, z };
     }
     return null;
   }

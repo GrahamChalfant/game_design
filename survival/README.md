@@ -67,53 +67,73 @@ The game starts paused on a menu listing the controls. Press Esc at any time to 
 
 You start hurt (55 health), empty-handed and cold, in just a shirt, a short walk south of your crashed bush
 plane. Your jacket is packed in your suitcase by the wreck: find it, select it and click to put it on, and
-you warm up (in a shirt, a day outdoors never gets you above chilly, and nights bite harder). It's just out of sight, so head north to find it. The plane came down beside a lake,
-so water is never far away. Your backpack was thrown
-clear in the crash: look around the wreckage (it has a floating icon) and press E to
-pick it up. The backpack gives you 12 extra slots. There's no axe: one cabin in four has one in
-its old chest, so you'll have to go looking.
+you warm up (in a shirt, a day outdoors never gets you above chilly, and nights bite harder). It's just out of
+sight, so head north to find it. Your backpack was thrown clear in the crash: look around the wreckage (it has
+a floating icon) and press E to pick it up. The backpack gives you 12 extra slots. There's no axe: one cabin in
+four has one in its old chest, so you'll have to go looking.
 
-Somewhere on high ground, a few hundred meters from the crash, stands a fire lookout tower. Walk
-onto the stairs at its foot and follow the flights up past the landings to the cab, 12 m up: a
-6 m square room with the lookout's fire-finder table, a cot, a supply crate and a ranger's locker.
-Hold E at the crate or the locker to search it. (Up the tower, things on the ground below are out
-of reach, and you can't put down a campfire, shelter or trap.) On most maps (about 3 in 5) the crate has a map
-in it.
+### The map
 
-A doorway leads out onto a balcony that runs all the way round the cab. Out there, binoculars
-stand on a pole by the railing: press E next to them to look through them. The view pulls way
-back so you can see far across the land. WASD looks around, scrolling zooms in and out, and E or
-Esc stops.
+The map is the same every game: hand-shaped, 2 km east to west and 3 km south to north, and the
+way on runs from south to north. There are no quest markers: you find your way by what you see,
+and what you read. (Everything below is laid out in `src/layout.js`.)
 
-Out across the map are places worth finding. Each has something to search (hold E), and its
-roof turns see-through when you step inside, like the lookout's.
+- **The crash, on the south coast.** The plane came down in coastal forest a hundred meters or so
+  from the sea, which you can see from the open ground south of the wreck. Its skid trail runs back
+  into the trees, and behind that the way it came in: a swath of trees snapped off by the plane,
+  their tops lying where they fell, with bits of the plane scattered through it. The sea's salt,
+  so for water there's a pond just north of the wreck, and a river west of it running down from
+  the mountains. You can wade and swim a little way out into the sea, but no further.
+- **The fire tower**, north-east of the crash on a wooded hill. Walk onto the stairs at its foot
+  and follow the flights up past the landings to the cab, 12 m up: the lookout's fire-finder table,
+  a cot, a supply crate (with a map in it) and a ranger's locker, with a note in it pointing you
+  on to the observatory. Hold E at the crate or the locker to search it. (Up the tower, things on
+  the ground below are out of reach, and you can't put down a campfire, shelter or trap.) Out on
+  the balcony, binoculars stand by the railing: press E to look through them. The view pulls way
+  back so you can see far across the land; WASD looks around, scrolling zooms, and E or Esc stops.
+  The old fire road runs from the tower out to the east edge of the map, a rusted truck left by it.
+- **The foothills**, north of the tower: mixed forest and meadow rising to the mountains, ponds,
+  the river, deer (more here than anywhere), and the wolves' den under a rocky bank. The hunting
+  stand is here, at a wood's edge, with a trappers' lean-to, a hunters' camp and a cave in the
+  mountains' foot.
+- **The mountains**, a wall right across the map. Off the trail the slopes are too steep to
+  climb: there's one way over, the old trail, which leaves the foothills and switches back and
+  forth up to a saddle in the ridge. Partway up, a ravine cuts across it, and the footbridge over
+  it is broken (it'll take repairing). Above it, a stone hut to sit out a blizzard in, with an
+  emergency box. Up there it's snow and bitter cold: you'll freeze fast without warm clothes.
+- **The observatory**, on the ridge just east of the saddle: a round stone tower with a copper
+  dome and a terrace looking north. Inside, the astronomer's cupboard; it's warm shelter, and
+  somewhere to sleep. On the terrace, a telescope: press E to look through it, down over the far
+  side to the lake and the cabin on its shore.
+- **The lake**, north of the mountains and right across the map: far too wide to swim (you'll
+  have to build a boat). Where the trail comes down stands the lakeshore cabin, with a dock out
+  into the water and pines all round it (for sap).
+- **The farm**, across the lake in the far north: the farmhouse and a few houses round it, the
+  barn with the pickup in it, and the dirt road leading north off the edge of the map. The way out.
 
-- **Abandoned cabins** (about a dozen), on flat ground by the water or the woods. Inside are a
-  bed, a stove, a table, and a cupboard and an old chest to search. There's split wood stacked by
-  the wall outside. A cabin is warm shelter: at night, press E inside to sleep until morning.
-- **Caves** (about nine), on rocky hillsides and up the mountains: a dark hole ringed by rocks.
-  They go underground. Walk into the hole holding a **lit torch** and the screen fades: you're
-  in a cave system 30 m down, a few rooms joined by narrow passages. It's dark but for your
-  torch, and the view closes in round you. There's an old camp with a pack to search, a miner's
-  chest in the furthest room (the best finds on the map), glowing crystals, and bats. Climb the
-  steps where you came in to go back up. Without a lit torch you won't go in. A cave is shelter
-  too: warm, out of the mountain cold, and somewhere to sleep.
-- **Abandoned campsites** (about 18): a fire ring, log seats, a collapsed tent, and sometimes a
-  pack left behind.
-- **Trappers' lean-tos** (about 10) in the woods: a bark roof to shelter under, hides on a
-  drying rack, and a crate (often with a trap or two in it).
-- **Hunting stands** (about 25), at the edges of the woods. Climb the ladder onto the platform,
-  3 m up: from there, animals don't notice you, so it's a good spot to shoot from. There's often
-  an ammo box with arrows or dried meat up there (and once in a while a bow).
+Each region has its own wildlife and plants (`REGIONS` in `src/layout.js`): how common rabbits and
+deer are, whether wolves range there, how many berry bushes grow, and whether the pines can be
+tapped for sap.
 
-An **old fire road** runs from the lookout tower out to the nearest cabins: a dirt track with
-wheel ruts and grass coming back down the middle. It's long abandoned: the gate by the tower
-hangs open, fallen trees lie across it, and a rusted forest service truck or two sits by the
-side (search the glovebox). It's marked on the map as a dashed line.
+Most places have something to search (hold E), and a building's roof turns see-through when you
+step inside. Cabins, caves, the stone hut and the observatory are warm shelter: at night, press E
+inside to sleep until morning. The first time you come across a place, you'll say so.
+
+- **Cabins** (the lakeshore cabin and the farm's houses): a bed, a stove, a table, and a cupboard
+  and an old chest to search, with split wood stacked by the wall outside.
+- **The cave** in the mountains' foot: a dark hole ringed by rocks. Walk into the hole holding a
+  **lit torch** and the screen fades: you're in a cave system 30 m down, a few rooms joined by
+  narrow passages. It's dark but for your torch, and the view closes in round you. There's an old
+  camp with a pack to search, a miner's chest in the furthest room (the best finds on the map),
+  glowing crystals, and bats. Climb the steps where you came in to go back up. Without a lit torch
+  you won't go in.
+- **Campsites**: a fire ring, log seats, a collapsed tent, and sometimes a pack left behind.
+- **Trappers' lean-tos**: a bark roof to shelter under, hides on a drying rack, and a crate.
+- **The hunting stand**: climb the ladder onto the platform, 3 m up: from there, animals don't
+  notice you, so it's a good spot to shoot from. There's an ammo box up there.
 
 **Fallen trees** lie about in the woods (jump over them, or onto them), and **old split-rail
-fences** run across the meadows and round some of the cabins' yards, with rails down and gaps
-to slip through.
+fences** run across the meadows, with rails down and gaps to slip through.
 
 A few birds fly over by day. The north is quiet: you hear the wind (louder up the mountains)
 and, now and then by day, a bird of the boreal winter (a junco's "tsip", chickadees, a raven's
@@ -126,9 +146,9 @@ searching, bandaging, lighting a fire, and you'll hear it when you're hurt. Ever
 recording (from Freesound: see `public/sounds/README.md` and its credits), and `listen.html`
 plays each on its own. Press N to turn the sound off and on.
 
-What's in each is decided by the map's seed. The first time you come across each kind of place,
-you'll say so. Cabins and caves are marked on the map. All the numbers are at the top of
-`src/pois.js`, and the stand-in models are in `src/poiModels.js`.
+What's in each place to search is rolled each game. All the numbers are at the top of
+`src/pois.js` (and `src/landmarks.js` for the observatory, the bridge, the hut, the dock, the
+barn and the den), and the stand-in models are in `src/poiModels.js`.
 
 Press M to look at the map: it shows the whole area (lakes, the river, woods, the mountains and
 the lookout), where you are, the crash, your campfires and shelters, and a pale trail over the
@@ -168,13 +188,10 @@ you're about to run out; the thermometer goes from a cool blue when you're freez
 at its hottest. You'll say so when you get hungry or thirsty. Temperature falls at night and in the water, and rises near a burning
 fire. If it reaches zero, you start losing health.
 
-The land around the crash is open spruce woodland, meadows and lakes. In one corner of the map,
-a different one each game, is a big mountain range, about half a kilometer across: a rocky,
-spruce-wooded highland with snowy peaks standing on it. Spruce grow on the lower slopes, then
-scree and bare rock, then snow. The air gets
-colder the higher you climb: above the snowline you lose warmth even in the daytime, and you'll
-freeze in under a minute unless you have a fire or a shelter (or a hide parka: see below). The
-mountains are rocky, so they're a good place to find stones.
+Up the mountains, spruce grow on the lower slopes, then scree and bare rock, then snow. The air
+gets colder the higher you climb: above the snowline (the upper part of the trail, the saddle and
+the observatory) you lose warmth even in the daytime, and you'll freeze in under a minute unless
+you have a fire or a shelter (or a hide parka: see below).
 
 Survive as long as you can. Hunger and thirst drop over time. When either one runs out,
 you start losing health. Drink from a lake, the river or a creek to stay hydrated. There are
@@ -272,10 +289,12 @@ Time then passes 20 times faster.
 index.html            Page shell and HUD
 src/main.js           Renderer, lighting, camera and the main game loop
 src/daylight.js       Day and night: the sun and moon, light colours, sky and fog
-src/world.js          Builds the map from a seed: places trees, rocks and grass
+src/layout.js         The map, by hand: where the coast, the mountains, the trail, the lake and every landmark are, and the regions
+src/world.js          Builds the map: places the trees, rocks and grass
+src/landmarks.js      The observatory, the broken bridge, the stone hut, the dock, the barn and the wolves' den
 src/stream.js         Splits the map into chunks; only the ones around the player are drawn
 src/grid.js           Finds things near a spot quickly (trees, rocks, items on the ground)
-src/terrain.js        The land: hills, mountains, lakes, the river, creeks, the ground colours and how cold it is
+src/terrain.js        The land: the sea, the hills, the mountains and their trail, the lake, ponds, the river and creeks, the ground colours and how cold it is
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
 src/water.js          The lakes, the flowing river and creeks, and ripples around the player
 src/grass.js          Swaying grass tufts
@@ -316,20 +335,12 @@ src/poiModels.js      Stand-in models for the cabins, stands, campsites, lean-to
 src/cutaway.js        Fades the parts of a building between the camera and the player
 src/models.js         Loads Blender models and draws many copies efficiently
 src/placeholders.js   Simple stand-in shapes used until Blender models exist
-src/random.js         Seeded random numbers and noise (same seed = same map)
+src/random.js         Seeded random numbers and noise (a fixed seed, so the same map every time)
 public/models/        3D models exported from Blender (.glb)
 ```
 
-Every game is on a new map, grown from a random number (the seed). The map's seed is shown
-under the Play button and on the game-over screen, where **Try again** replays the same map and
-**New map** starts a fresh one. To play a particular map again, or share it, add its seed to the
-address, for example http://localhost:8000/?seed=479583. The wreck and the start are the same on
-every map; the lake is always beside the plane, on its open side, with the river flowing away.
-If a seed would put water where the crash or the start should be, the next seed in line is used
-instead (see `chooseTerrain` in `src/world.js`).
-
-The map is 1.4 km across (`WORLD_SIZE` in `src/world.js`), about 5 minutes' walk from edge to
-edge. Only the 32 m chunks around the player are drawn: the ground, grass, trees and rocks are
+The map is 2 km by 3 km (`BOUNDS` in `src/layout.js`), about 10 minutes' walk from south to
+north as the crow flies (much longer the way the land makes you go). Only the 32 m chunks around the player are drawn: the ground, grass, trees and rocks are
 built as you come near and dropped once you're well away, and items on the ground only get their
 3D objects within 70 m. Animals live in a ring around you, and ones you leave far behind turn up
 somewhere new around you. How thickly trees and rocks grow is set per hectare at the top of

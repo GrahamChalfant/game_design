@@ -1,16 +1,13 @@
 import * as THREE from 'three';
-import { CRASH } from './crashTrail.js';
 import { Cutaway } from './cutaway.js';
 import { loadModel, swappable } from './models.js';
 import * as placeholders from './placeholders.js';
 
-// A fire lookout tower (#90, #94): a tall timber tower on high ground that you can climb.
-// Up in its cab are a supply crate (sometimes with a map of the area in it) and a ranger's
-// locker to search.
+// A fire lookout tower (#90, #94): a tall timber tower on its hill north-east of the crash (see
+// layout.js) that you can climb. Up in its cab are a supply crate with a map of the area in it,
+// and a ranger's locker to search, with a note pointing you on to the observatory.
 export const LOOKOUT = {
-  distance: [250, 550], // meters from the crash
   clearing: 11, // meters around it kept free of trees and rocks
-  mapChance: 0.6, // how often the crate has a map in it
 };
 
 // The tower's walkable layout, in its own space: x and z across, y up from its foot. Four
@@ -92,22 +89,8 @@ export function fromTower(spot, x, z) {
 
 // Where the tower stands: the highest dry ground found in a ring around the crash, below the
 // snowy peaks. Returns { x, z, heading, hasMap }.
-export function chooseLookout(random, terrain, worldSize) {
-  const half = worldSize / 2 - 30;
-  let best = null;
-  for (let tries = 0; tries < 400; tries++) {
-    const angle = random.range(0, Math.PI * 2);
-    const distance = random.range(...LOOKOUT.distance);
-    const x = CRASH.x + Math.cos(angle) * distance;
-    const z = CRASH.z + Math.sin(angle) * distance;
-    if (Math.abs(x) > half || Math.abs(z) > half) continue;
-    if (terrain.mountainAt(x, z) > 0.35 || terrain.nearWater(x, z, 12)) continue;
-    const height = terrain.heightAt(x, z);
-    if (!best || height > best.height) best = { x, z, height };
-  }
-  best ??= { x: CRASH.x + LOOKOUT.distance[0], z: CRASH.z };
-  return { x: best.x, z: best.z, heading: random.range(0, Math.PI * 2), hasMap: random.next() < LOOKOUT.mapChance };
-}
+// The note pinned inside the ranger's locker.
+const RANGER_NOTE = "A note in the ranger's hand: \"Supplies are up at the observatory, by the pass over the mountains: take the old trail north through the foothills. The footbridge over the ravine is out. From the terrace you can see down to the lake cabin.\"";
 
 // The height of the tower's foot: the lowest ground under it, so the stairs start at (or
 // below) the ground and you can always step onto them. (The legs reach down into it elsewhere.)
@@ -217,7 +200,8 @@ export function buildLookout(scene, world) {
       crateObject,
       spot.hasMap ? 'a map of the area' : null,
     ),
-    { ...container("the ranger's locker", CAB.locker, [['torch', 2], ['rope', 2]], lockerObject), standing: true }, // searched standing up
+    // (The ranger's note points you on north: the way over the mountains, and what's beyond.)
+    { ...container("the ranger's locker", CAB.locker, [['torch', 2], ['rope', 2]], lockerObject, "the ranger's note"), standing: true, read: RANGER_NOTE }, // searched standing up
   ];
   const setOpen = (c, open) => {
     c.searched = open;
