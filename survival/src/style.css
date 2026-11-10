@@ -535,15 +535,28 @@ canvas {
 }
 
 #backpack[hidden],
+#nearby .tip[hidden],
 #no-backpack[hidden],
 #drag-item[hidden] {
   display: none;
 }
 
-#backpack .grid {
+#backpack .grid,
+#nearby .grid {
   display: grid;
   grid-template-columns: repeat(6, max-content);
   gap: 6px;
+}
+
+/* What's on the ground beside you: set apart from your own slots. */
+#nearby {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.25);
+}
+
+#nearby .slot {
+  background: rgba(120, 100, 70, 0.35);
 }
 
 #crafting .header {

@@ -27,6 +27,7 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `backpack.glb` | Canvas rucksack, smooth (lid, front and side pockets, webbing, padded shoulder straps, rust bedroll on top), upright, origin base centre; straps toward +Z, pocket toward -Z (glTF). Same mesh as the worn `player-pack` | 2,928 | blender/props_smooth.py |
 | `campfire.glb` | Ring of 15 nearly-touching stones built from `rock-small`/`rock` (mossy vertex paint), log teepee, embers, crossed-blade flame, ~0.95 m across | 1,594 | blender/remake.py |
 | `spit.glb` | A cooking spit over the campfire: two forked sticks 1.24 m apart and a peeled skewer 0.8 m up, with a lumpy roast on it (`spit-meat`, its origin on the skewer, pale for the game to tint raw, cooked or burnt) | 472 | blender/spit.py |
+| `sticks.glb` | Three fallen spruce branches lying together, barked, with twigs and broken ends: a pile of sticks on the ground, and the Sticks icon | 368 | blender/sticks.py |
 | `log-pile.glb` | 4-3-2 stack of 1.2 m logs with two stakes | 1,020 | blender/remake.py |
 | `stump.glb` | Tree stump with root flares, ~0.45 m tall | 248 | blender/remake.py |
 | `trap.glb` | Spring-pole snare: stake, bent sapling with needle tufts, cord and a wide noose lying open in front (-Y), ~0.7 m across | 278 | blender/remake.py |

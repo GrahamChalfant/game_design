@@ -186,6 +186,11 @@ const MODELS = {
     return group(meat, bone).rotateY(0.9).rotateX(-0.3);
   },
 
+  stick: () => {
+    const wood = flat(0x5d4a3a);
+    return group(...[[-0.15, 0.2], [0, -0.15], [0.15, 0.5]].map(([z, a]) => mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.2, 6), wood, [0, 0.05, z], [0, a, Math.PI / 2]))).rotateX(0.5);
+  },
+
   // A cooking spit: two forked sticks and a skewer across them.
   spit: () => {
     const wood = flat(0x5d4a3a);

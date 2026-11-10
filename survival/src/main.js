@@ -223,12 +223,17 @@ function updateFootsteps() {
   stride = 0;
   sound.play(player.swimming ? 'swim' : `step-${underfoot()}`, null, player.sneaking ? 0.45 : 1);
 }
-// The axe and backpack lie around the wreckage at the start of every game.
+// The backpack lies by the wreckage at the start of every game.
 const placeStartItems = () => {
   for (const { item, x, z } of START_ITEMS) pickups.drop(item, 1, x, z);
   // Loose stones by the rocks and lake shore. Taken ones come back three days later (see below).
   for (const spot of world.stones) {
     pickups.drop('stone', 1, spot.x, spot.z);
+    spot.emptySince = null;
+  }
+  // Fallen sticks in the woods. They come back too (see below).
+  for (const spot of world.sticks) {
+    pickups.drop('stick', spot.count, spot.x, spot.z);
     spot.emptySince = null;
   }
   pois.placeLoose(pickups); // wood stacked by the cabins
@@ -317,6 +322,25 @@ const hud = new Hud({
       hud.toast("You can't drop that in the water");
     }
   },
+  // Took something from the Nearby box: dragged onto slot `to`, or clicked (to null: anywhere
+  // it fits).
+  onTakeNearby: (pile, to) => {
+    if (!pickups.piles.includes(pile)) return;
+    if (pile.item === 'backpack') {
+      pickups.remove(pile);
+      inventory.putOnBackpack(pile.contents);
+      sound.play('cloth');
+      return;
+    }
+    let left = to === null ? inventory.add(pile.item, pile.count) : inventory.addTo(to, pile.item, pile.count);
+    if (to !== null && left === pile.count) left = inventory.add(pile.item, pile.count); // (that slot's taken: anywhere else)
+    const taken = pile.count - left;
+    if (taken === 0) return hud.toast('Inventory full');
+    pile.count = left;
+    if (left === 0) pickups.remove(pile);
+    sound.play('pickup');
+    hud.toast(`+${taken} ${ITEMS[pile.item].name}`);
+  },
   onCraft: (recipe) => {
     if (craft(inventory, recipe)) hud.toast(`+${recipe.count} ${ITEMS[recipe.item].name}`);
     else hud.toast('No room in your inventory');
@@ -325,6 +349,7 @@ const hud = new Hud({
 const characterView = new CharacterView(document.getElementById('character-view'));
 // Sleeping in a shelter: the screen fades out, and you wake at 06:00 with your stats
 // unchanged. Campfires keep burning through the night, so they may be out by morning.
+const NEARBY_REACH = 1.5; // meters: what's on the ground this close shows in the menu's Nearby box
 const WAKE_HOUR = 6;
 const sleep = () => {
   const minutes = survival.sleepUntil(WAKE_HOUR);
@@ -643,6 +668,8 @@ renderer.setAnimationLoop(() => {
   campfires.update(survival.alive ? dt * survival.clockSpeed * TIME_SPEED : 0, clock.elapsedTime);
   if (!survival.alive && player.alive) player.die();
   hud.update(survival, inventory, actions);
+  // The Nearby box: what's on the ground within reach (1.5 m, five feet), while the menu's open.
+  if (hud.inventoryOpen) hud.showNearby(player.cave ? [] : pickups.within(player.position.x, player.position.z, NEARBY_REACH));
   updateCompass();
   mapView.explore(player.position.x, player.position.z);
   mapView.update(inventory.count('map') > 0);
@@ -674,6 +701,13 @@ renderer.setAnimationLoop(() => {
       survival.minutesSurvived,
       (x, z) => pickups.find('stone', x, z, 0.3) !== null,
       (spot) => pickups.drop('stone', 1, spot.x, spot.z),
+      player.position,
+    );
+    respawnStones(
+      world.sticks,
+      survival.minutesSurvived,
+      (x, z) => pickups.find('stick', x, z, 0.3) !== null,
+      (spot) => pickups.drop('stick', spot.count, spot.x, spot.z),
       player.position,
     );
   }

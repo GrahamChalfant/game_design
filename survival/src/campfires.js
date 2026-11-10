@@ -5,6 +5,7 @@ import * as placeholders from './placeholders.js';
 // Fuel is measured in in-game minutes of burning.
 const START_FUEL = 6 * 60; // a new fire has wood for 6 in-game hours (it needs lighting first)...
 const FUEL_PER_WOOD = 2 * 60; // ...and each extra log adds 2 hours
+const FUEL_PER_STICK = 30; // ...or a stick, half an hour
 const MAX_FUEL = 16 * 60;
 const RADIUS = 0.7; // the player can't walk through a fire
 // Meat on a spit over a burning fire: cooked after COOK_TIME real seconds, burnt by BURN_TIME.
@@ -139,10 +140,12 @@ export class Campfires {
     if (fire.fuel > 0) fire.lit = true;
   }
 
-  // Adds one log. Returns false if the fire is already as big as it gets.
-  addWood(fire) {
-    if (fire.fuel > MAX_FUEL - FUEL_PER_WOOD) return false;
-    fire.fuel = Math.max(fire.fuel, 0) + FUEL_PER_WOOD;
+  // Adds one log (`fuel` 'wood') or stick ('stick'). Returns false if the fire is already as
+  // big as it gets.
+  addWood(fire, fuel = 'wood') {
+    const amount = fuel === 'stick' ? FUEL_PER_STICK : FUEL_PER_WOOD;
+    if (fire.fuel > MAX_FUEL - amount) return false;
+    fire.fuel = Math.max(fire.fuel, 0) + amount;
     return true;
   }
 

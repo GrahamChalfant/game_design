@@ -23,7 +23,6 @@ const SUITCASES = [
 const CLODS = 46;
 // Where the starting items lie around the wreckage.
 export const START_ITEMS = [
-  { item: 'axe', x: -3.6, z: -6.8 },
   { item: 'backpack', x: 2.8, z: -3.2 },
 ];
 

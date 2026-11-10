@@ -28,7 +28,7 @@ function unfocusable(button) {
 
 // Shows the survival stats, clock, prompts and game-over screen.
 export class Hud {
-  constructor({ seed, onNewMap, onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onWear, onCraft }) {
+  constructor({ seed, onNewMap, onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onWear, onCraft, onTakeNearby }) {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
@@ -89,6 +89,12 @@ export class Hud {
       return slot;
     });
 
+    // What's on the ground within reach, while the menu's open (see showNearby).
+    this.nearby = document.getElementById('nearby');
+    this.nearbyGrid = this.nearby.querySelector('.grid');
+    this.nearbyShown = '';
+    this.onTakeNearby = onTakeNearby;
+
     this.crafting = document.getElementById('crafting');
     const list = this.crafting.querySelector('.recipes');
     this.recipes = RECIPES.map((recipe) => {
@@ -138,6 +144,31 @@ export class Hud {
     document.body.classList.toggle('inventory-open', this.inventoryOpen);
     // The hotbar sits in the menu while it's open.
     (this.inventoryOpen ? this.stashHotbar : document.body).append(this.hotbar);
+  }
+
+  // Shows the piles on the ground beside you (`piles`, nearest first) in the menu's Nearby box,
+  // one slot each: drag one onto a slot to take it there, or click to take all that fits.
+  showNearby(piles) {
+    const key = piles.map((p) => `${p.item}:${p.count}`).join(',');
+    this.nearby.querySelector('#nearby-empty').hidden = piles.length > 0;
+    this.nearby.querySelector('#nearby-tip').hidden = piles.length === 0;
+    if (key === this.nearbyShown && piles.every((p, i) => this.nearbyPiles?.[i] === p)) return;
+    this.nearbyShown = key;
+    this.nearbyPiles = piles;
+    this.nearbyGrid.replaceChildren(...piles.map((pile) => {
+      const slot = unfocusable(document.createElement('button'));
+      slot.className = 'slot near';
+      slot.title = `${ITEMS[pile.item].name} · click to take, or drag onto a slot`;
+      slot.innerHTML = '<span class="key"></span><span class="icon"></span><span class="count"></span>';
+      showItemIcon(slot.querySelector('.icon'), pile.item);
+      slot.querySelector('.count').textContent = pile.count > 1 ? pile.count : '';
+      slot.addEventListener('click', () => {
+        if (this.justDragged) this.justDragged = false;
+        else this.onTakeNearby(pile, null);
+      });
+      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => this.onTakeNearby(pile, to), () => {}));
+      return slot;
+    }));
   }
 
   update(survival, inventory, { prompt, progress }) {
@@ -246,10 +277,11 @@ export class Hud {
       ghost.hidden = true;
       slot.classList.remove('dragging');
       const target = document.elementFromPoint(e.clientX, e.clientY);
-      const ontoSlot = target?.closest('.slot');
+      const ontoSlot = target?.closest('.slot:not(.near)');
       // The browser may still send a click to the slot where the drag started.
-      this.justDragged = ontoSlot === slot;
+      this.justDragged = ontoSlot === slot || target?.closest('.slot') === slot;
       if (ontoSlot) onto(Number(ontoSlot.dataset.index));
+      else if (target?.closest('#nearby')) outside(); // (into Nearby: put it on the ground)
       else if (wear && target?.closest('#equip-outfit, #character-view')) wear();
       else if (!target?.closest('#inventory, #hotbar')) outside();
     };

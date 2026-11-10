@@ -3,6 +3,7 @@ import { isNight } from './daylight.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 import { ANIMAL_DROPS, AXE_COOLDOWN, BOW_COOLDOWN, BOW_DRAW_TIME, BOW_MIN_DRAW, BUTCHER_TIME, KNIFE_COOLDOWN, arrowFlight, hitAnimal, knifeHitTest } from './hunting.js';
 import { BERRY_HUNGER, hasBerries, regrowLeft } from './foraging.js';
+import { CUT_TIME } from './trees.js';
 
 const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
 const EAT_TIME = 1.2; // seconds of holding the mouse button to eat something
@@ -35,6 +36,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
   let bowReady = 0; // seconds until the bow can shoot again
   let drawing = 0; // seconds the bow has been drawn for (0 when not drawing)
   let chopBeat = 0; // seconds into the current axe swing (for the sound of it biting)
+  let cutBeat = 0; // seconds into the current knife stroke, cutting sticks
   const CHOP_BEAT = 0.83; // one swing of player.glb's chop animation
   let knifeReady = 0; // seconds until the knife can stab again
   let axeReady = 0; // seconds until the axe can swing again
@@ -116,6 +118,15 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     const axeTarget = held === 'axe' && !offGround && !player.swimming ? knifeHitTest(x, z, player.facing, animals.all.filter((a) => !a.dead)) : null;
     axeReady = Math.max(0, axeReady - dt);
     const chopping = Boolean(tree && held === 'axe' && input.usingTool() && !player.airborne && !axeTarget);
+    // A felled tree lying in front of you (or at your feet): the axe cuts it into logs and sticks.
+    const ahead = player.ahead(0.6);
+    const down = !tree && !offGround ? world.trees.findDown(ahead.x, ahead.z) : null;
+    const bucking = Boolean(down && held === 'axe' && input.usingTool() && !player.airborne && !player.swimming && !axeTarget);
+    // A young tree in front of you, with the knife in hand: hold to cut sticks from it (unless
+    // there's an animal right there to stab).
+    const knifeTarget = held === 'knife' && !offGround ? knifeHitTest(x, z, player.facing, animals.all.filter((a) => !a.dead)) : null;
+    const sapling = held === 'knife' && tree?.small && !knifeTarget ? tree : null;
+    const cuttingSticks = Boolean(sapling && sapling.cutsLeft > 0 && input.usingTool() && !player.airborne);
     let prompt = null;
     let progress = null;
     let clickUsed = false; // the click went to the fire's spit (so it doesn't swing the axe too)
@@ -137,30 +148,34 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     if (fire) {
       // Tending a fire: E lights it (with a lighter or a match) or adds a log.
       // Raw meat in hand: hold the mouse button to cook it.
+      // Fuel: a log if you've one (it burns longer), else a stick.
       const wood = inventory.count('wood');
+      const sticks = inventory.count('stick');
+      const fuel = wood > 0 ? 'wood' : sticks > 0 ? 'stick' : null;
+      const addFuel = fuel === 'wood' ? 'E to add a log' : fuel ? 'E to add a stick' : null;
       const starter = fireStarter();
       const needsLighting = !campfires.isBurning(fire) && fire.fuel > 0;
       if (pressedE && needsLighting && starter) {
         campfires.light(fire);
         strike(starter, fire);
         hud.toast('The fire catches');
-      } else if (pressedE && !needsLighting && wood > 0 && campfires.addWood(fire)) {
-        inventory.remove('wood', 1);
+      } else if (pressedE && !needsLighting && fuel && campfires.addWood(fire, fuel)) {
+        inventory.remove(fuel, 1);
         sfx('add-wood', fire);
-        hud.toast('-1 Wood');
+        hud.toast(fuel === 'wood' ? '-1 Log' : '-1 Stick');
       }
       const burning = campfires.isBurning(fire);
       let status;
       let tend;
       if (burning) {
         status = `Campfire: ${formatFuel(fire.fuel)} left`;
-        tend = wood > 0 ? 'E to add wood' : 'no wood to add';
+        tend = addFuel ?? 'no wood to add';
       } else if (fire.fuel > 0) {
         status = 'Campfire: not lit';
         tend = starter ? `E to light it ${withStarter(starter)}` : 'you need a lighter or matches to light it';
       } else {
         status = 'The fire is out';
-        tend = wood > 0 ? 'E to add wood' : 'it needs wood';
+        tend = addFuel ?? 'it needs wood: logs or sticks';
       }
       prompt = `${status} · ${tend}`;
 
@@ -307,8 +322,20 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       else if (axeSlot >= HOTBAR_SIZE) prompt = 'Move the axe from your backpack to the hotbar to use it';
       else prompt = `Press ${axeSlot + 1} to take out your axe`;
     } else if (!fire && tree && held === 'axe') {
-      prompt = chopping ? 'Chopping…' : 'Click and hold to chop';
+      prompt = chopping ? 'Chopping…' : 'Click and hold to chop it down';
       progress = world.trees.progress(tree);
+    } else if (!fire && down && held === 'axe') {
+      const left = down.tree.piecesLeft;
+      prompt = bucking ? 'Cutting it up…' : `Fallen tree · click and hold to cut it up (${left} more ${down.tree.sticksOnly ? 'bundle' : 'log'}${left > 1 ? 's' : ''})`;
+      progress = world.trees.buckProgress(down.tree);
+    } else if (!fire && down && !held) {
+      prompt = inventory.count('axe') > 0 ? 'A fallen tree · take out your axe to cut it up' : 'A fallen tree · you need an axe to cut it up';
+    } else if (!fire && sapling) {
+      if (sapling.cutsLeft <= 0) prompt = 'No good branches left on this one';
+      else {
+        prompt = cuttingSticks ? 'Cutting sticks…' : 'Young tree · click and hold to cut sticks';
+        progress = cuttingSticks ? sapling.cutting / CUT_TIME : null;
+      }
     } else if (offGround && (held === 'campfire' || held === 'shelter' || held === 'trap')) {
       prompt = player.cave ? "You can't put that down in here" : "You can't put that down up here";
     } else if (player.cave && held === 'bow') {
@@ -503,7 +530,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
 
     // Stone knife (#75): click or hold to stab whatever's right in front of you. Only stabs
     // that land wear it down. Works next to a carcass or bush too.
-    if (held === 'knife' && !clickUsed && (input.usingTool() || input.startedUsingTool()) && knifeReady === 0 && !player.swimming && !player.airborne) {
+    if (held === 'knife' && !clickUsed && !sapling && (input.usingTool() || input.startedUsingTool()) && knifeReady === 0 && !player.swimming && !player.airborne) {
       knifeReady = KNIFE_COOLDOWN;
       player.stab();
       sfx('stab');
@@ -527,17 +554,40 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     if (!drawingNow) drawing = 0;
     if (!butcheringNow) butchering = 0;
     // The axe bites once per swing, partway through it.
+    const swinging = chopping || bucking;
     const beat = chopBeat;
-    chopBeat = chopping ? (chopBeat + dt) % CHOP_BEAT : 0;
-    if (chopping && beat < CHOP_BEAT * 0.45 && chopBeat >= CHOP_BEAT * 0.45) sfx('chop', tree.spot);
+    chopBeat = swinging ? (chopBeat + dt) % CHOP_BEAT : 0;
+    if (swinging && beat < CHOP_BEAT * 0.45 && chopBeat >= CHOP_BEAT * 0.45) sfx('chop', chopping ? tree.spot : down.at);
     if (chopping && world.trees.chop(tree, dt, x, z)) {
-      // It creaks, then crashes down (see Trees: FALL_TIME).
+      // It creaks, then crashes down (see Trees: FALL_TIME), and lies there to be cut up.
       const at = { x: tree.spot.x, z: tree.spot.z };
       sfx('tree-creak', at);
       setTimeout(() => sfx('tree-fall', at), 1050); // (tree-fall.mp3's crash is 0.25 s in: it lands with the tree, at FALL_TIME)
-      // Wood that doesn't fit lands where the tree fell, a little beyond the stump.
-      const away = Math.atan2(tree.spot.x - x, tree.spot.z - z);
-      give('wood', tree.wood, tree.spot.x + Math.sin(away) * 1.6, tree.spot.z + Math.cos(away) * 1.6);
+      hud.toast('Timber! Now cut it up into logs');
+    }
+    if (bucking) {
+      // Each piece cut off leaves a log and sticks on the ground beside the trunk, on your side.
+      const piece = world.trees.buck(down.tree, dt);
+      if (piece) {
+        const side = Math.atan2(x - down.at.x, z - down.at.z);
+        Object.entries(piece).forEach(([item, count], k) => {
+          const a = side + (k - 0.5) * 0.9;
+          if (!pickups.drop(item, count, down.at.x + Math.sin(a) * 0.7, down.at.z + Math.cos(a) * 0.7)) give(item, count);
+        });
+        if (down.tree.state === 'vanishing') hud.toast("That's the last of it");
+      }
+    }
+    // Cutting sticks from a young tree with the knife: a stroke every so often, and the sticks
+    // straight into your hands.
+    const cutBefore = cutBeat;
+    cutBeat = cuttingSticks ? (cutBeat + dt) % 0.5 : 0;
+    if (cuttingSticks && cutBefore > cutBeat) {
+      player.stab();
+      sfx('chop', sapling.spot);
+    }
+    if (cuttingSticks) {
+      const got = world.trees.cutSticks(sapling, dt);
+      if (got) give('stick', got);
     }
     // (With a flask in hand, the flask's prompt already says how to drink here.)
     if (canDrink && !(held === 'flask' && !drinking)) prompt = drinking ? 'Drinking…' : thirsty ? 'Hold E to drink' : "You're not thirsty";
@@ -555,13 +605,13 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
 
     // Butchering, you work with your knife if you have one, whatever's in your hand.
     const inHand = busy === 'butcher' && inventory.count('knife') > 0 ? 'knife' : inventory.selectedItem;
-    player.setAction(inHand, chopping, drinking, inventory.hasBackpack, busy);
+    player.setAction(inHand, swinging, drinking, inventory.hasBackpack, busy);
     const warmFire = offGround ? null : campfires.near(x, z, WARMTH_REACH);
     const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
     const wet = !player.cave && world.terrain.waterDepth(x, z) > WET_DEPTH;
     const cold = player.cave ? 0 : world.terrain.coldAt(x, z); // up the mountains (not down a cave)
     return {
-      drinking, working: chopping, fire: nearFire, shelter: Boolean(shelter), wet, cold, outfit: inventory.outfit, prompt, progress,
+      drinking, working: swinging || cuttingSticks, fire: nearFire, shelter: Boolean(shelter), wet, cold, outfit: inventory.outfit, prompt, progress,
       // (What the player's busy with, for the sounds.)
       eating: busy === 'eat', searching: searchingNow, bandaging: busy === 'bandage',
     };

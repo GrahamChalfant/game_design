@@ -9,7 +9,10 @@ export const TORCH_MINUTES = 8 * 60; // a lit torch burns for 8 in-game hours (a
 
 export const ITEMS = {
   axe: { name: 'Axe', stack: 1 },
-  wood: { name: 'Wood', stack: 50 },
+  // Logs, from cutting up a fallen tree: firewood that burns long.
+  wood: { name: 'Logs', stack: 20 },
+  // Sticks: for building fires and making things (bows, arrows, snares, torches, a shelter).
+  stick: { name: 'Sticks', stack: 40 },
   trap: { name: 'Trap', stack: 5 },
   campfire: { name: 'Campfire', stack: 3 },
   shelter: { name: 'Shelter', stack: 1 },
@@ -150,6 +153,28 @@ export class Inventory {
       out++;
     });
     return out;
+  }
+
+  // Puts `count` of `item` into slot `index`, if it's empty or holds the same item (as much as
+  // fits). Returns how many didn't go in.
+  addTo(index, item, count) {
+    if (index >= this.usableSlots) return count;
+    const slot = this.slots[index];
+    if (slot && slot.item !== item) return count;
+    this.found.add(item);
+    const { stack } = ITEMS[item];
+    if (!slot) {
+      const added = Math.min(count, stack);
+      const fresh = { item, count: added };
+      if (ITEMS[item].holds) fresh.water = 0;
+      if (ITEMS[item].durability) fresh.durability = ITEMS[item].durability;
+      if (ITEMS[item].burns) fresh.burn = ITEMS[item].burns;
+      this.slots[index] = fresh;
+      return count - added;
+    }
+    const added = Math.min(count, stack - slot.count);
+    slot.count += added;
+    return count - added;
   }
 
   // Adds items, filling existing stacks first. Returns how many didn't fit.

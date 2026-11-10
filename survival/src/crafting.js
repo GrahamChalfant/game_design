@@ -5,26 +5,26 @@ export const RECIPES = [
   {
     item: 'campfire',
     count: 1,
-    cost: { wood: 5 },
+    cost: { stick: 6 },
     description: 'Place it on open ground, then light it with a lighter or a match (E)',
   },
   {
     item: 'spit',
     name: 'Cooking spit',
     count: 1,
-    cost: { wood: 3 },
+    cost: { stick: 3 },
     description: 'Set it up over a campfire (click next to one), then put raw meat on it to cook',
   },
   {
     item: 'shelter',
     count: 1,
-    cost: { wood: 20, rope: 6, hide: 4 },
+    cost: { stick: 20, rope: 6, hide: 4 },
     description: 'A hide-covered shelter. Keeps you warm, and you can sleep in it at night',
   },
   {
     item: 'torch',
     count: 1,
-    cost: { wood: 2 },
+    cost: { stick: 2 },
     description: 'Click to light it with a lighter or a match (or at a burning campfire). Lights up the dark for a few hours',
   },
   {
@@ -44,7 +44,7 @@ export const RECIPES = [
   {
     item: 'trap',
     count: 1,
-    cost: { wood: 3, rope: 1 },
+    cost: { stick: 3, rope: 1 },
     description: 'Set it on the ground to catch rabbits. Breaks after one catch',
   },
   {
@@ -77,7 +77,7 @@ export const RECIPES = [
   {
     item: 'bow',
     count: 1,
-    cost: { wood: 3, bowstring: 2 },
+    cost: { stick: 3, bowstring: 2 },
     requires: 'bowstring',
     description: `Equip it, hold the mouse button to draw and let go to shoot. Breaks after ${BOW_DURABILITY} shots`,
   },
@@ -85,13 +85,13 @@ export const RECIPES = [
     item: 'knife',
     name: 'Stone knife',
     count: 1,
-    cost: { wood: 1, stone: 1 },
-    description: `Equip it and click to stab up close. A deer takes two. Breaks after ${KNIFE_DURABILITY} hits`,
+    cost: { stick: 1, stone: 1 },
+    description: `Equip it and click to stab up close, or hold it at a young tree to cut sticks. A deer takes two. Breaks after ${KNIFE_DURABILITY} hits`,
   },
   {
     item: 'arrow',
     count: ARROWS_PER_CRAFT,
-    cost: { wood: 1, stone: 1 },
+    cost: { stick: 1, stone: 1 },
     requires: 'bow',
     description: 'One hit brings down a deer or a rabbit. Pick up the ones that miss',
   },

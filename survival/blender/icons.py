@@ -372,6 +372,10 @@ def trap():
     return model('trap')
 
 
+def sticks():
+    return model('sticks')
+
+
 def campfire():
     return model('campfire') + [flame((0, 0.12, 0), 0.75)]
 
@@ -426,6 +430,7 @@ ITEMS = {
     'axe': (axe, [('z', -0.75)]),
     'wood': (wood, [('y', -0.7)]),
     'trap': (trap, [('y', 0.4)]),
+    'stick': (sticks, [('y', 0.5), ('x', 0.7)]),
     'campfire': (campfire, []),
     'lighter': (lighter, [('z', -0.2)]),
     'matches': (matches, [('x', 0.5), ('y', -0.4)]),

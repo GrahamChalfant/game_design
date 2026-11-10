@@ -309,6 +309,19 @@ export function shelter() {
   return group;
 }
 
+// A few sticks lying on the ground (until sticks.glb loads).
+export function sticks() {
+  const group = new THREE.Group();
+  const wood = material(0x5d4a3a);
+  for (const [x, z, angle, length] of [[0, -0.05, 0.1, 0.7], [0.02, 0.1, -0.25, 0.6], [0.1, -0.15, 0.9, 0.5]]) {
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, length, 5), wood);
+    stick.rotation.set(0, angle, Math.PI / 2);
+    stick.position.set(x, 0.016, z);
+    group.add(stick);
+  }
+  return group;
+}
+
 // Snare trap: a small wooden frame with a wire loop, base at the origin.
 export function trap() {
   const group = new THREE.Group();

@@ -26,6 +26,7 @@ const SHOW_DISTANCE = 150; // things further away than this aren't drawn
 const SEARCH_HEIGHT = 1.5; // you need to be about level with something to search it
 const ROOF_MARGIN = 0.3;
 
+const AXE_CHANCE = 0.25; // the chance a cabin has an axe (see the cabin's chest)
 // What can be found, and how likely each is: [item, [fewest, most], weight].
 const LOOT = {
   cabin: [
@@ -330,6 +331,8 @@ export function buildPois(scene, world) {
       model = cabin(random);
       add(model.userData.cupboard, 'the cupboard', -2.3, 0.55, poi.base, ROLLS.cupboard, 'cabin', { standing: true });
       add(model.userData.chest, 'the old chest', -1.75, 1.55, poi.base, ROLLS.chest, 'cabin');
+      // One cabin in four has an axe in its chest: the only way to get one.
+      if (createRandom(poi.seed + 7).next() < AXE_CHANCE) containers.at(-1).loot.push(['axe', 1]);
       const rain = barrel();
       rain.userData.keep = true;
       rain.position.set(CABIN.halfWidth + CABIN.wall + 0.7, groundY(world, poi, 3.45, 1.7), CABIN.halfDepth - 0.4);
