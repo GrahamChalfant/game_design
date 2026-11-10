@@ -18,6 +18,7 @@ import { scatterDetails } from './details.js';
 export const WORLD_SIZE = 1400;
 const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into the haze
 const HECTARES = ((WORLD_SIZE - 4) / 100) ** 2; // the area things are scattered over
+const STICKS_PER_TREE = 0.12; // the share of trees with a fallen stick or two lying near them
 // How many of each thing to scatter, per hectare (100 m × 100 m).
 const FOREST_PER_HECTARE = 300; // (the most tried for: open woods take fewer)
 const ROCKS_PER_HECTARE = 140;
@@ -227,6 +228,19 @@ export function buildWorld(scene, seed) {
   for (const [kind, spots] of Object.entries(forest)) {
     trees.add(kind, placeholders.conifer(), spots);
   }
+  // Fallen sticks under the trees, here and there: picked up like stones (see main.js), for
+  // fires and making things before you've a knife or an axe.
+  const sticks = [];
+  const stickRandom = createRandom(mapSeed + 31); // (its own, so the rest of the map stays the same)
+  for (const spot of Object.values(forest).flat()) {
+    if (stickRandom.next() > STICKS_PER_TREE) continue;
+    const angle = stickRandom.range(0, Math.PI * 2);
+    const away = stickRandom.range(1.2, 2.6);
+    const x = spot.x + Math.cos(angle) * away;
+    const z = spot.z + Math.sin(angle) * away;
+    if (terrain.waterDepth(x, z) > 0 || !obstacles.isClear(x, z, 0.3)) continue;
+    sticks.push({ x, z, count: stickRandom.next() < 0.5 ? 1 : 2, emptySince: null });
+  }
 
   // Boulders lie in clusters on rocky ground (and the odd one out in the grass), each
   // squashed or stretched a little differently.
@@ -314,6 +328,7 @@ export function buildWorld(scene, seed) {
     trees,
     grass,
     stones,
+    sticks,
     lookout,
     pois,
     roads: roads.paths,

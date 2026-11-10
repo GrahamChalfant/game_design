@@ -68,9 +68,10 @@ The game starts paused on a menu listing the controls. Press Esc at any time to 
 You start hurt (55 health), empty-handed and cold, in just a shirt, a short walk south of your crashed bush
 plane. Your jacket is packed in your suitcase by the wreck: find it, select it and click to put it on, and
 you warm up (in a shirt, a day outdoors never gets you above chilly, and nights bite harder). It's just out of sight, so head north to find it. The plane came down beside a lake,
-so water is never far away. Your axe and backpack were thrown
-clear in the crash: look around the wreckage (they have floating icons) and press E to
-pick them up. The backpack gives you 12 extra slots.
+so water is never far away. Your backpack was thrown
+clear in the crash: look around the wreckage (it has a floating icon) and press E to
+pick it up. The backpack gives you 12 extra slots. There's no axe: one cabin in four has one in
+its old chest, so you'll have to go looking.
 
 Somewhere on high ground, a few hundred meters from the crash, stands a fire lookout tower. Walk
 onto the stairs at its foot and follow the flights up past the landings to the cab, 12 m up: a
@@ -185,30 +186,44 @@ Nights are dark, so keep a campfire going if you want to see what you're doing.
 To change the colours and light at each time of day, edit the table at the top of
 `src/daylight.js`.
 
-Once you have the axe, face a tree, take it out and click and hold to chop it down
-for wood. Hard work makes you hungry faster. Anywhere else, click to swing the axe: it hurts an
-animal right in front of you (two blows kill a deer, one a rabbit).
+**Wood comes as sticks and logs.** Sticks are what you make things from (fires, the bow and
+arrows, snares, torches, the spit, a knife, the shelter); logs are firewood that burns long.
+Fallen sticks lie about under the trees (press E to pick them up; they come back days later).
+With a stone knife in hand, face a young tree (a sapling or a small spruce) and click and hold
+to cut sticks from it, a couple at a time, three times a tree. Once you have an axe, face a
+tree and click and hold to chop it down: it falls and lies there. Keep holding (or come back
+to it) to cut it up: each piece leaves a log and two sticks on the ground beside the trunk
+(a sapling, a bundle of sticks), and when the last is cut, the tree's gone. Hard work makes
+you hungry faster. Anywhere else, click to swing the axe: it hurts an animal right in front of
+you (two blows kill a deer, one a rabbit).
+
+With the inventory open (Tab), an **On the ground** panel under the menu shows what's on the ground within five feet of
+you: drag something onto a slot to take it there, or click it to take it all. Drag something
+from your inventory onto that panel to put it down.
 
 Your hotbar has 6 slots, and the backpack (Tab, once you've found it) has 12 more. If something doesn't fit,
 it's left on the ground with a floating icon above it; walk over and press E to pick it up.
 
-Recipes appear in the crafting list once you've picked up what they're made from.
+Recipes appear in the crafting list once you've picked up what they're made from. They're in
+groups (Fire & cooking, Weapons & hunting, Shelter, Clothing & gear, Materials): click a group to
+fold it open; each says how many of its recipes you can make right now.
 
 When you first pick up everything a recipe needs, a "New recipe" card pops up at the top
 of the screen. In the crafting list, each ingredient shows how many you have out of how many
-you need (like 2/3 wood): red until you have enough, then green.
+you need (like 2/3 sticks): red until you have enough, then green.
 
-To make a campfire, press Tab and craft one (5 wood), then select it and click to
+To make a campfire, press Tab and craft one (6 sticks), then select it and click to
 place it on open ground. Stand next to it and press E to light it (with the lighter, or a match).
-A fire burns for 6 in-game hours; stand next to it and press E to add a log
-(2 more hours each, up to 16). A fire that's gone out needs more wood (E) and lighting again.
+A fire burns for 6 in-game hours; stand next to it and press E to add a log (2 more hours each,
+up to 16) or, with no logs, a stick (half an hour). A fire that's gone out needs more wood (E)
+and lighting again.
 
 Rabbits and deer live around you wherever you go, but there aren't many of them. They graze and wander
 until you get too close, then bolt. Both run faster than you, and deer spook from much
 farther away (12 m standing, 5 m crouched), so you won't catch them by chasing. Press C to
 crouch: animals notice you much later.
 
-To catch rabbits, press Tab and craft a trap (3 wood and 1 rope), then select it and click to
+To catch rabbits, press Tab and craft a trap (3 sticks and 1 rope), then select it and click to
 set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
 close while you're nearby. When one is caught, press E at the trap for 2 raw meat, a hide and some intestines. This breaks the trap, so you'll
 need to craft another.
@@ -218,25 +233,25 @@ it (3 drinks), then click anywhere to take a drink. Bigger animals give more mea
 intestines.
 To hunt deer, make a bow. Stones lie in little groups by the rocks and the lake shore (press E
 to pick them up); a taken stone comes back three days later, so once you've picked an area clean you'll need to look further afield. A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
-(3 wood, 2 bowstrings), and once you hold a bow, arrows (1 wood and 1 stone make 3). Select the
+(3 sticks, 2 bowstrings), and once you hold a bow, arrows (1 stick and 1 stone make 3). Select the
 bow, aim at the ground with the mouse and hold the button to draw (you turn to aim and walk slowly);
 let go to shoot. The further you draw, the faster and further the arrow flies (8–30 m): it arcs to
 where you aimed and can be seen in flight, so a running animal can get away. One hit kills a deer or
 a rabbit, which stumbles on and falls over, with the arrow stuck in it; hold E next to
 it to butcher it (a deer takes 4 s and gives 6 raw meat, 2 hides and 2 intestines). The bow
 breaks after 30 shots. An arrow that misses lands in the ground, where you can pick it up again. All the numbers are in `src/hunting.js`.
-Craft a shelter (20 wood, 6 rope, 4 hides), select it and click to build it a few steps
+Craft a shelter (20 sticks, 6 rope, 4 hides), select it and click to build it a few steps
 ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
-Nights are dark away from a fire. Craft a torch (2 wood), then click to light it with your lighter or a
+Nights are dark away from a fire. Craft a torch (2 sticks), then click to light it with your lighter or a
 match (or hold it at a burning campfire and click). A lit torch lights up the ground around you and burns for 8 in-game hours (about 5 real
 minutes at night) while you hold it, with your arm bent up in front of you; put away in your inventory, it
 keeps. Its slot shows how long it has left.
 Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows in your Outfit
 slot, and on your character as a knee-length hide coat with a fur-trimmed hood. It keeps out most of the mountain cold, so you can climb up there by
 day, and halves the chill of a night outdoors. Nights up the mountains still need a fire.
-To cook, craft a cooking spit (3 wood), hold it next to a campfire and click to set it up over
+To cook, craft a cooking spit (3 sticks), hold it next to a campfire and click to set it up over
 the fire. Then hold raw meat there and click to put it on the spit: over a burning fire it's
 cooked in 30 seconds, and burnt if you leave it on for a minute (it darkens as it starts to
 burn). Click to take it off, and away from the fire click and hold to eat. Eating meat raw

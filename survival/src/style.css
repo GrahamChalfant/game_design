@@ -453,7 +453,7 @@ canvas {
   left: 50%;
   z-index: 5; /* above the stats and the prompt */
   display: grid;
-  grid-template-columns: 200px auto 240px;
+  grid-template-columns: 200px max-content 240px;
   gap: 18px;
   padding: 14px;
   border-radius: 10px;
@@ -464,6 +464,24 @@ canvas {
 
 #inventory[hidden] {
   display: none;
+}
+
+/* The menu is as tall as the character column (down to the Outfit and Backpack boxes): the
+   inventory and crafting columns fit in that and scroll, rather than stretching it. */
+#stash,
+#crafting {
+  height: 0;
+  min-height: 100%;
+}
+
+#stash {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#crafting {
+  display: flex;
+  flex-direction: column;
 }
 
 #inventory h2 {
@@ -535,15 +553,54 @@ canvas {
 }
 
 #backpack[hidden],
+#nearby .tip[hidden],
 #no-backpack[hidden],
 #drag-item[hidden] {
   display: none;
 }
 
-#backpack .grid {
+#backpack .grid,
+#nearby .grid {
   display: grid;
   grid-template-columns: repeat(6, max-content);
   gap: 6px;
+}
+
+/* What's on the ground beside you, in a panel of its own under the menu: earthy, with a
+   dashed edge, so nothing in it looks like it's already yours. */
+#nearby {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  right: 0;
+  padding: 12px 14px;
+  border: 2px dashed rgb(196 170 120 / 0.6);
+  border-radius: 10px;
+  background: rgb(58 46 32 / 0.92);
+}
+
+#nearby .grid {
+  grid-template-columns: repeat(auto-fill, 56px);
+  min-height: 56px;
+}
+
+#nearby .slot {
+  width: 56px;
+  height: 56px;
+}
+
+#nearby h2 {
+  margin: 0 0 8px;
+  color: #e6d3a8;
+}
+
+#nearby .slot {
+  border-color: rgb(196 170 120 / 0.45);
+  background: rgb(110 88 58 / 0.55);
+}
+
+#nearby .tip {
+  margin: 8px 0 0;
 }
 
 #crafting .header {
@@ -565,9 +622,59 @@ canvas {
   align-content: start;
   gap: 6px;
   /* Scroll the list rather than stretching the menu as recipes unlock (#73). */
-  max-height: min(380px, calc(100vh - 160px));
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 4px; /* room for the scrollbar */
+}
+
+/* A group of recipes: a heading to click, folding open to show them. */
+.recipe-group[hidden] {
+  display: none;
+}
+
+.recipe-group summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.1);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.recipe-group summary::-webkit-details-marker {
+  display: none;
+}
+
+/* An arrow: pointing right when folded, down when open. */
+.recipe-group summary::before {
+  content: '▸';
+  width: 10px;
+  opacity: 0.7;
+}
+
+.recipe-group[open] summary::before {
+  content: '▾';
+}
+
+.recipe-group summary:hover {
+  background: rgb(255 255 255 / 0.16);
+}
+
+.recipe-group .ready {
+  margin-left: auto;
+  color: #8ad67a;
+  font-size: 12px;
+}
+
+.recipe-group .group-recipes {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .recipe {
@@ -681,7 +788,7 @@ canvas {
 /* On narrower screens, shrink the menu to fit. */
 @media (max-width: 900px) {
   #inventory {
-    grid-template-columns: 170px auto 200px;
+    grid-template-columns: 170px max-content 200px;
     gap: 12px;
   }
 

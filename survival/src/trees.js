@@ -5,19 +5,22 @@ import { seeThroughMaterial } from './seeThrough.js';
 import { needleMaterial, paintedSurface, softFoliage } from './look.js';
 import { SpatialGrid } from './grid.js';
 
-// How much wood each kind of tree gives, how long it takes to chop (seconds of holding),
-// and how big its stump is (1 is the size of stump.glb, whose cut top is 0.26 m across in
-// radius: each is the tree's own trunk at its base, measured from its model, a little over).
+// Each kind of tree: how many pieces it's cut into once it's down (each a log and a couple of
+// sticks: see PIECE), how long it takes to fell (seconds of holding), how big its stump is
+// (1 is the size of stump.glb, whose cut top is 0.26 m across in radius: each is the tree's
+// own trunk at its base, measured from its model, a little over), and how tall it stands (its
+// model's height, in meters, before it's scaled). `small` ones are young enough to cut sticks
+// from with a knife.
 const KINDS = {
-  pine: { wood: 4, chopTime: 2.5, stump: 0.58 },
-  'pine-small': { wood: 2, chopTime: 1.5, stump: 0.31 },
-  'pine-skinny': { wood: 3, chopTime: 2, stump: 0.31 },
-  'pine-tall': { wood: 6, chopTime: 3.5, stump: 0.75 },
-  'pine-wide': { wood: 5, chopTime: 3, stump: 0.76 },
-  'pine-snow': { wood: 4, chopTime: 2.5, stump: 0.55 },
-  'pine-small-snow': { wood: 2, chopTime: 1.5, stump: 0.31 },
-  'sapling-pine': { wood: 1, chopTime: 0.8, stump: 0.2 },
-  'tree-dead': { wood: 3, chopTime: 2, stump: 0.78 },
+  pine: { pieces: 4, chopTime: 2.5, stump: 0.58, height: 9.4 },
+  'pine-small': { pieces: 2, chopTime: 1.5, stump: 0.31, height: 3.7, small: true },
+  'pine-skinny': { pieces: 3, chopTime: 2, stump: 0.31, height: 10.2 },
+  'pine-tall': { pieces: 6, chopTime: 3.5, stump: 0.75, height: 14.2 },
+  'pine-wide': { pieces: 5, chopTime: 3, stump: 0.76, height: 6.7 },
+  'pine-snow': { pieces: 4, chopTime: 2.5, stump: 0.55, height: 9.4 },
+  'pine-small-snow': { pieces: 2, chopTime: 1.5, stump: 0.31, height: 3.7, small: true },
+  'sapling-pine': { pieces: 1, chopTime: 0.8, stump: 0.2, height: 1.75, small: true, sticksOnly: true },
+  'tree-dead': { pieces: 3, chopTime: 2, stump: 0.78, height: 7.25 },
 };
 // Each tree is multiplied by one of these, so the forest isn't all one green.
 // Cool blue-greens, mostly, and the odd warmer one.
@@ -29,7 +32,18 @@ const DETAIL_FADE = 7; // ...fading in from the plain ones over the last this ma
 const STUMP_RADIUS = 0.35;
 const STUMP_HEIGHT = 0.45;
 const FALL_TIME = 1.3; // seconds to topple over
-const VANISH_TIME = 0.5; // seconds to shrink away once it's down
+const VANISH_TIME = 0.5; // seconds to shrink away once it's all cut up
+// A felled tree lies where it fell until it's cut up: each piece takes BUCK_TIME seconds of
+// chopping and leaves PIECE on the ground (a sapling, just sticks).
+const BUCK_TIME = 1.6;
+export const PIECE = { wood: 1, stick: 2 };
+export const SAPLING_PIECE = { stick: 3 };
+// A young tree gives STICKS_PER_CUT sticks for each CUT_TIME seconds of cutting with a knife,
+// CUTS_PER_TREE times; then it's bare of good branches.
+export const CUT_TIME = 1.5;
+export const STICKS_PER_CUT = 2;
+const CUTS_PER_TREE = 3;
+const DOWN_REACH = 1.2; // how close to a fallen trunk you need to be to cut it up
 
 // All the choppable trees: places them, tracks chopping, and animates them falling.
 export class Trees {
@@ -81,6 +95,60 @@ export class Trees {
     return best;
   }
 
+  // The felled tree lying nearest (x, z), if its trunk is within reach: { tree, at } where `at`
+  // is the point on the trunk nearest you.
+  findDown(x, z) {
+    let best = null;
+    let bestDistance = DOWN_REACH;
+    for (const tree of this.grid.near(x, z, 16)) {
+      if (tree.state !== 'down') continue;
+      const length = tree.height * tree.spot.scale * 0.85; // (to where the trunk's too thin to bother)
+      const { x: dx, z: dz } = tree.fallDir;
+      const along = Math.max(0, Math.min(length, (x - tree.spot.x) * dx + (z - tree.spot.z) * dz));
+      const at = { x: tree.spot.x + dx * along, z: tree.spot.z + dz * along };
+      const distance = Math.hypot(x - at.x, z - at.z);
+      if (distance < bestDistance) [best, bestDistance] = [{ tree, at }, distance];
+    }
+    return best;
+  }
+
+  // Chops the felled tree for `dt` seconds. Returns what a piece leaves on the ground when one
+  // comes off (else null); once the last does, the tree's gone.
+  buck(tree, dt) {
+    tree.bucked += dt;
+    if (tree.bucked < BUCK_TIME) return null;
+    tree.bucked = 0;
+    tree.piecesLeft -= 1;
+    if (tree.piecesLeft <= 0) {
+      tree.state = 'vanishing';
+      tree.fallTime = FALL_TIME;
+      this.falling.push(tree);
+    }
+    return tree.sticksOnly ? SAPLING_PIECE : PIECE;
+  }
+
+  // How far through cutting the current piece off the felled tree you are, from 0 to 1.
+  buckProgress(tree) {
+    return tree.bucked / BUCK_TIME;
+  }
+
+  // A young standing tree whose branches you can cut for sticks, near (x, z).
+  findSmall(x, z, reach) {
+    const tree = this.findTarget(x, z, reach);
+    return tree?.small ? tree : null;
+  }
+
+  // Cuts at the young tree with a knife for `dt` seconds. Returns how many sticks came off
+  // (0 most of the time, or if it's bare).
+  cutSticks(tree, dt) {
+    if (tree.cutsLeft <= 0) return 0;
+    tree.cutting += dt;
+    if (tree.cutting < CUT_TIME) return 0;
+    tree.cutting = 0;
+    tree.cutsLeft -= 1;
+    return STICKS_PER_CUT;
+  }
+
   // Chops `tree` for `dt` seconds. Returns true when it comes down.
   chop(tree, dt, fromX, fromZ) {
     tree.chopped += dt;
@@ -88,9 +156,12 @@ export class Trees {
 
     tree.state = 'falling';
     tree.fallTime = 0;
+    tree.piecesLeft = tree.pieces;
+    tree.bucked = 0;
     this.falling.push(tree);
     // Fall away from the player.
     const away = new THREE.Vector3(tree.spot.x - fromX, 0, tree.spot.z - fromZ).normalize();
+    tree.fallDir = { x: away.x, z: away.z };
     tree.fallAxis = new THREE.Vector3(0, 1, 0).cross(away).normalize();
     tree.spot.obstacle.radius = STUMP_RADIUS * tree.spot.scale * tree.stump;
     tree.spot.obstacle.top = tree.spot.y + STUMP_HEIGHT * tree.spot.scale * stumpHeight(tree.stump); // the player can jump onto it
@@ -108,11 +179,13 @@ export class Trees {
       tree.fallTime += dt;
       const fall = Math.min(1, tree.fallTime / FALL_TIME);
       const angle = (Math.PI / 2) * fall * fall; // speeds up as it goes, like a real tree
-      const shrink = 1 - Math.min(1, Math.max(0, tree.fallTime - FALL_TIME) / VANISH_TIME);
+      // Down, it lies there until it's cut up; then it shrinks away.
+      if (tree.state === 'falling' && fall === 1) tree.state = 'down';
+      const shrink = tree.state === 'vanishing' ? 1 - Math.min(1, Math.max(0, tree.fallTime - FALL_TIME) / VANISH_TIME) : 1;
       tree.trees.setInstance(tree.index, treeMatrix(tree.spot, angle, tree.fallAxis, shrink));
       if (shrink === 0) tree.state = 'stump';
     }
-    this.falling = this.falling.filter((tree) => tree.state === 'falling');
+    this.falling = this.falling.filter((tree) => tree.state === 'falling' || tree.state === 'vanishing');
   }
 
   // Puts every tree back, for a new game.
@@ -124,6 +197,8 @@ export class Trees {
   resetTree(tree) {
     tree.state = 'standing';
     tree.chopped = 0;
+    tree.cutting = 0;
+    tree.cutsLeft = tree.small ? CUTS_PER_TREE : 0;
     tree.spot.obstacle.radius = tree.radius;
     tree.spot.obstacle.top = undefined;
     tree.trees.setInstance(tree.index, treeMatrix(tree.spot, 0, null));

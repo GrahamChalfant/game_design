@@ -1,6 +1,6 @@
-import { canCraft, isKnown, RECIPES } from './crafting.js';
+import { canCraft, GROUPS, isKnown, RECIPES } from './crafting.js';
 import { BACKPACK_SIZE, HOTBAR_SIZE, ITEMS } from './inventory.js';
-import { itemIconUrl, showItemIcon } from './itemIcons.js';
+import { showItemIcon } from './itemIcons.js';
 import { isNight } from './daylight.js';
 import { formatDuration } from './survival.js';
 
@@ -28,7 +28,7 @@ function unfocusable(button) {
 
 // Shows the survival stats, clock, prompts and game-over screen.
 export class Hud {
-  constructor({ seed, onNewMap, onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onWear, onCraft }) {
+  constructor({ seed, onNewMap, onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onWear, onCraft, onTakeNearby }) {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
@@ -89,13 +89,28 @@ export class Hud {
       return slot;
     });
 
+    // What's on the ground within reach, while the menu's open (see showNearby).
+    this.nearby = document.getElementById('nearby');
+    this.nearbyGrid = this.nearby.querySelector('.grid');
+    this.nearbyShown = '';
+    this.onTakeNearby = onTakeNearby;
+
     this.crafting = document.getElementById('crafting');
     const list = this.crafting.querySelector('.recipes');
+    // One fold-out section per group (see GROUPS): click its heading to show its recipes.
+    this.groups = GROUPS.map(({ id, name }) => {
+      const section = document.createElement('details');
+      section.className = 'recipe-group';
+      section.innerHTML = `<summary><span class="name">${name}</span><span class="ready"></span></summary><div class="group-recipes"></div>`;
+      unfocusable(section.querySelector('summary'));
+      list.append(section);
+      return { id, section, body: section.querySelector('.group-recipes'), ready: section.querySelector('.ready') };
+    });
     this.recipes = RECIPES.map((recipe) => {
       const name = recipe.name ?? ITEMS[recipe.item].name;
       const button = unfocusable(document.createElement('button'));
       button.className = 'recipe';
-      button.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(recipe.item)})"></span>
+      button.innerHTML = `<span class="icon"></span>
         <span><strong>${name}</strong><small>${recipe.description}</small></span>
         <span class="cost"></span>`;
       // One "have/need ingredient" line per ingredient: red until you have enough, then green.
@@ -104,9 +119,11 @@ export class Hud {
         button.querySelector('.cost').append(line);
         return { item, need, line, label: ITEMS[item].name.toLowerCase() };
       });
+      showItemIcon(button.querySelector('.icon'), recipe.item);
       button.addEventListener('click', () => onCraft(recipe));
-      list.append(button);
-      return { recipe, button, costs };
+      const group = this.groups.find((g) => g.id === recipe.group) ?? this.groups.at(-1);
+      group.body.append(button);
+      return { recipe, button, costs, group };
     });
     // Recipes the player already knows about, so each new one is announced just once.
     this.knownRecipes = new Set();
@@ -140,11 +157,44 @@ export class Hud {
     (this.inventoryOpen ? this.stashHotbar : document.body).append(this.hotbar);
   }
 
+  // Shows the piles on the ground beside you (`piles`, nearest first) in the menu's Nearby box,
+  // one slot each: drag one onto a slot to take it there, or click to take all that fits.
+  showNearby(piles) {
+    const key = piles.map((p) => `${p.item}:${p.count}`).join(',');
+    this.nearby.querySelector('#nearby-empty').hidden = piles.length > 0;
+    this.nearby.querySelector('#nearby-tip').hidden = piles.length === 0;
+    if (key === this.nearbyShown && piles.every((p, i) => this.nearbyPiles?.[i] === p)) return;
+    this.nearbyShown = key;
+    this.nearbyPiles = piles;
+    this.nearbyGrid.replaceChildren(...piles.map((pile) => {
+      const slot = unfocusable(document.createElement('button'));
+      slot.className = 'slot near';
+      slot.title = `${ITEMS[pile.item].name} · click to take, or drag onto a slot`;
+      slot.innerHTML = '<span class="key"></span><span class="icon"></span><span class="count"></span>';
+      showItemIcon(slot.querySelector('.icon'), pile.item);
+      slot.querySelector('.count').textContent = pile.count > 1 ? pile.count : '';
+      slot.addEventListener('click', () => {
+        if (this.justDragged) this.justDragged = false;
+        else this.onTakeNearby(pile, null);
+      });
+      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => this.onTakeNearby(pile, to), () => {}));
+      return slot;
+    }));
+  }
+
   update(survival, inventory, { prompt, progress }) {
-    // Craftable recipes first, then the rest, each group in RECIPES order (#70).
-    const list = this.crafting.querySelector('.recipes');
-    const sorted = [...this.recipes].sort((a, b) => canCraft(inventory, b.recipe) - canCraft(inventory, a.recipe) || this.recipes.indexOf(a) - this.recipes.indexOf(b));
-    if (sorted.some((r, i) => list.children[i] !== r.button)) list.append(...sorted.map((r) => r.button));
+    // In each group, craftable recipes first, then the rest, each in RECIPES order (#70). A
+    // group shows once you know one of its recipes, with how many you can make now.
+    for (const group of this.groups) {
+      const mine = this.recipes.filter((r) => r.group === group);
+      const sorted = [...mine].sort((a, b) => canCraft(inventory, b.recipe) - canCraft(inventory, a.recipe) || mine.indexOf(a) - mine.indexOf(b));
+      if (sorted.some((r, i) => group.body.children[i] !== r.button)) group.body.append(...sorted.map((r) => r.button));
+      const known = mine.filter((r) => isKnown(inventory, r.recipe));
+      group.section.hidden = known.length === 0;
+      const ready = known.filter((r) => canCraft(inventory, r.recipe)).length;
+      const text = ready ? `${ready} ready` : '';
+      if (group.ready.textContent !== text) group.ready.textContent = text;
+    }
     for (const { recipe, button, costs } of this.recipes) {
       const known = isKnown(inventory, recipe);
       button.hidden = !known;
@@ -246,10 +296,11 @@ export class Hud {
       ghost.hidden = true;
       slot.classList.remove('dragging');
       const target = document.elementFromPoint(e.clientX, e.clientY);
-      const ontoSlot = target?.closest('.slot');
+      const ontoSlot = target?.closest('.slot:not(.near)');
       // The browser may still send a click to the slot where the drag started.
-      this.justDragged = ontoSlot === slot;
+      this.justDragged = ontoSlot === slot || target?.closest('.slot') === slot;
       if (ontoSlot) onto(Number(ontoSlot.dataset.index));
+      else if (target?.closest('#nearby')) outside(); // (into Nearby: put it on the ground)
       else if (wear && target?.closest('#equip-outfit, #character-view')) wear();
       else if (!target?.closest('#inventory, #hotbar')) outside();
     };
@@ -288,8 +339,9 @@ export class Hud {
   showUnlock(item, title, text) {
     const card = document.createElement('div');
     card.className = 'unlock';
-    card.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(item)})"></span>
+    card.innerHTML = `<span class="icon"></span>
       <span><small>${title}</small><strong>${text}</strong><em>Press Tab to craft</em></span>`;
+    showItemIcon(card.querySelector('.icon'), item);
     this.unlocks.append(card);
     setTimeout(() => card.remove(), 5000);
   }

@@ -5,7 +5,7 @@ import { whenIconReady } from './itemIcons.js';
 import { SpatialGrid } from './grid.js';
 
 // Items that lie in the world like any other prop, with no floating icon above them.
-const NO_ICON = new Set(['stone']);
+const NO_ICON = new Set(['stone', 'stick']);
 // Items that lie tipped over rather than upright (applied to the model and its stand-in alike).
 const GROUND_TILT = { backpack: [0, 0.5, -0.25] };
 const MERGE_DISTANCE = 1; // dropping next to a pile of the same item adds to it
@@ -13,6 +13,7 @@ const MERGE_DISTANCE = 1; // dropping next to a pile of the same item adds to it
 // Items not listed here just show their floating icon.
 const GROUND_MODELS = {
   wood: [placeholders.logPile, 'logs'],
+  stick: [placeholders.sticks, 'sticks'],
   axe: [placeholders.axeOnGround, 'axe-ground'],
   backpack: [placeholders.backpack, 'backpack'], // same mesh as the worn player-pack in player.glb (#67)
   stone: [placeholders.stone, 'stone', 2.5], // stone.glb is life-size (~10 cm): scaled up to be visible
@@ -116,6 +117,15 @@ export class Pickups {
       }
     }
     return best;
+  }
+
+  // Every pile within `reach` of (x, z), nearest first.
+  within(x, z, reach) {
+    return [...this.grid.near(x, z, reach)]
+      .map((pile) => [pile, Math.hypot(pile.x - x, pile.z - z)])
+      .filter(([, distance]) => distance < reach)
+      .sort((a, b) => a[1] - b[1])
+      .map(([pile]) => pile);
   }
 
   // Puts as much of the pile as fits into the inventory. Returns how many were taken.
