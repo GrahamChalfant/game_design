@@ -132,13 +132,12 @@ export function arrowHitTest(x0, z0, x1, z1, animals) {
 
 // Where stones lie: groups of 2–4 near rocks and the lake shore, never deep in the forest.
 // `isGoodCentre(x, z)` says whether a group can sit there; `random` is a seeded generator.
-export function stoneSpots(random, worldSize, isGoodCentre, isFree = () => true) {
-  const target = Math.round((worldSize * worldSize) / STONE_AREA_PER_STONE);
-  const half = worldSize / 2 - 3;
+export function stoneSpots(random, bounds, isGoodCentre, isFree = () => true) {
+  const target = Math.round(((bounds.maxX - bounds.minX) * (bounds.maxZ - bounds.minZ)) / STONE_AREA_PER_STONE);
   const spots = [];
   for (let tries = 0; spots.length < target && tries < target * 200; tries++) {
-    const cx = random.range(-half, half);
-    const cz = random.range(-half, half);
+    const cx = random.range(bounds.minX + 3, bounds.maxX - 3);
+    const cz = random.range(bounds.minZ + 3, bounds.maxZ - 3);
     if (!isGoodCentre(cx, cz)) continue;
     const size = Math.min(target - spots.length, Math.floor(random.range(STONE_CLUSTER_SIZE[0], STONE_CLUSTER_SIZE[1] + 1)));
     for (let i = 0; i < size; i++) {

@@ -44,7 +44,7 @@ const TORCH_LEAN = 0.25; // a held torch leans this far forward from upright (ra
 const FOOTFALLS = { walk: [0.0, 0.5], sneak: [0.0, 0.5] };
 
 export class Player {
-  constructor(scene, spawn, worldSize, spawnFacing = 0) {
+  constructor(scene, spawn, bounds, spawnFacing = 0) {
     this.position = spawn.clone();
     this.spawnFacing = spawnFacing;
     this.facing = spawnFacing;
@@ -53,7 +53,7 @@ export class Player {
     this.standingHeight = 0; // how high above the ground the rock or stump underfoot is, if any
     this.jumpSpeed = 0;
     this.crouched = false;
-    this.limit = worldSize / 2 - 1;
+    this.bounds = bounds;
     this.spawn = spawn.clone();
     this.alive = true;
     this.cave = null; // the cave you're down in (see caves.js), or null on the surface
@@ -567,8 +567,9 @@ export class Player {
   }
 
   tryMove(dx, dz, world) {
-    const x = THREE.MathUtils.clamp(this.position.x + dx, -this.limit, this.limit);
-    const z = THREE.MathUtils.clamp(this.position.z + dz, -this.limit, this.limit);
+    const { minX, maxX, minZ, maxZ } = this.bounds;
+    const x = THREE.MathUtils.clamp(this.position.x + dx, minX + 1, maxX - 1);
+    const z = THREE.MathUtils.clamp(this.position.z + dz, minZ + 1, maxZ - 1);
     if (this.cave) {
       // Underground: the cave's own walls (you can always move out of one, in case).
       if (this.cave.blocked(x, z) && !this.cave.blocked(this.position.x, this.position.z)) return;
@@ -578,7 +579,13 @@ export class Player {
     }
     // Ground too steep to walk up (see MAX_CLIMB) stops you, jumping or not, unless you're
     // up on a rock or a floor.
-    if (this.standingHeight < 0.05 && !world.terrain.canClimb(x, z, dx, dz)) return;
+    if (this.standingHeight < 0.05) {
+      world.terrain.turnedBack = null;
+      if (!world.terrain.canClimb(x, z, dx, dz)) {
+        this.turnedBack = world.terrain.turnedBack; // (why: the sea, the lake or the mountainside, if one of those)
+        return;
+      }
+    }
     const feet = this.position.y + this.jumpHeight;
     for (const o of world.obstacles.near(x, z, RADIUS)) {
       if (o.top !== undefined && feet >= o.top - STEP_OVER) continue; // high enough to pass over it, or low enough to step up onto

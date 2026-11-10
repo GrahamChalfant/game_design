@@ -5,6 +5,10 @@ import { createRandom } from './random.js';
 import { loadModel } from './models.js';
 import { CABIN, CAMP, LEAN_TO, STAND, TRUCK, barrel, cabin, campsite, huntingStand, leanTo, rustedTruck } from './poiModels.js';
 import { ENTRANCE, buildUnderground, caveEntrance, entranceRocks } from './caves.js';
+import {
+  DEN, DOCK as DOCK_SPOT, FARM, LAKE, LAKE_CABIN, OBSERVATORY as OBSERVATORY_SPOT, RAVINE_CROSSING, SHELTER, STAND as STAND_SPOT, trailAt,
+} from './layout.js';
+import { BRIDGE, LANDMARKS, OBSERVATORY, buildLandmark, isLandmark, landmarkFloor, landmarkObstacles, landmarkRoofed } from './landmarks.js';
 
 // Places to find around the map, so there's something to explore between the woods and
 // meadows: abandoned log cabins, caves in the hillsides, and hunters' stands at the edges of
@@ -19,6 +23,7 @@ export const POIS = {
   camp: { count: 18, spacing: 60, clearing: 4.5 }, // abandoned campsites
   leanto: { count: 10, spacing: 80, clearing: 5 }, // trappers' lean-tos
   truck: { count: 0, spacing: 20, clearing: 4 }, // (left on the fire road: see roads.js)
+  ...LANDMARKS, // (the observatory, the bridge, the hut, the dock, the barn and the den: see landmarks.js)
 };
 const CRASH_GAP = 80; // meters from the crash
 const LOOKOUT_GAP = 45;
@@ -29,6 +34,13 @@ const ROOF_MARGIN = 0.3;
 const AXE_CHANCE = 0.25; // the chance a cabin has an axe (see the cabin's chest)
 // What can be found, and how likely each is: [item, [fewest, most], weight].
 const LOOT = {
+  // The astronomer's cupboard up at the observatory: supplies for a long stay in the cold.
+  observatory: [
+    ['bandage', [1, 3], 2], ['matches', [3, 8], 2], ['cookedMeat', [1, 2], 1.5], ['torch', [1, 2], 1.5],
+    ['rope', [1, 2], 1], ['flare', [1, 1], 0.8], ['map', [1, 1], 0.4],
+  ],
+  // The emergency box in the blizzard shelter.
+  hut: [['bandage', [1, 2], 2], ['matches', [3, 6], 2], ['cookedMeat', [1, 2], 2], ['torch', [1, 1], 1], ['flare', [1, 1], 0.6]],
   cabin: [
     ['bandage', [1, 3], 3], ['rope', [1, 3], 3], ['torch', [1, 2], 2], ['cookedMeat', [1, 3], 2],
     ['arrow', [2, 5], 1.5], ['hide', [1, 2], 1], ['wood', [2, 5], 1.5], ['flask', [1, 1], 0.6],
@@ -60,74 +72,70 @@ const LOOT = {
 };
 // How many different things each container holds: [fewest, most]. A stand's ammo box is
 // sometimes empty.
-const ROLLS = { cupboard: [2, 3], chest: [1, 3], stash: [2, 3], ammo: [0, 2], deepCave: [2, 4], camp: [0, 2], trapper: [2, 3], truck: [1, 3] };
+const ROLLS = { observatory: [2, 4], hut: [2, 3], cupboard: [2, 3], chest: [1, 3], stash: [2, 3], ammo: [0, 2], deepCave: [2, 4], camp: [0, 2], trapper: [2, 3], truck: [1, 3] };
 
 // ---------------------------------------------------------------------------------------
 // Choosing where they go (before trees and rocks, so those keep clear).
 
-// Returns [{ kind, x, z, heading, base, seed }]. `base` is the height of the cabin's floor,
-// the cave's middle or the stand's foot.
-export function choosePois(random, terrain, worldSize, lookout) {
-  const half = worldSize / 2 - 20;
-  const chosen = [];
-  const roomFor = (kind, x, z) =>
-    Math.hypot(x - CRASH.x, z - CRASH.z) > CRASH_GAP &&
-    Math.hypot(x - lookout.x, z - lookout.z) > LOOKOUT_GAP &&
-    chosen.every((p) => Math.hypot(p.x - x, p.z - z) > (POIS[kind].spacing + POIS[p.kind].spacing) / 2);
+// The places on the map, by hand (see layout.js), south to north. Returns
+// [{ kind, x, z, heading, base, seed }]: `base` is the height of the cabin's floor, the cave's
+// middle or the stand's foot.
+const PLACES = [
+  // The coast: a trapper's lean-to in the woods west of the crash, a campsite by the shore.
+  { kind: 'leanto', x: -290, z: -150, heading: 0.9 },
+  { kind: 'camp', x: 230, z: 30, heading: -0.6 },
+  // The foothills: the hunting stand, a hunters' camp, a cave in the mountains' foot, another
+  // lean-to.
+  { kind: 'stand', ...STAND_SPOT },
+  { kind: 'camp', x: 130, z: -810, heading: 1.2 },
+  { kind: 'cave', x: -640, z: -1230 },
+  { kind: 'leanto', x: 520, z: -990, heading: 2.2 },
+  { kind: 'den', ...DEN },
+  // The mountains: the broken footbridge over the ravine, the blizzard shelter above it, and the
+  // observatory by the saddle.
+  { kind: 'bridge', x: RAVINE_CROSSING.x, z: RAVINE_CROSSING.z },
+  { kind: 'hut', ...SHELTER },
+  { kind: 'observatory', ...OBSERVATORY_SPOT },
+  // The lakeshore cabin, set back from the water where the trail comes down, and its dock.
+  { kind: 'cabin', x: LAKE_CABIN.x, z: LAKE.south(LAKE_CABIN.x) + 30, heading: LAKE_CABIN.heading },
+  { kind: 'dock', x: DOCK_SPOT.x, z: LAKE.south(DOCK_SPOT.x) + 2, heading: Math.PI },
+  // The farm: the farmhouse and the houses round it, and the barn with the pickup in it.
+  { kind: 'cabin', ...FARM.house },
+  ...FARM.houses.map((h) => ({ kind: 'cabin', ...h })),
+  { kind: 'barn', ...FARM.barn },
+  { kind: 'truck', x: FARM.barn.x + 0.4, z: FARM.barn.z, heading: FARM.barn.heading, pickup: true },
+];
+
+export function placePois(terrain) {
   const heightsAround = (x, z, r) =>
     [[0, 0], [r, r], [r, -r], [-r, r], [-r, -r], [r, 0], [-r, 0], [0, r], [0, -r]].map(([dx, dz]) => terrain.heightAt(x + dx, z + dz));
-  const flatness = (x, z, r) => {
-    const h = heightsAround(x, z, r);
-    return Math.max(...h) - Math.min(...h);
-  };
-  const SUITS = {
-    // Cabins on flat, dry ground below the mountains, often by water or the woods.
-    cabin: (x, z) =>
-      terrain.mountainAt(x, z) < 0.25 && terrain.isDry(x, z, 6, 1) && flatness(x, z, 3.3) < 0.6 &&
-      (terrain.nearWater(x, z, 40) || terrain.forest(x, z) > -0.1 || random.next() < 0.3),
-    // Caves dug into a slope on rocky ground or up the mountains.
-    cave: (x, z) => {
-      const rocky = terrain.mountainAt(x, z) > 0.04 || ['rock', 'stony'].includes(terrain.groundAt(x, z).kind);
-      return rocky && terrain.mountainAt(x, z) < 0.5 && terrain.isDry(x, z, 6, 1) && slope(terrain, x, z) > 0.12 && slope(terrain, x, z) < 0.38;
-    },
-    // Campsites by the water or at the edges of the woods.
-    camp: (x, z) => terrain.mountainAt(x, z) < 0.2 && terrain.isDry(x, z, 4, 1) && flatness(x, z, 2.5) < 0.8 &&
-      (terrain.nearWater(x, z, 30) || Math.abs(terrain.forest(x, z)) < 0.3),
-    // Trappers worked in the woods.
-    leanto: (x, z) => terrain.forest(x, z) > 0 && terrain.mountainAt(x, z) < 0.3 && terrain.isDry(x, z, 4, 1) && flatness(x, z, 3) < 0.9,
-    truck: () => false,
-    // Stands at the edges of the woods, where the deer come out to graze.
-    stand: (x, z) => {
-      const forest = terrain.forest(x, z);
-      return forest > -0.25 && forest < 0.3 && terrain.mountainAt(x, z) < 0.15 && terrain.isDry(x, z, 3, 1) && flatness(x, z, 1.5) < 0.8;
-    },
-  };
-  for (const kind of Object.keys(POIS)) {
-    const { count } = POIS[kind];
-    let placed = 0;
-    for (let tries = 0; placed < count && tries < count * 400; tries++) {
-      const x = random.range(-half, half);
-      const z = random.range(-half, half);
-      if (!roomFor(kind, x, z) || !SUITS[kind](x, z)) continue;
-      let heading = random.range(0, Math.PI * 2);
-      let base;
-      if (kind === 'cabin') {
-        base = Math.max(...heightsAround(x, z, 3.0)) + 0.25; // the floor stands clear of the ground
-      } else if (kind === 'cave') {
-        // The mouth faces downhill; the back is dug into the slope.
-        const { dx, dz } = gradient(terrain, x, z);
-        heading = Math.atan2(-dx, -dz);
-        base = terrain.heightAt(x, z);
-      } else if (kind === 'stand') {
-        base = Math.min(...heightsAround(x, z, 1.1)) - 0.05;
-      } else {
-        base = terrain.heightAt(x, z);
-      }
-      chosen.push({ kind, x, z, heading, base, seed: Math.floor(random.next() * 1e9) });
-      placed++;
+  return PLACES.map(({ kind, x, z, heading = 0, pickup }, i) => {
+    let base;
+    if (kind === 'bridge') {
+      // Along the trail, its ends on the trail's bed either side of the ravine.
+      ({ heading } = trailAt(RAVINE_CROSSING.along));
+      const ends = [-1, 1].map((side) => terrain.heightAt(x + Math.sin(heading) * side * (BRIDGE.reach + 0.6), z + Math.cos(heading) * side * (BRIDGE.reach + 0.6)));
+      base = (ends[0] + ends[1]) / 2;
+    } else if (kind === 'dock') {
+      base = Math.max(LAKE.level + 0.6, terrain.heightAt(x, z) + 0.08); // (the deck a little above the water)
+    } else if (kind === 'den') {
+      const { dx, dz } = gradient(terrain, x, z);
+      heading = Math.atan2(-dx, -dz);
+      base = terrain.heightAt(x, z);
+    } else if (kind === 'cabin') {
+      base = Math.max(...heightsAround(x, z, 3.0)) + 0.25; // the floor stands clear of the ground
+    } else if (kind === 'cave') {
+      // The mouth faces downhill; the back is dug into the slope.
+      const { dx, dz } = gradient(terrain, x, z);
+      heading = Math.atan2(-dx, -dz);
+      base = terrain.heightAt(x, z);
+    } else if (kind === 'stand') {
+      base = Math.min(...heightsAround(x, z, 1.1)) - 0.05;
+    } else {
+      base = terrain.heightAt(x, z);
     }
-  }
-  return chosen;
+    return { kind, x, z, heading, base, seed: 1000 + i * 7919, pickup };
+  });
 }
 
 function gradient(terrain, x, z) {
@@ -180,6 +188,7 @@ function wallLine(poi, [ax, az], [bx, bz], radius, extra = {}) {
 
 export function poiObstacles(poi) {
   const at = (x, z, radius, extra = {}) => ({ ...fromPoi(poi, x, z), radius, ...extra });
+  if (isLandmark(poi.kind)) return landmarkObstacles(poi, at, (a, b, radius, extra) => wallLine(poi, a, b, radius, extra));
   if (poi.kind === 'cabin') {
     const { halfWidth: W, halfDepth: D, wall, door } = CABIN;
     const [x0, x1, z0, z1] = [-W - wall, W + wall, -D - wall, D + wall];
@@ -234,7 +243,7 @@ export function poiObstacles(poi) {
 
 // The floors the player can stand on, and whether they're under a roof. See world.structures.
 export function poiStructure(poi) {
-  const reach = poi.kind === 'cabin' ? CABIN.halfWidth + 2 : STAND.ladderFoot + 1;
+  const reach = poi.kind === 'cabin' ? CABIN.halfWidth + 2 : isLandmark(poi.kind) ? LANDMARKS[poi.kind].reach : STAND.ladderFoot + 1;
   const near = (x, z) => Math.abs(x - poi.x) < reach && Math.abs(z - poi.z) < reach;
   return {
     poi,
@@ -242,7 +251,10 @@ export function poiStructure(poi) {
       if (!near(x, z)) return -Infinity;
       const p = toPoi(poi, x, z);
       let y = -Infinity;
-      if (poi.kind === 'cabin') {
+      if (isLandmark(poi.kind)) {
+        const floor = landmarkFloor(poi, p);
+        if (floor !== null) y = poi.base + floor;
+      } else if (poi.kind === 'cabin') {
         const { halfWidth: W, halfDepth: D, wall, door } = CABIN;
         if (Math.abs(p.x) <= W + wall && Math.abs(p.z) <= D + wall) y = poi.base;
         // The step up to the door.
@@ -258,7 +270,9 @@ export function poiStructure(poi) {
       return y <= maxY ? y : -Infinity;
     },
     roofOver(x, z, feet) {
-      if (poi.kind !== 'cabin' || !near(x, z)) return false;
+      if (!near(x, z)) return false;
+      if (isLandmark(poi.kind)) return landmarkRoofed(poi, toPoi(poi, x, z)) && feet > poi.base - 0.5;
+      if (poi.kind !== 'cabin') return false;
       const p = toPoi(poi, x, z);
       return Math.abs(p.x) <= CABIN.halfWidth + ROOF_MARGIN && Math.abs(p.z) <= CABIN.halfDepth + ROOF_MARGIN && feet > poi.base - 0.5;
     },
@@ -270,7 +284,10 @@ export function poiStructure(poi) {
 
 // The Blender models (see blender/places.py) that replace each kind's stand-in once loaded.
 // The things you search, and anything else marked `userData.keep`, stay as they are.
-const MODELS = { cabin: 'cabin', stand: 'hunting-stand', leanto: 'lean-to', camp: 'campsite', truck: 'truck' };
+const MODELS = {
+  cabin: 'cabin', stand: 'hunting-stand', leanto: 'lean-to', camp: 'campsite', truck: 'truck',
+  ...Object.fromEntries(Object.entries(LANDMARKS).filter(([, l]) => l.model).map(([kind, l]) => [kind, l.model])),
+};
 const loading = new Map();
 function useModel(place, model) {
   const name = MODELS[place.poi.kind];
@@ -358,6 +375,9 @@ export function buildPois(scene, world) {
       model = leanTo(random, (lx, lz) => groundY(world, poi, lx, lz));
       add(model.userData.crate, "the trapper's crate", ...LEAN_TO.crate, poi.base, ROLLS.trapper, 'trapper');
       world.grass.clear(poi.x, poi.z, 2.5);
+    } else if (isLandmark(poi.kind)) {
+      model = buildLandmark(poi, random, (object, label, lx, lz, y, table, options) => add(object, label, lx, lz, y, ROLLS[table], table, options), (lx, lz) => groundY(world, poi, lx, lz));
+      world.grass.clear(poi.x, poi.z, LANDMARKS[poi.kind].clearing * 0.8);
     } else if (poi.kind === 'truck') {
       model = rustedTruck(random);
       add(model.userData.glovebox, 'the glovebox', ...TRUCK.door, poi.base, ROLLS.truck, 'truck', { standing: true });
@@ -452,6 +472,17 @@ export function buildPois(scene, world) {
     // Just outside a cave's way in, facing out: where you come back up.
     outside(cave) {
       return { ...fromPoi(cave.poi, 0, ENTRANCE.ring + 0.8), facing: cave.poi.heading };
+    },
+    // The observatory's telescope, if it's within reach of (x, z) about level with your feet:
+    // { x, z, look } (look: which way it points, a unit vector on the ground).
+    telescopeNear(x, z, feet) {
+      for (const poi of world.pois) {
+        if (poi.kind !== 'observatory') continue;
+        const at = fromPoi(poi, ...OBSERVATORY.telescope);
+        if (Math.hypot(at.x - x, at.z - z) > 1.6 || Math.abs(feet - (poi.base + OBSERVATORY.terrace.height)) > SEARCH_HEIGHT) continue;
+        return { x: at.x, z: at.z, look: { x: Math.sin(poi.heading), z: Math.cos(poi.heading) } };
+      }
+      return null;
     },
     // True if you're up a hunting stand (where animals don't notice you).
     upAStand(x, z, feet) {

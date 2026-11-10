@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { bushSpots, hasBerries, pickBush } from './foraging.js';
+import { REGIONS } from './layout.js';
 
 // Berry bushes around the wreck (issue #74). Rules and numbers are in foraging.js.
 // berry-bush.glb, when it lands, should have a child named "berries" to hide once picked.
@@ -10,10 +11,11 @@ export class Bushes {
     this.scene = scene;
     this.all = [];
     const isFree = (x, z) =>
-      Math.abs(x) < world.size / 2 - 2 && Math.abs(z) < world.size / 2 - 2 &&
+      x > world.bounds.minX + 2 && x < world.bounds.maxX - 2 && z > world.bounds.minZ + 2 && z < world.bounds.maxZ - 2 &&
       world.terrain.waterDepth(x, z) === 0 &&
       world.obstacles.isClear(x, z, 0.8);
-    for (const { x, z } of bushSpots(random, isFree)) {
+    const regional = { bounds: world.bounds, berriesAt: (x, z) => REGIONS[world.regionAt(x, z)]?.berries ?? 1 };
+    for (const { x, z } of bushSpots(random, isFree, regional)) {
       const object = new THREE.Group();
       object.position.set(x, world.terrain.heightAt(x, z), z);
       object.rotation.y = random.range(0, Math.PI * 2);

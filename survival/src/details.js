@@ -17,8 +17,10 @@ const BROKEN = 0.25; // ...and that have a rail down (you can step through those
 // Adds them to the scene and their obstacles to `obstacles`. `isFree(x, z, spacing)` is the
 // world's check for open ground. Returns { logs } (each { x, z, heading, length, radius }), so
 // the fire road can lay a few across itself.
-export function scatterDetails(scene, { random, terrain, obstacles, isFree, pois, worldSize, hectares }) {
-  const half = worldSize / 2 - 4;
+export function scatterDetails(scene, { random, terrain, obstacles, isFree, pois, bounds, hectares }) {
+  const randomX = () => random.range(bounds.minX + 4, bounds.maxX - 4);
+  const randomZ = () => random.range(bounds.minZ + 4, bounds.maxZ - 4);
+  const outside = (x, z) => x < bounds.minX + 4 || x > bounds.maxX - 4 || z < bounds.minZ + 4 || z > bounds.maxZ - 4;
   const logs = [];
   const logTransforms = [];
   const addLog = (x, z, heading, length, radius) => {
@@ -44,8 +46,8 @@ export function scatterDetails(scene, { random, terrain, obstacles, isFree, pois
   // Fallen trees, mostly in the woods.
   const logCount = Math.round(LOGS_PER_HECTARE * hectares);
   for (let tries = 0; logs.length < logCount && tries < logCount * 30; tries++) {
-    const x = random.range(-half, half);
-    const z = random.range(-half, half);
+    const x = randomX();
+    const z = randomZ();
     const woods = terrain.forest(x, z) > 0.05 || terrain.mountainAt(x, z) > 0.03;
     if ((!woods && random.next() > 0.12) || terrain.mountainAt(x, z) > 0.45) continue;
     const heading = random.range(0, Math.PI * 2);
@@ -67,7 +69,7 @@ export function scatterDetails(scene, { random, terrain, obstacles, isFree, pois
     const dz = -Math.sin(heading);
     const ex = x + dx * FENCE_LENGTH;
     const ez = z + dz * FENCE_LENGTH;
-    if (Math.abs(ex) > half || Math.abs(ez) > half) return false;
+    if (outside(ex, ez)) return false;
     for (let t = 0; t <= FENCE_LENGTH; t += 0.8) if (!room(x + dx * t, z + dz * t)) return false;
     const roll = random.next();
     if (roll < MISSING) return true; // (fallen down: nothing left but a gap)
@@ -86,8 +88,8 @@ export function scatterDetails(scene, { random, terrain, obstacles, isFree, pois
   };
   // Runs of fence across the meadows, wandering a little.
   for (let line = 0, tries = 0; line < FENCE_LINES && tries < FENCE_LINES * 50; tries++) {
-    let x = random.range(-half, half);
-    let z = random.range(-half, half);
+    let x = randomX();
+    let z = randomZ();
     if (terrain.forest(x, z) > -0.1 || terrain.mountainAt(x, z) > 0.1 || !isFree(x, z, 2)) continue;
     let heading = random.range(0, Math.PI * 2);
     const segments = Math.round(random.range(...FENCE_SEGMENTS));

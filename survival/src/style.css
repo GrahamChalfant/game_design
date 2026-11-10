@@ -49,8 +49,9 @@ canvas {
 
 #map canvas {
   display: block;
-  width: min(560px, calc(100vh - 110px), calc(100vw - 60px));
-  aspect-ratio: 1;
+  /* (The map is 2 by 3: taller than wide.) */
+  height: min(780px, calc(100vh - 110px), calc((100vw - 60px) * 1.5));
+  aspect-ratio: 2 / 3;
   border: 2px solid #8a7450;
   /* A printed look: a little faded and warm. */
   filter: sepia(0.3) saturate(0.85);

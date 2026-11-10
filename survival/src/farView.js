@@ -94,9 +94,12 @@ export class FarView {
   // corners (softer than up close, as things are from far away).
   *build() {
     const { terrain } = this.world;
-    const size = this.world.size + 80;
-    const cells = Math.round(size / CELL);
-    const geometry = new THREE.PlaneGeometry(size, size, cells, cells).rotateX(-Math.PI / 2);
+    const { minX, maxX, minZ, maxZ } = this.world.bounds;
+    const width = maxX - minX + 80;
+    const depth = maxZ - minZ + 80;
+    const geometry = new THREE.PlaneGeometry(width, depth, Math.round(width / CELL), Math.round(depth / CELL))
+      .rotateX(-Math.PI / 2)
+      .translate((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
     const position = geometry.attributes.position;
     const colors = new Float32Array(position.count * 3);
     const shade = new THREE.Color();

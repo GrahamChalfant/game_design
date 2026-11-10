@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CRASH as PLANE, trailPoint } from './crashTrail.js';
+import { CRASH as PLANE, flightPoint, trailPoint } from './crashTrail.js';
 import { instancedModel, loadModel, swappable } from './models.js';
 import * as placeholders from './placeholders.js';
 
@@ -125,6 +125,11 @@ export function buildWreck(scene, world) {
     place(swappable('debris', placeholders.debris()), { ...trailPoint(back, side), heading: back });
   }
   place(swappable('landing-wheel', placeholders.landingWheel()), { ...trailPoint(29, 3.4), heading: 1.1 });
+  // ...and further back, where it came in over the trees: bits torn off it, through the
+  // snapped trees (see world.js), the trail to follow back.
+  for (const [back, side] of [[62, 2.5], [84, -3.8], [101, 1.2], [126, -2.2], [149, 3.6], [172, -1]]) {
+    place(swappable('debris', placeholders.debris()), { ...flightPoint(back, side), heading: back * 0.7 });
+  }
 
   // Clods of soil thrown out along both sides of the skid.
   const clods = [];

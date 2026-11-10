@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { CRASH, createCrashTrail } from './crashTrail.js';
 import { createWater } from './water.js';
+import { createRandom } from './random.js';
+import {
+  LAKE, MAP_SEED, PADS, RANGE, RAVINE, RAVINE_CROSSING, SADDLE, SEA_LEVEL, SEA_SWIM, TOWER, TRAIL, TRAIL_LENGTH,
+  coastZ, inBounds, nearestOnTrail, ravineAt,
+} from './layout.js';
 import { CHUNK_SIZE, DRAW_CHUNKS, chunksAround } from './stream.js';
 
 const { smoothstep, clamp } = THREE.MathUtils;
@@ -27,6 +32,7 @@ const SNOW = new THREE.Color(0xe8eef2);
 const MUD = new THREE.Color(0xa49884);
 const GRAVEL = new THREE.Color(0xb0b0aa);
 const WATER_BED = new THREE.Color(0x3e5a5c);
+const SAND = new THREE.Color(0x8f877a); // the sea's beaches: grey-brown sand and shingle
 const TORN_SOIL = new THREE.Color(0xb89a78);
 const DARK_SOIL = new THREE.Color(0x9c8064);
 const ROAD = new THREE.Color(0x9a8668); // the old fire road's packed dirt...
@@ -50,11 +56,31 @@ const SNOW_PATCH = { from: 0.86, depth: 0.22 };
 const SNOW_FIELD_DEPTH = 0.35;
 const GROUND_CELL = 0.5; // meters along each side of a ground square: bigger gives bigger facets
 const GROUND_BUDGET_MS = 3; // the most time per frame spent building ground
-const LAKE_GAP = [12, 18]; // meters from the plane to the crash lake's shore
-// More lakes around the lowlands: how many, how big (meters), and how far apart.
-const LAKES = { perSquareKm: 10, radius: [6, 16], clearOfCrash: 90, spacing: 40 };
-// One big lake out in the lowlands, a long walk from the crash.
-const BIG_LAKE = { radius: [55, 72], depth: 5, clearOfCrash: 260 };
+const GROUND_MARGIN = 72; // meters the ground carries on past the map's edge, into the haze
+// The coast: the land's height at the shoreline, how fast the shore shelves down into the sea
+// (meters down per meter out), how far down the sea bed goes, how high the land has risen by
+// the mountains' foot, and how big the hills are by the sea and up in the foothills.
+const COAST = { shore: 1.4, shelf: 0.2, rise: 20, hills: 3 };
+const SEA_BED = -7;
+const FOOTHILLS_HILLS = 9;
+const LAKE_DEPTH = 7; // meters, out in the big lake's middle
+// Meters up where the snow and cold start, whatever the mountain (see highUp): the snowline
+// (MOUNTAINS.snowline) comes HIGH.from + snowline × HIGH.range up.
+const HIGH = { from: 55, range: 52 };
+const SADDLE_DIP = 0.28; // how much lower the crest is at the saddle the trail crosses
+// Ponds of fresh water (the sea's salt): one near the crash, a few in the foothills.
+const PONDS = [
+  { x: 42, z: -30, radius: 12, depth: 3 },
+  { x: -360, z: -560, radius: 16, depth: 2.6 },
+  { x: 120, z: -760, radius: 13, depth: 2.6 },
+  { x: -520, z: -1020, radius: 18, depth: 2.8 },
+  { x: 560, z: -880, radius: 14, depth: 2.6 },
+];
+// The river's course, from the mountains' foot down to the sea (it meanders between these).
+const RIVER = [
+  { x: -230, z: -1235 }, { x: -170, z: -1080 }, { x: -230, z: -900 }, { x: -160, z: -720 },
+  { x: -210, z: -520 }, { x: -140, z: -330 }, { x: -175, z: -150 }, { x: -130, z: 20 }, { x: -150, z: 200 },
+];
 // Little creeks: clear, shallow and stony, running down off the hills into the river and the
 // lakes. Each is traced uphill from where it meets the water until the ground stops rising.
 const CREEKS = {
@@ -66,6 +92,10 @@ const CREEKS = {
   depth: 0.24, // meters of water in the middle (shallow enough not to soak you: see WET_DEPTH in actions.js)
   clearOfCrash: 45,
 };
+// Up the mountains (past this far up: see mountainAt), you can only climb on the trail, or
+// within this many meters of its edge.
+const MOUNTAIN_WALL = 0.06;
+const TRAIL_SHOULDER = 4;
 const RIVER_BANK_REACH = 22; // meters from the river's middle its banks are cut back to (see createRiver)
 const CREEK_BED = new THREE.Color(0x8a8670); // pale pebbles under the water
 // Snowy mountains. `up` is how far up a mountain you are, 0 at its foot to 1 near the top.
@@ -86,126 +116,148 @@ const MOUNTAINS = {
   blend: 5, // how sharply overlapping peaks meet: higher is closer to a crease, lower blends them more (and fills in the saddles)
 };
 
-// The land: gently rolling ground, a lake, and a river running out of it. Everything is worked out from (x, z) so other code can ask "what's here?".
-// Call build() to make its meshes once you've decided to keep it (see isDry).
-export function createTerrain(random, noise, size) {
+// The land, shaped by hand (see layout.js): the sea along the south, the coast rising through
+// the foothills to the wall of mountains, and beyond them the lake and the farmland. Everything
+// is worked out from (x, z) so other code can ask "what's here?". Call build() to make its
+// meshes once you've decided to keep it.
+export function createTerrain(noise, bounds) {
+  const random = createRandom(MAP_SEED + 5); // (for the creeks: fixed, like the rest)
   const hills = (x, z) => noise(x * 0.02 + 100, z * 0.02) * 4 + noise(x * 0.07 + 200, z * 0.07) * 0.8;
+  // Gentle hummocks and hollows a few meters across, so the land isn't flat as a table at your
+  // feet. (Smoothed away on the roads: see heightAt.)
+  const relief = (x, z) => noise(x * 0.21 + 2100, z * 0.21) * RELIEF[0] + noise(x * 0.73 + 2200, z * 0.73) * RELIEF[1];
 
-  // The plane came down beside a lake, so you always start near water. The lake lies on
-  // the crash's open side: the skid trail runs back to the north-west and you start to the
-  // south, so it goes somewhere from north-east (-60°) round to south-east (40°), with its
-  // shore LAKE_GAP meters from the plane.
-  const crashLakeRadius = random.range(11, 15);
-  const crashLakeAngle = random.range(-1.05, 0.7);
-  const crashLake = createLake(noise, 0, crashLakeRadius, 3, hills, (radiusAt) => {
-    const reach = random.range(...LAKE_GAP) + radiusAt(crashLakeAngle + Math.PI);
-    return [CRASH.x + Math.cos(crashLakeAngle) * reach, CRASH.z + Math.sin(crashLakeAngle) * reach];
-  });
-  const lakes = [crashLake];
-
-  // A river winds out of the crash lake, away from the crash, to the edge of the map.
-  const river = createRiver(random, noise, crashLakeAngle, crashLake, (x, z) => withLakes(hills(x, z), x, z, lakes), size);
-  const nearRiver = (x, z, distance) =>
-    river.points.some((p, i) => i % 4 === 0 && Math.hypot(p.x - x, p.z - z) < distance);
-
-  // The mountains: one big range filling a corner of the map, so there's a whole region to
-  // explore. It takes the corner the river doesn't run through (the one with the least river
-  // in it). Its peaks are highest towards the corner and lower towards the middle of the map,
-  // so you climb up through the foothills into the snow.
-  const edge = size / 2 - 40; // the playable edge
-  const corners = [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([sx, sz]) => ({ sx, sz, x: sx * edge, z: sz * edge }));
-  const riverIn = (c) => river.points.filter((p) => Math.hypot(p.x - c.x, p.z - c.z) < MOUNTAINS.reach + 60).length;
-  const corner = corners.map((c) => ({ ...c, river: riverIn(c), pick: random.next() })).sort((a, b) => a.river - b.river || a.pick - b.pick)[0];
-  const range = { x: corner.x, z: corner.z, radius: MOUNTAINS.reach, peaks: [] };
-  for (let tries = 0; range.peaks.length < MOUNTAINS.peaks && tries < 400; tries++) {
-    // Somewhere in the quarter-circle reaching into the map from the corner.
-    const angle = random.range(0, Math.PI / 2);
-    const out = MOUNTAINS.reach * Math.sqrt(random.range(0.02, 0.75));
-    const x = corner.x - corner.sx * Math.cos(angle) * out;
-    const z = corner.z - corner.sz * Math.sin(angle) * out;
-    const radius = random.range(...MOUNTAINS.peakRadius);
-    if (Math.hypot(x - CRASH.x, z - CRASH.z) < radius + MOUNTAINS.clearOfCrash) continue;
-    if (nearRiver(x, z, radius * 1.1 + 30)) continue;
-    if (range.peaks.some((p) => Math.hypot(p.x - x, p.z - z) < (p.radius + radius) * 0.45)) continue;
-    // Taller the closer to the corner.
-    const height = THREE.MathUtils.lerp(MOUNTAINS.height[1], MOUNTAINS.height[0], out / MOUNTAINS.reach) * random.range(0.8, 1);
-    range.peaks.push({ x, z, radius, height, offset: random.range(0, 500) });
-  }
-  const massifs = [range];
-  const peaks = massifs.flatMap((m) => m.peaks);
-  // How far out from a peak (x, z) is, compared to the peak's foot: 0 at the top, 1 at the foot.
-  // The foot wanders in and out, so mountains have ragged edges.
-  const outFrom = (p, x, z) => {
-    const edge = p.radius * (1 + 0.35 * noise(x * 0.006 + p.offset, z * 0.006) + 0.15 * noise(x * 0.02 + p.offset, z * 0.02));
-    return Math.hypot(x - p.x, z - p.z) / edge;
+  // South of the mountains: the coast and the foothills, rising from the sea to the mountains'
+  // foot, the hills growing as they go. The shore shelves gently into the sea.
+  const tower = (x, z) => {
+    const { hill } = TOWER;
+    const d = Math.hypot(x - TOWER.x, z - TOWER.z);
+    return hill.height * (1 - smoothstep(d, hill.radius, hill.foot)) ** 1.6;
   };
-  const nearPeak = (p, x, z) => Math.abs(x - p.x) < p.radius * 1.6 && Math.abs(z - p.z) < p.radius * 1.6;
-  // The whole corner rises into a rocky highland, with the peaks standing on it, so the range
-  // is one region rather than separate hills: 0 out in the lowlands, 1 deep in the corner.
-  const highlandAt = (x, z) => {
-    const out = Math.hypot(x - range.x, z - range.z) / (range.radius * (1 + 0.18 * noise(x * 0.004 + 900, z * 0.004)));
-    return 1 - smoothstep(out, 0.5, 0.95);
+  const southLand = (x, z) => {
+    const shore = coastZ(x);
+    const inland = shore - z; // meters in from the shoreline
+    if (inland < 0) return Math.max(SEA_BED, COAST.shore + inland * COAST.shelf);
+    const t = clamp(inland / (shore - RANGE.southFoot(x)), 0, 1);
+    const amp = (COAST.hills + (FOOTHILLS_HILLS - COAST.hills) * smoothstep(t, 0.3, 0.8)) * smoothstep(inland, 0, 70);
+    const h = COAST.shore + COAST.rise * t ** 1.3 + (hills(x, z) / 4) * amp + tower(x, z);
+    // (Never down below the sea behind the shore, or the hollows there flood.)
+    return Math.max(h, COAST.shore * 0.5 + Math.min(inland, 60) * 0.03);
   };
-  // How far up a mountain (x, z) is: 0 on the lowlands and at a mountain's foot, 1 at the top.
-  const mountainAt = (x, z) => {
-    let best = highlandAt(x, z) * MOUNTAINS.highlandUp;
-    for (const p of peaks) {
-      if (!nearPeak(p, x, z)) continue;
-      best = Math.max(best, (p.height / MOUNTAINS.height[1]) * (1 - smoothstep(outFrom(p, x, z), 0, 1)));
+  // North of them: the lake's bed, and the land round it rising gently away from the water.
+  const northLand = (x, z) => {
+    const s = LAKE.south(x);
+    const n = LAKE.north(x);
+    if (z < s && z > n) {
+      // In the lake: shelving down from each shore to its deep middle.
+      const out = Math.min(s - z, z - n);
+      return LAKE.level - 0.6 - LAKE_DEPTH * smoothstep(out, 0, 50);
+    }
+    const out = z >= s ? z - s : n - z; // meters back from the shore
+    return LAKE.level + 0.8 + Math.min(out * 0.07, 10) + (hills(x, z) / 4) * 1.6 * smoothstep(out, 0, 40);
+  };
+
+  // The mountains: how far up them (x, z) is, from 0 at their feet to 1 at the crest, along the
+  // wall's south-to-north profile...
+  const across = (x, z) => {
+    const south = RANGE.southFoot(x);
+    const north = RANGE.northFoot(x);
+    if (z > south || z < north) return 0;
+    const crest = RANGE.crest(x);
+    return z > crest ? smoothstep((south - z) / (south - crest), 0, 1) : smoothstep((z - north) / (crest - north), 0, 1);
+  };
+  // ...how high they stand there (lower at the saddle where the trail crosses)...
+  const crestHeight = (x) => {
+    const [low, high] = RANGE.height;
+    const h = low + (high - low) * (0.5 + 0.5 * noise(x * 0.0045 + 800, 0.7)) + 18 * noise(x * 0.013 + 820, 1.9);
+    return h * (1 - SADDLE_DIP * Math.exp(-(((x - SADDLE.x) / 150) ** 2)));
+  };
+  // ...and the height they add: ridges and gullies down their sides, rounded crests, and peaks.
+  // Peaks stand up along the ridge (lower near the saddle: see RANGE.peaks).
+  const peakAt = (x, z) => {
+    let best = 0;
+    for (const p of RANGE.peaks) {
+      const d = Math.hypot(x - p.x, z - p.z) / (p.radius * (1 + 0.3 * noise(x * 0.008 + p.x, z * 0.008)));
+      if (d < 1) best = Math.max(best, p.height * (1 - smoothstep(d, 0, 1)) ** 1.4);
     }
     return best;
   };
   const mountainHeight = (x, z) => {
-    const highland = highlandAt(x, z);
-    if (highland === 0 && !peaks.some((p) => nearPeak(p, x, z))) return 0;
-    // Where peaks overlap, the higher one mostly wins, but they blend into each other (a
-    // power mean rather than the plain highest), so there's a rounded saddle between them
-    // instead of a sharp crease.
-    let sum = 0;
-    for (const p of peaks) {
-      if (!nearPeak(p, x, z)) continue;
-      const up = 1 - smoothstep(outFrom(p, x, z), 0, 1);
-      if (up <= 0) continue;
-      // Ridges and gullies on the way up, with rounded crests rather than knife edges.
-      const n = noise(x * 0.018 + p.offset, z * 0.018);
-      const ridges = 1 - Math.sqrt(n * n + MOUNTAINS.ridgeRound ** 2);
-      sum += Math.max(0, p.height * up ** 1.3 + ridges * 7 * up * up) ** MOUNTAINS.blend;
-    }
-    return MOUNTAINS.highlandHeight * highland ** 1.2 + sum ** (1 / MOUNTAINS.blend);
+    const up = across(x, z);
+    if (up <= 0) return 0;
+    const n = noise(x * 0.018 + 840, z * 0.018);
+    const ridges = 1 - Math.sqrt(n * n + 0.25 ** 2);
+    return crestHeight(x) * up ** 1.4 + ridges * 11 * up * up + peakAt(x, z) * up;
   };
-  // Gentle hummocks and hollows a few meters across, so the land isn't flat as a table at your
-  // feet. (Smoothed away on the roads: see heightAt.)
-  const relief = (x, z) => noise(x * 0.21 + 2100, z * 0.21) * RELIEF[0] + noise(x * 0.73 + 2200, z * 0.73) * RELIEF[1];
-  const baseHeight = (x, z) => hills(x, z) + mountainHeight(x, z) + relief(x, z);
+  const TOP = RANGE.height[1] + 30; // about the highest the mountains reach
+  // How far up a mountain (x, z) is: 0 off them, 1 at the very top (for snow, cold, rock and trees).
+  const mountainAt = (x, z) => {
+    const up = across(x, z);
+    return up > 0 ? Math.min(1, (crestHeight(x) * up ** 1.4 + peakAt(x, z) * up) / TOP) : 0;
+  };
+  // The land under the mountains: the south's, blending into the north's across the crest.
+  const underHeight = (x, z) => {
+    const crest = RANGE.crest(x);
+    const t = smoothstep((crest + 100 - z) / 200, 0, 1);
+    if (t <= 0) return southLand(x, z);
+    if (t >= 1) return northLand(x, z);
+    return southLand(x, z) * (1 - t) + northLand(x, z) * t;
+  };
+  const wildHeight = (x, z) => underHeight(x, z) + mountainHeight(x, z) + relief(x, z);
 
-  const half = size / 2 - 60;
-  const lowland = (x, z, reach) =>
-    [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]].every(
-      ([dx, dz]) => mountainAt(x + dx * reach, z + dz * reach) === 0,
-    );
-  // The big lake: somewhere well out in the lowlands, clear of the river and the crash.
-  for (let tries = 0; lakes.length < 2 && tries < 400; tries++) {
-    const radius = random.range(...BIG_LAKE.radius);
-    const x = random.range(-half + radius * 1.5, half - radius * 1.5);
-    const z = random.range(-half + radius * 1.5, half - radius * 1.5);
-    if (Math.hypot(x - CRASH.x, z - CRASH.z) < BIG_LAKE.clearOfCrash + radius) continue;
-    if (!lowland(x, z, radius * 2) || nearRiver(x, z, radius * 1.7 + 25)) continue;
-    const lake = createLake(noise, lakes.length, radius, BIG_LAKE.depth, baseHeight, () => [x, z], 0.12);
-    lake.big = true;
-    lakes.push(lake);
-  }
+  // The trail over the mountains: graded evenly from where it leaves the foothills up to the
+  // saddle, and down again to the lakeshore. Its bed is cut into the mountainside (and built up
+  // where the ground falls away), blending back into it a few meters out.
+  const trailStart = wildHeight(TRAIL.points[0].x, TRAIL.points[0].z);
+  const trailTop = wildHeight(SADDLE.x, SADDLE.z) - 2;
+  const end = TRAIL.points.at(-1);
+  const trailEnd = wildHeight(end.x, end.z);
+  const trailHeight = (along) =>
+    along < SADDLE.along
+      ? trailStart + (trailTop - trailStart) * (along / SADDLE.along)
+      : trailTop + (trailEnd - trailTop) * ((along - SADDLE.along) / (TRAIL_LENGTH - SADDLE.along));
+  const TRAIL_BLEND = 14;
+  const withTrail = (h, x, z) => {
+    const near = nearestOnTrail(x, z);
+    if (near.distance > TRAIL.halfWidth + TRAIL_BLEND) return h;
+    const on = 1 - smoothstep(near.distance, TRAIL.halfWidth + 0.4, TRAIL.halfWidth + TRAIL_BLEND);
+    return h + (trailHeight(near.along) - h) * on;
+  };
+  // The ravine: a steep-sided gully cut down the mountainside, deepest where the trail crosses it.
+  const withRavine = (h, x, z) => {
+    const r = ravineAt(x, z);
+    const wall = RAVINE.halfWidth + 1.8;
+    if (r.distance > wall) return h;
+    const fromCrossing = Math.abs(r.t - RAVINE_CROSSING.t);
+    const depth = RAVINE.depth * clamp(1 - fromCrossing * 1.4, 0.2, 1) * smoothstep(r.t, 0, 0.08) * (1 - smoothstep(r.t, 0.92, 1));
+    return h - depth * (1 - smoothstep(r.distance, RAVINE.halfWidth, wall));
+  };
+  // Level pads for the buildings (see PADS).
+  const padHeights = PADS.map((p) => withTrail(wildHeight(p.x, p.z), p.x, p.z));
+  const withPads = (h, x, z) => {
+    PADS.forEach((p, i) => {
+      const d = Math.hypot(x - p.x, z - p.z);
+      if (d < p.radius * 2) h += (padHeights[i] - h) * (1 - smoothstep(d, p.radius, p.radius * 2));
+    });
+    return h;
+  };
+  const baseHeight = (x, z) => withRavine(withPads(withTrail(wildHeight(x, z), x, z), x, z), x, z);
+  // How high up (x, z) is, for snow and cold: up the mountains, how far up a peak you are, but
+  // also simply how high: the pass and the observatory are high enough for snow and the cold.
+  const highUp = (x, z) => {
+    const up = mountainAt(x, z);
+    return up > 0 ? Math.max(up, (baseHeight(x, z) - HIGH.from) / HIGH.range) : 0;
+  };
 
-  // Smaller lakes dotted around the lowlands, so there's water wherever you wander.
-  for (let tries = 0; lakes.filter((l) => !l.big).length - 1 < Math.round(LAKES.perSquareKm * (size / 1000) ** 2) && tries < 2000; tries++) {
-    const radius = random.range(...LAKES.radius);
-    const x = random.range(-half, half);
-    const z = random.range(-half, half);
-    if (Math.hypot(x - CRASH.x, z - CRASH.z) < LAKES.clearOfCrash) continue;
-    if (!lowland(x, z, radius * 2)) continue;
-    if (nearRiver(x, z, radius * 1.8 + 15)) continue;
-    if (lakes.some((l) => Math.hypot(l.x - x, l.z - z) < (l.radius + radius) * 1.8 + LAKES.spacing)) continue;
-    lakes.push(createLake(noise, lakes.length, radius, random.range(2.2, 3), baseHeight, () => [x, z]));
-  }
+  // Fresh water on the way: a pond near the crash (you can't drink the sea), and a few up in the
+  // foothills.
+  const lakes = PONDS.map(({ x, z, radius, depth }, index) => createLake(noise, index, radius, depth, baseHeight, () => [x, z]));
+  // A river running down out of the mountains, through the foothills, west of the crash and out
+  // into the sea.
+  const river = createRiverAlong(noise, RIVER, (x, z) => withLakes(baseHeight(x, z), x, z, lakes));
+  const nearRiver = (x, z, distance) =>
+    river.points.some((p, i) => i % 4 === 0 && Math.hypot(p.x - x, p.z - z) < distance);
+  const massifs = [{ x: 0, z: (RANGE.southFoot(0) + RANGE.northFoot(0)) / 2, radius: 1100, peaks: [] }];
   // The lake nearest to (x, z) in its own size (see Lake.distance), if any is close.
   const nearestLake = (x, z) => {
     let best = null;
@@ -217,6 +269,22 @@ export function createTerrain(random, noise, size) {
     }
     return best ? { lake: best, distance: bestDistance } : null;
   };
+  // The sea and the big lake: wide water reaching right across the map. The level of the water
+  // at (x, z) if it's on or just off either's shore, else -Infinity.
+  const openWaterLevel = (x, z) => {
+    if (z > coastZ(x) - 30) return SEA_LEVEL;
+    if (z < LAKE.south(x) + 30 && z > LAKE.north(x) - 30) return LAKE.level;
+    return -Infinity;
+  };
+  // How far out into the sea or the big lake (x, z) is, from the nearest shore (0 on land).
+  const openWaterOut = (x, z) => {
+    const sea = z - coastZ(x) - 7;
+    if (sea > 0) return sea;
+    const s = LAKE.south(x);
+    const n = LAKE.north(x);
+    if (z < s && z > n) return Math.min(s - z, z - n);
+    return 0;
+  };
 
   const crashTrail = createCrashTrail(noise);
   // How rocky the ground is (above 0.38 stone shows through; see groundAt).
@@ -225,7 +293,7 @@ export function createTerrain(random, noise, size) {
   // into rock, and leaves pale scrapes on it rather than torn soil.
   const stoneAt = (x, z) => smoothstep(rockAt(x, z), 0.38, 0.5);
 
-  // The road, for heightAt and the ground's colours (filled in by layRoads).
+  // The roads, for heightAt and the ground's colours (filled in by setRoads: see roads.js).
   const ROAD_CELL = 16;
   const roadCells = new Map();
 
@@ -242,7 +310,7 @@ export function createTerrain(random, noise, size) {
       snowResult.amount = Math.min(1, (patch - SNOW_PATCH.from) / 0.03);
       snowResult.depth = SNOW_PATCH.depth * (0.6 * smoothstep(patch, SNOW_PATCH.from - 0.005, SNOW_PATCH.from + 0.025) + 0.4 * smoothstep(patch, SNOW_PATCH.from + 0.025, SNOW_PATCH.from + 0.12));
     }
-    const up = mountainAt(x, z);
+    const up = highUp(x, z);
     if (up > 0) {
       const snowy = up + noise(x * 0.05 + 1300, z * 0.05) * 0.1 + noise(x * 0.3 + 1400, z * 0.3) * 0.04;
       if (snowy > MOUNTAINS.snowline) {
@@ -274,6 +342,7 @@ export function createTerrain(random, noise, size) {
   const lakeOrRiverLevel = (x, z) => {
     const near = nearestLake(x, z);
     let level = near && near.distance < 1.5 ? near.lake.level : -Infinity;
+    level = Math.max(level, openWaterLevel(x, z));
     const r = river.nearest(x, z);
     if (r && r.distance < r.halfWidth + 0.5) level = Math.max(level, r.level);
     return level;
@@ -281,7 +350,7 @@ export function createTerrain(random, noise, size) {
   const creeks = createCreeks(
     random, noise, river, lakes, landAt, mountainAt,
     (x, z) => lakeOrRiverLevel(x, z) > landAt(x, z) - 0.3,
-    (x, z) => Math.hypot(x - CRASH.x, z - CRASH.z) < CREEKS.clearOfCrash || crashTrail.near(x, z, 6) || Math.max(Math.abs(x), Math.abs(z)) > size / 2 - 30,
+    (x, z) => Math.hypot(x - CRASH.x, z - CRASH.z) < CREEKS.clearOfCrash || crashTrail.near(x, z, 6) || !inBounds(x, z, 30) || nearestOnTrail(x, z).distance < 12,
   );
 
   const heightAt = (x, z) => {
@@ -326,12 +395,31 @@ export function createTerrain(random, noise, size) {
   // False if heading (dx, dz) at (x, z) is up ground too steep to climb (see MAX_CLIMB).
   // Banks in and out of the water are always fine, so you can't get stuck in a lake.
   const canClimb = (x, z, dx, dz) => {
+    // Too far out into the sea or the big lake: back you go. (Heading back in is always fine.)
+    const out = openWaterOut(x, z);
+    if (out > 0 && out > openWaterOut(x - dx, z - dz)) {
+      const limit = z > coastZ(x) ? SEA_SWIM : LAKE.swim;
+      if (out > limit) {
+        terrain.turnedBack = z > coastZ(x) ? 'sea' : 'lake';
+        return false;
+      }
+    }
+    // Up the mountains, only the trail climbs: off it, the slopes are too steep to go up.
+    if (mountainAt(x, z) > MOUNTAIN_WALL && nearestOnTrail(x, z).distance > TRAIL.halfWidth + TRAIL_SHOULDER) {
+      const { x: sx, z: sz } = slopeAt(x, z);
+      if (sx * dx + sz * dz > 0.08 * Math.hypot(dx, dz) && waterDepth(x, z) === 0) {
+        terrain.turnedBack = 'mountain';
+        return false;
+      }
+    }
     const { x: sx, z: sz } = slopeAt(x, z);
     if (sx * dx + sz * dz <= 0 || Math.hypot(sx, sz) <= Math.tan(MAX_CLIMB)) return true;
     return waterDepth(x, z) > 0 || nearWater(x, z, 0.5);
   };
   // Rough "is this within `margin` meters of a lake or the river" check, for placing things.
   const nearWater = (x, z, margin) => {
+    if (z > coastZ(x) + 7 - margin) return true; // (the sea's edge is about 7 m out from coastZ)
+    if (z < LAKE.south(x) + margin && z > LAKE.north(x) - margin) return true;
     const near = nearestLake(x, z);
     if (near && (near.distance - 1.35) * near.lake.radius < margin) return true;
     const r = river.nearest(x, z);
@@ -350,10 +438,17 @@ export function createTerrain(random, noise, size) {
 
   // How "foresty" an area is (roughly -1..1). Large woods and open meadows, a few hundred
   // meters across, with trees growing in clumps inside the woods.
-  const forest = (x, z) =>
-    noise(x * 0.006 + 700, z * 0.006) * 1.3 + noise(x * 0.04 + 50, z * 0.04) * 0.6 - mountainAt(x, z) * 4;
+  const forest = (x, z) => {
+    let f = noise(x * 0.006 + 700, z * 0.006) * 1.3 + noise(x * 0.04 + 50, z * 0.04) * 0.6 - mountainAt(x, z) * 4;
+    // The farm's fields, cleared long ago (a few trees still in hedgerows and windbreaks).
+    if (z < LAKE.north(x)) f -= 1.1 * smoothstep(LAKE.north(x) - z, 30, 140) - 0.5 * Math.max(0, noise(x * 0.03 + 1500, z * 0.03));
+    // Coastal forest grows thick inland, but the sea wind keeps the last stretch before the
+    // shore open (rocks, grass and the odd stunted tree), so you can see the sea from the crash.
+    else if (z > RANGE.southFoot(x)) f += 0.25 * (1 - smoothstep(coastZ(x) - z, 80, 400)) - 1.4 * (1 - smoothstep(coastZ(x) - z, 35, 85));
+    return f;
+  };
   // How cold the air is up the mountains: 0 in the lowlands, rising to 1 above the snowline.
-  const coldAt = (x, z) => smoothstep(mountainAt(x, z), MOUNTAINS.coldFrom, MOUNTAINS.coldFull);
+  const coldAt = (x, z) => smoothstep(highUp(x, z), MOUNTAINS.coldFrom, MOUNTAINS.coldFull);
 
   // Roads, added with setRoads once the map knows where they go: segments sorted into cells.
   let roadHalf = 0;
@@ -422,7 +517,7 @@ export function createTerrain(random, noise, size) {
         color.lerp(tint, scree);
         if (scree > 0.5) kind = 'rock';
       }
-      const snowy = up + noise(x * 0.05 + 1300, z * 0.05) * 0.1 + noise(x * 0.3 + 1400, z * 0.3) * 0.04;
+      const snowy = highUp(x, z) + noise(x * 0.05 + 1300, z * 0.05) * 0.1 + noise(x * 0.3 + 1400, z * 0.3) * 0.04;
       if (snowy > MOUNTAINS.snowline) {
         if (withSnow) color.lerp(SNOW, Math.min(1, (snowy - MOUNTAINS.snowline) / 0.04));
         kind = 'snow';
@@ -455,6 +550,16 @@ export function createTerrain(random, noise, size) {
         if (edge > 0.5) kind = 'road';
       }
     }
+    // The trail over the mountains: a worn path of packed earth and gravel, stones poking
+    // through, its edges blending into the mountainside. (Snow lies over it up high.)
+    const onTrail = nearestOnTrail(x, z);
+    if (onTrail.distance < TRAIL.halfWidth + 0.6) {
+      const edge = 1 - smoothstep(onTrail.distance, TRAIL.halfWidth - 0.9, TRAIL.halfWidth + 0.5);
+      tint.copy(ROAD).lerp(GRAVEL, clamp(noise(x * 0.9 + 1700, z * 0.9) * 0.6 + 0.3, 0, 0.7));
+      tint.lerp(RUT, 0.35 * (1 - smoothstep(onTrail.distance, 0, 0.8)));
+      color.lerp(tint, edge * (kind === 'snow' ? 0.25 : 1));
+      if (edge > 0.5 && kind !== 'snow') kind = 'road';
+    }
     // Creeks: pale pebbles under clear water, and wet stony banks.
     const creek = creeks.nearest(x, z);
     if (creek) {
@@ -464,6 +569,26 @@ export function createTerrain(random, noise, size) {
         if (creek.distance > creek.halfWidth) tint.lerp(GRAVEL, 0.4);
         color.lerp(tint, wet);
         if (wet > 0.4) kind = creek.distance < creek.halfWidth ? 'water' : 'shore';
+      }
+    }
+    // The sea's shore: pale sand and gravel, wet and darker at the water's edge; the big lake's,
+    // mud and stones.
+    const open = openWaterLevel(x, z);
+    if (open > -Infinity) {
+      const h = heightAt(x, z);
+      const sea = open === SEA_LEVEL && z > coastZ(x) - 40;
+      const beach = 1 - smoothstep(h, open + (sea ? 0.6 : 0.2), open + (sea ? 2.4 : 0.9));
+      if (beach > 0) {
+        const under = h < open && waterDepth(x, z) > 0;
+        tint.copy(under ? WATER_BED : sea ? SAND : MUD);
+        if (sea && !under) {
+          // Cobbles and shingle in drifts along the beach, darker and wet down at the water.
+          tint.lerp(GRAVEL, clamp(noise(x * 0.35 + 77, z * 0.9) * 0.9 + 0.35, 0, 0.8));
+          tint.lerp(STONE, clamp(noise(x * 1.7 + 91, z * 1.7) * 0.6, 0, 0.35));
+          tint.lerp(WATER_BED, 0.45 * (1 - smoothstep(h, open, open + 0.7)));
+        }
+        color.lerp(tint, beach);
+        if (beach > 0.4) kind = under ? 'water' : sea ? 'gravel' : 'shore';
       }
     }
     // Muddy lake shores, gravelly river banks, and the beds under the water.
@@ -499,7 +624,10 @@ export function createTerrain(random, noise, size) {
     massifs,
     crashTrail,
     groundAt,
-    riverPoints: river.points, // the river's path, from the lake outwards
+    riverPoints: river.points, // the river's path, from the mountains down to the sea
+    openWaterOut,
+    // Why the last step was refused, if it was: 'sea', 'lake' or 'mountain' (see canClimb).
+    turnedBack: null,
     creeks: creeks.list, // each { points: [{ x, z, level, halfWidth }] }, from its spring down
     creekOnly,
     roadAt,
@@ -534,10 +662,14 @@ export function createTerrain(random, noise, size) {
     },
     // Makes the ground and water meshes (slow, so only for the map you keep).
     build() {
-      const ground = createGround(size, heightAt, groundAt, snowAt);
+      const ground = createGround(bounds, heightAt, groundAt, snowAt);
       terrain.ground = ground.group;
       terrain.drawAround = ground.drawAround;
-      terrain.water = createWater(lakes, river, creeks.list);
+      terrain.water = createWater(lakes, river, creeks.list, [
+        // The sea, and the big lake (flat sheets the land hides the edges of).
+        { level: SEA_LEVEL, minX: bounds.minX - 600, maxX: bounds.maxX + 600, minZ: Math.min(...[-1, 0, 1].map((k) => coastZ(k * 900))) - 60, maxZ: bounds.maxZ + 700, sea: true },
+        { level: LAKE.level, minX: bounds.minX - 600, maxX: bounds.maxX + 600, minZ: -2560, maxZ: -1960 },
+      ]);
       return terrain;
     },
   };
@@ -588,42 +720,34 @@ function withLakes(h, x, z, lakes) {
   return h;
 }
 
-// A river winding out of the lake to the edge of the map. It flows downhill: its surface
-// never rises, and it carves a channel through anything in the way.
-function createRiver(random, noise, lakeAngle, lake, heightAt, size) {
-  // Leave the lake on its far side, flowing away from the crash site.
-  const direction = lakeAngle + random.range(-0.4, 0.4);
-  let heading = direction;
-  const start = lake.radiusAt(heading) * 0.9;
-  let x = lake.x + Math.cos(heading) * start;
-  let z = lake.z + Math.sin(heading) * start;
+// A river following `course` (points from its spring down to its mouth), meandering a little
+// between them. It flows downhill: its surface never rises, and it carves a channel through
+// anything in the way.
+function createRiverAlong(noise, course, heightAt) {
   const points = [];
-  let level = lake.level;
+  let level = Infinity;
   const STEP = 2.5;
-  for (let i = 0; i < 2000 && Math.max(Math.abs(x), Math.abs(z)) < size / 2 + 5; i++) {
-    const halfWidth = 1.5 + Math.min(1.2, i * 0.02); // widens as it goes
-    // The surface sits below the lowest ground across the channel, and never rises.
-    const across = [-1, 0, 1].map((s) => heightAt(x - Math.sin(heading) * s * (halfWidth + 1), z + Math.cos(heading) * s * (halfWidth + 1)));
-    // (Still inside the lake, the river is just the lake's surface.)
-    if (lake.distance(x, z) > 1.35) level = Math.min(level, Math.min(...across) - 0.35);
-    points.push({ x, z, level, halfWidth });
-    // Meander, but keep drifting back to the overall direction so it never doubles back.
-    heading += noise(i * 0.15 + 70, 3.3) * 0.35 + (direction - heading) * 0.12;
-    x += Math.cos(heading) * STEP;
-    z += Math.sin(heading) * STEP;
+  for (let i = 1; i < course.length; i++) {
+    const a = course[i - 1];
+    const b = course[i];
+    const length = Math.hypot(b.x - a.x, b.z - a.z);
+    const heading = Math.atan2(b.z - a.z, b.x - a.x);
+    for (let d = 0; d < length; d += STEP) {
+      const t = d / length;
+      const wander = noise(points.length * 0.02 + 70, 3.3) * 14 * Math.sin(Math.PI * t);
+      const x = a.x + (b.x - a.x) * t - Math.sin(heading) * wander;
+      const z = a.z + (b.z - a.z) * t + Math.cos(heading) * wander;
+      const halfWidth = 1.5 + Math.min(1.4, points.length * 0.004); // widens as it goes
+      const across = [-1, 0, 1].map((s) => heightAt(x - Math.sin(heading) * s * (halfWidth + 1), z + Math.cos(heading) * s * (halfWidth + 1)));
+      level = Math.min(level, Math.min(...across) - 0.35);
+      points.push({ x, z, level: Math.max(level, SEA_LEVEL - 0.2), halfWidth });
+    }
   }
-
-  // The channel and banks reach this far from its middle: far enough for the banks to slope
-  // all the way up to the land where the river cuts through a hill, rather than stopping
-  // short at a sheer step.
   const index = channelIndex([{ points }], RIVER_BANK_REACH);
-  // The ground height the channel cuts down to at that spot: a rounded bed under the
-  // water, and banks sloping back up to meet the land.
   const carve = ({ distance, level, halfWidth }) =>
     distance < halfWidth
       ? level - 0.2 - 1.3 * (1 - (distance / halfWidth) ** 2)
       : level - 0.2 + (distance - halfWidth) * 0.6;
-
   return { points, nearest: index.nearest, carve };
 }
 
@@ -805,7 +929,7 @@ function paintedGround(shader) {
 
 // The ground: faceted hilly meshes where every triangle is one flat colour, one per chunk,
 // built as the player comes near (see drawAround) and dropped again once they're far away.
-function createGround(size, heightAt, groundAt, snowAt) {
+function createGround(bounds, heightAt, groundAt, snowAt) {
   const group = new THREE.Group();
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
   // Snow is blended in per pixel from each corner's `snow` amount, not painted per triangle:
@@ -835,7 +959,6 @@ function createGround(size, heightAt, groundAt, snowAt) {
     paintedGround(shader);
   };
   const built = new Map(); // chunk key → mesh (its `userData.cell` is the size of its squares)
-  const half = size / 2;
   // Chunks more than 2 out from the player's (only drawn in the views that look out across the
   // land) are built in squares twice the size: a quarter of the triangles, and far enough off
   // that it doesn't show.
@@ -915,7 +1038,8 @@ function createGround(size, heightAt, groundAt, snowAt) {
 
   const jobs = new Map(); // chunk key → its build, part done
   const onMap = ({ cx, cz }) =>
-    Math.abs((cx + 0.5) * CHUNK_SIZE) < half + CHUNK_SIZE && Math.abs((cz + 0.5) * CHUNK_SIZE) < half + CHUNK_SIZE;
+    (cx + 0.5) * CHUNK_SIZE > bounds.minX - GROUND_MARGIN && (cx + 0.5) * CHUNK_SIZE < bounds.maxX + GROUND_MARGIN &&
+    (cz + 0.5) * CHUNK_SIZE > bounds.minZ - GROUND_MARGIN && (cz + 0.5) * CHUNK_SIZE < bounds.maxZ + GROUND_MARGIN;
 
   return {
     group,

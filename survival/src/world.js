@@ -6,18 +6,20 @@ import { createNoise, createRandom } from './random.js';
 import { createTerrain } from './terrain.js';
 import { Trees } from './trees.js';
 import { stoneSpots } from './hunting.js';
-import { CRASH, trailPoint } from './crashTrail.js';
+import { CRASH, FLIGHT_PATH, flightPoint, onFlightPath, trailPoint } from './crashTrail.js';
 import { SpatialGrid } from './grid.js';
-import { LOOKOUT, chooseLookout, lookoutBase, lookoutObstacles, lookoutStructure } from './lookout.js';
-import { choosePois, poiClearing, poiObstacles, poiStructure } from './pois.js';
-import { KEEP_CLEAR, ROAD_WIDTH, alongRoads, layRoads, ruinRoads } from './roads.js';
+import { LOOKOUT, lookoutBase, lookoutObstacles, lookoutStructure } from './lookout.js';
+import { placePois, poiClearing, poiObstacles, poiStructure } from './pois.js';
+import { KEEP_CLEAR, ROAD_WIDTH, alongRoads, fixedRoads, ruinRoads } from './roads.js';
 import { scatterDetails } from './details.js';
+import { BOUNDS, MAP_SEED, REGIONS, TOWER, TRAIL, inBounds, nearestOnTrail, regionAt } from './layout.js';
+const SAP_KINDS = new Set(['pine', 'pine-tall', 'pine-wide', 'pine-skinny']); // (grown trees, not saplings or snags)
 
-// Meters across; the playable area is a square centred on the crash, at 0,0. Only the chunks
-// around the player are drawn (see stream.js), so a big map costs little more than a small one.
-export const WORLD_SIZE = 1400;
-const GROUND_SIZE = WORLD_SIZE + 80; // the ground continues past the edge into the haze
-const HECTARES = ((WORLD_SIZE - 4) / 100) ** 2; // the area things are scattered over
+// The playable area (see layout.js: 2 km by 3 km, the crash at 0,0 near the south coast). Only
+// the chunks around the player are drawn (see stream.js), so a big map costs little more than a
+// small one.
+export { BOUNDS };
+const HECTARES = ((BOUNDS.maxX - BOUNDS.minX - 4) * (BOUNDS.maxZ - BOUNDS.minZ - 4)) / 10000; // the area things are scattered over
 const STICKS_PER_TREE = 0.12; // the share of trees with a fallen stick or two lying near them
 // How many of each thing to scatter, per hectare (100 m × 100 m).
 const FOREST_PER_HECTARE = 300; // (the most tried for: open woods take fewer)
@@ -132,25 +134,28 @@ const CRASH_CLEARING = 14; // keep this radius around the crash site (at 0, 0) f
 const SPAWN = { x: 0.5, z: 14 };
 const SPAWN_CLEARING = 4;
 
-// Builds the map from a seed: the same seed always gives the same world.
-export function buildWorld(scene, seed) {
-  const { random, noise, terrain, seed: mapSeed } = chooseTerrain(seed);
+// Builds the map: the same every time (see layout.js).
+export function buildWorld(scene) {
+  const mapSeed = MAP_SEED;
+  const random = createRandom(mapSeed);
+  const noise = createNoise(mapSeed + 1);
+  const terrain = createTerrain(noise, BOUNDS);
   terrain.build();
   scene.add(terrain.ground, terrain.water.mesh);
 
   // Obstacles are circles on the ground the player can't walk into: { x, z, radius }.
   const obstacles = new SpatialGrid();
   // The fire lookout tower goes first, so trees and rocks keep clear of it.
-  const lookout = chooseLookout(createRandom(mapSeed + 11), terrain, WORLD_SIZE);
+  const lookout = { x: TOWER.x, z: TOWER.z, heading: TOWER.heading, hasMap: true };
   lookout.base = lookoutBase(lookout, terrain); // the height of its foot
   for (const o of lookoutObstacles(lookout, lookout.base)) obstacles.add(o);
   // Buildings you can walk up into: each has floorAt(x, z, maxY) and roofOver(x, z, feet).
   const structures = [lookoutStructure(lookout, lookout.base)];
   // Then the cabins, caves and hunting stands (see pois.js), each with a clearing round it.
-  const pois = choosePois(createRandom(mapSeed + 13), terrain, WORLD_SIZE, lookout);
-  // The old fire road from the tower out to the nearest cabins (painted into the ground, so
-  // before any of the ground is drawn), with a truck or two left on it.
-  const roads = layRoads(createRandom(mapSeed + 17), terrain, lookout, pois);
+  const pois = placePois(terrain);
+  // The old fire road from the tower out east, and the farm's dirt road north off the map
+  // (painted into the ground, so before any of the ground is drawn), with a truck left on it.
+  const roads = fixedRoads(terrain, lookout, pois);
   // (Should the road still pass over a cabin or the like, that place goes: nothing is ever
   // built on the road.)
   const roadPoints = alongRoads(roads.paths, 2);
@@ -175,6 +180,8 @@ export function buildWorld(scene, seed) {
     Math.hypot(x - lookout.x, z - lookout.z) > LOOKOUT.clearing &&
     clearings.isClear(x, z, 0) &&
     Math.hypot(x - SPAWN.x, z - SPAWN.z) > SPAWN_CLEARING &&
+    nearestOnTrail(x, z).distance > TRAIL.halfWidth + 1.5 && // (the mountain trail stays open)
+    !(onFlightPath(x, z) && Math.abs(onFlightPath(x, z).side) < FLIGHT_PATH.half) && // (the plane cut through there)
     !terrain.nearWater(x, z, 2) &&
     !terrain.crashTrail.near(x, z, 2) &&
     obstacles.isClear(x, z, spacing);
@@ -213,20 +220,24 @@ export function buildWorld(scene, seed) {
     forest[kind].push(tree);
     return tree;
   });
-  for (const massif of terrain.massifs) {
-    const hectares = (Math.PI * (massif.radius / 100) ** 2) / 4; // a quarter-circle in from a corner
-    scatterAround(random, massif, Math.round(SPRUCE_PER_HECTARE * hectares), (x, z) => {
-      const up = terrain.mountainAt(x, z);
-      // Thinner the higher you go, and none above the treeline.
-      if (up < 0.02 || up > TREELINE * random.range(0.8, 1.05) || !isFree(x, z, FOREST_SPACING.open * 0.6) || !soil(x, z)) return null;
-      const kind = random.pick(up > SNOWY_ABOVE ? SNOWY_SPRUCE : SPRUCE);
-      const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
-      forest[kind].push(tree);
-      return tree;
-    });
-  }
+  // Up the mountains (the band right across the map).
+  const range = { minX: BOUNDS.minX, maxX: BOUNDS.maxX, minZ: -2000, maxZ: -1200 };
+  const rangeHectares = ((range.maxX - range.minX) * (range.maxZ - range.minZ)) / 10000;
+  scatterIn(random, range, Math.round(SPRUCE_PER_HECTARE * rangeHectares), (x, z) => {
+    const up = terrain.mountainAt(x, z);
+    // Thinner the higher you go, and none above the treeline.
+    if (up < 0.02 || up > TREELINE * random.range(0.8, 1.05) || !isFree(x, z, FOREST_SPACING.open * 0.6) || !soil(x, z)) return null;
+    const kind = random.pick(up > SNOWY_ABOVE ? SNOWY_SPRUCE : SPRUCE);
+    const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
+    forest[kind].push(tree);
+    return tree;
+  });
   for (const [kind, spots] of Object.entries(forest)) {
     trees.add(kind, placeholders.conifer(), spots);
+  }
+  // The grown pines round the lake (where REGIONS says there's sap) can be tapped for sap.
+  for (const tree of trees.all) {
+    if (REGIONS[regionAt(tree.x, tree.z)].sap && SAP_KINDS.has(tree.kind)) tree.sap = true;
   }
   // Fallen sticks under the trees, here and there: picked up like stones (see main.js), for
   // fires and making things before you've a knife or an axe.
@@ -298,27 +309,47 @@ export function buildWorld(scene, seed) {
   }
 
   // Fallen trees, old fences, and the ruin of the fire road.
-  const details = scatterDetails(scene, { random, terrain, obstacles, isFree, pois, worldSize: WORLD_SIZE, hectares: HECTARES });
+  const details = scatterDetails(scene, { random, terrain, obstacles, isFree, pois, bounds: BOUNDS, hectares: HECTARES });
   ruinRoads(scene, random, terrain, roads, details.addLog, obstacles);
+  // The plane's way in over the trees: trunks snapped off along its path (higher the further
+  // back, where it was still coming down), their tops lying where they fell, toppled forward
+  // the way it was flying.
+  const flightRandom = createRandom(mapSeed + 37);
+  const snags = [];
+  for (let back = 52; back < FLIGHT_PATH.to; back += flightRandom.range(3, 6)) {
+    const side = flightRandom.range(-FLIGHT_PATH.half, FLIGHT_PATH.half);
+    const { x, z } = flightPoint(back, side);
+    if (terrain.forest(x, z) < -0.1 || terrain.waterDepth(x, z) > 0 || !obstacles.isClear(x, z, 0.8)) continue;
+    const width = flightRandom.range(0.7, 1.1);
+    const tall = 1.4 + ((back - 50) / (FLIGHT_PATH.to - 50)) * 3.5 * flightRandom.range(0.7, 1.1);
+    const y = terrain.heightAt(x, z) - 0.1;
+    snags.push(transform(x, y, z, flightRandom.range(0, Math.PI * 2), 1, [width, tall / 0.45, width]));
+    obstacles.add({ x, z, radius: 0.3 * width, top: y + tall });
+    // Its top, lying a few meters on, the way the plane was going (back towards the crash).
+    const fall = flightPoint(back - flightRandom.range(4, 8), side + flightRandom.range(-2, 2));
+    const heading = Math.atan2(-(fall.z - z), fall.x - x) + flightRandom.range(-0.5, 0.5);
+    if (obstacles.isClear(fall.x, fall.z, 0.6) && terrain.waterDepth(fall.x, fall.z) === 0) details.addLog(fall.x, fall.z, heading, flightRandom.range(4, 7), flightRandom.range(0.14, 0.2));
+  }
+  scene.add(instancedModel('stump', placeholders.stump(), snags));
   scene.add(instancedModel('puddle', puddle(), roadPuddles(createRandom(mapSeed + 23), terrain, roads.paths)));
 
   // Loose stones (for arrowheads) lie in small groups by the rocks and the lake shore,
   // never deep in the forest. They're picked up like any other item (see main.js).
   const stones = stoneSpots(
     random,
-    WORLD_SIZE,
+    BOUNDS,
     (x, z) => {
       if (terrain.forest(x, z) > 0.2 || terrain.waterDepth(x, z) > 0) return false;
       const byRocks = [...obstacles.near(x, z, 3)].some((o) => o.top !== undefined && Math.hypot(o.x - x, o.z - z) < o.radius + 3);
       return byRocks || (terrain.nearWater(x, z, 4) && !terrain.nearWater(x, z, 0.5));
     },
     (x, z) =>
-      Math.abs(x) < WORLD_SIZE / 2 - 1 && Math.abs(z) < WORLD_SIZE / 2 - 1 &&
+      inBounds(x, z, 1) &&
       terrain.waterDepth(x, z) === 0 &&
       obstacles.isClear(x, z, 0.3),
   );
 
-  const grass = createGrass(mapSeed, terrain, WORLD_SIZE + 10, { trees, obstacles });
+  const grass = createGrass(mapSeed, terrain, BOUNDS, { trees, obstacles });
   grass.update(0, SPAWN.x, SPAWN.z, true);
   scene.add(grass.group);
 
@@ -334,7 +365,8 @@ export function buildWorld(scene, seed) {
     roads: roads.paths,
     creeks: terrain.creeks,
     structures,
-    size: WORLD_SIZE,
+    bounds: BOUNDS,
+    regionAt,
     spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),
     // Builds what's around (x, z) right away, e.g. after the player jumps back to the start.
     drawAround(x, z) {
@@ -352,58 +384,21 @@ export function buildWorld(scene, seed) {
   };
 }
 
-// Some seeds put water where the crash or the start should be. Those try the next seed in
-// line, so a seed still always gives the same map.
-const MAX_TRIES = 50;
-function chooseTerrain(seed) {
-  for (let i = 0; ; i++) {
-    const trySeed = seed + i * 7919;
-    const random = createRandom(trySeed);
-    const noise = createNoise(trySeed + 1);
-    const terrain = createTerrain(random, noise, GROUND_SIZE);
-    if (startIsDry(terrain) || i === MAX_TRIES) return { random, noise, terrain, seed: trySeed };
-  }
-}
-
-// The wreck, the skid trail, where you start and the walk between them all need dry ground.
-export function startIsDry(terrain) {
-  const dry = (x, z, radius) => terrain.isDry(x, z, radius, 1);
-  if (!dry(CRASH.x, CRASH.z, 6.5) || !dry(-5.5, -9, 2.5)) return false; // the plane and its wing
-  for (let back = 0; back <= 48; back += 4) {
-    const { x, z } = trailPoint(back, 0);
-    if (!dry(x, z, 5)) return false;
-  }
-  for (let t = 0; t <= 1; t += 0.25) {
-    if (!dry(SPAWN.x + (CRASH.x - SPAWN.x) * t, SPAWN.z + (CRASH.z - SPAWN.z) * t, 4)) return false;
-  }
-  return true;
-}
-
 // Tries random spots until `count` of them are accepted by `place`.
 function scatter(random, count, place) {
-  const half = WORLD_SIZE / 2 - 2;
+  return scatterIn(random, BOUNDS, count, place);
+}
+
+// Like scatter, but only tries spots inside `rect` ({ minX, maxX, minZ, maxZ }, and the map).
+function scatterIn(random, rect, count, place) {
   const transforms = [];
   for (let tries = 0; transforms.length < count && tries < count * 40; tries++) {
-    const result = place(random.range(-half, half), random.range(-half, half));
+    const x = random.range(Math.max(rect.minX, BOUNDS.minX + 2), Math.min(rect.maxX, BOUNDS.maxX - 2));
+    const z = random.range(Math.max(rect.minZ, BOUNDS.minZ + 2), Math.min(rect.maxZ, BOUNDS.maxZ - 2));
+    const result = place(x, z);
     if (result) transforms.push(result);
   }
   return transforms;
-}
-
-// Like scatter, but only tries spots within `radius` of { x, z } (and inside the map).
-function scatterAround(random, { x: cx, z: cz, radius }, count, place) {
-  const half = WORLD_SIZE / 2 - 2;
-  const placed = [];
-  for (let tries = 0; placed.length < count && tries < count * 40; tries++) {
-    const angle = random.range(0, Math.PI * 2);
-    const r = radius * 1.3 * Math.sqrt(random.next());
-    const x = cx + Math.cos(angle) * r;
-    const z = cz + Math.sin(angle) * r;
-    if (Math.abs(x) > half || Math.abs(z) > half) continue;
-    const result = place(x, z);
-    if (result) placed.push(result);
-  }
-  return placed;
 }
 
 // `stretch` optionally squashes or stretches it along each axis: [x, y, z].
