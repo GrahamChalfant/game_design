@@ -38,6 +38,7 @@ export const SOUNDS = {
 // about the same loudness; this sets them against each other). Anything not listed plays at 1.
 const LEVEL = {
   junco: 0.6, chickadee: 0.6, raven: 0.8, owl: 0.8, wolf: 0.9,
+  'deer-snort': 0.35, // (a sharp blast, close by as it bolts: much quieter than its loudness says)
   'deer-run': 0.8, 'deer-bleat': 0.7,
   drip: 0.5, bat: 0.45,
   'step-grass': 0.5, 'step-dirt': 0.5, 'step-gravel': 0.5, 'step-snow': 0.5,
