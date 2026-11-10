@@ -204,7 +204,9 @@ from your inventory onto that panel to put it down.
 Your hotbar has 6 slots, and the backpack (Tab, once you've found it) has 12 more. If something doesn't fit,
 it's left on the ground with a floating icon above it; walk over and press E to pick it up.
 
-Recipes appear in the crafting list once you've picked up what they're made from.
+Recipes appear in the crafting list once you've picked up what they're made from. They're in
+groups (Fire & cooking, Weapons & hunting, Shelter, Clothing & gear, Materials): click a group to
+fold it open; each says how many of its recipes you can make right now.
 
 When you first pick up everything a recipe needs, a "New recipe" card pops up at the top
 of the screen. In the crafting list, each ingredient shows how many you have out of how many

@@ -324,30 +324,42 @@ const MODELS = {
 };
 
 // Each item's icon: a canvas (for drawing into other canvases) and an image URL (for the HUD).
-// The canvas starts blank and is filled once the picture loads.
+// The canvas starts blank and is filled once the picture loads. Vite serves public/ at the
+// site root; a plain web server (serve.py) serves it at /public/: so each folder is tried.
+const ICON_FOLDERS = ['icons/', 'public/icons/'];
 const icons = {};
 for (const item of Object.keys(MODELS)) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = SIZE * 2;
-  const icon = { canvas, url: `icons/${item}.png`, ready: false, waiting: [] };
+  const icon = { canvas, url: '', ready: false, waiting: [] };
   icons[item] = icon;
+  // Shows the icon's URL wherever the icon is already up (see showItemIcon).
+  const showEverywhere = () => {
+    for (const element of document.querySelectorAll(`[data-item="${item}"]`)) element.style.backgroundImage = `url(${icon.url})`;
+  };
   const done = () => {
     icon.ready = true;
+    showEverywhere();
     for (const callback of icon.waiting.splice(0)) callback(canvas);
   };
-  const picture = new Image();
-  picture.onload = () => {
-    canvas.getContext('2d').drawImage(picture, 0, 0, canvas.width, canvas.height);
-    done();
+  const tryFolder = (k) => {
+    if (k === ICON_FOLDERS.length) {
+      // No picture: draw the model instead.
+      drawFallback(item, canvas);
+      icon.url = canvas.toDataURL('image/png');
+      done();
+      return;
+    }
+    const picture = new Image();
+    picture.onload = () => {
+      canvas.getContext('2d').drawImage(picture, 0, 0, canvas.width, canvas.height);
+      icon.url = picture.src;
+      done();
+    };
+    picture.onerror = () => tryFolder(k + 1);
+    picture.src = `${ICON_FOLDERS[k]}${item}.png`;
   };
-  picture.onerror = () => {
-    // No picture: draw the model instead, and show that wherever this icon is already up.
-    drawFallback(item, canvas);
-    icon.url = canvas.toDataURL('image/png');
-    for (const element of document.querySelectorAll(`[data-item="${item}"]`)) element.style.backgroundImage = `url(${icon.url})`;
-    done();
-  };
-  picture.src = icon.url;
+  tryFolder(0);
 }
 
 // The icon picture for an item, as an image URL (for the HUD).
@@ -369,7 +381,8 @@ export function showItemIcon(element, item) {
   const key = item ?? '';
   if (element.dataset.item === key) return;
   element.dataset.item = key;
-  element.style.backgroundImage = item ? `url(${itemIconUrl(item)})` : '';
+  const url = item ? itemIconUrl(item) : '';
+  element.style.backgroundImage = url ? `url(${url})` : ''; // (an icon still loading shows once it's in)
 }
 
 let fallback = null; // the renderer and scene for drawing fallback icons, made when first needed

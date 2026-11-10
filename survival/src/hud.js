@@ -1,6 +1,6 @@
-import { canCraft, isKnown, RECIPES } from './crafting.js';
+import { canCraft, GROUPS, isKnown, RECIPES } from './crafting.js';
 import { BACKPACK_SIZE, HOTBAR_SIZE, ITEMS } from './inventory.js';
-import { itemIconUrl, showItemIcon } from './itemIcons.js';
+import { showItemIcon } from './itemIcons.js';
 import { isNight } from './daylight.js';
 import { formatDuration } from './survival.js';
 
@@ -97,11 +97,20 @@ export class Hud {
 
     this.crafting = document.getElementById('crafting');
     const list = this.crafting.querySelector('.recipes');
+    // One fold-out section per group (see GROUPS): click its heading to show its recipes.
+    this.groups = GROUPS.map(({ id, name }) => {
+      const section = document.createElement('details');
+      section.className = 'recipe-group';
+      section.innerHTML = `<summary><span class="name">${name}</span><span class="ready"></span></summary><div class="group-recipes"></div>`;
+      unfocusable(section.querySelector('summary'));
+      list.append(section);
+      return { id, section, body: section.querySelector('.group-recipes'), ready: section.querySelector('.ready') };
+    });
     this.recipes = RECIPES.map((recipe) => {
       const name = recipe.name ?? ITEMS[recipe.item].name;
       const button = unfocusable(document.createElement('button'));
       button.className = 'recipe';
-      button.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(recipe.item)})"></span>
+      button.innerHTML = `<span class="icon"></span>
         <span><strong>${name}</strong><small>${recipe.description}</small></span>
         <span class="cost"></span>`;
       // One "have/need ingredient" line per ingredient: red until you have enough, then green.
@@ -110,9 +119,11 @@ export class Hud {
         button.querySelector('.cost').append(line);
         return { item, need, line, label: ITEMS[item].name.toLowerCase() };
       });
+      showItemIcon(button.querySelector('.icon'), recipe.item);
       button.addEventListener('click', () => onCraft(recipe));
-      list.append(button);
-      return { recipe, button, costs };
+      const group = this.groups.find((g) => g.id === recipe.group) ?? this.groups.at(-1);
+      group.body.append(button);
+      return { recipe, button, costs, group };
     });
     // Recipes the player already knows about, so each new one is announced just once.
     this.knownRecipes = new Set();
@@ -172,10 +183,18 @@ export class Hud {
   }
 
   update(survival, inventory, { prompt, progress }) {
-    // Craftable recipes first, then the rest, each group in RECIPES order (#70).
-    const list = this.crafting.querySelector('.recipes');
-    const sorted = [...this.recipes].sort((a, b) => canCraft(inventory, b.recipe) - canCraft(inventory, a.recipe) || this.recipes.indexOf(a) - this.recipes.indexOf(b));
-    if (sorted.some((r, i) => list.children[i] !== r.button)) list.append(...sorted.map((r) => r.button));
+    // In each group, craftable recipes first, then the rest, each in RECIPES order (#70). A
+    // group shows once you know one of its recipes, with how many you can make now.
+    for (const group of this.groups) {
+      const mine = this.recipes.filter((r) => r.group === group);
+      const sorted = [...mine].sort((a, b) => canCraft(inventory, b.recipe) - canCraft(inventory, a.recipe) || mine.indexOf(a) - mine.indexOf(b));
+      if (sorted.some((r, i) => group.body.children[i] !== r.button)) group.body.append(...sorted.map((r) => r.button));
+      const known = mine.filter((r) => isKnown(inventory, r.recipe));
+      group.section.hidden = known.length === 0;
+      const ready = known.filter((r) => canCraft(inventory, r.recipe)).length;
+      const text = ready ? `${ready} ready` : '';
+      if (group.ready.textContent !== text) group.ready.textContent = text;
+    }
     for (const { recipe, button, costs } of this.recipes) {
       const known = isKnown(inventory, recipe);
       button.hidden = !known;
@@ -320,8 +339,9 @@ export class Hud {
   showUnlock(item, title, text) {
     const card = document.createElement('div');
     card.className = 'unlock';
-    card.innerHTML = `<span class="icon" style="background-image: url(${itemIconUrl(item)})"></span>
+    card.innerHTML = `<span class="icon"></span>
       <span><small>${title}</small><strong>${text}</strong><em>Press Tab to craft</em></span>`;
+    showItemIcon(card.querySelector('.icon'), item);
     this.unlocks.append(card);
     setTimeout(() => card.remove(), 5000);
   }
