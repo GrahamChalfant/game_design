@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CHUNK_SIZE, chunkKey, chunkOf, chunksAround } from './stream.js';
 import { glassMaterial, paintedSurface, surfaceFor } from './look.js';
+import { lodFade } from './seeThrough.js';
 
 const loader = new GLTFLoader();
 // Vite serves public/ at the site root; a plain web server serves it at /public/.
@@ -42,8 +43,10 @@ export function loadModel(name, folders = MODEL_FOLDERS) {
 // `positions`, if given, holds { x, z } per copy: where it belongs on the map. Otherwise it's
 // taken from the transforms (pass it when copies start hidden, like stumps before a tree's cut).
 // `detail`, if given, is { name, radius }: copies within `radius` meters of the player are
-// drawn with that (richer) model instead, the rest with `name`'s. Which copies are near is
-// worked out again as the player walks (see LOD_STEP).
+// drawn with that (richer) model instead, the rest with `name`'s. With `fade` (meters), the two
+// are both drawn from `radius - fade` out to `radius`, the one fading into the other (see
+// lodFade), so the detailed copies don't pop in. Which copies are near is worked out again as
+// the player walks (see LOD_STEP).
 // Call `holder.setInstance(i, matrix)` to move, rotate or hide (scale 0) one copy.
 const CHUNK_REACH = 24; // meters a copy can stick up or out past its chunk (a tall tree, a falling one)
 export function instancedModel(name, placeholder, transforms, changeMaterial, tints, positions, detail) {
@@ -76,6 +79,24 @@ export function instancedModel(name, placeholder, transforms, changeMaterial, ti
     if (!materials.has(m)) materials.set(m, changeMaterial(m));
     return materials.get(m);
   };
+  // With a detailed model that fades: the band (meters from the player) where it and the plain
+  // one are both drawn. The copies are sorted only every few meters (LOD_STEP) while the fade
+  // follows the player exactly, so each list reaches a step further than the band: whatever
+  // the fade shows is always there to show.
+  const fades = Boolean(detail?.fade);
+  const fadeFrom = fades ? detail.radius - detail.fade : 0;
+  const nearReach = detail ? detail.radius + (fades ? LOD_STEP : 0) : 0;
+  const farReach = fades ? Math.max(0, fadeFrom - LOD_STEP) : nearReach;
+  // Each changed material, fading in (on the detailed model) or out (on the plain one).
+  const faded = new Map();
+  const fading = (m, fadeIn) => {
+    const changed = change(m);
+    if (!fades || !detailTemplate) return changed; // (no fading until the detailed model has loaded)
+    if (!faded.has(changed)) faded.set(changed, new Map());
+    const both = faded.get(changed);
+    if (!both.has(fadeIn)) both.set(fadeIn, lodFade(changed, fadeIn, fadeFrom, detail.radius));
+    return both.get(fadeIn);
+  };
   // A sphere round the whole chunk, with room for what stands up out of it.
   const sphereOf = (chunk) => new THREE.Sphere(
     new THREE.Vector3((chunk.cx + 0.5) * CHUNK_SIZE, chunk.heights / chunk.indices.length, (chunk.cz + 0.5) * CHUNK_SIZE),
@@ -84,10 +105,11 @@ export function instancedModel(name, placeholder, transforms, changeMaterial, ti
   // One InstancedMesh per mesh in `model`, with room for all the chunk's copies.
   const meshesFor = (model, chunk, sphere) => {
     const parts = [];
+    const pick = (m) => fading(m, model === detailTemplate);
     model.updateMatrixWorld(true);
     model.traverse((child) => {
       if (!child.isMesh) return;
-      const material = Array.isArray(child.material) ? child.material.map(change) : change(child.material);
+      const material = Array.isArray(child.material) ? child.material.map(pick) : pick(child.material);
       const mesh = new THREE.InstancedMesh(child.geometry, material, chunk.indices.length);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -103,29 +125,34 @@ export function instancedModel(name, placeholder, transforms, changeMaterial, ti
       mesh.dispose();
     }
   };
-  // Is the copy, or any of the chunk, within the detailed model's reach of the player?
-  const near = (i) => {
+  // How far (squared) the copy is from where the player was when they were last sorted.
+  const away2 = (i) => {
     const e = transforms[i].elements;
-    return (e[12] - lod.x) ** 2 + (e[14] - lod.z) ** 2 < detail.radius ** 2;
+    return (e[12] - lod.x) ** 2 + (e[14] - lod.z) ** 2;
   };
+  // Is any of the chunk within the detailed model's reach of the player?
   const chunkNear = (chunk) => {
     const dx = Math.max(chunk.cx * CHUNK_SIZE - lod.x, 0, lod.x - (chunk.cx + 1) * CHUNK_SIZE);
     const dz = Math.max(chunk.cz * CHUNK_SIZE - lod.z, 0, lod.z - (chunk.cz + 1) * CHUNK_SIZE);
-    return dx * dx + dz * dz < detail.radius ** 2;
+    return dx * dx + dz * dz < nearReach ** 2;
   };
-  // Puts each of the chunk's copies into the near or the far meshes.
+  // Puts each of the chunk's copies into the near meshes, the far ones, or (in the band where
+  // the one fades into the other) both.
   const fill = (key) => {
     const entry = built.get(key);
     const chunk = chunks.get(key);
     let farCount = 0;
     let nearCount = 0;
-    for (const i of chunk.indices) {
-      const parts = entry.near && near(i) ? entry.near : entry.far;
-      const slot = parts === entry.near ? nearCount++ : farCount++;
+    const place = (parts, slot, i) => {
       for (const { mesh, local } of parts) {
         mesh.setMatrixAt(slot, matrix.multiplyMatrices(transforms[i], local));
         if (tints) mesh.setColorAt(slot, tints[i]);
       }
+    };
+    for (const i of chunk.indices) {
+      const d2 = entry.near ? away2(i) : Infinity;
+      if (d2 < nearReach ** 2) place(entry.near, nearCount++, i);
+      if (d2 >= farReach ** 2) place(entry.far, farCount++, i);
     }
     for (const [parts, count] of [[entry.far, farCount], [entry.near ?? [], nearCount]]) {
       for (const { mesh } of parts) {

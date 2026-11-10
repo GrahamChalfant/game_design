@@ -25,6 +25,7 @@ const TREE_TINTS = [0xffffff, 0xd6e4d2, 0xb2cac6, 0xc2d2cc, 0xa6c0b8, 0xe2e2c6].
 const UNTINTED = new Set(['tree-dead']); // bare wood stays its own colour
 // Meters from the player within which spruce are drawn in full detail (their needle cards).
 const DETAIL_RADIUS = 26;
+const DETAIL_FADE = 7; // ...fading in from the plain ones over the last this many meters, not popping in
 const STUMP_RADIUS = 0.35;
 const STUMP_HEIGHT = 0.45;
 const FALL_TIME = 1.3; // seconds to topple over
@@ -51,7 +52,7 @@ export class Trees {
     };
     // The spruce near the player are the needle-card ones (public/models/near/),
     // the rest the plain ones: the same boughs in the same places, just simpler.
-    const detail = kind !== 'tree-dead' ? { name: `near/${kind}`, radius: DETAIL_RADIUS } : undefined;
+    const detail = kind !== 'tree-dead' ? { name: `near/${kind}`, radius: DETAIL_RADIUS, fade: DETAIL_FADE } : undefined;
     const trees = instancedModel(kind, placeholder, transforms, prepare, tints, undefined, detail);
     // Stumps start hidden, so tell them where they belong on the map.
     const stumps = instancedModel('stump', placeholders.stump(), spots.map(() => HIDDEN.clone()), undefined, undefined, spots);
