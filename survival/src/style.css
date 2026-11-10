@@ -548,15 +548,33 @@ canvas {
   gap: 6px;
 }
 
-/* What's on the ground beside you: set apart from your own slots. */
+/* What's on the ground beside you, in a panel of its own under the menu: earthy, with a
+   dashed edge, so nothing in it looks like it's already yours. */
 #nearby {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.25);
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  min-width: 300px;
+  max-width: 90vw;
+  padding: 10px 14px;
+  border: 2px dashed rgb(196 170 120 / 0.6);
+  border-radius: 10px;
+  background: rgb(58 46 32 / 0.92);
+  transform: translateX(-50%);
+}
+
+#nearby h2 {
+  margin: 0 0 8px;
+  color: #e6d3a8;
 }
 
 #nearby .slot {
-  background: rgba(120, 100, 70, 0.35);
+  border-color: rgb(196 170 120 / 0.45);
+  background: rgb(110 88 58 / 0.55);
+}
+
+#nearby .tip {
+  margin: 8px 0 0;
 }
 
 #crafting .header {

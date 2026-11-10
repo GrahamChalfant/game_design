@@ -197,9 +197,9 @@ to it) to cut it up: each piece leaves a log and two sticks on the ground beside
 you hungry faster. Anywhere else, click to swing the axe: it hurts an animal right in front of
 you (two blows kill a deer, one a rabbit).
 
-With the inventory open (Tab), a **Nearby** box shows what's on the ground within five feet of
+With the inventory open (Tab), an **On the ground** panel under the menu shows what's on the ground within five feet of
 you: drag something onto a slot to take it there, or click it to take it all. Drag something
-from your inventory into the Nearby box to put it down.
+from your inventory onto that panel to put it down.
 
 Your hotbar has 6 slots, and the backpack (Tab, once you've found it) has 12 more. If something doesn't fit,
 it's left on the ground with a floating icon above it; walk over and press E to pick it up.
