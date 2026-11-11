@@ -10,12 +10,17 @@ const TORCH_TIP = 0.52; // the top of the torch (where the flame goes), above th
 const TORCH_HOLD_TILT = -Math.PI / 2 + 0.35; // turns the torch in the hand: upright, leaning a little forward
 const RADIUS = 0.4;
 const WALK_SPEED = 3.4; // (a steady walk; hold Shift to sprint)
-const SPRINT_SPEED = 6.5;
+const SPRINT_SPEED = 5.2; // (a hard run, not a dash: half as fast again as walking)
 // The paces player.glb's walk and run are made for (each played slower or faster to match).
 const CLIP_WALK_SPEED = 3.4;
-const CLIP_RUN_SPEED = 6.5;
+const CLIP_RUN_SPEED = 5.2;
 const SNEAK_SPEED = 1.7; // (a careful crouching walk: half walking pace)
 const CLIP_SNEAK_SPEED = 2.2; // the pace player.glb's sneak is made for
+// Steps a second each of player.glb's gaits takes at the pace it's made for (two steps a cycle:
+// walk 15 frames, run 16, sneak 29, at 24 fps; blender/player_anim.py): a brisk walk at about
+// 190 steps a minute, a runner's 180, a slow creep. The first-person view bobs with them too.
+const STEPS_PER_SECOND = { walk: 48 / 15, run: 48 / 16, sneak: 48 / 29 };
+const BOB_STEPS = 8.9 / Math.PI; // steps in each unit of walkTime (the hands' bob: see handView.js)
 const SWIM_SPEED = 2.2;
 const SWIM_DEPTH = 1.25; // once the water is this deep, the player swims with their head above water
 const TURN_SPEED = 12;
@@ -486,8 +491,9 @@ export class Player {
       const target = aiming ? this.facing : Math.atan2(x, z);
       const diff = Math.atan2(Math.sin(target - this.facing), Math.cos(target - this.facing));
       this.facing += diff * Math.min(1, TURN_SPEED * dt);
-      // (The stride quickens when you sprint, and slows crouched: the hands and body bob with it.)
-      this.walkTime += dt * (this.sprinting ? 1.45 : this.sneaking ? 0.75 : 1);
+      // (Step for step with the feet, so the hands and body bob as the footsteps fall.)
+      const [gait, pace] = this.sneaking ? ['sneak', CLIP_SNEAK_SPEED] : this.sprinting ? ['run', CLIP_RUN_SPEED] : ['walk', CLIP_WALK_SPEED];
+      this.walkTime += (dt * STEPS_PER_SECOND[gait] * (speed / pace)) / BOB_STEPS;
     }
     // Underground you walk on the cave's floor; on the surface, the land (or swim).
     const ground = this.cave ? this.cave.floorAt(this.position.x, this.position.z) : world.terrain.heightAt(this.position.x, this.position.z);

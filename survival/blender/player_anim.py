@@ -169,8 +169,8 @@ def idle():
 def walk():
     """A walk: the front heel comes down, the weight goes onto it, the back leg swings through
     past it, and the standing heel lifts as the other leg reaches out; then the other side.
-    Authored for 3.4 m/s (about a metre a step)."""
-    length = 0.62
+    Authored for 3.4 m/s (about a metre a step; 15 frames for the pair, so it loops exactly)."""
+    length = 15 / FPS
     upright = {'head': (-3, 0, 0)}
     contact = dict(upright, hips_at=(0, -0.022, 0), hips=(0, -5, 0), spine=(4, 6, 0),
                    thigh_L=(27, 0, 0), shin_L=(-4, 0, 0), foot_L=(-18, 0, 0),
@@ -199,9 +199,10 @@ def walk():
 
 
 def run():
-    """A sprint: land on the front foot under the body, sink, drive off it with the knee of the
-    other leg coming high through, then fly; then the other side. Authored for 6.5 m/s."""
-    length = 0.52
+    """A hard run: land on the front foot under the body, sink, drive off it with the knee of the
+    other leg coming high through, then fly; then the other side. Authored for 5.2 m/s at a
+    runner's cadence (180 steps a minute: 16 frames for the pair, about 1.75 m a step)."""
+    length = 16 / FPS
     lean = {'spine': (15, 0, 0), 'head': (-13, 0, 0)}
     contact = dict(lean, hips_at=(0, -0.03, 0.02), hips=(4, -7, 0), spine=(15, 11, 0),
                    thigh_L=(36, 0, 0), shin_L=(-20, 0, 0), foot_L=(-8, 0, 0),
@@ -230,7 +231,7 @@ def run():
 
 
 def sneak():
-    length = 1.208
+    length = 29 / FPS
     low = {'spine': (24, 0, 0), 'head': (-20, 0, 0),
            'upperarm_L': (22, 0, 12), 'lowerarm_L': (70, 0, 0), 'hand_L': (10, 0, 0),
            'upperarm_R': (22, 0, -12), 'lowerarm_R': (70, 0, 0), 'hand_R': (10, 0, 0)}
