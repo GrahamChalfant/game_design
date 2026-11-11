@@ -258,7 +258,10 @@ bow, aim with the crosshair (or the mouse) and hold the button to draw (you turn
 slowly); let go to shoot. The arrow leaves the middle of the bow and flies at what you aimed at,
 nearly straight, then drops as it goes on. The further you draw, the faster it flies and the
 further it holds true (10 m on a light draw, 55 m drawn all the way; aim further and it drops
-short). Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
+short). In first person you see the whole shot: the bow comes up, your right hand brings an arrow up and
+nocks it, the shaft lying on top of your bow hand, then draws the string back to your chin (the
+bow arm starts to shake if you hold it there long); let go and the string snaps forward and
+quivers, the bow kicks, and your hand flies back past your cheek. Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
 follow one in flight, and a running animal can get away. One hit kills a deer or
 a rabbit, which stumbles on and falls over, with the arrow stuck in it; hold E next to
 it to butcher it (a deer takes 4 s and gives 6 raw meat, 2 hides and 2 intestines). The bow
