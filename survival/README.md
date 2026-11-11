@@ -182,7 +182,10 @@ each time): you need it to light fires and torches. Save the flare for signallin
 
 To take off your outfit or backpack, open the menu (Tab) and drag it from your character: onto an
 empty slot to carry the outfit, or off the menu to leave it on the ground. A backpack put down keeps
-everything inside it until you pick it up again.
+everything inside it until you pick it up again. Next to a campfire, the menu's "On the ground"
+box shows the fire too: drag sticks or logs onto its spots to put them on (as many as it'll take;
+click a spot to add one), drag raw meat onto an empty place on the spit to cook it, and drag a
+piece of meat off the spit into your inventory (or click it) to take it.
 
 Your stats are the icons at the bottom right. They're white, turn yellow when low, and red when
 you're about to run out; the thermometer goes from a cool blue when you're freezing to a warm red

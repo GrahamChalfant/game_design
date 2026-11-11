@@ -106,6 +106,17 @@
       </section>
       <!-- What's on the ground beside you: not yours yet. A panel of its own, under the menu. -->
       <section id="nearby">
+        <div id="nearby-fire" hidden>
+          <h2>Campfire <span class="fire-status"></span></h2>
+          <div class="fire-row">
+            <div class="fire-fuel">
+              <button class="slot fire-spot" data-spot="stick" title="Drag sticks here to add them to the fire (or click to add one)"><span class="key"></span><span class="icon"></span><span class="count">+30m</span></button>
+              <button class="slot fire-spot" data-spot="wood" title="Drag logs here to add them to the fire (or click to add one)"><span class="key"></span><span class="icon"></span><span class="count">+2h</span></button>
+            </div>
+            <div class="fire-spit" hidden></div>
+          </div>
+          <p class="tip" id="nearby-fire-tip">Drag sticks or logs onto the fire to add them; drag meat off the spit to take it.</p>
+        </div>
         <h2>On the ground</h2>
         <div class="grid"></div>
         <p class="tip" id="nearby-empty">Nothing within reach. Drag an item here to put it down.</p>
