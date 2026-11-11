@@ -41,6 +41,18 @@ function fetchModel(name, folders) {
     loader.load(
       folders[0] + name + '.glb',
       (gltf) => {
+        // Blender's clips start on frame 1, so their keys start a frame late; moved to start at
+        // 0, a looping clip's last key (the same pose as its first) meets the next loop's first
+        // without holding that pose an extra frame.
+        // (Tracks, even of different clips, can share one array of times: each array's shifted
+        // once, by where its clip starts, and then every clip's length is measured again.)
+        const shifts = new Map();
+        for (const clip of gltf.animations) {
+          const start = Math.min(...clip.tracks.map((track) => track.times[0]));
+          for (const track of clip.tracks) shifts.set(track.times, start);
+        }
+        for (const [times, start] of shifts) for (let i = 0; i < times.length; i++) times[i] -= start;
+        for (const clip of gltf.animations) clip.resetDuration();
         gltf.scene.animations = gltf.animations;
         // Every model's surfaces are painted, by what they're made of (look.js).
         gltf.scene.traverse((child) => {
