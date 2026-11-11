@@ -1,4 +1,4 @@
-import { BURN_TIME, COOK_TIME, formatFuel, meatAfter } from './campfires.js';
+import { BURN_TIME, COOK_TIME, SPIT_HOLDS, formatFuel, meatAfter } from './campfires.js';
 import { isNight } from './daylight.js';
 import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 import { ANIMAL_DROPS, AXE_COOLDOWN, BOW_COOLDOWN, BOW_DRAW_TIME, BOW_MIN_DRAW, BUTCHER_TIME, KNIFE_COOLDOWN, arrowFlight, hitAnimal, knifeHitTest } from './hunting.js';
@@ -8,6 +8,7 @@ import { CUT_TIME } from './trees.js';
 const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
 const EAT_TIME = 1.2; // seconds of holding the mouse button to eat something
 const BANDAGE_TIME = 2.5; // ...and to bandage yourself up
+const SPIT_TIME = 1; // ...and to put a piece of meat on a spit, or take one off (not by accident)
 const WARMTH_REACH = 3; // how close to a burning fire warms you up, in meters
 const BUTCHER_REACH = 0.75; // butchering, you step up to this close to the carcass...
 const BUTCHER_STEP = 3; // ...at this many meters a second
@@ -32,6 +33,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
   let searching = 0;
   let using = 0; // seconds spent eating or bandaging so far
   let usingItem = null;
+  let spitDone = false; // a piece of meat just went on or came off the spit (let go before the next)
   let butchering = 0;
   let bowReady = 0; // seconds until the bow can shoot again
   let drawing = 0; // seconds the bow has been drawn for (0 when not drawing)
@@ -217,24 +219,50 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       }
       prompt = `${status} · ${tend}`;
 
-      // Cooking: set a spit up over the fire, put raw meat on it, and take it off once it's
-      // cooked (COOK_TIME), before it burns (BURN_TIME). Click takes it off, whatever's in hand.
+      // Cooking: set a spit up over the fire, put raw meat on it (up to SPIT_HOLDS pieces), and
+      // take each off once it's cooked (COOK_TIME), before it burns (BURN_TIME). Putting a piece
+      // on or taking one off is a hold of the mouse button (SPIT_TIME), not a click, so it's
+      // never done by accident; a piece comes off oldest first, whatever's in hand.
       const { spit } = fire;
-      if (spit?.meat) {
-        const { cooked } = spit.meat;
-        const state = meatAfter(cooked);
-        const take = 'click to take it off';
-        if (state === 'rawMeat') {
-          progress = cooked / COOK_TIME;
-          prompt = burning ? `Meat cooking… ${Math.ceil(COOK_TIME - cooked)} s · ${take}` : `Meat on the spit · light the fire to cook it · ${take}`;
-        } else if (state === 'cookedMeat') {
-          prompt = cooked > BURN_TIME - 15 && burning ? `It's starting to burn! · ${take}` : `Cooked! · ${take} before it burns`;
-        } else prompt = `The meat's burnt · ${take}`;
-        if (input.startedUsingTool()) {
+      const pieces = campfires.meatOn(fire);
+      // Holding it: the hand reaches out to the spit as the hold comes to an end.
+      // (One piece a press: after one's on or off, let go before the next.)
+      const holdAtSpit = () => {
+        if (spitDone && input.usingTool()) {
           clickUsed = true;
-          player.reach();
-          give(campfires.takeMeat(fire), 1);
+          return false;
         }
+        spitDone = false;
+        const reached = usingItem === held && using / SPIT_TIME >= 0.5;
+        const done = holdToUse(SPIT_TIME);
+        if (usingNow) clickUsed = true;
+        if (usingNow && (done || progress >= 0.5) && !reached) player.reach();
+        if (done) spitDone = true;
+        return done;
+      };
+      if (held === 'rawMeat' && spit && campfires.spitHasRoom(fire)) {
+        const on = pieces.length ? ` (${pieces.length + 1} of ${SPIT_HOLDS})` : '';
+        const verb = usingNow || using > 0 ? 'Putting the meat on the spit…' : `Click and hold to put the meat on the spit${on}`;
+        prompt = burning ? `${verb} · ${tend}` : `${verb} · light the fire to cook it`;
+        if (holdAtSpit()) {
+          inventory.remove('rawMeat', 1);
+          campfires.putMeat(fire);
+          sfx('rummage', fire);
+        }
+      } else if (pieces.length) {
+        // (What the next piece to come off is like.)
+        const { cooked } = pieces[0];
+        const state = meatAfter(cooked);
+        const more = pieces.length > 1 ? ` (${pieces.length} pieces)` : '';
+        const take = held === 'rawMeat' ? `the spit's full · hold the mouse button to take one off` : 'hold the mouse button to take it off';
+        if (holdAtSpit()) give(campfires.takeMeat(fire), 1);
+        if (state === 'rawMeat') {
+          if (!usingNow) progress = cooked / COOK_TIME;
+          prompt = burning ? `Meat cooking${more}… ${Math.ceil(COOK_TIME - cooked)} s · ${take}` : `Meat on the spit${more} · light the fire to cook it · ${take}`;
+        } else if (state === 'cookedMeat') {
+          prompt = cooked > BURN_TIME - 15 && burning ? `It's starting to burn!${more} · ${take}` : `Cooked!${more} · ${take} before it burns`;
+        } else prompt = `The meat's burnt${more} · ${take}`;
+        if (usingNow) prompt = 'Taking the meat off the spit…';
       } else if (held === 'spit' && !spit) {
         prompt = `Click to set the spit up over the fire · ${tend}`;
         if (input.startedUsingTool()) {
@@ -247,15 +275,6 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         }
       } else if (held === 'spit') {
         prompt = `This fire has a spit already · ${tend}`;
-      } else if (held === 'rawMeat' && spit) {
-        prompt = burning ? `Click to put the meat on the spit · ${tend}` : `Click to put the meat on the spit · light the fire to cook it`;
-        if (input.startedUsingTool()) {
-          clickUsed = true;
-          inventory.remove('rawMeat', 1);
-          player.reach();
-          campfires.putMeat(fire);
-          sfx('rummage', fire);
-        }
       } else if (held === 'rawMeat') {
         prompt = `${status} · you need a spit to cook on: craft one (Tab, 3 wood)`;
       } else if (held === 'torch' && burning) {
