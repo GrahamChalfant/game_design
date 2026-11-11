@@ -47,7 +47,7 @@ automatically whenever you save a file.
 | Key | Action |
 | --- | --- |
 | W A S D / arrow keys | Walk |
-| Hold Shift | Sprint (animals hear you coming from further off) |
+| Hold Shift | Sprint (animals hear you coming from further off). Sprinting and jumping use stamina, the bar over the hotbar; run it out and you must get your breath back before you can sprint or jump again |
 | C | Crouch: move slowly so animals don't notice you as soon. Stays on until you press C again |
 | 1–6, or click a slot | Pick an item from the hotbar |
 | Left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |

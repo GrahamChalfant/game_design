@@ -237,6 +237,38 @@ canvas {
   pointer-events: none;
 }
 
+/* Stamina: a thin bar over the hotbar, there while you're using it or getting your breath back. */
+#stamina {
+  position: fixed;
+  left: 50%;
+  bottom: 94px;
+  width: 220px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(20 30 40 / 0.55);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 0.4s;
+  pointer-events: none;
+}
+
+#stamina.shown {
+  opacity: 1;
+}
+
+#stamina .fill {
+  height: 100%;
+  background: #f2f2ee;
+}
+
+/* Winded: amber, and pulsing, until it's come back enough to run again. */
+#stamina.winded .fill {
+  background: #e8a547;
+  animation: pulse 0.8s ease-in-out infinite alternate;
+}
+
 #progress {
   width: 160px;
   height: 8px;
@@ -398,6 +430,10 @@ canvas {
 @media (max-width: 720px) {
   #stats {
     bottom: 90px;
+  }
+
+  #stamina {
+    bottom: 134px;
   }
 
   .slot {
