@@ -133,8 +133,16 @@ export class Hud {
   }
 
   toggleMenu() {
+    if (this.loading && !this.menu.hidden) return; // (the menu stays up until everything's loaded)
     this.menu.hidden = !this.menu.hidden;
     this.resume.textContent = 'Resume';
+  }
+
+  // While the models load, Play waits (see main.js).
+  setLoading(loading) {
+    this.loading = loading;
+    this.resume.disabled = loading;
+    this.resume.textContent = loading ? 'Loading…' : 'Play';
   }
 
   // Esc closes the inventory first; otherwise it opens or closes the pause menu.

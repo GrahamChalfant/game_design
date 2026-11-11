@@ -33,6 +33,7 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `dock.glb` | The lakeshore dock: weathered planks on joists and posts, from the shore (origin, deck top) 14 m out along +z, a cleat and a coil of rope | 1,024 | blender/landmarks.py |
 | `barn.glb` | The farm's barn: red board-and-batten walls 10 × 14 m, white trim, big doors open at the front (+z), hay inside, a gambrel roof (`barn-roof`) | 4,872 | blender/landmarks.py |
 | `stone-hut.glb` | The blizzard shelter: a dry-stone hut 3.6 × 4.2 m with a low door at the front, a bench and an iron stove inside, a turf roof (`stone-hut-roof`) | 10,988 | blender/landmarks.py |
+| `fp-arms.glb` | Your arms in the first-person view: `fp-right-glove` / `fp-left-glove`, a fist in a dark wool glove closed round a grip (the handle runs up through it, +y, knuckles ahead, -z), with a ribbed cuff; `fp-right-sleeve` / `fp-left-sleeve`, the sleeve back from the wrist with soft folds, pale (the game tints it to what you're wearing) | 2,112 | blender/first_person.py |
 | `log-pile.glb` | 4-3-2 stack of 1.2 m logs with two stakes | 1,020 | blender/remake.py |
 | `stump.glb` | Tree stump with root flares, ~0.45 m tall | 248 | blender/remake.py |
 | `trap.glb` | Spring-pole snare: stake, bent sapling with needle tufts, cord and a wide noose lying open in front (-Y), ~0.7 m across | 278 | blender/remake.py |

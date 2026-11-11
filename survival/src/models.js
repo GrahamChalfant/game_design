@@ -8,8 +8,34 @@ const loader = new GLTFLoader();
 // Vite serves public/ at the site root; a plain web server serves it at /public/.
 const MODEL_FOLDERS = ['models/', 'public/models/'];
 
+// How many models are loading right now, and when the last one finished: for the loading
+// cover (see whenModelsLoaded).
+let loading = 0;
+let lastLoaded = 0;
+
 // Loads public/models/<name>.glb. Resolves to the model, or null if there isn't one yet.
 export function loadModel(name, folders = MODEL_FOLDERS) {
+  loading++;
+  return fetchModel(name, folders).finally(() => {
+    loading--;
+    lastLoaded = performance.now();
+  });
+}
+
+// Resolves once every model asked for has loaded and nothing more has been asked for in the
+// last `quiet` milliseconds (more are asked for as the first frames are drawn). Until then the
+// game shows a loading cover rather than the simple stand-in shapes (see main.js).
+export function whenModelsLoaded(quiet = 800) {
+  return new Promise((resolve) => {
+    const check = () => {
+      if (loading === 0 && performance.now() - lastLoaded > quiet) resolve();
+      else setTimeout(check, 100);
+    };
+    setTimeout(check, 100);
+  });
+}
+
+function fetchModel(name, folders) {
   if (folders.length === 0) return Promise.resolve(null);
   return new Promise((resolve) => {
     loader.load(
@@ -27,7 +53,7 @@ export function loadModel(name, folders = MODEL_FOLDERS) {
         resolve(gltf.scene);
       },
       undefined,
-      () => resolve(loadModel(name, folders.slice(1))),
+      () => resolve(fetchModel(name, folders.slice(1))),
     );
   });
 }

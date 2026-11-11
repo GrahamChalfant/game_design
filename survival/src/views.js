@@ -142,6 +142,18 @@ export function createViews({ camera, renderer, input, player, world, farView, h
       const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
       pivot.set(body.x, body.y + SHOULDER.up, body.z).addScaledVector(right, SHOULDER.side);
       camera.position.copy(pivot).addScaledVector(lookDir, -SHOULDER.back);
+      // Pulled in towards the player if the ground rises in between (down in a ravine, say), so
+      // it never looks out from inside a bank.
+      if (!player.cave) {
+        const want = camera.position.clone();
+        for (let k = 1; k <= 10; k++) {
+          const at = pivot.clone().lerp(want, k / 10);
+          if (world.terrain.heightAt(at.x, at.z) + 0.3 > at.y) {
+            camera.position.copy(pivot).lerp(want, Math.max(0.15, (k - 1) / 10));
+            break;
+          }
+        }
+      }
       const ground = player.cave ? -Infinity : world.terrain.heightAt(camera.position.x, camera.position.z) + 0.35;
       camera.position.y = Math.max(camera.position.y, ground);
       camera.lookAt(pivot.clone().addScaledVector(lookDir, 12));

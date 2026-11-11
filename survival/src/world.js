@@ -12,7 +12,7 @@ import { LOOKOUT, lookoutBase, lookoutObstacles, lookoutStructure } from './look
 import { placePois, poiClearing, poiObstacles, poiStructure } from './pois.js';
 import { KEEP_CLEAR, ROAD_WIDTH, alongRoads, fixedRoads, ruinRoads } from './roads.js';
 import { scatterDetails } from './details.js';
-import { BOUNDS, MAP_SEED, REGIONS, TOWER, TRAIL, inBounds, nearestOnTrail, regionAt } from './layout.js';
+import { BOUNDS, MAP_SEED, RAVINE, REGIONS, TOWER, TRAIL, inBounds, nearestOnTrail, ravineAt, regionAt } from './layout.js';
 const SAP_KINDS = new Set(['pine', 'pine-tall', 'pine-wide', 'pine-skinny']); // (grown trees, not saplings or snags)
 
 // The playable area (see layout.js: 2 km by 3 km, the crash at 0,0 near the south coast). Only
@@ -181,6 +181,7 @@ export function buildWorld(scene) {
     clearings.isClear(x, z, 0) &&
     Math.hypot(x - SPAWN.x, z - SPAWN.z) > SPAWN_CLEARING &&
     nearestOnTrail(x, z).distance > TRAIL.halfWidth + 1.5 && // (the mountain trail stays open)
+    ravineAt(x, z).distance > RAVINE.halfWidth + 0.5 && // (and the ravine's floor: the way out, should you fall in)
     !(onFlightPath(x, z) && Math.abs(onFlightPath(x, z).side) < FLIGHT_PATH.half) && // (the plane cut through there)
     !terrain.nearWater(x, z, 2) &&
     !terrain.crashTrail.near(x, z, 2) &&

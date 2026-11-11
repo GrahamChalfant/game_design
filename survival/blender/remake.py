@@ -731,20 +731,32 @@ def bones():
 def axe_into(b, place):
     """A felling axe: a curved hickory handle along +y (its end at -0.16) and a forged head at
     the top, its blade toward +z. `place` maps the axe's own points to the model's."""
-    handle = [Vector((0, -0.16, 0)), Vector((0, 0.05, 0.012)), Vector((0, 0.3, -0.004)), Vector((0, 0.52, 0.01)), Vector((0, 0.64, 0.0))]
+    # The handle: oval in section, with a slight S along its length, swelling to a knob at the
+    # end and slimming under the head.
+    handle = [  # (y, z offset, half-width, half-depth)
+        (-0.16, 0.0, 0.019, 0.026), (-0.13, 0.002, 0.017, 0.024), (-0.06, 0.005, 0.015, 0.021), (0.05, 0.006, 0.0145, 0.02),
+        (0.2, 0.003, 0.014, 0.019), (0.35, 0.0, 0.0135, 0.018), (0.48, 0.001, 0.013, 0.0175), (0.56, 0.002, 0.0135, 0.018), (0.645, 0.0, 0.0125, 0.017),
+    ]
     rings = []
-    for i, p in enumerate(handle):
-        w = 0.016 if i else 0.02  # (the knob at the end)
-        rings.append([place(p + Vector((math.cos(math.tau * k / 8) * w, 0, math.sin(math.tau * k / 8) * w * 1.5))) for k in range(8)])
-    loft(b, rings, lambda c, n: tone(random.choice(('hickory', 'hickory', 'hickory_dark')), 0.04))
-    # The head: an eye round the handle, the poll behind, the cheeks tapering to a bright edge.
-    head = [  # (z, half-height, half-thickness)
-        (-0.06, 0.035, 0.022), (-0.02, 0.04, 0.028), (0.03, 0.04, 0.026), (0.1, 0.05, 0.014), (0.17, 0.075, 0.006), (0.2, 0.08, 0.002)]
+    for y, dz, hw, hd in handle:
+        rings.append([place(Vector((q.x, y, dz + q.y))) for q in section(Vector(), hw, hd, 12, 2.2)])
+    grain = lambda c, n: blend('hickory_dark', 'hickory', 0.55 + 0.45 * math.sin(c.y * 40 + c.x * 90), 0.03)
+    loft(b, rings, grain)
+    # The head: a rounded eye round the handle, the poll behind it, and the cheeks tapering down
+    # to a thin, flared bit with a curved edge (the bottom corner, the beard, hanging lower).
+    head = [  # (z, half-height, half-thickness, centre's height above/below the eye)
+        (-0.068, 0.03, 0.022, 0.0), (-0.055, 0.035, 0.027, 0.0), (-0.03, 0.038, 0.03, 0.0), (0.0, 0.04, 0.03, 0.0),
+        (0.03, 0.039, 0.026, -0.002), (0.065, 0.042, 0.018, -0.006), (0.1, 0.05, 0.011, -0.012), (0.135, 0.061, 0.007, -0.017),
+        (0.165, 0.071, 0.004, -0.021), (0.185, 0.076, 0.0025, -0.022), (0.196, 0.072, 0.0012, -0.021),
+    ]
     rings = []
-    for z, h, t in head:
-        ring = [Vector((t, 0.6 - h, z)), Vector((t, 0.6 + h, z)), Vector((-t, 0.6 + h, z)), Vector((-t, 0.6 - h, z))]
-        rings.append([place(p) for p in ring])
-    loft(b, rings, lambda c, n: tone('steel_edge', 0.04) if place_back(c, n) else tone(random.choice(('steel', 'steel_dark')), 0.04))
+    for z, h, t, dy in head:
+        rings.append([place(Vector((q.x, 0.6 + dy + q.y, z))) for q in section(Vector(), t, h, 12, 3.2)])
+    def steel(c, n):
+        if place_back(c, n):
+            return tone('steel_edge', 0.03)  # (the ground edge, bright)
+        return blend('steel_dark', 'steel', 0.6 + 0.4 * max(0.0, n.y), 0.04)
+    loft(b, rings, steel)
 
 
 place_back = lambda c, n: False

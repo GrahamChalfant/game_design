@@ -6,7 +6,7 @@ import { loadModel } from './models.js';
 import { CABIN, CAMP, LEAN_TO, STAND, TRUCK, barrel, cabin, campsite, huntingStand, leanTo, rustedTruck } from './poiModels.js';
 import { ENTRANCE, buildUnderground, caveEntrance, entranceRocks } from './caves.js';
 import {
-  DEN, DOCK as DOCK_SPOT, FARM, LAKE, LAKE_CABIN, OBSERVATORY as OBSERVATORY_SPOT, RAVINE_CROSSING, SHELTER, STAND as STAND_SPOT, trailAt,
+  DEN, DOCK as DOCK_SPOT, FARM, LAKE, LAKE_CABIN, OBSERVATORY as OBSERVATORY_SPOT, RAVINE, RAVINE_CROSSING, SHELTER, STAND as STAND_SPOT, ravineAt, trailAt,
 } from './layout.js';
 import { BRIDGE, LANDMARKS, OBSERVATORY, buildLandmark, isLandmark, landmarkFloor, landmarkObstacles, landmarkRoofed } from './landmarks.js';
 
@@ -111,11 +111,23 @@ export function placePois(terrain) {
     [[0, 0], [r, r], [r, -r], [-r, r], [-r, -r], [r, 0], [-r, 0], [0, r], [0, -r]].map(([dx, dz]) => terrain.heightAt(x + dx, z + dz));
   return PLACES.map(({ kind, x, z, heading = 0, pickup }, i) => {
     let base;
+    let rim;
     if (kind === 'bridge') {
-      // Along the trail, its ends on the trail's bed either side of the ravine.
-      ({ heading } = trailAt(RAVINE_CROSSING.along));
-      const ends = [-1, 1].map((side) => terrain.heightAt(x + Math.sin(heading) * side * (BRIDGE.reach + 0.6), z + Math.cos(heading) * side * (BRIDGE.reach + 0.6)));
-      base = (ends[0] + ends[1]) / 2;
+      // Over the ravine where it actually cuts the trail (it wanders): find where the trail's
+      // bed drops away into it on either side, put the bridge midway, and its rope barriers at
+      // the rims. Its ends rest on the trail's bed either side.
+      const along = RAVINE_CROSSING.along;
+      const bedAt = (s) => { const p = trailAt(along + s); return terrain.heightAt(p.x, p.z); };
+      const inRavine = (s) => { const p = trailAt(along + s); return ravineAt(p.x, p.z).distance < RAVINE.halfWidth + 1.8; };
+      let [from, to] = [Infinity, -Infinity];
+      for (let s = -15; s <= 15; s += 0.25) {
+        if (inRavine(s)) [from, to] = [Math.min(from, s), Math.max(to, s)];
+      }
+      const middle = Number.isFinite(from) ? (from + to) / 2 : 0;
+      const centre = trailAt(along + middle);
+      ({ x, z, heading } = centre);
+      rim = Number.isFinite(from) ? (to - from) / 2 + 0.8 : BRIDGE.rim;
+      base = (bedAt(middle - rim - 1) + bedAt(middle + rim + 1)) / 2;
     } else if (kind === 'dock') {
       base = Math.max(LAKE.level + 0.6, terrain.heightAt(x, z) + 0.08); // (the deck a little above the water)
     } else if (kind === 'den') {
@@ -134,7 +146,7 @@ export function placePois(terrain) {
     } else {
       base = terrain.heightAt(x, z);
     }
-    return { kind, x, z, heading, base, seed: 1000 + i * 7919, pickup };
+    return { kind, x, z, heading, base, seed: 1000 + i * 7919, pickup, rim };
   });
 }
 
