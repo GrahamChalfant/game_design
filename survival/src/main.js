@@ -11,6 +11,7 @@ import { Shelters } from './shelters.js';
 import { CharacterView } from './characterView.js';
 import { craft } from './crafting.js';
 import { Hud } from './hud.js';
+import { whenModelsLoaded } from './models.js';
 import { Input } from './input.js';
 import { HOTBAR_SIZE, ITEMS, Inventory } from './inventory.js';
 import { Pickups } from './pickups.js';
@@ -334,6 +335,14 @@ const hud = new Hud({
     if (craft(inventory, recipe)) hud.toast(`+${recipe.count} ${ITEMS[recipe.item].name}`);
     else hud.toast('No room in your inventory');
   },
+});
+// Until every model has loaded, the scene stays hidden behind the menu (it would show the simple
+// stand-in shapes for a moment) and Play waits.
+renderer.domElement.style.visibility = 'hidden';
+hud.setLoading(true);
+whenModelsLoaded().then(() => {
+  renderer.domElement.style.visibility = '';
+  hud.setLoading(false);
 });
 const characterView = new CharacterView(document.getElementById('character-view'));
 // Sleeping in a shelter: the screen fades out, and you wake at 06:00 with your stats

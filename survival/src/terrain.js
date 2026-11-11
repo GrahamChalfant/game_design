@@ -4,7 +4,7 @@ import { createWater } from './water.js';
 import { createRandom } from './random.js';
 import {
   LAKE, MAP_SEED, PADS, RANGE, RAVINE, RAVINE_CROSSING, SADDLE, SEA_LEVEL, SEA_SWIM, TOWER, TRAIL, TRAIL_LENGTH,
-  coastZ, inBounds, nearestOnTrail, ravineAt,
+  coastZ, inBounds, nearestOnTrail, ravineAt, trailAt,
 } from './layout.js';
 import { CHUNK_SIZE, DRAW_CHUNKS, chunksAround } from './stream.js';
 
@@ -96,6 +96,7 @@ const CREEKS = {
 // within this many meters of its edge.
 const MOUNTAIN_WALL = 0.06;
 const TRAIL_SHOULDER = 4;
+const PROFILE_STEP = 3; // meters between the points of the trail's height profile (see trailHeight)
 const RIVER_BANK_REACH = 22; // meters from the river's middle its banks are cut back to (see createRiver)
 const CREEK_BED = new THREE.Color(0x8a8670); // pale pebbles under the water
 // Snowy mountains. `up` is how far up a mountain you are, 0 at its foot to 1 near the top.
@@ -208,15 +209,35 @@ export function createTerrain(noise, bounds) {
   // The trail over the mountains: graded evenly from where it leaves the foothills up to the
   // saddle, and down again to the lakeshore. Its bed is cut into the mountainside (and built up
   // where the ground falls away), blending back into it a few meters out.
-  const trailStart = wildHeight(TRAIL.points[0].x, TRAIL.points[0].z);
-  const trailTop = wildHeight(SADDLE.x, SADDLE.z) - 2;
-  const end = TRAIL.points.at(-1);
-  const trailEnd = wildHeight(end.x, end.z);
-  const trailHeight = (along) =>
-    along < SADDLE.along
-      ? trailStart + (trailTop - trailStart) * (along / SADDLE.along)
-      : trailTop + (trailEnd - trailTop) * ((along - SADDLE.along) / (TRAIL_LENGTH - SADDLE.along));
-  const TRAIL_BLEND = 14;
+  // The trail's bed, every few meters along it: the lie of the land under it, smoothed (so it
+  // doesn't follow every hummock), and kept to a walkable grade (TRAIL.grade): cut in where the
+  // land is steeper, built up a little where it dips. Mostly it just follows the ground.
+  const profile = [];
+  for (let along = 0; along <= TRAIL_LENGTH + PROFILE_STEP; along += PROFILE_STEP) {
+    const p = trailAt(Math.min(along, TRAIL_LENGTH));
+    profile.push(wildHeight(p.x, p.z));
+  }
+  let bed = profile.map((_, i) => {
+    let sum = 0;
+    let count = 0;
+    for (let k = -4; k <= 4; k++) {
+      if (profile[i + k] === undefined) continue;
+      sum += profile[i + k];
+      count++;
+    }
+    return sum / count;
+  });
+  const rise = TRAIL.grade * PROFILE_STEP;
+  for (let pass = 0; pass < 3; pass++) {
+    for (let i = 1; i < bed.length; i++) bed[i] = clamp(bed[i], bed[i - 1] - rise, bed[i - 1] + rise);
+    for (let i = bed.length - 2; i >= 0; i--) bed[i] = clamp(bed[i], bed[i + 1] - rise, bed[i + 1] + rise);
+  }
+  const trailHeight = (along) => {
+    const f = clamp(along / PROFILE_STEP, 0, bed.length - 1.001);
+    const i = Math.floor(f);
+    return bed[i] + (bed[i + 1] - bed[i]) * (f - i);
+  };
+  const TRAIL_BLEND = 4; // meters either side it blends back into the mountainside
   const withTrail = (h, x, z) => {
     const near = nearestOnTrail(x, z);
     if (near.distance > TRAIL.halfWidth + TRAIL_BLEND) return h;
@@ -404,8 +425,9 @@ export function createTerrain(noise, bounds) {
         return false;
       }
     }
-    // Up the mountains, only the trail climbs: off it, the slopes are too steep to go up.
-    if (mountainAt(x, z) > MOUNTAIN_WALL && nearestOnTrail(x, z).distance > TRAIL.halfWidth + TRAIL_SHOULDER) {
+    // Up the mountains, only the trail climbs: off it, the slopes are too steep to go up. (Down
+    // in the ravine you can walk along its floor, to follow it down and out at the bottom.)
+    if (mountainAt(x, z) > MOUNTAIN_WALL && nearestOnTrail(x, z).distance > TRAIL.halfWidth + TRAIL_SHOULDER && ravineAt(x, z).distance > RAVINE.halfWidth) {
       const { x: sx, z: sz } = slopeAt(x, z);
       if (sx * dx + sz * dz > 0.08 * Math.hypot(dx, dz) && waterDepth(x, z) === 0) {
         terrain.turnedBack = 'mountain';
@@ -554,7 +576,7 @@ export function createTerrain(noise, bounds) {
     // through, its edges blending into the mountainside. (Snow lies over it up high.)
     const onTrail = nearestOnTrail(x, z);
     if (onTrail.distance < TRAIL.halfWidth + 0.6) {
-      const edge = 1 - smoothstep(onTrail.distance, TRAIL.halfWidth - 0.9, TRAIL.halfWidth + 0.5);
+      const edge = (1 - smoothstep(onTrail.distance, TRAIL.halfWidth - 0.6, TRAIL.halfWidth + 0.4)) * 0.85;
       tint.copy(ROAD).lerp(GRAVEL, clamp(noise(x * 0.9 + 1700, z * 0.9) * 0.6 + 0.3, 0, 0.7));
       tint.lerp(RUT, 0.35 * (1 - smoothstep(onTrail.distance, 0, 0.8)));
       color.lerp(tint, edge * (kind === 'snow' ? 0.25 : 1));

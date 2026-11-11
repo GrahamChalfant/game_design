@@ -451,7 +451,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       const arrowsLeft = inventory.count('arrow');
       const target = aimPoint();
       if (arrowsLeft === 0) {
-        prompt = 'No arrows · craft them from wood and stone (Tab)';
+        prompt = 'No arrows · craft them from sticks and stone (Tab)';
       } else if (input.usingTool() && bowReady === 0 && !player.swimming) {
         drawingNow = true;
         if (drawing === 0) sfx('bow-draw');

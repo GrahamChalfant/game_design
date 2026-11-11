@@ -1084,3 +1084,9 @@ canvas {
 @keyframes speech-in {
   from { opacity: 0; transform: translate(-50%, calc(-100% - 2px)); }
 }
+
+/* Play waits while the models load (see setLoading in hud.js). */
+#resume:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

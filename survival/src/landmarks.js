@@ -21,7 +21,10 @@ export const OBSERVATORY = {
   telescope: [0, 8.9], // the spyglass on the terrace, looking out (north)
   cupboard: [-2.6, -1.9],
 };
-export const BRIDGE = { half: 0.8, end: 4.4, reach: 7.6 }; // half its width; where each broken end stops and the deck reaches to
+// Half its width; where each broken end stops and the deck reaches to; and the rope barrier
+// across the trail at each rim of the ravine (`rim` out from the middle, `across` either side),
+// so you don't walk off the edge.
+export const BRIDGE = { half: 0.8, end: 4.4, reach: 7.6, rim: 7.0, across: 4.6 };
 export const DOCK = { half: 1.1, length: 14 };
 export const BARN = { half: [5, 7], wall: 4.2, door: 2.1 };
 export const HUT = { half: [1.8, 2.1], wall: 2.0, door: 0.55, box: [-1.0, -1.4] };
@@ -61,9 +64,12 @@ export function landmarkObstacles(poi, at, line) {
     ];
   }
   if (poi.kind === 'bridge') {
-    // Where each broken end stops: a rope barrier you can't step off past.
-    const { half, end } = BRIDGE;
-    return [...line([-half, end], [half, end], 0.2), ...line([-half, -end], [half, -end], 0.2)];
+    // A rope barrier across the trail at each rim, before the ground falls away into the
+    // ravine. (Only up at the trail's level: down in the ravine, it's no wall.)
+    const { across } = BRIDGE;
+    const rim = poi.rim ?? BRIDGE.rim;
+    const extra = { above: poi.base - 5 }; // (well above the ravine floor, below the trail on either side)
+    return [...line([-across, rim], [across, rim], 0.2, extra), ...line([-across, -rim], [across, -rim], 0.2, extra)];
   }
   if (poi.kind === 'hut') {
     const [W, D] = HUT.half;
@@ -144,8 +150,31 @@ export function buildLandmark(poi, random, add, groundAt) {
     group.add(cupboard);
     add(cupboard, "the astronomer's cupboard", ...OBSERVATORY.cupboard, poi.base + 0.11, 'observatory', { standing: true });
   } else if (poi.kind === 'bridge') {
-    const { half, end, reach } = BRIDGE;
+    const { half, end, reach, across } = BRIDGE;
+    const rim = poi.rim ?? BRIDGE.rim;
     for (const side of [1, -1]) box(half * 2, 0.08, reach - end, 0x8a8174, 0, -0.04, (side * (end + reach)) / 2);
+    // The rope barriers at the rims: stakes driven in across the trail, a rope strung along them.
+    const stake = flat(0x5d4a3a);
+    const rope = flat(0xa8946a);
+    const barrier = new THREE.Group();
+    barrier.userData.keep = true; // (stays when the bridge's model swaps in)
+    for (const side of [1, -1]) {
+      for (const x of [-across, -across / 2, across / 2, across]) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.1, 6), stake);
+        post.position.set(x, groundAt(x, side * rim) + 0.45, side * rim);
+        barrier.add(post);
+      }
+      for (const [a, b] of [[-across, -across / 2], [-across / 2, across / 2], [across / 2, across]]) {
+        const ya = groundAt(a, side * rim) + 0.85;
+        const yb = groundAt(b, side * rim) + 0.85;
+        const length = Math.hypot(b - a, yb - ya);
+        const strand = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, length, 5), rope);
+        strand.position.set((a + b) / 2, (ya + yb) / 2 - 0.06, side * rim);
+        strand.rotation.z = Math.PI / 2 - Math.atan2(yb - ya, b - a);
+        barrier.add(strand);
+      }
+    }
+    group.add(barrier);
   } else if (poi.kind === 'dock') {
     box(DOCK.half * 2, 0.08, DOCK.length, 0x8a8174, 0, -0.04, DOCK.length / 2);
   } else if (poi.kind === 'barn') {

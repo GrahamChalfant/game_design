@@ -69,34 +69,50 @@ export const RANGE = {
 // The one way over: a trail switching back and forth up from the foothills to a saddle in the
 // crest, then down the far side to the lakeshore cabin. Off it, the mountainsides are too steep
 // to climb (see terrain.js: canClimb).
+// A narrow footpath: it follows the lie of the land, cut into the mountainside only where it
+// would otherwise be too steep to walk (see terrain.js: trailHeight), and climbs the steep
+// slopes in tight switchbacks. Below the ravine they keep to its west side; one long traverse
+// crosses it (at the broken bridge); above it they climb on its east side to the saddle.
 export const TRAIL = {
-  halfWidth: 2.4,
+  halfWidth: 1.3,
   points: [
-    { x: -150, z: -1170 },
-    { x: -120, z: -1280 },
-    { x: -40, z: -1340 },
-    { x: -115, z: -1405 },
-    { x: -45, z: -1470 },
-    { x: 20, z: -1515 },
-    { x: -25, z: -1580 },
+    { x: -150, z: -1150 }, // out of the foothills...
+    { x: -135, z: -1235 }, // ...to the mountains' foot
+    { x: -195, z: -1275 },
+    { x: -110, z: -1305 },
+    { x: -200, z: -1340 },
+    { x: -115, z: -1372 },
+    { x: -205, z: -1405 },
+    { x: -125, z: -1432 },
+    { x: 15, z: -1458 }, // the traverse, over the ravine
+    { x: 75, z: -1487 },
+    { x: -5, z: -1515 },
+    { x: 70, z: -1545 },
+    { x: 0, z: -1578 },
+    { x: 55, z: -1606 },
     { x: 45, z: -1640 }, // the saddle
-    { x: 95, z: -1720 },
-    { x: 30, z: -1790 },
-    { x: 95, z: -1855 },
-    { x: 40, z: -1925 },
-    { x: 60, z: -1985 },
+    { x: 105, z: -1695 },
+    { x: 20, z: -1728 },
+    { x: 100, z: -1765 },
+    { x: 15, z: -1800 },
+    { x: 95, z: -1838 },
+    { x: 20, z: -1875 },
+    { x: 90, z: -1912 },
+    { x: 35, z: -1948 },
+    { x: 60, z: -1985 }, // down at the lakeshore
   ],
-  saddle: 7, // which point is the saddle
+  saddle: 14, // which point is the saddle
+  grade: 0.22, // the steepest it climbs: meters up per meter along
 };
 // The ravine cutting across the trail on the way up, with the old footbridge over it broken.
 export const RAVINE = {
-  top: { x: -150, z: -1555 }, // where it starts, high on the mountainside...
-  bottom: { x: 120, z: -1290 }, // ...and where it opens out at the foot
+  top: { x: -55, z: -1575 }, // where it starts, high on the mountainside...
+  bottom: { x: -75, z: -1285 }, // ...and where it opens out at the foot
   halfWidth: 4.5,
   depth: 13, // meters down, where the trail crosses (shallower towards its ends)
 };
 // A stone hut on the trail above the ravine, for sitting out a blizzard.
-export const SHELTER = { x: -12, z: -1556, heading: 0.9 };
+export const SHELTER = { x: -22, z: -1590, heading: 0.9 };
 // The observatory, on a shoulder of the crest just east of the saddle: a domed building with a
 // terrace looking north, down over the lake to the cabin.
 export const OBSERVATORY = { x: 135, z: -1665, heading: Math.PI };
@@ -137,7 +153,7 @@ export const FARM = {
 // blending back into the slope beyond (`radius` flat, then as far again to blend).
 export const PADS = [
   { x: 135, z: -1665, radius: 17 }, // the observatory and its terrace
-  { x: -12, z: -1556, radius: 6 }, // the blizzard shelter
+  { x: -22, z: -1590, radius: 6 }, // the blizzard shelter
   { x: -60, z: -2600, radius: 12 }, // the farmhouse
   { x: 40, z: -2615, radius: 14 }, // the barn
   { x: -270, z: -2545, radius: 9 },

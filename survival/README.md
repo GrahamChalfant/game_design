@@ -63,7 +63,7 @@ automatically whenever you save a file.
 
 ### How to play
 
-The game starts paused on a menu listing the controls. Press Esc at any time to see it again.
+The game starts paused on a menu listing the controls (Play says Loading… until every model is in, so you never see the stand-in shapes). Press Esc at any time to see it again.
 
 You start hurt (55 health), empty-handed and cold, in just a shirt, a short walk south of your crashed bush
 plane. Your jacket is packed in your suitcase by the wreck: find it, select it and click to put it on, and
