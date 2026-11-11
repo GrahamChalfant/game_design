@@ -285,9 +285,11 @@ day, and halves the chill of a night outdoors. Nights up the mountains still nee
 To cook, craft a cooking spit (3 sticks), hold it next to a campfire and click to set it up over
 the fire. Then hold raw meat there and hold the mouse button for a second to put it on the spit
 (up to three pieces at once, each cooking on its own): over a burning fire a piece is cooked in
-30 seconds, and burnt if you leave it on for a minute (it darkens as it starts to burn). Hold the
-mouse button for a second to take a piece off (the one that's been on longest; a hold, so you
-don't take one off by accident), and away from the fire click and hold to eat. Eating meat raw
+30 seconds, and burnt if you leave it on for a minute (it darkens as it starts to burn). At the
+fire, what you do depends on what you're looking at: look at a piece of meat and hold the mouse
+button for a second to take it off (a hold, so you don't take one off by accident); look at the
+fire to tend it (E adds a stick or a log, which never touches the meat). Away from the fire,
+click and hold to eat. Eating meat raw
 works in a pinch, but it makes you sick, and burnt meat isn't worth much. When you're full you
 won't eat any more, and when you're not thirsty you won't drink.
 

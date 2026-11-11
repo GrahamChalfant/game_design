@@ -363,6 +363,12 @@ const aimNdc = new THREE.Vector2();
 const aimSphere = new THREE.Sphere();
 const aimHit = new THREE.Vector3();
 const AIM_FAR = 300;
+// The line of sight itself (a ray from the camera through the crosshair, or the mouse).
+const lookRay = () => {
+  views.aim(aimNdc);
+  aimRay.setFromCamera(aimNdc, camera);
+  return aimRay.ray.clone();
+};
 const aimPoint = () => {
   views.aim(aimNdc);
   aimRay.setFromCamera(aimNdc, camera);
@@ -390,7 +396,7 @@ const launchPoint = () => {
 const onDressed = (outfit) => {
   if (outfit === 'jacket') hud.say("That's better. I'll warm up in no time.", 5);
 };
-const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: (from) => startSpotting(from), onDressed, aimPoint, launchPoint });
+const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: (from) => startSpotting(from), onDressed, aimPoint, launchPoint, lookRay });
 
 // The player says things out loud when they're in trouble, in a speech bubble.
 // Each line is said at most once per evening/cold spell.
