@@ -356,18 +356,41 @@ const sleep = () => {
   const { day } = survival.clock;
   hud.showSleep(`Day ${day} · 0${WAKE_HOUR}:00`);
 };
-// The point on the ground under the mouse (for aiming the bow), or null if it's off the ground.
+// What's under the crosshair (or the mouse), for aiming the bow: the first animal or bit of
+// ground the line of sight meets, or (looking up at the sky) a point far off along it.
 const aimRay = new THREE.Raycaster();
 const aimNdc = new THREE.Vector2();
+const aimSphere = new THREE.Sphere();
+const aimHit = new THREE.Vector3();
+const AIM_FAR = 300;
 const aimPoint = () => {
   views.aim(aimNdc);
   aimRay.setFromCamera(aimNdc, camera);
-  return aimRay.intersectObject(world.terrain.ground, true)[0]?.point ?? null;
+  const { ray } = aimRay;
+  let best = aimRay.intersectObject(world.terrain.ground, true)[0]?.point ?? ray.at(AIM_FAR, new THREE.Vector3());
+  let bestDistance = best.distanceTo(ray.origin);
+  for (const animal of animals.all) {
+    if (animal.dead) continue;
+    aimSphere.center.copy(animal.position).setY(animal.position.y + animal.radius * 1.2);
+    aimSphere.radius = animal.radius * 1.3;
+    if (!ray.intersectSphere(aimSphere, aimHit)) continue;
+    const distance = aimHit.distanceTo(ray.origin);
+    if (distance < bestDistance) [best, bestDistance] = [aimHit.clone(), distance];
+  }
+  return best;
+};
+// Where an arrow leaves from: the middle of the bow (in your hand, in first person), or about
+// your chest, a little ahead of you.
+const launchPoint = () => {
+  const bow = hands.bowCentre();
+  if (bow) return bow;
+  const { x, z } = player.ahead(0.45);
+  return new THREE.Vector3(x, player.position.y + 1.35, z);
 };
 const onDressed = (outfit) => {
   if (outfit === 'jacket') hud.say("That's better. I'll warm up in no time.", 5);
 };
-const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: (from) => startSpotting(from), onDressed, aimPoint });
+const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: (from) => startSpotting(from), onDressed, aimPoint, launchPoint });
 
 // The player says things out loud when they're in trouble, in a speech bubble.
 // Each line is said at most once per evening/cold spell.
@@ -701,6 +724,13 @@ renderer.setAnimationLoop(() => {
   // Up a hunting stand, animals don't notice you, as if you were sneaking. (While you're down
   // a cave, they wait for you.)
   if (!player.cave) animals.update(dt, player.position, player.sneaking || pois.upAStand(player.position.x, player.position.z, player.feet));
+  // The grass lies flat round you and the animals (nearest first), so a rabbit isn't lost in it.
+  world.grass.trample([
+    { x: player.position.x, z: player.position.z, radius: 0.9 },
+    ...animals.all
+      .map((animal) => ({ x: animal.position.x, z: animal.position.z, radius: animal.radius * 4 + 0.4, far: Math.hypot(animal.position.x - player.position.x, animal.position.z - player.position.z) }))
+      .sort((a, b) => a.far - b.far),
+  ]);
   arrows.update(dt);
   traps.update();
   bushes.update(survival.minutesSurvived);

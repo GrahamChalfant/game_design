@@ -31,14 +31,15 @@ export function respawnStones(spots, now, hasStone, restock, player) {
 // --- Bow and arrows ---
 export const BOW_DURABILITY = 30; // shots before the bow breaks
 export const ARROWS_PER_CRAFT = 3;
-// Hold the mouse button to draw the bow, and let go to shoot. The further you draw it, the
-// faster and further the arrow flies; it arcs to the spot you aimed at (if it's in range),
-// and lands there if it hits nothing. Arrows that miss can be picked up again.
+// Hold the mouse button to draw the bow, and let go to shoot. The arrow leaves the middle of the
+// bow and flies at whatever's under the crosshair: nearly straight, then dropping as it slows.
+// The further you draw, the faster it flies and the further it holds true (ARROW_RANGE: aim
+// further than that and it drops short). Arrows that miss can be picked up again.
 export const BOW_DRAW_TIME = 0.9; // seconds to draw the bow all the way
 export const BOW_MIN_DRAW = 0.25; // let go before this much draw and the arrow isn't loosed
-export const ARROW_SPEED = [12, 24]; // meters per second, from a light draw to a full one
-export const ARROW_RANGE = [8, 30]; // the furthest it flies, from a light draw to a full one
-export const ARROW_ARC = 0.05; // how high the arrow arcs, as a share of the distance
+export const ARROW_SPEED = [18, 40]; // meters per second, from a light draw to a full one
+export const ARROW_RANGE = [10, 55]; // how far it flies true to where you aim, from a light draw to a full one
+export const ARROW_GRAVITY = 9.8; // meters per second per second
 export const ARROW_HIT_PADDING = 0.15; // added to an animal's radius, so near misses still count
 export const BOW_COOLDOWN = 0.5; // seconds after a shot before you can draw again
 
