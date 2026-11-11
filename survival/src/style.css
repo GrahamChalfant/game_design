@@ -269,6 +269,31 @@ canvas {
   animation: pulse 0.8s ease-in-out infinite alternate;
 }
 
+/* The crosshair: a small dot, ringed dark so it shows on snow or sky, there while you've a bow. */
+#crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.75);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.45);
+  opacity: 0;
+  transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+}
+
+#crosshair.shown {
+  opacity: 0.6;
+}
+
+#crosshair.shown.drawing {
+  opacity: 1;
+  transform: scale(1.25);
+}
+
 #progress {
   width: 160px;
   height: 8px;

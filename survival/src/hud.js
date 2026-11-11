@@ -34,6 +34,7 @@ export class Hud {
     this.progress = document.getElementById('progress');
     this.stamina = document.getElementById('stamina');
     this.staminaFull = 0; // seconds it's been full (the bar fades away once it has been a moment)
+    this.crosshair = document.getElementById('crosshair');
     this.toasts = document.getElementById('toasts');
     this.gameOver = document.getElementById('game-over');
     this.survived = document.getElementById('survived');
@@ -196,6 +197,13 @@ export class Hud {
     this.stamina.classList.toggle('shown', this.staminaFull < 1 && !this.inventoryOpen);
     this.stamina.classList.toggle('winded', winded);
     this.stamina.firstElementChild.style.width = `${stamina * 100}%`;
+  }
+
+  // The crosshair, a small dot in the middle of the view: `shown` while you've a bow in hand to aim
+  // with (and the mouse is captured, so shots go there), brighter while you're drawing it.
+  showCrosshair(shown, drawing) {
+    this.crosshair.classList.toggle('shown', shown && !this.inventoryOpen);
+    this.crosshair.classList.toggle('drawing', drawing);
   }
 
   update(survival, inventory, { prompt, progress }) {

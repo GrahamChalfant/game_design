@@ -83,7 +83,7 @@ export function scatterDetails(scene, { random, terrain, obstacles, isFree, pois
     ));
     // Whole lengths stop you; broken ones only have their posts.
     const step = isBroken ? FENCE_LENGTH : 0.4;
-    for (let t = 0; t <= FENCE_LENGTH + 0.01; t += step) obstacles.add({ x: x + dx * t, z: z + dz * t, radius: 0.12 });
+    for (let t = 0; t <= FENCE_LENGTH + 0.01; t += step) obstacles.add({ x: x + dx * t, z: z + dz * t, radius: 0.12, height: 1.2 }); // (rails and posts: an arrow flies over them)
     return true;
   };
   // Runs of fence across the meadows, wandering a little.
