@@ -176,13 +176,20 @@ Each one can be searched once:
 | The brown case | A first-aid kit (3 bandages), 2 rope |
 
 You crouch down to search things on the ground (and stand to search the ranger's locker).
+Once you've searched something, the menu opens with it at the top of the "On the ground" box,
+showing what's inside: drag a thing onto a slot to take it there, click it to take it all, or
+Take all. Whatever you leave stays in it; E at something you've already searched opens it in the
+menu again straight away.
 Select a bandage and click and hold to bandage yourself up (+30 health); craft more from a hide
 (2 bandages each). Eating also takes a moment: click and hold. Keep the lighter (or matches, one used
 each time): you need it to light fires and torches. Save the flare for signalling a rescue (coming later).
 
 To take off your outfit or backpack, open the menu (Tab) and drag it from your character: onto an
 empty slot to carry the outfit, or off the menu to leave it on the ground. A backpack put down keeps
-everything inside it until you pick it up again.
+everything inside it until you pick it up again. Next to a campfire, the menu's "On the ground"
+box shows the fire too: drag sticks or logs onto its spots to put them on (as many as it'll take;
+click a spot to add one), drag raw meat onto an empty place on the spit to cook it, and drag a
+piece of meat off the spit into your inventory (or click it) to take it.
 
 Your stats are the icons at the bottom right. They're white, turn yellow when low, and red when
 you're about to run out; the thermometer goes from a cool blue when you're freezing to a warm red
@@ -289,9 +296,11 @@ day, and halves the chill of a night outdoors. Nights up the mountains still nee
 To cook, craft a cooking spit (3 sticks), hold it next to a campfire and click to set it up over
 the fire. Then hold raw meat there and hold the mouse button for a second to put it on the spit
 (up to three pieces at once, each cooking on its own): over a burning fire a piece is cooked in
-30 seconds, and burnt if you leave it on for a minute (it darkens as it starts to burn). Hold the
-mouse button for a second to take a piece off (the one that's been on longest; a hold, so you
-don't take one off by accident), and away from the fire click and hold to eat. Eating meat raw
+30 seconds, and burnt if you leave it on for a minute (it darkens as it starts to burn). At the
+fire, what you do depends on what you're looking at: look at a piece of meat and hold the mouse
+button for a second to take it off (a hold, so you don't take one off by accident); look at the
+fire to tend it (E adds a stick or a log, which never touches the meat). Away from the fire,
+click and hold to eat. Eating meat raw
 works in a pinch, but it makes you sick, and burnt meat isn't worth much. When you're full you
 won't eat any more, and when you're not thirsty you won't drink.
 

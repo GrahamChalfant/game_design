@@ -19,8 +19,10 @@ const BURNT = new THREE.Color(0x2e231d);
 const TURN_SPEED = 0.5; // radians a second the meat turns on the skewer
 // Where pieces of meat go along the skewer (meters from the middle, in the order they're put
 // on: the middle first, over the hottest part of the fire). Up to three at once.
-const SPIT_PLACES = [0, -0.3, 0.3];
+const SPIT_PLACES = [0, -0.24, 0.24];
 export const SPIT_HOLDS = SPIT_PLACES.length;
+const SPIT_BAR = 0.8; // the skewer's height (spit.glb)
+const SPIT_PIECE_REACH = 0.14; // looking this close to a piece's middle is looking at it
 
 // The spit model (spit.glb: the forked sticks and skewer, and "spit-meat"), loaded once.
 let spitModel = null;
@@ -64,7 +66,9 @@ export class Campfires {
     const flames = placeholders.flames();
     flames.position.y = 0.15;
     const light = new THREE.PointLight(0xff9a3c, 0, 12, 1.6);
-    light.position.y = 0.9;
+    // (The glow, up over the flames and the spit: anything closer to the meat, a hand's breadth
+    // from the light, and the light washes it out.)
+    light.position.y = 1.2;
     object.add(pit, flames, light);
     this.scene.add(object);
 
@@ -121,6 +125,34 @@ export class Campfires {
     });
   }
 
+  // The place along the fire's spit the line of sight `ray` points at (the nearest piece of meat
+  // on it, or else the nearest empty place), within `reach` meters of its start: { place, piece }
+  // (`piece` null if the place is empty), or null if it isn't looking at the spit. (The fire's
+  // within reach of you already; `reach` allows for the camera behind you in third person.)
+  spitPlaceAt(fire, ray, reach = 10) {
+    if (!fire.spit) return null;
+    fire.spit.object.updateWorldMatrix(true, false);
+    let best = null;
+    SPIT_PLACES.forEach((along, place) => {
+      const at = fire.spit.object.localToWorld(new THREE.Vector3(along, SPIT_BAR, 0));
+      const ahead = at.clone().sub(ray.origin).dot(ray.direction);
+      if (ahead < 0 || ahead > reach || ray.distanceToPoint(at) > SPIT_PIECE_REACH) return;
+      const piece = fire.spit.pieces[place];
+      // (A piece of meat in the line of sight beats an empty place in front of it.)
+      const better = !best || (Boolean(piece) === Boolean(best.piece) ? ahead < best.ahead : Boolean(piece));
+      if (better) best = { place, piece, ahead };
+    });
+    return best;
+  }
+
+  // Puts a piece of raw meat on the fire's spit at `place` (one of its places, if it's free), or
+  // in its next free place.
+  putMeatAt(fire, place) {
+    const { pieces } = fire.spit;
+    if (place === undefined || pieces[place]) place = pieces.indexOf(null);
+    if (place >= 0) pieces[place] = { cooked: 0, at: (this.putCount = (this.putCount ?? 0) + 1) };
+  }
+
   // The pieces of meat on the fire's spit ({ cooked } each), in the order they went on.
   meatOn(fire) {
     return (fire.spit?.pieces ?? []).filter(Boolean).sort((a, b) => a.at - b.at);
@@ -133,9 +165,7 @@ export class Campfires {
 
   // Puts a piece of raw meat on the fire's spit, in its next free place.
   putMeat(fire) {
-    const { pieces } = fire.spit;
-    const i = pieces.indexOf(null);
-    if (i >= 0) pieces[i] = { cooked: 0, at: (this.putCount = (this.putCount ?? 0) + 1) };
+    this.putMeatAt(fire);
   }
 
   // Takes a piece of meat off the fire's spit (`piece`, or the one that's been on longest):

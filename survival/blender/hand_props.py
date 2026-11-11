@@ -9,6 +9,8 @@
 # Each is built round where the hand grips it, standing up along +y (like axe.glb and the
 # knife), front toward +z. The lighter's flame comes out at y = 0.05; the match's at its head,
 # y = 0.036.
+# The steak's shape is shared with the spit (spit.py builds the meat on it from steak_shape), so
+# what you hold and what cooks on the skewer are the same cut.
 # Run in an open Blender (Blender MCP or the Text Editor), or: blender -b --python hand_props.py
 import math, os, random, runpy
 from mathutils import Vector
@@ -95,7 +97,11 @@ def flask():
     return build('prop-flask', b, shared('hand-prop', 0.8))
 
 
-def steak():
+def steak_shape(at=Vector((0, 0, 0)), size=1.0):
+    """The steak's mesh (a Builder), `size` times as big round its middle and moved by `at` (game
+    space): as built, it stands on its edge across x, its lower edge at about y = 0, its middle at
+    y = 0.045."""
+    mid = Vector((0, 0.045, 0))
     b = Builder()
     random.seed(17)
     # The outline: a lopsided oval, wider at the top, a few gentle dents in its edge.
@@ -116,9 +122,10 @@ def steak():
     # so both faces are made of small faces that can be marbled.)
     for k, z in ((0.04, -0.0142), (0.35, -0.014), (0.65, -0.0132), (0.86, -0.012), (0.97, -0.009), (1.0, -0.003),
                  (1.0, 0.003), (0.97, 0.009), (0.86, 0.012), (0.65, 0.0132), (0.35, 0.014), (0.04, 0.0142)):
-        rings.append([Vector((x * k, 0.045 + (y - 0.045) * k, z * (1 + 0.15 * math.sin(a * 2 + 1)))) for x, y, a in outline])
+        rings.append([(Vector((x * k, 0.045 + (y - 0.045) * k, z * (1 + 0.15 * math.sin(a * 2 + 1)))) - mid) * size + mid + at for x, y, a in outline])
     angle = {i: outline[i][2] for i in range(n)}
     def colour(c, normal):
+        c = (c - at - mid) / size + mid
         a = math.atan2((c.y - 0.045) / 0.047, c.x / 0.068)
         if fat(a) and (abs(normal.z) < 0.85 or math.hypot(c.x / 0.068, (c.y - 0.045) / 0.047) > 0.8):
             return tone('steak_fat', 0.03)
@@ -128,8 +135,13 @@ def steak():
             return tone('steak_marble' if streak > 1.25 else ('steak_lean_dark' if streak < -1.1 else 'steak_lean'), 0.04)
         return tone('steak_lean_dark', 0.04)
     loft(b, rings, colour)
-    return build('prop-steak', b, shared('hand-prop-meat', 0.7))
+    return b
 
 
-export([lighter(), matchbox(), match(), flask(), steak()], 'hand-props.glb')
-print('@@ hand props done')
+def steak():
+    return build('prop-steak', steak_shape(), shared('hand-prop-meat', 0.7))
+
+
+if not globals().get('DEFS_ONLY'):
+    export([lighter(), matchbox(), match(), flask(), steak()], 'hand-props.glb')
+    print('@@ hand props done')

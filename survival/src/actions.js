@@ -29,11 +29,12 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ sfx = () => {}, input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, aimPoint, launchPoint }) {
+export function createActions({ sfx = () => {}, input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, onOpenContainer, aimPoint, launchPoint, lookRay }) {
   let searching = 0;
   let using = 0; // seconds spent eating or bandaging so far
   let usingItem = null;
   let spitDone = false; // a piece of meat just went on or came off the spit (let go before the next)
+  let spitAim = null; // what the hold at the spit is for (looking away to another piece starts it again)
   let butchering = 0;
   let bowReady = 0; // seconds until the bow can shoot again
   let drawing = 0; // seconds the bow has been drawn for (0 when not drawing)
@@ -177,6 +178,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       const fuel = wood > 0 ? 'wood' : sticks > 0 ? 'stick' : null;
       const addFuel = fuel === 'wood' ? 'E to add a log' : fuel ? 'E to add a stick' : null;
       const starter = fireStarter();
+      // What you're looking at: a piece of meat on the spit (or an empty place on it), or else
+      // the fire itself. Looking at the meat, you take the meat; at the fire, you tend the fire.
+      const look = fire.spit ? campfires.spitPlaceAt(fire, lookRay()) : null;
+      const atMeat = look?.piece ?? null;
       // (To light a fire you need the lighter or the matches in your hand.)
       const inHand = held === 'lighter' || held === 'matches' ? held : null;
       const needsLighting = !campfires.isBurning(fire) && fire.fuel > 0;
@@ -195,7 +200,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
           strike(inHand, fire);
           hud.toast('The fire catches');
         }
-      } else if (pressedE && !needsLighting && fuel && campfires.addWood(fire, fuel)) {
+      } else if (pressedE && !atMeat && !needsLighting && fuel && campfires.addWood(fire, fuel)) {
         player.reach();
         inventory.remove(fuel, 1);
         sfx('add-wood', fire);
@@ -217,22 +222,24 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         status = 'The fire is out';
         tend = addFuel ?? 'it needs wood: logs or sticks';
       }
-      prompt = `${status} · ${tend}`;
-
       // Cooking: set a spit up over the fire, put raw meat on it (up to SPIT_HOLDS pieces), and
       // take each off once it's cooked (COOK_TIME), before it burns (BURN_TIME). Putting a piece
       // on or taking one off is a hold of the mouse button (SPIT_TIME), not a click, so it's
-      // never done by accident; a piece comes off oldest first, whatever's in hand.
+      // never done by accident; you take the piece you're looking at, whatever's in hand.
       const { spit } = fire;
       const pieces = campfires.meatOn(fire);
+      const onSpit = pieces.length === 1 ? 'meat on the spit' : `${pieces.length} pieces on the spit`;
+      prompt = pieces.length ? `${status} · ${tend} · ${onSpit}: look at a piece to take it off` : `${status} · ${tend}`;
       // Holding it: the hand reaches out to the spit as the hold comes to an end.
       // (One piece a press: after one's on or off, let go before the next.)
-      const holdAtSpit = () => {
+      const holdAtSpit = (aim) => {
         if (spitDone && input.usingTool()) {
           clickUsed = true;
           return false;
         }
         spitDone = false;
+        if (aim !== spitAim) using = 0;
+        spitAim = aim;
         const reached = usingItem === held && using / SPIT_TIME >= 0.5;
         const done = holdToUse(SPIT_TIME);
         if (usingNow) clickUsed = true;
@@ -240,29 +247,31 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         if (done) spitDone = true;
         return done;
       };
-      if (held === 'rawMeat' && spit && campfires.spitHasRoom(fire)) {
+      if (atMeat) {
+        // Looking at a piece of meat: how it's coming on, and hold to take it off.
+        const { cooked } = atMeat;
+        const state = meatAfter(cooked);
+        const take = 'hold the mouse button to take it off';
+        if (holdAtSpit(atMeat)) give(campfires.takeMeat(fire, atMeat), 1);
+        if (state === 'rawMeat') {
+          if (!usingNow) progress = cooked / COOK_TIME;
+          prompt = burning ? `Meat cooking… ${Math.ceil(COOK_TIME - cooked)} s · ${take}` : `Meat on the spit · light the fire to cook it · ${take}`;
+        } else if (state === 'cookedMeat') {
+          prompt = cooked > BURN_TIME - 15 && burning ? `It's starting to burn! · ${take}` : `Cooked! · ${take} before it burns`;
+        } else prompt = `The meat's burnt · ${take}`;
+        if (usingNow) prompt = 'Taking the meat off the spit…';
+      } else if (held === 'rawMeat' && spit && campfires.spitHasRoom(fire)) {
+        // Raw meat in hand: on it goes (where you're looking along the skewer, if that's free).
         const on = pieces.length ? ` (${pieces.length + 1} of ${SPIT_HOLDS})` : '';
         const verb = usingNow || using > 0 ? 'Putting the meat on the spit…' : `Click and hold to put the meat on the spit${on}`;
         prompt = burning ? `${verb} · ${tend}` : `${verb} · light the fire to cook it`;
-        if (holdAtSpit()) {
+        if (holdAtSpit('put')) {
           inventory.remove('rawMeat', 1);
-          campfires.putMeat(fire);
+          campfires.putMeatAt(fire, look?.place);
           sfx('rummage', fire);
         }
-      } else if (pieces.length) {
-        // (What the next piece to come off is like.)
-        const { cooked } = pieces[0];
-        const state = meatAfter(cooked);
-        const more = pieces.length > 1 ? ` (${pieces.length} pieces)` : '';
-        const take = held === 'rawMeat' ? `the spit's full · hold the mouse button to take one off` : 'hold the mouse button to take it off';
-        if (holdAtSpit()) give(campfires.takeMeat(fire), 1);
-        if (state === 'rawMeat') {
-          if (!usingNow) progress = cooked / COOK_TIME;
-          prompt = burning ? `Meat cooking${more}… ${Math.ceil(COOK_TIME - cooked)} s · ${take}` : `Meat on the spit${more} · light the fire to cook it · ${take}`;
-        } else if (state === 'cookedMeat') {
-          prompt = cooked > BURN_TIME - 15 && burning ? `It's starting to burn!${more} · ${take}` : `Cooked!${more} · ${take} before it burns`;
-        } else prompt = `The meat's burnt${more} · ${take}`;
-        if (usingNow) prompt = 'Taking the meat off the spit…';
+      } else if (held === 'rawMeat' && spit) {
+        prompt = `The spit's full · look at a piece to take it off · ${tend}`;
       } else if (held === 'spit' && !spit) {
         prompt = `Click to set the spit up over the fire · ${tend}`;
         if (input.startedUsingTool()) {
@@ -351,8 +360,12 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       // The lookout's binoculars: E to look through them and see far across the land.
       prompt = 'Binoculars · E to look through them';
       if (pressedE) onBinoculars();
+    } else if (!fire && container?.searched && container.contents?.length) {
+      // Searched already, with things left in it: E opens it in the menu straight away.
+      prompt = `${container.label[0].toUpperCase()}${container.label.slice(1)} · E to look inside`;
+      if (pressedE) onOpenContainer(container);
     } else if (!fire && container && !container.searched) {
-      // Hold E to search a suitcase; everything inside is yours.
+      // Hold E to search a suitcase: once you have, it opens in the menu, to take what you want.
       searchingNow = input.isDown('KeyE');
       searching = searchingNow ? searching + dt : 0;
       progress = searching / SEARCH_TIME;
@@ -366,8 +379,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         const source = crate ? lookout : poiContainer ? pois : wreck;
         const loot = source.search(container);
         sfx('pickup');
+        // (What's inside stays inside until you take it: { item, count } each.)
+        container.contents = loot.map(([item, count]) => ({ item, count }));
         if (loot.length === 0) hud.toast(`${container.label[0].toUpperCase()}${container.label.slice(1)} is empty`);
-        for (const [item, count] of loot) give(item, count, container.x, container.z);
+        else onOpenContainer(container);
       }
     } else if (!fire && trap) {
       // At a trap: E takes the catch out, or picks the empty trap back up.
@@ -689,6 +704,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     const cold = player.cave ? 0 : world.terrain.coldAt(x, z); // up the mountains (not down a cave)
     return {
       drinking, working: swinging || cuttingSticks, fire: nearFire, shelter: Boolean(shelter), wet, cold, outfit: inventory.outfit, prompt, progress,
+      container: container?.searched && container.contents?.length ? container : null, // (shown in the menu: see main.js)
       // (What the player's busy with, for the sounds.)
       eating: busy === 'eat', searching: searchingNow, bandaging: busy === 'bandage',
     };
