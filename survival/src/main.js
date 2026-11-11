@@ -356,6 +356,26 @@ const hud = new Hud({
     sound.play('add-wood');
     hud.toast(`-${added} ${slot.item === 'wood' ? (added > 1 ? 'Logs' : 'Log') : added > 1 ? 'Sticks' : 'Stick'}`);
   },
+  // Took thing `k` out of the container shown in the Nearby box: dragged onto slot `to`, or
+  // clicked (to null: anywhere it fits). `k` null: Take all.
+  onTakeFromContainer: (k, to) => {
+    const contents = shownContainer?.contents;
+    if (!contents) return;
+    let took = 0;
+    for (const thing of k === null ? [...contents] : [contents[k]]) {
+      if (!thing) continue;
+      let left = to === null ? inventory.add(thing.item, thing.count) : inventory.addTo(to, thing.item, thing.count);
+      if (to !== null && left === thing.count) left = inventory.add(thing.item, thing.count); // (that slot's taken: anywhere else)
+      if (left < thing.count) {
+        hud.toast(`+${thing.count - left} ${ITEMS[thing.item].name}`);
+        took++;
+      }
+      thing.count = left;
+      if (left === 0) contents.splice(contents.indexOf(thing), 1);
+    }
+    if (took) sound.play('pickup');
+    else hud.toast('Inventory full');
+  },
   // Took the meat in `place` off the spit in the Nearby box: dragged onto slot `to`, or clicked
   // (to null: anywhere it fits).
   onTakeSpit: (place, to) => {
@@ -386,6 +406,8 @@ const characterView = new CharacterView(document.getElementById('character-view'
 // Sleeping in a shelter: the screen fades out, and you wake at 06:00 with your stats
 // unchanged. Campfires keep burning through the night, so they may be out by morning.
 const NEARBY_REACH = 1.5; // meters: what's on the ground this close shows in the menu's Nearby box
+// The container you've searched within reach (from the actions), shown in the menu while it's open.
+let shownContainer = null;
 // The campfire within reach, if any (shown in the Nearby box with somewhere to drag wood).
 const nearbyFire = () => (player.cave ? null : campfires.near(player.position.x, player.position.z, NEARBY_REACH));
 const WAKE_HOUR = 6;
@@ -436,7 +458,14 @@ const launchPoint = () => {
 const onDressed = (outfit) => {
   if (outfit === 'jacket') hud.say("That's better. I'll warm up in no time.", 5);
 };
-const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: (from) => startSpotting(from), onDressed, aimPoint, launchPoint, lookRay });
+// A container's just been searched, or E pressed at one: open the menu to show what's in it.
+const openContainer = () => {
+  if (!hud.inventoryOpen) {
+    hud.toggleInventory();
+    characterView.faceForward();
+  }
+};
+const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: (from) => startSpotting(from), onDressed, onOpenContainer: openContainer, aimPoint, launchPoint, lookRay });
 
 // The player says things out loud when they're in trouble, in a speech bubble.
 // Each line is said at most once per evening/cold spell.
@@ -752,6 +781,9 @@ renderer.setAnimationLoop(() => {
   hud.update(survival, inventory, actions);
   // The Nearby box: what's on the ground within reach (1.5 m, five feet), while the menu's open.
   if (hud.inventoryOpen) hud.showNearby(player.cave ? [] : pickups.within(player.position.x, player.position.z, NEARBY_REACH));
+  // ...a container you've searched, within reach, with what's left in it...
+  shownContainer = hud.inventoryOpen ? actions.container ?? null : null;
+  if (hud.inventoryOpen) hud.showContainer(shownContainer);
   // ...and a campfire within reach, with its fuel spots and spit.
   if (hud.inventoryOpen) {
     const fire = nearbyFire();
