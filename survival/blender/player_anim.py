@@ -3,8 +3,9 @@
 #   idle   breathing, a slow shift of weight, a look about
 #   walk   a brisk walk (the game's walking pace, 3.4 m/s): one foot always down, heel then toe,
 #          the arms swinging easily against the legs, the hips rising over the standing leg
-#   run    a sprint (6.5 m/s, holding Shift): leaning into it, driving the knees up, the back heel
-#          kicking high, a long moment in the air each stride, the arms pumping hard
+#   run    a hard run (5.2 m/s, holding Shift): leaning into it, driving the knees up, the back heel
+#          folding high, a moment in the air each step, the arms pumping loosely: each joint
+#          flowing round its own loop (not posed key to key), two strides that vary a little
 #   sneak  crouched low, long careful steps, arms held in
 #   crouch squatting down (searching low, butchering; and crouched still)
 #   jump   push off, tuck in the air, reach for the ground
@@ -198,35 +199,88 @@ def walk():
     return keys, length
 
 
+def cyclic(table, u):
+    """A smooth loop through `table` [(u, value)] (u in 0..1, rising, wrapping round): the curve
+    passes through each value without stopping there (Hermite, its slopes from either side), so
+    a movement flows on through its key poses instead of easing in and out of each one."""
+    n = len(table)
+    u %= 1.0
+    i = max(j for j in range(n) if table[j][0] <= u) if u >= table[0][0] else n - 1
+    at = lambda j: (table[j % n][0] + (j // n) * 1.0, table[j % n][1])
+    x0, y0 = at(i - 1) if i > 0 else (table[-1][0] - 1.0, table[-1][1])
+    x1, y1 = at(i)
+    x2, y2 = at(i + 1)
+    x3, y3 = at(i + 2)
+    if u < x1:
+        u += 1.0
+    slope = lambda xa, ya, xb, yb: (yb - ya) / (xb - xa)
+    m1, m2 = slope(x0, y0, x2, y2), slope(x1, y1, x3, y3)
+    h = x2 - x1
+    t = (u - x1) / h
+    t2, t3 = t * t, t * t * t
+    return (2 * t3 - 3 * t2 + 1) * y1 + (t3 - 2 * t2 + t) * h * m1 + (-2 * t3 + 3 * t2) * y2 + (t3 - t2) * h * m2
+
+
+# The run's legs through one stride (the left leg; the right is half a stride on), as phases of
+# the stride: the foot lands under the body (0), the knee gives as the body sinks over it (0.1),
+# it drives off, the leg long behind (0.25), folds tight, heel up under the seat, as it comes
+# through (0.38-0.6), and the knee drives up and forward (0.75), the shin reaching out to land.
+RUN_THIGH = [(0.0, 34), (0.1, 14), (0.25, -28), (0.375, -26), (0.5, -16), (0.6, 18), (0.75, 62), (0.875, 50)]
+RUN_SHIN = [(0.0, -20), (0.1, -36), (0.25, -12), (0.375, -92), (0.5, -96), (0.6, -114), (0.75, -84), (0.875, -36)]
+RUN_FOOT = [(0.0, -6), (0.1, 4), (0.25, 44), (0.375, 52), (0.5, 50), (0.6, 36), (0.75, 10), (0.875, -6)]
+# The arms against the legs (the right arm with the left leg), swinging from the shoulder;
+# the elbows bent, more on the way forward.
+# (The hand comes up to the chest, not out in front: the elbow closes as the arm comes forward.)
+RUN_ARM = [(0.0, 34), (0.1, 18), (0.25, -30), (0.375, -42), (0.5, -40), (0.6, -20), (0.75, 28), (0.875, 37)]
+RUN_ELBOW = [(0.0, 106), (0.1, 98), (0.25, 82), (0.375, 80), (0.5, 84), (0.6, 92), (0.75, 106), (0.875, 110)]
+# Each step (half a stride): the body sinks as the foot takes it, then rises off it and flies.
+RUN_BOB = [(0.0, -0.03), (0.2, -0.066), (0.5, 0.0), (0.75, 0.042)]
+# The hips turn with the leg swinging through; the shoulders the other way.
+RUN_HIPS_YAW = [(0.0, -7), (0.1, -3), (0.25, 5), (0.375, 7), (0.5, 7), (0.6, 3), (0.75, -5), (0.875, -7)]
+RUN_SPINE_YAW = [(0.0, 11), (0.1, 5), (0.25, -7), (0.375, -11), (0.5, -11), (0.6, -5), (0.75, 7), (0.875, 11)]
+
+
 def run():
-    """A hard run: land on the front foot under the body, sink, drive off it with the knee of the
-    other leg coming high through, then fly; then the other side. Authored for 5.2 m/s at a
-    runner's cadence (180 steps a minute: 16 frames for the pair, about 1.75 m a step)."""
-    length = 16 / FPS
-    lean = {'spine': (15, 0, 0), 'head': (-13, 0, 0)}
-    contact = dict(lean, hips_at=(0, -0.03, 0.02), hips=(4, -7, 0), spine=(15, 11, 0),
-                   thigh_L=(36, 0, 0), shin_L=(-20, 0, 0), foot_L=(-8, 0, 0),
-                   thigh_R=(-18, 0, 0), shin_R=(-92, 0, 0), foot_R=(55, 0, 0),
-                   upperarm_R=(48, 0, -12), lowerarm_R=(98, 0, 0), hand_R=(8, 0, 0),
-                   upperarm_L=(-48, 0, 14), lowerarm_L=(78, 0, 0), hand_L=(8, 0, 0))
-    down = dict(lean, hips_at=(0.012, -0.07, 0.02), hips=(5, -3, 2), spine=(17, 5, 0),
-                thigh_L=(14, 0, 0), shin_L=(-38, 0, 0), foot_L=(4, 0, 0),
-                thigh_R=(20, 0, 0), shin_R=(-122, 0, 0), foot_R=(40, 0, 0),
-                upperarm_R=(22, 0, -12), lowerarm_R=(94, 0, 0),
-                upperarm_L=(-24, 0, 14), lowerarm_L=(86, 0, 0))
-    drive = dict(lean, hips_at=(0.008, 0.0, 0.02), hips=(4, 5, 0), spine=(14, -7, 0),
-                 thigh_L=(-30, 0, 0), shin_L=(-10, 0, 0), foot_L=(48, 0, 0),
-                 thigh_R=(70, 0, 0), shin_R=(-86, 0, 0), foot_R=(10, 0, 0),
-                 upperarm_R=(-38, 0, -12), lowerarm_R=(76, 0, 0),
-                 upperarm_L=(40, 0, 14), lowerarm_L=(100, 0, 0))
-    fly = dict(lean, hips_at=(0, 0.045, 0.02), hips=(4, 7, 0), spine=(14, -11, 0),
-               thigh_L=(-28, 0, 0), shin_L=(-96, 0, 0), foot_L=(55, 0, 0),
-               thigh_R=(54, 0, 0), shin_R=(-34, 0, 0), foot_R=(-6, 0, 0),
-               upperarm_R=(-50, 0, -12), lowerarm_R=(74, 0, 0),
-               upperarm_L=(50, 0, 14), lowerarm_L=(100, 0, 0))
-    half = length / 2
-    steps = [(0.0, contact), (0.2, down), (0.5, drive), (0.75, fly)]
-    keys = [(half * f, p) for f, p in steps] + [(half + half * f, mirror(p)) for f, p in steps] + [(length, contact)]
+    """A hard run, authored for 5.2 m/s at a runner's cadence (180 steps a minute, about 1.75 m a
+    step): two strides (four steps, 32 frames), so it doesn't repeat every step. Not posed key to
+    key: each joint flows round its own loop through the stride (cyclic), sampled every frame, and
+    the body moves as a loose, connected whole: the arms trail the legs a little and the hands
+    trail the arms (follow-through), the shoulders counter the hips a beat late, the head steadies
+    itself, nodding a beat behind the body's bob. From stride to stride the lean, the head's nod,
+    the arms' swing and the bob vary a little, as a runner's do."""
+    frames = 32
+    length = frames / FPS
+    keys = []
+    for f in range(frames + 1):
+        t = f / frames  # (through the clip: two strides)
+        u = (2 * t) % 1.0  # (through this stride: the left foot lands at 0, the right at 0.5)
+        h = (4 * t) % 1.0  # (through this step)
+        vary = 0.5 - 0.5 * math.cos(math.tau * t)  # (0 at the clip's start, 1 halfway: one stride, then the other)
+        swing = 1 + 0.07 * (vary - 0.5)
+        bob = cyclic(RUN_BOB, h) * (1 + 0.12 * (vary - 0.5))
+        hips_yaw = cyclic(RUN_HIPS_YAW, u) * (1 + 0.1 * (vary - 0.5))
+        spine_yaw = cyclic(RUN_SPINE_YAW, u - 0.04)  # (the shoulders follow a beat late)
+        lean = 14 + 2.5 * cyclic([(0.0, 0.2), (0.2, 1.0), (0.5, 0.0), (0.75, -0.4)], h) + 1.6 * vary
+        nod = 2.6 * math.sin(math.tau * (h - 0.18)) * (0.85 + 0.3 * vary)  # (behind the bob)
+        pose = {
+            'hips_at': (0.009 * math.cos(math.tau * (u - 0.12)), bob, 0.02),
+            'hips': (4 + 1.2 * math.sin(math.tau * h), hips_yaw, 2.5 * math.sin(math.tau * (u - 0.05))),
+            'spine': (lean, spine_yaw, -1.5 * math.sin(math.tau * (u - 0.1))),
+            # (The head stays nearly level and facing ahead: it takes back most of the lean and turn.)
+            'head': (-13 - 0.8 * (lean - 14) + nod, -0.75 * (hips_yaw + spine_yaw), 1.0 * math.sin(math.tau * (u - 0.2))),
+        }
+        for side, offset, sign in (('L', 0.0, 1), ('R', 0.5, -1)):
+            leg = u + offset
+            pose[f'thigh_{side}'] = (cyclic(RUN_THIGH, leg), 0, sign * 1.5)
+            pose[f'shin_{side}'] = (cyclic(RUN_SHIN, leg), 0, 0)
+            pose[f'foot_{side}'] = (cyclic(RUN_FOOT, leg), 0, 0)
+            # (This arm swings with the other leg, a little behind it; the forearm behind the
+            # upper arm, the hand behind the forearm: loose, not locked to the legs.)
+            arm = leg + 0.5 - 0.045
+            pose[f'upperarm_{side}'] = (cyclic(RUN_ARM, arm) * swing, 0, sign * (13 - 4 * math.cos(math.tau * (arm - 0.875))))
+            pose[f'lowerarm_{side}'] = (cyclic(RUN_ELBOW, arm - 0.04), 0, 0)
+            pose[f'hand_{side}'] = (6 + 9 * math.sin(math.tau * (arm - 0.12)), 0, sign * -2)
+        keys.append((t * length, pose))
     return keys, length
 
 

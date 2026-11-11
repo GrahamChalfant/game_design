@@ -16,10 +16,11 @@ const CLIP_WALK_SPEED = 3.4;
 const CLIP_RUN_SPEED = 5.2;
 const SNEAK_SPEED = 1.7; // (a careful crouching walk: half walking pace)
 const CLIP_SNEAK_SPEED = 2.2; // the pace player.glb's sneak is made for
-// Steps a second each of player.glb's gaits takes at the pace it's made for (two steps a cycle:
-// walk 15 frames, run 16, sneak 29, at 24 fps; blender/player_anim.py): a brisk walk at about
-// 190 steps a minute, a runner's 180, a slow creep. The first-person view bobs with them too.
-const STEPS_PER_SECOND = { walk: 48 / 15, run: 48 / 16, sneak: 48 / 29 };
+// Steps a second each of player.glb's gaits takes at the pace it's made for (at 24 fps:
+// walk two steps in 15 frames, run four in 32, sneak two in 29; blender/player_anim.py): a brisk
+// walk at about 190 steps a minute, a runner's 180, a slow creep. The first-person view bobs
+// with them too.
+const STEPS_PER_SECOND = { walk: 48 / 15, run: 96 / 32, sneak: 48 / 29 };
 const BOB_STEPS = 8.9 / Math.PI; // steps in each unit of walkTime (the hands' bob: see handView.js)
 const SWIM_SPEED = 2.2;
 const SWIM_DEPTH = 1.25; // once the water is this deep, the player swims with their head above water
@@ -58,7 +59,8 @@ const KNOCKBACK = 7; // m/s a hit throws the player back at first
 const TORCH_LEAN = 0.25; // a held torch leans this far forward from upright (radians)
 // Where each foot comes down in player.glb's walking animations, as a share of the cycle (they
 // start on the left foot's contact: blender/player_anim.py), so footstep sounds land with the feet.
-const FOOTFALLS = { walk: [0.0, 0.5], run: [0.0, 0.5], sneak: [0.0, 0.5] };
+// (The run is two strides long, four steps: it varies a little from stride to stride.)
+const FOOTFALLS = { walk: [0.0, 0.5], run: [0.0, 0.25, 0.5, 0.75], sneak: [0.0, 0.5] };
 
 export class Player {
   constructor(scene, spawn, bounds, spawnFacing = 0) {

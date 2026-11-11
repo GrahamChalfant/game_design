@@ -1,8 +1,11 @@
 # Builds the player (player.glb): a survivor with realistic proportions, smooth shaded.
 # A sculpted head (eye sockets, brow ridge, cheekbones, a nose, lips, ears, domed eyes under
 # their lids) with a full beard, moustache, thick brows and hair, sculpted and combed into
-# clumps (crests lit, grooves dark, pointed at the tips), under a ribbed knit beanie; a red
-# hooded jacket with a high collar, zip, pockets and cuffs; work trousers; boots; wool gloves.
+# clumps (crests lit, grooves dark, pointed at the tips), under a ribbed knit beanie; a flannel
+# shirt and, once found, a red quilted jacket over it; work trousers bloused over laced boots;
+# wool gloves. The clothes are layered, each over the one beneath, and made like cloth: hems,
+# cuffs and collars stand off with the cloth's thickness and a darker inside (cloth_edge), and
+# the cloth creases where it bunches (the waist, the elbows, above the cuffs and the boots).
 # Run in an open Blender (Blender MCP or the Text Editor).
 #
 # It keeps everything the game relies on: the skeleton and its animations (taken from RIG,
@@ -137,20 +140,79 @@ def loft(part, rings, colour, cap_start=True, cap_end=True, res=None):
             part.add(tri, colour(0 if other is middles[1] else len(rings) - 2, k // res, c, out))
 
 
-def tube_between(part, a, b, radii, colour, sides=8, depth=1.0, cap_start=True, cap_end=True):
-    """A limb from a to b through len(radii) rings, each (w, d) or a single radius."""
+def tube_rings(a, b, radii, sides=8, depth=1.0, ripple=None):
+    """The rings of a limb from a to b, through len(radii) rings, each (w, d) or a single radius;
+    `ripple(t, angle)`, if given, scales each point out or in (folds in the cloth)."""
     a, b = Vector(a), Vector(b)
     d = (b - a).normalized()
     u = d.cross(Vector((0, 0, 1)) if abs(d.z) < 0.9 else Vector((1, 0, 0))).normalized()
     v = d.cross(u)
     rings = []
     sides *= RES
+    if ripple and len(radii) < 18:
+        # (Folds need rings close together: the radii, eased between, every so often along it.)
+        pairs = [r if isinstance(r, tuple) else (r, r * depth) for r in radii]
+        dense = []
+        for j in range(18):
+            f = j / 17 * (len(pairs) - 1)
+            i0 = min(len(pairs) - 2, int(f))
+            frac = f - i0
+            dense.append(tuple(pairs[i0][m] + (pairs[i0 + 1][m] - pairs[i0][m]) * frac for m in (0, 1)))
+        radii = dense
     for i, r in enumerate(radii):
         t = i / (len(radii) - 1)
         w, dd = r if isinstance(r, tuple) else (r, r * depth)
         p = a.lerp(b, t)
-        rings.append([p + u * math.cos(math.tau * k / sides) * w + v * math.sin(math.tau * k / sides) * dd for k in range(sides)])
+        ring = []
+        # (Folds fade out at the ends, so the next piece meets it cleanly.)
+        ends = min(1.0, t / 0.12, (1 - t) / 0.12)
+        for k in range(sides):
+            ang = math.tau * k / sides
+            m = 1 + (ripple(t, ang) - 1) * ends if ripple else 1.0
+            ring.append(p + (u * math.cos(ang) * w + v * math.sin(ang) * dd) * m)
+        rings.append(ring)
+    return rings
+
+
+def tube_between(part, a, b, radii, colour, sides=8, depth=1.0, cap_start=True, cap_end=True, ripple=None):
+    """A limb from a to b through len(radii) rings, each (w, d) or a single radius. Returns its
+    rings (so an open end can be given a cloth edge)."""
+    rings = tube_rings(a, b, radii, sides, depth, ripple)
     loft(part, rings, colour, cap_start, cap_end)
+    return rings
+
+
+def cloth_edge(part, ring, out_axis, thick, face, inner, depth=0.025, cap=True):
+    """Gives a garment's open end the thickness of real cloth, so it reads as something worn,
+    not painted on: from `ring` (the end of the garment's surface, a closed loop) the cloth rolls
+    over its edge, `thick` meters, and turns back in, its darker inside (`inner`) showing just
+    within the opening, `depth` meters up it; then (`cap`) a dark floor, so you never see up
+    into an empty garment. `out_axis`: the way out of the opening (down for a hem, along the arm
+    for a cuff, up for a collar)."""
+    n = len(ring)
+    c = sum(ring, Vector()) / n
+    ax = Vector(out_axis).normalized()
+    radial = []
+    for q in ring:
+        r = q - c
+        r -= ax * r.dot(ax)
+        radial.append(r.normalized())
+    at = lambda rad, along: [q + radial[k] * rad + ax * along for k, q in enumerate(ring)]
+    rows = [at(0, 0), at(thick * 0.55, thick * 0.3), at(thick * 0.45, thick * 0.9), at(-thick * 0.15, thick * 1.05),
+            at(-thick * 0.75, thick * 0.6), at(-thick * 0.9, -depth)]
+    for i in range(len(rows) - 1):
+        for k in range(n):
+            k1 = (k + 1) % n
+            out_r = (radial[k] + radial[k1]).normalized()
+            # (Facing out from the garment round its outside and over the edge; facing in, toward
+            # the middle, once it's turned inside.)
+            out = out_r if i < 2 else (ax + out_r * 0.3).normalized() if i == 2 else -out_r
+            part.add_out([rows[i][k], rows[i][k1], rows[i + 1][k1], rows[i + 1][k]], out, face if i < 3 else inner, smooth=True)
+    if cap:
+        floor = rows[-1]
+        mid = sum(floor, Vector()) / n
+        for k in range(n):
+            part.add_out([mid, floor[k], floor[(k + 1) % n]], ax, inner)
 
 
 def box(part, lo, hi, colour):
@@ -162,15 +224,17 @@ def box(part, lo, hi, colour):
 
 # ---- the body ----
 def legs(parts):
-    """Work trousers, worn paler at the knees, bunched over tall leather boots laced up the
-    front, on thick soles."""
+    """Work trousers, worn paler at the knees, creased at the knee and the hip, and bloused over
+    the tops of tall leather boots, stacked in soft folds where they're tucked in; the boots laced
+    up the front, padded round their tops, on thick soles."""
     for s, side in ((1, 'L'), (-1, 'R')):
         p = Part(['hips', f'thigh_{side}', f'shin_{side}', f'foot_{side}'])
         x = 0.105 * s
         # The leg, a ring every 1.5 cm, creased: bunched in folds above the boot, and behind
         # the knee; a darker seam down the outside.
+        # (Bloused: fuller just above the boot, then drawn in and tucked inside its top.)
         table = ((0.96, 0.08, 0.095, 0.0), (0.82, 0.086, 0.094, 0.0), (0.66, 0.079, 0.084, 0.005), (0.49, 0.07, 0.075, 0.012),
-                 (0.4, 0.07, 0.073, 0.0), (0.33, 0.072, 0.074, 0.0), (0.3, 0.068, 0.07, 0.0))
+                 (0.42, 0.071, 0.074, 0.004), (0.37, 0.077, 0.079, 0.0), (0.345, 0.078, 0.08, 0.0), (0.322, 0.064, 0.066, 0.0), (0.3, 0.052, 0.054, 0.0))
         table = tuple(sorted(table))  # (bottom to top, for table_params)
         rings = []
         for i in range(45):
@@ -182,10 +246,14 @@ def legs(parts):
                 r = q - Vector((x, y, dz))
                 a_ = math.atan2(r.x * s, r.z)  # (0 at the front, + toward the outside)
                 fold = 0.0
-                if y < 0.45:  # (bunching above the boot)
-                    fold += 0.05 * math.sin(y * 150 + a_ * 2) * (0.45 - y) / 0.15
+                if y < 0.45:  # (bunching above the boot: stacked rolls, twisting round the leg; smooth where it tucks in)
+                    fold += 0.075 * math.sin(y * 170 + a_ * 2) * min(1.0, (0.45 - y) / 0.08) * max(0.0, min(1.0, (y - 0.322) / 0.02))
                 if 0.44 < y < 0.58 and math.cos(a_) < -0.2:  # (behind the knee)
-                    fold += 0.045 * math.sin(y * 210) * (1 - abs(y - 0.51) / 0.07)
+                    fold += 0.05 * math.sin(y * 210) * (1 - abs(y - 0.51) / 0.07)
+                if 0.47 < y < 0.56 and math.cos(a_) > 0.3:  # (across the front of the knee, faintly)
+                    fold += 0.035 * math.sin(y * 160 + a_) * (1 - abs(y - 0.515) / 0.045)
+                if y > 0.84:  # (pulled in creases from the hip toward the crotch)
+                    fold += 0.025 * math.sin(a_ * 4 - y * 60) * min(1.0, (y - 0.84) / 0.06) * max(0.0, -math.sin(a_))
                 out.append(Vector((x, y, dz)) + r * (1 + fold))
             rings.append(out)
 
@@ -228,7 +296,9 @@ def legs(parts):
                 return tone('boot_dark', 0.0, 0.9)  # (the padded top)
             worn = max(0.0, n.z) * max(0.0, 1 - c.y / 0.1)  # (scuffed paler at the toe)
             return tone('boot_worn' if worn > 0.5 else 'boot', 0.0)
-        loft(p, boot, leather, cap_start=True, cap_end=True)
+        loft(p, boot, leather, cap_start=False, cap_end=True)
+        # (Its top: a padded collar, the leather's thickness, the trousers tucked down inside.)
+        cloth_edge(p, boot[0], (0, 1, 0), 0.009, tone('boot_dark', 0.0, 0.85), tone('sole', 0.0, 1.2), depth=0.03)
         # Laces: criss-crossing up the front of the shaft between hooks.
         front_z = lambda y: 0.002 + (0.066 if y > 0.2 else 0.066 + (0.2 - y) / 0.08 * 0.012) + (0.004 if y < 0.2 else 0.0)
         for k in range(6):
@@ -256,13 +326,15 @@ def scarf(parts):
         rings = []
         for i in range(64):
             a = math.tau * i / 64
-            c = Vector((math.sin(a) * rx, cy + tilt * math.cos(a), math.cos(a) * rz - 0.005))
+            # (Round the back it passes in under the stowed hood, snug to the collar.)
+            under = max(0.0, -math.cos(a)) ** 1.5
+            c = Vector((math.sin(a) * rx, cy + tilt * math.cos(a), math.cos(a) * rz * (1 - 0.12 * under) - 0.005))
             out = Vector((math.sin(a), 0, math.cos(a)))
             ring = []
             for k in range(14):
                 t = math.tau * k / 14
                 rib = 1 + 0.07 * math.cos(i * math.pi / 2)  # (knitted rows)
-                r = tube * rib * (1 + lumps * math.sin(a * 7 + t * 2) * math.sin(a * 3 + 1.7))
+                r = tube * rib * (1 + lumps * (1 - under) * math.sin(a * 7 + t * 2) * math.sin(a * 3 + 1.7)) * (1 - 0.3 * under)
                 ring.append(c + (out * math.cos(t) * 1.15 + Vector((0, 1, 0)) * math.sin(t) * 0.85) * r)
             rings.append(ring)
         rings.append(rings[0])
@@ -352,27 +424,107 @@ def plaid(c, n=None):
     return plaid_at(math.atan2(c.x, c.z) * 0.14, c.y)
 
 
+def bump(y, at, half):
+    """1 at `at`, falling smoothly to 0 `half` away either side."""
+    u = max(0.0, 1 - abs(y - at) / half)
+    return u * u * (3 - 2 * u)
+
+
+def shirt_swell(y, a):
+    """How far the shirt stands off its plain shape at height y, angle a round the body (0 at the
+    front, + toward his left): an untucked flannel shirt hangs a little loose off the hips, blouses
+    in soft folds round the waist, and pulls in drag folds down the sides from the chest."""
+    flare = 0.055 * max(0.0, min(1.0, (0.95 - y) / 0.13)) ** 1.5
+    blouse = 0.028 * math.sin(a * 7 + 1.3 + y * 18) * bump(y, 0.93, 0.08)
+    side = abs(math.sin(a))
+    drag = 0.022 * math.sin(a * 9 - y * 30) * bump(y, 1.1, 0.16) * side ** 2
+    back = 0.016 * math.sin(a * 6 + 0.4) * bump(y, 1.2, 0.1) * max(0.0, -math.cos(a))  # (between the shoulder blades)
+    return 1 + flare + blouse + drag + back
+
+
+def shirt_hem(a):
+    """The shirttail: lowest at the front and back, curving up at the sides."""
+    return 0.79 + 0.05 * abs(math.sin(a)) ** 1.6
+
+
 def shirt(parts):
+    """A flannel shirt worn untucked: a curved shirttail, folds where it blouses at the waist and
+    pulls across the back, a collar standing round the neck and folding down over it to points on
+    the chest, a placket of buttons, and two flapped chest pockets. Each opening has the cloth's
+    thickness (see cloth_edge)."""
     p = Part(['hips', 'spine'])
     p.drape = (0.97, ['thigh_L', 'thigh_R'], 0.55)
-    ys = [SHIRT[0][0] + (SHIRT[-1][0] - SHIRT[0][0]) * i / 39 for i in range(40)]
+    ys = [SHIRT[0][0] + (SHIRT[-1][0] - SHIRT[0][0]) * i / 69 for i in range(70)]
     rings = []
-    for y in ys:
+    for i, y in enumerate(ys):
         w, front, back = table_params(SHIRT, y)
-        rings.append(section(Vector((0, y, 0)), w, front, back, 18, power=TORSO_POWER))
-    p.corner = lambda q: tone('shirt_dark', 0.0) if q.y < 0.81 else plaid(q)
-    loft(p, rings, lambda i, k, c, n: None, cap_start=True, cap_end=False, res=1)
-    # The collar, folded down round the neck.
-    collar = [section(Vector((0, y, 0.0)), w, f, b, 14, power=2.2) for y, w, f, b in ((1.42, 0.1, 0.078, 0.088), (1.47, 0.068, 0.064, 0.07), (1.5, 0.066, 0.062, 0.07), (1.465, 0.082, 0.078, 0.084))]
-    # (standing higher round the back of the neck, open at the throat)
-    collar = [[q + Vector((0, 0.03 * max(0.0, -q.z) / 0.07 * min(i, 2) / 2, 0)) for q in ring] for i, ring in enumerate(collar)]
-    loft(p, collar, lambda i, k, c, n: None, cap_start=False, cap_end=False)
-    # The placket down the front, and its buttons.
-    shirt_front = lambda x, y: front_of(SHIRT, x, y)
-    on_surface(p, shirt_front, -0.013, 0.013, 0.83, 1.42, 0.003, tone('shirt', 0.0, 0.9), rows=30, cols=2)
+        ring = []
+        for q in section(Vector((0, y, 0)), w, front, back, 26, power=TORSO_POWER):
+            a = math.atan2(q.x, q.z)
+            m = shirt_swell(y, a)
+            # (The lowest rings follow the curve of the shirttail.)
+            yy = y + (shirt_hem(a) - SHIRT[0][0]) * max(0.0, 1 - i / 7)
+            ring.append(Vector((q.x * m, yy, q.z * m)))
+        rings.append(ring)
+    p.corner = lambda q: tone('shirt_dark', 0.0) if q.y < shirt_hem(math.atan2(q.x, q.z)) + 0.008 else plaid(q)
+    loft(p, rings, lambda i, k, c, n: None, cap_start=False, cap_end=False, res=1)
+    cloth_edge(p, rings[0], (0, -1, 0), 0.007, tone('shirt', 0.0, 0.82), tone('shirt_dark', 0.0, 0.55), depth=0.04)
+    shirt_collar(p)
+    # The placket down the front, its buttons, and two pockets with buttoned flaps.
+    on_surface(p, shirt_front, -0.013, 0.013, 0.83, 1.42, 0.003, tone('shirt', 0.0, 0.9), rows=30, cols=2, smooth=True)
     for y in (0.88, 0.97, 1.06, 1.15, 1.24, 1.33):
-        on_surface(p, shirt_front, -0.005, 0.005, y - 0.005, y + 0.005, 0.005, tone('button', 0.0), rows=2, cols=2)
+        on_surface(p, shirt_front, -0.005, 0.005, y - 0.005, y + 0.005, 0.006, tone('button', 0.0), rows=2, cols=2)
+    for s in (1, -1):
+        x0, x1 = sorted((s * 0.04, s * 0.112))
+        on_surface(p, shirt_front, x0, x1, 1.19, 1.285, 0.004, tone('shirt', 0.0, 0.97), rows=4, cols=5, smooth=True)  # (the pocket)
+        on_surface(p, shirt_front, x0 - 0.002, x1 + 0.002, 1.262, 1.298, 0.0085, tone('shirt', 0.0, 0.86), rows=2, cols=5, smooth=True)  # (its flap)
+        bx = s * 0.076
+        on_surface(p, shirt_front, bx - 0.0045, bx + 0.0045, 1.268, 1.277, 0.0115, tone('button', 0.0), rows=1, cols=2)
     parts.append(p)
+
+
+def shirt_front(x, y):
+    """How far forward the shirt's front is at x, y (as built, folds and all)."""
+    z = front_of(SHIRT, x, y)
+    return z * shirt_swell(y, math.atan2(x, z))
+
+
+def shirt_collar(p):
+    """The shirt's collar: a band standing round the neck, higher at the back, and its fall folded
+    down over it, lying on the shoulders and coming to points on the chest, open at the throat.
+    The fall stands off the shirt with the cloth's thickness along its edge and its ends."""
+    gap = 0.3  # (radians either side of the front: open at the throat)
+    steps = 28
+    def ellipse(a, y, w, f, b, push=0.0):
+        z = math.cos(a) * (f if math.cos(a) > 0 else b)
+        return Vector((math.sin(a) * w * (1 + push), y, z * (1 + push)))
+    rows = []
+    for j in range(steps + 1):
+        a = gap + (math.tau - 2 * gap) * j / steps
+        back = (1 - math.cos(a)) / 2  # (0 at the front, 1 at the back)
+        point = max(0.0, 1 - min(abs(a), abs(math.tau - a)) / (gap + 0.55))  # (toward the points)
+        top = 1.468 + 0.03 * back
+        rows.append([
+            ellipse(a, 1.43, 0.092, 0.074, 0.084),  # the band, from inside the shirt's neck...
+            ellipse(a, top, 0.07, 0.062, 0.072),  # ...up round the neck
+            ellipse(a, top + 0.006, 0.077, 0.068, 0.078),  # the fold
+            ellipse(a, 1.448 - 0.008 * (1 - back) - 0.06 * point ** 1.4, 0.104, 0.09, 0.094, push=0.05 * point),  # the fall's edge
+        ])
+    fall = tone('shirt', 0.0, 0.95)
+    under = tone('shirt_dark', 0.0, 0.7)
+    for j in range(steps):
+        r0, r1 = rows[j], rows[j + 1]
+        mid = (r0[0] + r1[0]) / 2
+        out = Vector((mid.x, 0, mid.z)).normalized()
+        p.add_out([r0[0], r1[0], r1[1], r0[1]], -out, under, smooth=True)  # (the band, toward the neck)
+        p.add_out([r0[1], r1[1], r1[2], r0[2]], Vector((0, 1, 0)) + out * 0.3, fall, smooth=True)  # (over the fold)
+        p.add_out([r0[2], r1[2], r1[3], r0[3]], out + Vector((0, 0.6, 0)), fall, smooth=True)  # (the fall)
+        # (Its lower edge: the cloth's thickness, turning under toward the shirt.)
+        e0 = [r0[3], r1[3], r1[3] - out * 0.006 + Vector((0, 0.002, 0)), r0[3] - out * 0.006 + Vector((0, 0.002, 0))]
+        p.add_out(e0, Vector((0, -1, 0)) + out * 0.5, under, smooth=True)
+    for r in (rows[0], rows[-1]):  # (the collar's two ends, either side of the throat)
+        side = Vector((-1 if r is rows[0] else 1, 0, 0.4))
+        p.add_out([r[1], r[2], r[3], r[0]], side, fall, smooth=False)
 
 
 def table_params(table, y):
@@ -390,14 +542,14 @@ def front_of(table, x, y):
     return math.sqrt(max(0.0, 1 - sx * sx)) ** (2 / TORSO_POWER) * front
 
 
-def on_surface(part, front, x0, x1, y0, y1, lift, colour, cols=6, rows=6):
+def on_surface(part, front, x0, x1, y0, y1, lift, colour, cols=6, rows=6, smooth=False):
     """A patch over a front (front(x, y) -> how far forward it is), standing `lift` off it."""
     pt = lambda x, y, up: Vector((x, y, front(x, y) + up))
     grid = [[pt(x0 + (x1 - x0) * i / cols, y0 + (y1 - y0) * j / rows, lift) for i in range(cols + 1)] for j in range(rows + 1)]
     fwd = Vector((0, 0, 1))
     for j in range(rows):
         for i in range(cols):
-            part.add_out([grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]], fwd, colour)
+            part.add_out([grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]], fwd, colour, smooth)
     edge = [(i, 0) for i in range(cols + 1)] + [(cols, j) for j in range(1, rows + 1)] + [(i, rows) for i in range(cols - 1, -1, -1)] + [(0, j) for j in range(rows - 1, 0, -1)]
     mid = Vector(((x0 + x1) / 2, (y0 + y1) / 2, 0))
     for (i0, j0), (i1, j1) in zip(edge, edge[1:] + edge[:1]):
@@ -437,12 +589,16 @@ def torso(parts):
         if y > QUILT[1] + 0.01:
             return tone('coat', 0.0, 0.97)  # (the yoke)
         return tone('coat', 0.0, 1.0 + 0.04 * (0.5 - abs(math.cos(math.pi * (y - QUILT[0]) / BAFFLE))))
-    loft(p, rings, coat, cap_start=True, cap_end=False, res=1)
+    loft(p, rings, coat, cap_start=False, cap_end=False, res=1)
+    # (Its hem: a thick, padded edge, the pale lining showing just inside.)
+    cloth_edge(p, rings[0], (0, -1, 0), 0.012, tone('coat_dark', 0.0, 0.9), tone('lining', 0.0, 0.75), depth=0.04, cap=False)  # (the shirt fills it)
     # The seam across the top of the yoke, where it meets the quilting.
     # The high collar, zipped up snug round the neck, standing higher at the back.
     collar = [section(Vector((0, y, 0.0)), w, f, b, 14, power=2.2) for y, w, f, b in ((1.38, 0.13, 0.09, 0.1), (1.44, 0.088, 0.072, 0.086), (1.5, 0.077, 0.066, 0.08), (1.54, 0.079, 0.068, 0.082))]
     collar = [[q + Vector((0, 0.035 * max(0.0, -q.z) / 0.08 * (i / 3), 0)) for q in ring] for i, ring in enumerate(collar)]
     loft(p, collar, lambda i, k, c, n: tone('coat_dark' if i >= 2 else 'coat', 0.0), cap_start=False, cap_end=False)
+    # (Its top edge rolled over, the lining showing inside, round the neck.)
+    cloth_edge(p, collar[-1], (0, 1, 0), 0.008, tone('coat_dark', 0.0), tone('lining', 0.0, 0.7), depth=0.03, cap=False)
     # The hood, rolled up and stowed at the back of the collar: a soft, low roll.
     hood = [section(Vector((0, y, -0.08)), w, f, b, 12, power=2.0) for y, w, f, b in ((1.39, 0.085, 0.03, 0.045), (1.43, 0.098, 0.034, 0.054), (1.468, 0.09, 0.03, 0.047), (1.49, 0.065, 0.02, 0.03))]
     loft(p, hood, lambda i, k, c, n: tone('coat_fold' if n.y < 0 else 'coat', 0.0), cap_end=True)
@@ -524,20 +680,38 @@ def arms(parts):
         # The shirt's sleeve, under the jacket's: plaid wool, buttoned at the wrist.
         sh = Part(['spine', f'upperarm_{side}', f'lowerarm_{side}', f'hand_{side}'])
         sh.corner = lambda q, s=s: plaid_at(math.atan2(q.z, (q.x - ARM_X['lowerarm'] * s) * s) * 0.05, q.y)
-        tube_between(sh, shoulder + Vector((-0.05 * s, -0.035, 0)), elbow, [(0.04, 0.044), (0.05, 0.05), (0.049, 0.048), (0.046, 0.045)], lambda i, k, c, n: None, sides=9, cap_start=False)
-        tube_between(sh, elbow + Vector((0, 0.02, 0)), wrist + Vector((0, 0.025, 0)), [(0.046, 0.045), (0.042, 0.041), (0.038, 0.037)], lambda i, k, c, n: None, sides=9, cap_start=False)
-        tube_between(sh, wrist + Vector((0, 0.055, 0)), wrist + Vector((0, 0.015, 0)), [(0.041, 0.04), (0.04, 0.039)], lambda i, k, c, n: tone('shirt_dark', 0.0), sides=9)
+        # (Creased where the cloth bunches: in the crook of the elbow and gathered above the cuff.)
+        def creases(at, amount, count=5):
+            return lambda t, ang: 1 + amount * math.sin(ang * 3 + t * count * math.tau) * bump(t, at, 0.25)
+        tube_between(sh, shoulder + Vector((-0.05 * s, -0.035, 0)), elbow, [(0.04, 0.044), (0.05, 0.05), (0.049, 0.048), (0.047, 0.046), (0.047, 0.046)], lambda i, k, c, n: None,
+                     sides=12, cap_start=False, cap_end=True, ripple=lambda t, ang: creases(0.85, 0.07)(t, ang) * (1 + 0.025 * math.sin(ang * 2 + t * 9)))
+        tube_between(sh, elbow + Vector((0, 0.02, 0)), wrist + Vector((0, 0.05, 0)), [(0.043, 0.042), (0.044, 0.043), (0.042, 0.041), (0.041, 0.04), (0.04, 0.039)], lambda i, k, c, n: None,
+                     sides=12, cap_start=True, cap_end=False, ripple=lambda t, ang: creases(0.15, 0.07)(t, ang) * creases(0.82, 0.09, 7)(t, ang) * (1 + 0.025 * math.sin(ang * 2 - t * 8)))
+        # The cuff: a band standing off the sleeve, buttoned on the outside, its open end the
+        # cloth's thickness (the glove's gauntlet over it).
+        cuff = tube_between(sh, wrist + Vector((0, 0.058, 0)), wrist + Vector((0, 0.012, 0)), [(0.044, 0.043), (0.044, 0.043), (0.043, 0.042)], lambda i, k, c, n: tone('shirt', 0.0, 0.88),
+                            sides=9, cap_start=True, cap_end=False)
+        cloth_edge(sh, cuff[-1], wrist + Vector((0, 0.012, 0)) - (wrist + Vector((0, 0.058, 0))), 0.005, tone('shirt', 0.0, 0.8), tone('shirt_dark', 0.0, 0.55))
+        button = wrist + Vector((s * 0.0445, 0.035, 0.0))
+        sh.add_out([button + Vector((0, math.sin(t) * 0.005, math.cos(t) * 0.005)) for t in (math.tau * j / 6 for j in range(6))], Vector((s, 0, 0)), tone('button', 0.0))
         parts.append(sh)
         upper_a = shoulder + Vector((-0.06 * s, -0.04, 0))
         tube_between(p, upper_a, elbow, sleeve(upper_a, elbow, [(0.045, 0.05), (0.068, 0.066), (0.068, 0.065), (0.063, 0.06), (0.058, 0.056)], 18), quilt, sides=9, cap_start=False)
         lower_a, lower_b = elbow + Vector((0, 0.02, 0)), wrist + Vector((0, 0.02, 0))
-        tube_between(p, lower_a, lower_b, sleeve(lower_a, lower_b, [(0.06, 0.058), (0.055, 0.052), (0.05, 0.048)], 14), quilt, sides=9, cap_start=False)
-        # (The jacket's elastic cuff, on the jacket.)
-        tube_between(p, wrist + Vector((0, 0.05, 0)), wrist - Vector((0, 0.01, 0)), [(0.054, 0.052), (0.05, 0.048)], lambda i, k, c, n: tone('coat_dark', 0.02), sides=9)  # cuff
+        sleeve_end = tube_between(p, lower_a, lower_b, sleeve(lower_a, lower_b, [(0.06, 0.058), (0.055, 0.052), (0.05, 0.048)], 14), quilt, sides=9, cap_start=False, cap_end=False)
+        # (The sleeve's end: a padded lip over the cuff, the cloth's thickness.)
+        cloth_edge(p, sleeve_end[-1], lower_b - lower_a, 0.008, tone('coat_dark', 0.0), tone('coat_dark', 0.0, 0.55), depth=0.02, cap=False)
+        # (The jacket's elastic cuff, ribbed, its opening round the glove.)
+        rib = lambda t, ang: 1 + 0.035 * math.cos(ang * 9)
+        cuff = tube_between(p, wrist + Vector((0, 0.05, 0)), wrist - Vector((0, 0.01, 0)), [(0.052, 0.05), (0.05, 0.048), (0.049, 0.047)],
+                            lambda i, k, c, n: tone('coat_dark', 0.0, 0.92 if k % 2 else 1.0), sides=9, cap_start=False, cap_end=False, ripple=rib)
+        cloth_edge(p, cuff[-1], Vector((0, -1, 0)), 0.005, tone('coat_dark', 0.0, 0.9), tone('coat_dark', 0.0, 0.5), depth=0.015, cap=False)
         # The hand, in a wool glove: a palm, the fingers together and curled a little, a thumb.
         h = Part([f'hand_{side}'])
         glove = lambda i, k, c, n: tone('glove', 0.0, 0.9 if n.y < -0.5 else 1.0)
-        tube_between(h, wrist + Vector((0, 0.03, 0)), wrist - Vector((0, 0.015, 0)), [(0.05, 0.046), (0.046, 0.042), (0.04, 0.032)], lambda i, k, c, n: tone('glove_cuff', 0.0, 0.92 if k % 2 else 1.0), sides=9)
+        gauntlet = tube_between(h, wrist + Vector((0, 0.03, 0)), wrist - Vector((0, 0.015, 0)), [(0.05, 0.046), (0.046, 0.042), (0.04, 0.032)],
+                                lambda i, k, c, n: tone('glove_cuff', 0.0, 0.92 if k % 2 else 1.0), sides=9, cap_start=False)
+        cloth_edge(h, gauntlet[0], Vector((0, 1, 0)), 0.004, tone('glove_cuff', 0.0, 0.85), tone('glove_cuff', 0.0, 0.5), depth=0.01, cap=False)  # (its knitted rim)
         # (Hanging relaxed: the palm toward the thigh, so the hand is broad seen from the side
         # and narrow from the front; the fingers curl a little in toward the leg, the thumb
         # lies along the front of the hand.)
