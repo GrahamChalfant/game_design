@@ -52,7 +52,7 @@ const DRAW_LENGTH = 0.36; // meters the string is drawn back at full draw, towar
 const DRAW_GRIP = new THREE.Vector3(-0.02, -0.075, -0.62);
 // At full draw the nock's under your eye and a little below the arrow rest (at your chin).
 const NOCK_ANCHOR = { x: 0, drop: 0.035 }; // the bow hand at full draw: the arrow just under your eye
-const ARROW_REST = new THREE.Vector3(-0.03, 0.058, 0); // where the shaft lies, from the bow hand's grip: on top of the fist, left of the stave
+const ARROW_REST = new THREE.Vector3(0.03, 0.058, 0); // where the shaft lies, from the bow hand's grip: on top of the fist, on the right of the stave (the side toward you, the inside)
 const REACH = 0.35; // the share of the draw spent bringing the arrow to the string
 const HAND_OFF = new THREE.Vector3(0.24, -0.44, -0.3); // the right hand, out of sight below, while you hold the bow
 // The right hand, from the nock, its fingers round the string: on the string at first, and at full
