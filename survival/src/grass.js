@@ -47,7 +47,41 @@ function faceUp(geometry) {
 // tuft model, grown chunk by chunk around the player. Each tuft is a single blade until its
 // model loads. The forest floor's moss, ferns, shrubs, branches and so on (groundCover.js)
 // grow with them, kept clear of `obstacles` (trunks, rocks), with roots round the `trees`.
+// The grass, ferns and brush lie flat round animals and the player (otherwise a rabbit's lost in
+// grass taller than it is). Up to TRAMPLE_COUNT circles at once: see trample().
+const TRAMPLE_COUNT = 12;
+const FLATTENED = 0.2; // how tall the grass is in the middle of a circle (a share of its height)
+
 export function createGrass(seed, terrain, bounds, { trees = null, obstacles = null } = {}) {
+  const tramples = { value: Array.from({ length: TRAMPLE_COUNT }, () => new THREE.Vector3()) };
+  // Adds the flattening to a material of tufts (drawn instanced, each tuft's origin at its root).
+  const flattens = (material) => {
+    const before = material.onBeforeCompile;
+    const key = material.customProgramCacheKey;
+    material.onBeforeCompile = (shader, renderer) => {
+      before?.call(material, shader, renderer);
+      shader.uniforms.uTrample = tramples;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+uniform vec3 uTrample[${TRAMPLE_COUNT}];`)
+        .replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>
+          #ifdef USE_INSTANCING
+          vec2 trampleRoot = instanceMatrix[3].xz;
+          float squash = 1.0;
+          for (int i = 0; i < ${TRAMPLE_COUNT}; i++) {
+            vec3 t = uTrample[i];
+            if (t.z <= 0.0) continue;
+            squash = min(squash, mix(${FLATTENED.toFixed(2)}, 1.0, smoothstep(t.z * 0.45, t.z, distance(trampleRoot, t.xy))));
+          }
+          transformed.y *= squash;
+          #endif`,
+        );
+    };
+    material.customProgramCacheKey = () => `${key?.call(material) ?? ''}-trample`;
+    return material;
+  };
   const geometry = new THREE.PlaneGeometry(0.2, 1, 1, 4).translate(0, 0.5, 0);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i++) {
@@ -86,9 +120,9 @@ export function createGrass(seed, terrain, bounds, { trees = null, obstacles = n
         '#include <color_fragment>\ndiffuseColor.rgb *= mix(0.8, 1.0, min(vBladeHeight, 1.0));',
       );
   };
-  const material = grassMaterial();
+  const material = flattens(grassMaterial());
   // The tufts are cards of fine blades (look.js), with a material of their own.
-  const blades = bladeMaterial(grassMaterial());
+  const blades = flattens(bladeMaterial(grassMaterial()));
 
   // Each chunk grows its own tufts from the map's seed, so they're the same every time it's
   // drawn. Chunks out of sight are forgotten and grown again when you come back.
@@ -191,6 +225,7 @@ export function createGrass(seed, terrain, bounds, { trees = null, obstacles = n
     return kind;
   });
   const cover = coverParts();
+  for (const m of new Set([cover.material, ...Object.values(cover.materials)])) flattens(m);
   for (const name of COVER_KINDS) kinds.push({ name, geometry: cover.shapes[name], material: cover.materials[name] ?? cover.material, mesh: null });
   let shownKeys = [];
   const draw = () => {
@@ -263,6 +298,14 @@ export function createGrass(seed, terrain, bounds, { trees = null, obstacles = n
       uniforms.uTime.value = time;
       last = { x, z };
       drawAround(x, z, now);
+    },
+    // Flattens the grass in these circles ([{ x, z, radius }], up to TRAMPLE_COUNT), till the next call.
+    trample(circles) {
+      tramples.value.forEach((t, i) => {
+        const c = circles[i];
+        if (c) t.set(c.x, c.z, c.radius);
+        else t.z = 0;
+      });
     },
     // Removes the grass within `radius` of (x, z), e.g. under a campfire.
     clear(x, z, radius) {

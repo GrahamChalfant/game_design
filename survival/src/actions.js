@@ -28,7 +28,7 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ sfx = () => {}, input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, aimPoint }) {
+export function createActions({ sfx = () => {}, input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, aimPoint, launchPoint }) {
   let searching = 0;
   let using = 0; // seconds spent eating or bandaging so far
   let usingItem = null;
@@ -457,22 +457,20 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         if (drawing === 0) sfx('bow-draw');
         drawing = Math.min(BOW_DRAW_TIME, drawing + dt);
         const draw = drawing / BOW_DRAW_TIME;
-        if (target) player.facing = Math.atan2(target.x - x, target.z - z);
+        player.facing = Math.atan2(target.x - x, target.z - z);
         const { range } = arrowFlight(draw);
-        const away = target ? Math.hypot(target.x - x, target.z - z) : 0;
+        const away = Math.hypot(target.x - x, target.z - z);
         progress = draw;
         busy = 'draw';
         player.drawAmount = draw;
-        prompt = draw < BOW_MIN_DRAW ? 'Drawing…' : `${draw >= 1 ? 'Fully drawn' : 'Drawing…'} · reaches ${Math.round(range)} m${away > range ? ' (not that far)' : ''} · let go to shoot`;
+        prompt = draw < BOW_MIN_DRAW ? 'Drawing…' : `${draw >= 1 ? 'Fully drawn' : 'Drawing…'} · flies true to ${Math.round(range)} m${away > range ? ' (it will drop short)' : ''} · let go to shoot`;
       } else if (drawing > 0) {
         // Let go: loose the arrow (unless the bow was barely drawn).
         const draw = drawing / BOW_DRAW_TIME;
         if (draw >= BOW_MIN_DRAW) {
           bowReady = BOW_COOLDOWN;
           inventory.remove('arrow', 1);
-          const from = player.ahead(0.5);
-          const aim = target ?? player.ahead(30);
-          arrows.fire(from.x, from.z, aim.x, aim.z, draw);
+          arrows.fire(launchPoint(), target, draw);
           sfx('bow-shoot');
           bow.durability -= 1;
           if (bow.durability <= 0) {

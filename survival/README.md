@@ -240,6 +240,9 @@ until you get too close, then bolt. Both run faster than you, and deer spook fro
 farther away (12 m standing, 5 m crouched), so you won't catch them by chasing. Press C to
 crouch: animals notice you much later.
 
+Rabbits (a few about you at any time, mostly out in the open: snowshoe hares, a bit bigger than a
+cottontail) and deer flatten the grass where they sit, as you do where you stand, so you can make
+them out instead of losing them in it.
 To catch rabbits, press Tab and craft a trap (3 sticks and 1 rope), then select it and click to
 set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
 close while you're nearby. When one is caught, press E at the trap for 2 raw meat, a hide and some intestines. This breaks the trap, so you'll
@@ -251,9 +254,12 @@ intestines.
 To hunt deer, make a bow. Stones lie in little groups by the rocks and the lake shore (press E
 to pick them up); a taken stone comes back three days later, so once you've picked an area clean you'll need to look further afield. A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
 (3 sticks, 2 bowstrings), and once you hold a bow, arrows (1 stick and 1 stone make 3). Select the
-bow, aim at the ground with the mouse and hold the button to draw (you turn to aim and walk slowly);
-let go to shoot. The further you draw, the faster and further the arrow flies (8–30 m): it arcs to
-where you aimed and can be seen in flight, so a running animal can get away. One hit kills a deer or
+bow, aim with the crosshair (or the mouse) and hold the button to draw (you turn to aim and walk
+slowly); let go to shoot. The arrow leaves the middle of the bow and flies at what you aimed at,
+nearly straight, then drops as it goes on. The further you draw, the faster it flies and the
+further it holds true (10 m on a light draw, 55 m drawn all the way; aim further and it drops
+short). Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
+follow one in flight, and a running animal can get away. One hit kills a deer or
 a rabbit, which stumbles on and falls over, with the arrow stuck in it; hold E next to
 it to butcher it (a deer takes 4 s and gives 6 raw meat, 2 hides and 2 intestines). The bow
 breaks after 30 shots. An arrow that misses lands in the ground, where you can pick it up again. All the numbers are in `src/hunting.js`.

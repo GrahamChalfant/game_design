@@ -10,7 +10,12 @@ import { fleeDistance } from './hunting.js';
 // (the player walks at 5, so both outrun the player when scared).
 const KINDS = {
   rabbit: {
-    count: 1, // (animals are few and far between up here: 2 about you in all, a quarter of what there were)
+    count: 4, // about you at any time (they're small, and keep to the grass: you need a few to see one)
+    spawnDistance: [14, 60], // (closer in than deer: a rabbit's hard to make out much further off)
+    // Keeps to the open, mostly: in the woods, the ferns and brush on the forest floor hide it
+    // altogether. (This is the chance it'll take a spot in thick woods.)
+    woods: 0.2,
+    size: 1.25, // drawn a bit bigger than its model: a snowshoe hare, not a cottontail
     radius: 0.25,
     wanderSpeed: 1.6,
     fleeSpeed: 7,
@@ -25,6 +30,7 @@ const KINDS = {
   },
   deer: {
     count: 1,
+    spawnDistance: [25, 90],
     radius: 0.6,
     wanderSpeed: 1.2,
     fleeSpeed: 9,
@@ -35,11 +41,12 @@ const KINDS = {
     placeholder: placeholders.deer,
   },
 };
-// Animals live around the player, wherever they go on the map: they appear between these
-// distances (out of sight, but close enough to find), and any that end up further away than
-// WANDERED_OFF are moved somewhere new around the player.
-const SPAWN_DISTANCE = [25, 90];
+// Animals live around the player, wherever they go on the map: they appear between each kind's
+// spawnDistance (out of sight, but close enough to find), and any that end up further away than
+// WANDERED_OFF are moved somewhere new around the player. (A rabbit drawn to a trap stays by it,
+// however far you go, and another appears about you in its place: up to EXTRA of them.)
 const WANDERED_OFF = 130;
+const EXTRA = 3;
 const RESPAWN_TIME = 60; // seconds before a caught animal is replaced
 // A killed animal stumbles on (if it was running) for STUMBLE_TIME seconds; its legs stop and
 // it starts to fall at FALL_START, and lies on its side FALL_TIME seconds later.
@@ -114,6 +121,7 @@ export class Animals {
   useModel(animal, model) {
     animal.object.remove(animal.body);
     animal.body = cloneSkinned(model);
+    animal.body.scale.multiplyScalar(animal.config.size ?? 1);
     animal.body.traverse((child) => {
       child.castShadow = true;
       // Its animations move it beyond where three.js thinks it is, so always draw it.
@@ -219,6 +227,15 @@ export class Animals {
       if (lured) continue;
       if (animal.dead) this.remove(animal); // a carcass left far behind
       else this.relocate(animal, playerPosition);
+    }
+
+    // Keep `count` of each kind about you, not counting those left by traps far behind.
+    for (const [kind, config] of Object.entries(KINDS)) {
+      const near = this.all.filter((a) => a.kind === kind && !a.dead &&
+        Math.hypot(a.position.x - playerPosition.x, a.position.z - playerPosition.z) < WANDERED_OFF).length;
+      const total = this.all.filter((a) => a.kind === kind).length;
+      const pending = this.respawns.filter((r) => r.kind === kind).length;
+      if (near + pending < config.count && total + pending < config.count + EXTRA) this.respawns.push({ kind, timer: RETRY_TIME });
     }
 
     for (const respawn of this.respawns) respawn.timer -= dt;
@@ -349,16 +366,17 @@ export class Animals {
     return this.world.obstacles.isClear(x, z, radius);
   }
 
-  // Somewhere free in a ring around the player (see SPAWN_DISTANCE).
+  // Somewhere free in a ring around the player (see each kind's spawnDistance).
   findSpot(playerPosition, radius, kind) {
     for (let tries = 0; tries < 200; tries++) {
       const angle = this.random.range(0, Math.PI * 2);
-      const distance = this.random.range(...SPAWN_DISTANCE);
+      const distance = this.random.range(...KINDS[kind].spawnDistance);
       const x = playerPosition.x + Math.cos(angle) * distance;
       const z = playerPosition.z + Math.sin(angle) * distance;
       if (!this.isFree(x, z, radius + 0.5)) continue;
       // How common this kind is in the region there (see REGIONS in layout.js).
-      const common = REGIONS[this.world.regionAt(x, z)]?.animals[kind] ?? 1;
+      let common = REGIONS[this.world.regionAt(x, z)]?.animals[kind] ?? 1;
+      if (KINDS[kind].woods !== undefined && this.world.terrain.forest(x, z) > 0.1) common *= KINDS[kind].woods;
       if (this.random.next() < common) return { x, z };
     }
     return null;
