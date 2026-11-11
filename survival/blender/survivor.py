@@ -24,6 +24,7 @@ importlib.reload(player_anim)
 
 OUT = os.path.join(HERE, '..', 'public', 'models', 'player.glb')
 RIG = globals().get('RIG', OUT)
+random.seed(1802)  # (so the colours' little variations come out the same every time)
 # The jacket's body, from its hem up to the shoulders: (height, half width, front, back).
 TORSO = ((0.84, 0.205, 0.135, 0.125), (0.9, 0.195, 0.128, 0.12), (1.02, 0.18, 0.122, 0.115), (1.16, 0.184, 0.135, 0.12),
          (1.27, 0.19, 0.13, 0.125), (1.35, 0.192, 0.12, 0.118), (1.41, 0.184, 0.105, 0.108), (1.445, 0.15, 0.09, 0.098), (1.465, 0.105, 0.08, 0.088))
@@ -1083,7 +1084,7 @@ for side, s_ in (('L', 1), ('R', -1)):
 bpy.ops.object.mode_set(mode='OBJECT')
 # The animations, authored fresh (player_anim.py; it adds the foot bones too). Any older copies
 # of them in the file go, so only these are exported.
-CLIPS = ('idle', 'walk', 'sneak', 'crouch', 'jump', 'chop', 'drink', 'swim', 'die')
+CLIPS = ('idle', 'walk', 'run', 'sneak', 'crouch', 'jump', 'chop', 'drink', 'swim', 'die')
 player_anim.animate(arm, [act for act in bpy.data.actions if act.name.split('.')[0] in CLIPS])
 for ob in [ob for ob in brought if ob.type == 'MESH' and ob.name.split('.')[0] in ('player', 'player-details', 'player-hair', 'player-pack', 'player-jacket')]:
     brought.remove(ob)
@@ -1132,8 +1133,11 @@ bpy.ops.object.select_all(action='DESELECT')
 for ob in brought:
     ob.select_set(True)
 bpy.context.view_layer.objects.active = arm
+# (Each mesh's active colour layer, written out whether or not the exporter thinks its material
+# uses it: newer Blenders otherwise leave the body's colours out.)
 bpy.ops.export_scene.gltf(filepath=os.path.abspath(OUT), export_format='GLB', use_selection=True, export_apply=True,
-                          export_animations=True, export_animation_mode='ACTIONS', export_skins=True)
+                          export_animations=True, export_animation_mode='ACTIONS', export_skins=True,
+                          export_vertex_color='ACTIVE')
 print(f'@@ player.glb: {len(body.data.polygons)} tris in the body')
 for ob in brought:
     bpy.data.objects.remove(ob)
