@@ -17,7 +17,7 @@ import { HOTBAR_SIZE, ITEMS, Inventory } from './inventory.js';
 import { Pickups } from './pickups.js';
 import { Bushes } from './bushes.js';
 import { createRandom } from './random.js';
-import { Player } from './player.js';
+import { Player, STAMINA } from './player.js';
 import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
 import { Traps } from './traps.js';
@@ -704,6 +704,7 @@ renderer.setAnimationLoop(() => {
   campfires.update(survival.alive ? dt * survival.clockSpeed * TIME_SPEED : 0, clock.elapsedTime);
   if (!survival.alive && player.alive) player.die();
   hud.update(survival, inventory, actions);
+  hud.updateStamina(dt, player.stamina / STAMINA.max, player.winded);
   // The Nearby box: what's on the ground within reach (1.5 m, five feet), while the menu's open.
   if (hud.inventoryOpen) hud.showNearby(player.cave ? [] : pickups.within(player.position.x, player.position.z, NEARBY_REACH));
   updateCompass();
