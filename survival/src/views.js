@@ -28,6 +28,10 @@ const SHADE = { shadow: 0.55, fill: 1.6, exposure: 1.12 };
 const NEAR_FADE = { third: 3.2, first: 0.9 };
 const FAR = 650; // meters the camera draws to: past the haze on the clearest day
 
+// How close to the eye the camera draws: in first person your hands come right up to your face
+// (drawing the bow, eating), so nearer than over the shoulder.
+const NEAR = { first: 0.03, third: 0.1 };
+
 export function createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour, start = 'third' }) {
   const sky = createSky(scene, ambient, hour);
   let view = VIEWS.includes(start) ? start : 'third';
@@ -54,6 +58,7 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     redrawModels();
     world.drawAround(player.position.x, player.position.z); // (build the newly drawn ground now)
     farView.setAlways(true);
+    camera.near = NEAR[view];
     camera.far = FAR;
     camera.fov = view === 'first' ? 70 : 60;
     camera.updateProjectionMatrix();
@@ -71,7 +76,7 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     },
     // Puts the camera's draw distance and field of view back (after the binoculars).
     restoreCamera() {
-      camera.near = 0.1;
+      camera.near = NEAR[view];
       camera.far = FAR;
       camera.fov = view === 'first' ? 70 : 60;
       camera.updateProjectionMatrix();

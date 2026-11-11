@@ -1,4 +1,6 @@
-# Your own arms in the first-person view (fp-arms.glb; see src/handView.js): each a sleeve
+# (The game's hands are now fp_hands.py's jointed ones, fp-hands.glb, which take their sleeves
+# from here; the closed-fist gloves below are no longer used.)
+# Your own arms in the first-person view (fp-arms.glb): each a sleeve
 # from the wrist back towards the elbow, with soft folds and a cuff, and a hand in a dark wool
 # glove, closed in a fist round a handle (to hold the axe, the knife, the torch, or the bow).
 #   fp-right-glove, fp-right-sleeve, fp-left-glove, fp-left-sleeve
@@ -62,5 +64,7 @@ def sleeve(side):
     return build('fp-right-sleeve' if side > 0 else 'fp-left-sleeve', b, shared('fp-sleeve', 0.95))
 
 
-export([glove(1), sleeve(1), glove(-1), sleeve(-1)], 'fp-arms.glb')
-print('@@ first person done')
+# (fp_hands.py runs this file for its sleeves alone: DEFS_ONLY.)
+if not globals().get('DEFS_ONLY'):
+    export([glove(1), sleeve(1), glove(-1), sleeve(-1)], 'fp-arms.glb')
+    print('@@ first person done')
