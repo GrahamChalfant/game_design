@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
 import { SIP_TIME } from './player.js';
+import { GRIP_CENTRE, HandRig } from './handRig.js';
 
 // What you see of your own hands in the first-person view: your arms in their sleeves, in wool
-// gloves (fp-arms.glb, from blender/first_person.py), and whatever's in your hands: the axe,
+// gloves with jointed fingers (fp-hands.glb, from blender/fp_hands.py, bent by handRig.js to close
+// round what they hold), and whatever's in your hands: the axe,
 // the knife or a torch in the right, the bow in the left (the right draws the string). They
 // move as you chop, stab, draw the bow or walk; bandaging brings the left arm up too. The
 // player's own model is hidden from the camera in this view (it would be all inside your
@@ -40,10 +42,13 @@ const REACH = 0.35; // the share of the draw spent bringing the arrow to the str
 const HAND_OFF = new THREE.Vector3(0.24, -0.44, -0.3); // the right hand, out of sight below, while you hold the bow
 // The right hand, from the nock, its fingers round the string: on the string at first, and at full
 // draw tucked under your jaw (below and right of the nock, out of the way of your eye).
-const PINCH = new THREE.Vector3(0.05, -0.11, 0.035); // (below the nock, so the arrow on the bow hand shows)
-const ANCHOR = new THREE.Vector3(0.06, -0.085, 0.03);
+// Three fingers hooked round the string, the nock between the first and second: where that hook
+// is from the hand's grip point (in the hand's own space). The hand's turned about it so the
+// forearm runs back and down toward your shoulder (ON_STRING), more so at the anchor (ANCHORED).
+const HOOK = new THREE.Vector3(-0.006, 0.02, -0.046);
 const CARRY = new THREE.Vector3(0, 0.01, 0.07); // the arrow's nock, from the right hand, as it brings the arrow up (in the fist, nock toward you)
-const ON_STRING = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, 0.5, -1.4));
+const ON_STRING = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.45, 0.3, 0)); // (palm to the left, the fingers' hook upright round the string)
+const ANCHORED = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.75, 0.45, 0.1));
 const AT_REST = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.15, 0.3, -0.12));
 const LET_GO = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.6, 0.9, -1.0)); // (fingers opened, hand turned away)
 const RELEASE = { snap: 0.07, quiver: 16, follow: 0.12, away: 0.5 }; // seconds: string settles, Hz, follow-through, hand drops away
@@ -81,7 +86,7 @@ export class HandView {
     const glove = new THREE.MeshLambertMaterial({ color: GLOVE });
     this.sleeves = [sleeve]; // (tinted the colour of what you're wearing)
     // An arm: the sleeve runs back from the wrist (toward the shoulder, off screen), and the
-    // gloved fist round the grip. Simple shapes until fp-arms.glb loads (see below).
+    // gloved fist round the grip. Simple shapes until fp-hands.glb loads (see below).
     const arm = (side) => {
       const wrist = new THREE.Group();
       const shapes = new THREE.Group();
@@ -97,21 +102,38 @@ export class HandView {
     };
     this.right = arm(1);
     this.left = arm(-1);
-    loadModel('fp-arms').then((model) => {
+    // The hands themselves: jointed, gloved (fp-hands.glb), their fingers bent by a HandRig to
+    // close round what they hold. Each placed so a handle in its grip runs through its origin.
+    this.rigs = null;
+    this.grips = { right: 'relaxed', left: 'relaxed' };
+    loadModel('fp-hands').then((model) => {
       if (!model) return;
-      for (const [side, wrist] of [['right', this.right], ['left', this.left]]) {
-        const fist = model.getObjectByName(`fp-${side}-glove`);
-        const cloth = model.getObjectByName(`fp-${side}-sleeve`);
-        if (!fist || !cloth) continue;
+      const rigs = {};
+      for (const [side, wrist, s, sign] of [['right', this.right, 'r', 1], ['left', this.left, 'l', -1]]) {
+        const found = model.getObjectByName(`fp-${s}-hand`);
+        if (!found) return;
+        const hand = found.clone();
+        hand.position.set(-GRIP_CENTRE.x * sign, -GRIP_CENTRE.y, -GRIP_CENTRE.z);
+        const cloth = hand.getObjectByName(`fp-${side}-sleeve`);
+        if (cloth) {
+          cloth.material = cloth.material.clone();
+          this.sleeves.push(cloth.material);
+        }
+        hand.traverse((child) => (child.frustumCulled = false));
         wrist.remove(wrist.userData.shapes);
-        const parts = new THREE.Group();
-        const sleeveCopy = cloth.clone();
-        sleeveCopy.material = cloth.material.clone();
-        this.sleeves.push(sleeveCopy.material);
-        parts.add(fist.clone(), sleeveCopy);
-        parts.traverse((child) => (child.frustumCulled = false));
-        wrist.add(parts);
+        wrist.add(hand);
+        rigs[side] = new HandRig(hand, sign);
       }
+      this.rigs = rigs;
+      // A match is held at the tip of the index finger (pinched against the thumb), pointing out.
+      for (const [key, rig] of [['match', rigs.right], ['matchLeft', rigs.left]]) {
+        const tip = rig.parts.index[2].part;
+        const match = this.props[key];
+        tip.add(match);
+        match.position.set(-0.008 * rig.side, 0.002, -0.014);
+        match.rotation.set(-0.6, 0, -0.5 * rig.side);
+      }
+      this.onHands?.();
     });
 
     // What the right hand can hold. Each is shown, fitted to the fist, while it's selected.
@@ -187,8 +209,9 @@ export class HandView {
       this.props[key] = group;
       return group;
     };
-    prop('lighter', this.right, (g) => g.position.set(0, 0.045, 0));
-    prop('lighterLeft', this.left, (g) => g.position.set(0, 0.045, 0));
+    // (Held in the fist, its top standing up out of it.)
+    prop('lighter', this.right, (g) => g.position.set(0, 0.004, 0));
+    prop('lighterLeft', this.left, (g) => g.position.set(0, 0.004, 0));
     // (A match is drawn a little bigger than life: it's a thin thing to see.)
     prop('match', this.right, (g) => {
       g.position.set(0, 0.05, -0.02);
@@ -199,20 +222,22 @@ export class HandView {
       g.scale.setScalar(1.3);
     });
     // (The box held in the fingers, its label tipped toward you.)
+    // (The box stood on its end in the fingers, its striker up for the match.)
     prop('matchbox', this.right, (g) => {
-      g.position.set(0, 0.04, 0);
-      g.rotation.set(0.55, 0.2, 0);
+      g.position.set(-0.004, 0, -0.006);
+      g.rotation.set(0, 0, -Math.PI / 2);
     });
     prop('matchboxLeft', this.left, (g) => {
-      g.position.set(0, 0.04, 0);
-      g.rotation.set(0.55, -0.2, 0);
+      g.position.set(0.004, 0, -0.006);
+      g.rotation.set(0, 0, Math.PI / 2);
     });
+    // (Its flat side against the palm, the fingers round the far face.)
     prop('flask', this.right, (g) => {
-      g.position.set(0, 0.075, 0.005);
-      g.rotation.y = 0.35;
+      g.position.set(-0.012, 0.035, -0.012);
+      g.rotation.y = Math.PI / 2;
     });
     prop('meat', this.right, (g) => {
-      g.position.set(0, 0.07, -0.01);
+      g.position.set(-0.01, 0.03, -0.012);
       g.rotation.set(0.2, 0, Math.PI / 2);
       g.scale.setScalar(0.42);
     });
@@ -362,6 +387,10 @@ export class HandView {
     let right = null; // { p, q } where each hand's going this frame, or null: down out of sight
     let left = null;
     let snap = false; // straight there (a quick, exact move), rather than easing in
+    const grips = this.grips; // how each hand's fingers close (see GRIPS in handRig.js)
+    grips.right = 'relaxed';
+    grips.left = 'relaxed';
+    const HOLD = { lighter: 'lighter', matches: 'box', flask: 'wide', meat: 'wide', berries: 'wide', bandage: 'wide' };
     const bow = tool === 'bow' && !['bandage', 'eat', 'drinkWater'].includes(busy);
     const rest = (x, y, z, rx, ry, rz) => {
       const at = pose(x, y, z, rx, ry, rz);
@@ -370,6 +399,7 @@ export class HandView {
     };
 
     if (busy === 'drinkWater') {
+      grips.right = grips.left = 'cup';
       // Kneeling at the water: both hands down into it, cupped, and up to your mouth.
       for (const group of Object.values(this.tools)) group.visible = false;
       this.flame.visible = false;
@@ -385,6 +415,7 @@ export class HandView {
     } else if (bow) {
       this.animateBow(dt, busy === 'draw' ? player.drawAmount : null, [bob.x, bob.y]);
     } else if (player.chopping || player.swingTime > 0) {
+      grips.right = grips.left = 'handle';
       // A swing of the axe, both hands on it: drawn back up over your right shoulder, brought
       // down hard across in front (gathering speed: it bites at 0.45, with the sound), a jolt
       // as it strikes, and back up ready. In time with the chopping (player.chopPhase), or
@@ -406,6 +437,7 @@ export class HandView {
       left = { p: right.p.clone().add(handle.applyQuaternion(right.q)), q: right.q.clone() };
       snap = true;
     } else if (player.jab > 0 && tool === 'knife') {
+      grips.right = 'handle';
       // A knife jab: punched out ahead, the wrist turning the blade over as it goes.
       const j = player.jab;
       right = pose(0.2 - 0.08 * j, -0.205 + 0.06 * j, -0.42 - 0.28 * j, -0.15 - 0.2 * j, 0.3 - 0.25 * j, -0.12 + 0.35 * j);
@@ -415,6 +447,7 @@ export class HandView {
     } else if (busy === 'lightTorch') {
       ({ right, left } = this.lightTorch(player.busyWith, player.busyProgress, flicker));
     } else if (busy === 'bandage') {
+      [grips.right, grips.left] = ['wide', 'relaxed'];
       // Bandaging: the left forearm held out across in front, the right hand winding the roll
       // round and round it.
       for (const group of Object.values(this.tools)) group.visible = false;
@@ -426,6 +459,7 @@ export class HandView {
       right = pose(0.08 + Math.cos(a) * 0.065, -0.17 + Math.sin(a) * 0.065, -0.44 + Math.sin(a) * 0.02, 0.2, 0.4, 0);
       snap = t > 0.25;
     } else if (busy === 'eat') {
+      grips.right = 'wide';
       // Eating: what's in your hand up to your mouth, a bite (a tug as you tear it), and down
       // again while you chew.
       this.showProp(item, 'right');
@@ -439,6 +473,7 @@ export class HandView {
         [1, pose(0.13, -0.2, -0.37, -0.05, 0.35, -0.15), smooth],
       ], u);
     } else if (busy === 'butcher') {
+      [grips.right, grips.left] = ['handle', 'open'];
       // Over the carcass: the left hand holding it down, the right sawing with the knife.
       for (const group of Object.values(this.tools)) group.visible = false;
       this.tools.knife.visible = true;
@@ -447,6 +482,7 @@ export class HandView {
       left = pose(-0.11, -0.3 + Math.max(0, Math.sin(this.time * 11 + 1)) * 0.012, -0.52, -0.4, -0.25, 0);
       snap = t > 0.25;
     } else if (busy === 'search' || busy === 'searchLow') {
+      grips.right = grips.left = 'claw';
       // Rummaging: both hands in, one then the other, reaching about.
       for (const group of Object.values(this.tools)) group.visible = false;
       this.flame.visible = false;
@@ -458,6 +494,7 @@ export class HandView {
       [right, left] = [reach(1, 0), reach(-1, Math.PI)];
       snap = t > 0.3;
     } else if (player.sipTime > 0 && item === 'flask') {
+      grips.right = 'wide';
       // A drink from the flask: up to your lips, tipped back, and down.
       this.showProp('flask', 'right');
       const u = 1 - player.sipTime / SIP_TIME;
@@ -468,11 +505,14 @@ export class HandView {
         [1, rest(0.15, -0.24, -0.4, -0.1, 0.35, -0.15), smooth],
       ], u);
     } else if (tool === 'axe' || tool === 'knife') {
+      grips.right = 'handle';
       right = rest(...HAND.toArray(), -0.15, 0.3, -0.12);
     } else if (tool === 'torch') {
+      grips.right = 'handle';
       // A torch held low and out ahead, leaning away, its flame off to the right of the view.
       right = rest(0.24, -0.305, -0.54, -0.4, 0.3, -0.12);
     } else if (PROPS.includes(tool)) {
+      grips.right = HOLD[tool];
       // A small thing held up in the right hand, where you can see it.
       this.showProp(item, 'right');
       right = rest(0.13, tool === 'flask' ? -0.22 : -0.175, tool === 'flask' ? -0.4 : -0.37, -0.1, 0.35, -0.15);
@@ -483,6 +523,12 @@ export class HandView {
       this.shot.wasDrawing = false;
       this.place(this.right, right, HAND_OFF, snap, dt);
       this.place(this.left, left, L_OFF, snap, dt);
+    }
+    if (this.rigs) {
+      this.rigs.right.grip(grips.right);
+      this.rigs.left.grip(grips.left);
+      this.rigs.right.update(dt);
+      this.rigs.left.update(dt);
     }
     if (!(player.chopping || player.swingTime > 0)) this.tools.axe.rotation.x = AXE_TILT;
     if (!(busy === 'lightTorch' && player.busyWith === 'fire')) this.tools.torch.rotation.x = TORCH_TILT;
@@ -541,8 +587,10 @@ export class HandView {
   // Lighting a campfire, `p` (0-1) of the way through, with the lighter or a match. Returns the
   // hands' poses.
   lightFire(starter, p, flicker) {
+    const grips = this.grips;
     const down = (side) => pose(side * 0.045 + 0.01, -0.29, -0.52, -0.5, side * 0.3, side * 0.2); // down at the kindling
     if (starter === 'matches') {
+      [grips.right, grips.left] = ['pinch', 'box'];
       // The box comes up in the left hand, a match in the right; the match is struck along
       // the box's side (it flares, then settles), lifted, sheltered, and put to the kindling.
       this.props.matchboxLeft.visible = true;
@@ -571,6 +619,8 @@ export class HandView {
     // The lighter: up in the right hand, the thumb flicks the wheel (a jerk of the hand) and it
     // catches; the left hand comes up to shelter the flame, and both go down to the kindling.
     this.props.lighter.visible = true;
+    [grips.right, grips.left] = ['lighter', p > 0.38 ? 'cup' : 'relaxed'];
+    this.flick('right', p, 0.29, 0.38);
     this.matchFlame('lighter', p > 0.36 ? 1 : 0, flicker);
     const right = along([
       [0, pose(...HAND_OFF.toArray(), -0.15, 0.3, -0.12)],
@@ -593,6 +643,7 @@ export class HandView {
   // Lighting the torch in your right hand, `p` (0-1) of the way through: from `source`, the
   // lighter or a match in your left hand, or 'fire' (held in a campfire's flames).
   lightTorch(source, p, flicker) {
+    this.grips.right = 'handle';
     const catching = (from) => smooth((p - from) / (1 - from));
     if (source === 'fire') {
       // Down and forward into the flames, held there until it catches.
@@ -619,6 +670,8 @@ export class HandView {
     const key = source === 'matches' ? 'matchLeft' : 'lighterLeft';
     this.props[key].visible = true;
     const lightAt = source === 'matches' ? 0.4 : 0.38;
+    this.grips.left = source === 'matches' ? 'pinch' : 'lighter';
+    if (source !== 'matches') this.flick('left', p, lightAt - 0.08, lightAt + 0.01);
     this.matchFlame(key, p > lightAt ? 1 + (source === 'matches' ? 0.9 * Math.exp(-(p - lightAt) * 30) : 0) : 0, flicker);
     const flick = { p: under.p.clone().add(new THREE.Vector3(0.01, -0.012, 0)), q: under.q.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.2, 0, 0.25))) };
     const left = along([
@@ -631,6 +684,16 @@ export class HandView {
     this.flame.visible = p > 0.55;
     this.flame.scale.setScalar(0.32 * flicker * catching(0.55));
     return { right, left };
+  }
+
+  // The thumb rolling the lighter's wheel: down hard across it and back, between `from` and `to` of
+  // the way through (`p`).
+  flick(hand, p, from, to) {
+    const rig = this.rigs?.[hand];
+    if (!rig || p < from || p > to) return;
+    const u = (p - from) / (to - from);
+    const press = u < 0.7 ? smooth(u / 0.7) : 1 - smooth((u - 0.7) / 0.3);
+    rig.extra = { thumb: [0, 0.35 * press, 0.45 * press, 0.3 * press] };
   }
 
   // The little flame on a match or the lighter (`key`), at `size` (0: out), flickering.
@@ -688,9 +751,14 @@ export class HandView {
     const up = -NOCK_ANCHOR.drop * anchor;
     this.pullString(Math.max(-0.02, pull), across, up);
     const nock = new THREE.Vector3(l.position.x + across, rest.y + up, l.position.z + BRACE + Math.max(0, pull));
-    const onString = nock.clone().add(PINCH.clone().lerp(ANCHOR, smooth(pullT)));
+    // (The hand turned about its hook, which stays on the nock.)
+    const turn = ON_STRING.clone().slerp(ANCHORED, smooth(pullT));
+    const onString = nock.clone().sub(HOOK.clone().applyQuaternion(turn));
 
-    // The right hand.
+    // The right hand: the arrow pinched by its nock as it comes up, then three fingers hooked
+    // round the string; they spring open as it goes.
+    this.grips.left = 'handle';
+    this.grips.right = drawing ? (reach < 0.85 ? 'pinch' : 'string') : 'open';
     r.visible = true;
     if (drawing) {
       if (reach < 1) {
@@ -698,10 +766,10 @@ export class HandView {
         r.position.lerpVectors(HAND_OFF, onString, reach);
         r.position.y += Math.sin(reach * Math.PI) * 0.06;
         r.position.x += Math.sin(reach * Math.PI) * 0.03;
-        r.quaternion.slerpQuaternions(AT_REST, ON_STRING, reach);
+        r.quaternion.slerpQuaternions(AT_REST, turn, reach);
       } else {
         r.position.copy(onString);
-        r.quaternion.copy(ON_STRING);
+        r.quaternion.copy(turn);
       }
     } else if (shot.letGo && t < RELEASE.follow + RELEASE.away) {
       // Follow-through: back past your cheek and out, fingers opening; then away out of sight.
@@ -726,9 +794,10 @@ export class HandView {
       const aimed = rest.clone().sub(nock).normalize();
       const carried = new THREE.Vector3(-0.35, 0.25, -1).normalize(); // (pointing up and ahead, across)
       const along = reach < 1 ? carried.lerp(aimed, reach).normalize() : aimed;
-      // (Carried in the fist, then moved along in the fingers to the string: at the end of the
-      // reach the hand's at PINCH from the nock, the pull not yet begun.)
-      this.nocked.position.copy(reach < 1 ? r.position.clone().add(CARRY.clone().lerp(PINCH.clone().negate(), smooth((reach - 0.6) / 0.4))) : nock);
+      // (Carried in the fingers, then put on the string: at the end of the reach the hand's hook
+      // is on the nock, the pull not yet begun.)
+      const hooked = HOOK.clone().applyQuaternion(r.quaternion);
+      this.nocked.position.copy(reach < 1 ? r.position.clone().add(CARRY.clone().lerp(hooked, smooth((reach - 0.6) / 0.4))) : nock);
       this.nocked.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), along);
     }
   }
