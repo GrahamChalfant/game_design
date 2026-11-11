@@ -13,6 +13,11 @@ export function createRandom(seed) {
     next,
     range: (min, max) => min + next() * (max - min),
     pick: (items) => items[Math.floor(next() * items.length)],
+    // Where it's got to, and back there again (to carry on exactly as if it had been run).
+    save: () => state,
+    restore: (saved) => {
+      state = saved >>> 0;
+    },
   };
 }
 
