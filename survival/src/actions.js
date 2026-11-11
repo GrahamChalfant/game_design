@@ -29,7 +29,7 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ sfx = () => {}, input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, aimPoint, launchPoint, lookRay }) {
+export function createActions({ sfx = () => {}, input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, onOpenContainer, aimPoint, launchPoint, lookRay }) {
   let searching = 0;
   let using = 0; // seconds spent eating or bandaging so far
   let usingItem = null;
@@ -360,8 +360,12 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       // The lookout's binoculars: E to look through them and see far across the land.
       prompt = 'Binoculars · E to look through them';
       if (pressedE) onBinoculars();
+    } else if (!fire && container?.searched && container.contents?.length) {
+      // Searched already, with things left in it: E opens it in the menu straight away.
+      prompt = `${container.label[0].toUpperCase()}${container.label.slice(1)} · E to look inside`;
+      if (pressedE) onOpenContainer(container);
     } else if (!fire && container && !container.searched) {
-      // Hold E to search a suitcase; everything inside is yours.
+      // Hold E to search a suitcase: once you have, it opens in the menu, to take what you want.
       searchingNow = input.isDown('KeyE');
       searching = searchingNow ? searching + dt : 0;
       progress = searching / SEARCH_TIME;
@@ -375,8 +379,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         const source = crate ? lookout : poiContainer ? pois : wreck;
         const loot = source.search(container);
         sfx('pickup');
+        // (What's inside stays inside until you take it: { item, count } each.)
+        container.contents = loot.map(([item, count]) => ({ item, count }));
         if (loot.length === 0) hud.toast(`${container.label[0].toUpperCase()}${container.label.slice(1)} is empty`);
-        for (const [item, count] of loot) give(item, count, container.x, container.z);
+        else onOpenContainer(container);
       }
     } else if (!fire && trap) {
       // At a trap: E takes the catch out, or picks the empty trap back up.
@@ -698,6 +704,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     const cold = player.cave ? 0 : world.terrain.coldAt(x, z); // up the mountains (not down a cave)
     return {
       drinking, working: swinging || cuttingSticks, fire: nearFire, shelter: Boolean(shelter), wet, cold, outfit: inventory.outfit, prompt, progress,
+      container: container?.searched && container.contents?.length ? container : null, // (shown in the menu: see main.js)
       // (What the player's busy with, for the sounds.)
       eating: busy === 'eat', searching: searchingNow, bandaging: busy === 'bandage',
     };

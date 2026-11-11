@@ -176,6 +176,10 @@ Each one can be searched once:
 | The brown case | A first-aid kit (3 bandages), 2 rope |
 
 You crouch down to search things on the ground (and stand to search the ranger's locker).
+Once you've searched something, the menu opens with it at the top of the "On the ground" box,
+showing what's inside: drag a thing onto a slot to take it there, click it to take it all, or
+Take all. Whatever you leave stays in it; E at something you've already searched opens it in the
+menu again straight away.
 Select a bandage and click and hold to bandage yourself up (+30 health); craft more from a hide
 (2 bandages each). Eating also takes a moment: click and hold. Keep the lighter (or matches, one used
 each time): you need it to light fires and torches. Save the flare for signalling a rescue (coming later).

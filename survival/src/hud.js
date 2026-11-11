@@ -28,7 +28,7 @@ function unfocusable(button) {
 
 // Shows the survival stats, clock, prompts and game-over screen.
 export class Hud {
-  constructor({ onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onWear, onCraft, onTakeNearby, onFeedFire, onTakeSpit }) {
+  constructor({ onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onWear, onCraft, onTakeNearby, onFeedFire, onTakeSpit, onTakeFromContainer }) {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
@@ -91,6 +91,13 @@ export class Hud {
     this.nearbyGrid = this.nearby.querySelector('.grid');
     this.nearbyShown = '';
     this.onTakeNearby = onTakeNearby;
+    // A container you've searched (a suitcase, a cupboard...), at the top of the Nearby box.
+    this.containerBox = document.getElementById('nearby-container');
+    this.containerGrid = this.containerBox.querySelector('.grid');
+    this.containerShown = '';
+    this.onTakeFromContainer = onTakeFromContainer;
+    const takeAll = unfocusable(this.containerBox.querySelector('.take-all'));
+    takeAll.addEventListener('click', () => onTakeFromContainer(null, null));
     // A campfire within reach, at the top of the Nearby box (see showNearbyFire).
     this.fireBox = document.getElementById('nearby-fire');
     this.fireSpit = this.fireBox.querySelector('.fire-spit');
@@ -194,6 +201,35 @@ export class Hud {
         else this.onTakeNearby(pile, null);
       });
       slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => this.onTakeNearby(pile, to), () => {}));
+      return slot;
+    }));
+  }
+
+  // Shows a container you've searched (or none: null) at the top of the Nearby box, its name
+  // (`label`) and what's still in it (`contents`: { item, count } each): drag a thing onto a slot
+  // to take it there, or click it to take it all; Take all empties it.
+  showContainer(container) {
+    this.containerBox.hidden = !container;
+    if (!container) {
+      this.containerShown = '';
+      return;
+    }
+    const key = `${container.label}|${container.contents.map((c) => `${c.item}:${c.count}`).join(',')}`;
+    if (key === this.containerShown) return;
+    this.containerShown = key;
+    this.containerBox.querySelector('.container-label').textContent = `${container.label[0].toUpperCase()}${container.label.slice(1)}`;
+    this.containerGrid.replaceChildren(...container.contents.map((thing, k) => {
+      const slot = unfocusable(document.createElement('button'));
+      slot.className = 'slot near';
+      slot.title = `${ITEMS[thing.item].name} · click to take, or drag onto a slot`;
+      slot.innerHTML = '<span class="key"></span><span class="icon"></span><span class="count"></span>';
+      showItemIcon(slot.querySelector('.icon'), thing.item);
+      slot.querySelector('.count').textContent = thing.count > 1 ? thing.count : '';
+      slot.addEventListener('click', () => {
+        if (this.justDragged) this.justDragged = false;
+        else this.onTakeFromContainer(k, null);
+      });
+      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => this.onTakeFromContainer(k, to), () => {}));
       return slot;
     }));
   }
