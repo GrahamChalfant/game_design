@@ -16,7 +16,13 @@ const HAND = new THREE.Vector3(0.2, -0.205, -0.42); // where the right hand rest
 // What you hold is drawn smaller than life (as if further off), so a 70 cm axe doesn't fill the
 // view: the hands are close to your eyes, and full-size things that close loom far too big.
 const HELD_SCALE = 0.62;
-const BOW_HAND = new THREE.Vector3(-0.12, -0.1, -0.62); // where the left hand holds the bow up
+// How the bow's held (where the left hand is; how far the bow's top tips away from you, and
+// leans over to the right, radians: negative leans it left): carried low and easy at your side,
+// its top leaning out to the left; raised a little, ready, as you take an arrow and nock it; and
+// up in front of you as you draw (to DRAW_GRIP), canted just a little right, as a right-handed
+// archer holds it.
+const BOW_CARRY = { at: new THREE.Vector3(-0.17, -0.27, -0.54), tip: 0.12, lean: -0.3 };
+const BOW_READY = { at: new THREE.Vector3(-0.1, -0.16, -0.6), tip: 0.05, lean: -0.15 };
 // The bow arm, as an archer holds it: the forearm runs from the hand back toward your left
 // shoulder (BOW_SHOULDER, in the view), so it comes in from the lower left nearly along your line
 // of sight, pushing the bow toward what you aim at. The riser runs up through the fist; the hand
@@ -205,7 +211,7 @@ export class HandView {
       this.nocked.add(model.clone());
     });
     this.pulled = 0;
-    this.shot = { raise: 0, held: 0, release: Infinity, from: 0, wasDrawing: false, letGo: null };
+    this.shot = { raise: 0, aim: 0, held: 0, release: Infinity, from: 0, wasDrawing: false, letGo: null };
     this.tools.torch = holder('torch', placeholders.torch(), () => {});
     this.tools.torch.add(this.flame);
     // A bandage roll, for winding round the left forearm.
@@ -564,6 +570,7 @@ export class HandView {
     }
     if (!bow) {
       this.shot.raise = 0;
+      this.shot.aim = 0;
       this.shot.release = Infinity;
       this.shot.wasDrawing = false;
       this.place(this.right, right, HAND_OFF, snap, dt);
@@ -797,9 +804,15 @@ export class HandView {
     if (!drawing) shot.release += dt;
     const t = shot.release;
 
-    // Raised (or lowered), easing over a few tenths of a second.
-    shot.raise += ((drawing ? 1 : 0) - shot.raise) * (1 - Math.exp(-dt * (drawing ? 9 : 4)));
+    // Raised to ready as you start to draw, and up to aim as the string comes back (quickly,
+    // keeping up with the draw); after a shot, held up a moment, then lowered to carry again.
+    const follow = !drawing && t < 0.45; // (just loosed: still held up)
+    const ready = drawing || follow ? 1 : 0;
+    const aim = drawing ? smooth(Math.min(1, Math.max(0, (draw - REACH) / (1 - REACH)) / 0.5)) : follow ? shot.aim : 0;
+    shot.raise += (ready - shot.raise) * (1 - Math.exp(-dt * (ready > shot.raise ? 9 : 3)));
+    shot.aim += (aim - shot.aim) * (1 - Math.exp(-dt * (aim > shot.aim ? 14 : 3)));
     const raise = smooth(shot.raise);
+    const aimed = smooth(shot.aim);
     shot.held = drawing && draw >= 1 ? shot.held + dt : 0;
     // Held at full draw, the bow arm begins to shake.
     const shake = Math.min(1, shot.held / 4) * 0.0035;
@@ -809,9 +822,12 @@ export class HandView {
 
     const l = this.left;
     l.visible = true;
-    l.position.copy(BOW_HAND).add(new THREE.Vector3(bob[0], bob[1], 0)).lerp(DRAW_GRIP, raise).add(tremble);
+    // (Walking, the bow swings with your stride, less so the higher it's held.)
+    const swing = new THREE.Vector3(bob[0], bob[1], 0).multiplyScalar(1 - aimed);
+    l.position.copy(BOW_CARRY.at).lerp(BOW_READY.at, raise).lerp(DRAW_GRIP, aimed).add(swing).add(tremble);
     l.position.z -= kick * 0.025;
-    this.tools.bow.rotation.set(-kick * 0.18, Math.PI, -BOW_TILT * (1 - 0.6 * raise));
+    const held = (key, aimedAt) => THREE.MathUtils.lerp(THREE.MathUtils.lerp(BOW_CARRY[key], BOW_READY[key], raise), aimedAt, aimed);
+    this.tools.bow.rotation.set(-held('tip', 0) - kick * 0.18, Math.PI, held('lean', -BOW_TILT * 0.4));
     this.holdBow(l);
 
     // Where the shaft lies on the bow hand, and the nock on the string behind it.
