@@ -47,7 +47,7 @@ automatically whenever you save a file.
 | Key | Action |
 | --- | --- |
 | W A S D / arrow keys | Walk |
-| Hold Shift | Sprint (animals hear you coming from further off) |
+| Hold Shift | Sprint (animals hear you coming from further off). Sprinting and jumping use stamina, the bar over the hotbar; run it out and you must get your breath back before you can sprint or jump again |
 | C | Crouch: move slowly so animals don't notice you as soon. Stays on until you press C again |
 | 1–6, or click a slot | Pick an item from the hotbar |
 | Left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
@@ -176,13 +176,20 @@ Each one can be searched once:
 | The brown case | A first-aid kit (3 bandages), 2 rope |
 
 You crouch down to search things on the ground (and stand to search the ranger's locker).
+Once you've searched something, the menu opens with it at the top of the "On the ground" box,
+showing what's inside: drag a thing onto a slot to take it there, click it to take it all, or
+Take all. Whatever you leave stays in it; E at something you've already searched opens it in the
+menu again straight away.
 Select a bandage and click and hold to bandage yourself up (+30 health); craft more from a hide
 (2 bandages each). Eating also takes a moment: click and hold. Keep the lighter (or matches, one used
 each time): you need it to light fires and torches. Save the flare for signalling a rescue (coming later).
 
 To take off your outfit or backpack, open the menu (Tab) and drag it from your character: onto an
 empty slot to carry the outfit, or off the menu to leave it on the ground. A backpack put down keeps
-everything inside it until you pick it up again.
+everything inside it until you pick it up again. Next to a campfire, the menu's "On the ground"
+box shows the fire too: drag sticks or logs onto its spots to put them on (as many as it'll take;
+click a spot to add one), drag raw meat onto an empty place on the spit to cook it, and drag a
+piece of meat off the spit into your inventory (or click it) to take it.
 
 Your stats are the icons at the bottom right. They're white, turn yellow when low, and red when
 you're about to run out; the thermometer goes from a cool blue when you're freezing to a warm red
@@ -257,12 +264,16 @@ intestines.
 To hunt deer, make a bow. Stones lie in little groups by the rocks and the lake shore (press E
 to pick them up); a taken stone comes back three days later, so once you've picked an area clean you'll need to look further afield. A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
 (3 sticks, 2 bowstrings), and once you hold a bow, arrows (1 stick and 1 stone make 3). Select the
-bow, aim with the crosshair (or the mouse) and hold the button to draw (you turn to aim and walk
-slowly); let go to shoot. The arrow leaves the middle of the bow and flies at what you aimed at,
-nearly straight, then drops as it goes on. The further you draw, the faster it flies and the
+bow, aim with the crosshair (a small dot in the middle of the view while you've a bow and the
+mouse is captured; otherwise the mouse pointer) and hold the button to draw (you turn to aim and walk
+slowly); let go to shoot. The arrow leaves the bow's arrow rest and flies at what you aimed at,
+nearly straight, then drops as it goes on; drawn, the arrow on the string points right at the
+crosshair, so it flies the way it looks. It flies over low things (bushes, fences, rocks it
+clears, a campfire) but stops in a tree trunk. The further you draw, the faster it flies and the
 further it holds true (10 m on a light draw, 55 m drawn all the way; aim further and it drops
-short). In first person you see the whole shot: the bow comes up, your right hand brings an arrow up and
-nocks it, the shaft lying on top of your bow hand, then draws the string back to your chin (the
+short). In first person you see the whole shot: you carry the bow low at your side; drawing, it comes up
+a little while your right hand brings an arrow up and nocks it (the shaft lying on top of your bow
+hand, on the right of the bow), then up to aim, canted over to the left, as the string comes back under your eye (the
 bow arm starts to shake if you hold it there long); let go and the string snaps forward and
 quivers, the bow kicks, and your hand flies back past your cheek. Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
 follow one in flight, and a running animal can get away. One hit kills a deer or
@@ -285,9 +296,11 @@ day, and halves the chill of a night outdoors. Nights up the mountains still nee
 To cook, craft a cooking spit (3 sticks), hold it next to a campfire and click to set it up over
 the fire. Then hold raw meat there and hold the mouse button for a second to put it on the spit
 (up to three pieces at once, each cooking on its own): over a burning fire a piece is cooked in
-30 seconds, and burnt if you leave it on for a minute (it darkens as it starts to burn). Hold the
-mouse button for a second to take a piece off (the one that's been on longest; a hold, so you
-don't take one off by accident), and away from the fire click and hold to eat. Eating meat raw
+30 seconds, and burnt if you leave it on for a minute (it darkens as it starts to burn). At the
+fire, what you do depends on what you're looking at: look at a piece of meat and hold the mouse
+button for a second to take it off (a hold, so you don't take one off by accident); look at the
+fire to tend it (E adds a stick or a log, which never touches the meat). Away from the fire,
+click and hold to eat. Eating meat raw
 works in a pinch, but it makes you sick, and burnt meat isn't worth much. When you're full you
 won't eat any more, and when you're not thirsty you won't drink.
 

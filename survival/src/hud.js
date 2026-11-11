@@ -28,10 +28,13 @@ function unfocusable(button) {
 
 // Shows the survival stats, clock, prompts and game-over screen.
 export class Hud {
-  constructor({ onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onWear, onCraft, onTakeNearby }) {
+  constructor({ onRestart, onSlotClick, onSlotDrop, onDropItem, onUnequip, onWear, onCraft, onTakeNearby, onFeedFire, onTakeSpit, onTakeFromContainer }) {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
+    this.stamina = document.getElementById('stamina');
+    this.staminaFull = 0; // seconds it's been full (the bar fades away once it has been a moment)
+    this.crosshair = document.getElementById('crosshair');
     this.toasts = document.getElementById('toasts');
     this.gameOver = document.getElementById('game-over');
     this.survived = document.getElementById('survived');
@@ -81,7 +84,7 @@ export class Hud {
         if (this.justDragged) this.justDragged = false;
         else onSlotClick(i);
       });
-      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => onSlotDrop(i, to), () => onDropItem(i), () => onWear(i)));
+      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => onSlotDrop(i, to), () => onDropItem(i), () => onWear(i), (spot) => onFeedFire(i, spot)));
       (inHotbar ? this.hotbar : backpackGrid).append(slot);
       return slot;
     });
@@ -91,6 +94,24 @@ export class Hud {
     this.nearbyGrid = this.nearby.querySelector('.grid');
     this.nearbyShown = '';
     this.onTakeNearby = onTakeNearby;
+    // A container you've searched (a suitcase, a cupboard...), at the top of the Nearby box.
+    this.containerBox = document.getElementById('nearby-container');
+    this.containerGrid = this.containerBox.querySelector('.grid');
+    this.containerShown = '';
+    this.onTakeFromContainer = onTakeFromContainer;
+    const takeAll = unfocusable(this.containerBox.querySelector('.take-all'));
+    takeAll.addEventListener('click', () => onTakeFromContainer(null, null));
+    // A campfire within reach, at the top of the Nearby box (see showNearbyFire).
+    this.fireBox = document.getElementById('nearby-fire');
+    this.fireSpit = this.fireBox.querySelector('.fire-spit');
+    this.fireShown = '';
+    this.onTakeSpit = onTakeSpit;
+    for (const spot of this.fireBox.querySelectorAll('.fire-spot')) {
+      unfocusable(spot);
+      showItemIcon(spot.querySelector('.icon'), spot.dataset.spot);
+      // (A click adds one, from wherever you have one.)
+      spot.addEventListener('click', () => onFeedFire(null, spot.dataset.spot));
+    }
 
     this.crafting = document.getElementById('crafting');
     const list = this.crafting.querySelector('.recipes');
@@ -187,6 +208,94 @@ export class Hud {
     }));
   }
 
+  // The stamina bar over the hotbar (`stamina` 0-1): shown while it's being used or coming back,
+  // amber while you're winded, and fading away a moment after it's full again.
+  updateStamina(dt, stamina, winded) {
+    this.staminaFull = stamina >= 1 ? this.staminaFull + dt : 0;
+    this.stamina.classList.toggle('shown', this.staminaFull < 1 && !this.inventoryOpen);
+    this.stamina.classList.toggle('winded', winded);
+    this.stamina.firstElementChild.style.width = `${stamina * 100}%`;
+  }
+
+  // The crosshair, a small dot in the middle of the view: `shown` while you've a bow in hand to aim
+  // with (and the mouse is captured, so shots go there), brighter while you're drawing it.
+  showCrosshair(shown, drawing) {
+    this.crosshair.classList.toggle('shown', shown && !this.inventoryOpen);
+    this.crosshair.classList.toggle('drawing', drawing);
+  }
+
+  // Shows a container you've searched (or none: null) at the top of the Nearby box, its name
+  // (`label`) and what's still in it (`contents`: { item, count } each): drag a thing onto a slot
+  // to take it there, or click it to take it all; Take all empties it.
+  showContainer(container) {
+    this.containerBox.hidden = !container;
+    if (!container) {
+      this.containerShown = '';
+      return;
+    }
+    const key = `${container.label}|${container.contents.map((c) => `${c.item}:${c.count}`).join(',')}`;
+    if (key === this.containerShown) return;
+    this.containerShown = key;
+    this.containerBox.querySelector('.container-label').textContent = `${container.label[0].toUpperCase()}${container.label.slice(1)}`;
+    this.containerGrid.replaceChildren(...container.contents.map((thing, k) => {
+      const slot = unfocusable(document.createElement('button'));
+      slot.className = 'slot near';
+      slot.title = `${ITEMS[thing.item].name} · click to take, or drag onto a slot`;
+      slot.innerHTML = '<span class="key"></span><span class="icon"></span><span class="count"></span>';
+      showItemIcon(slot.querySelector('.icon'), thing.item);
+      slot.querySelector('.count').textContent = thing.count > 1 ? thing.count : '';
+      slot.addEventListener('click', () => {
+        if (this.justDragged) this.justDragged = false;
+        else this.onTakeFromContainer(k, null);
+      });
+      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => this.onTakeFromContainer(k, to), () => {}));
+      return slot;
+    }));
+  }
+
+  // Shows the campfire beside you (or none: `fire` null) at the top of the Nearby box: how it's
+  // burning (`status`), spots to drag sticks and logs onto, and the spit's places (`spit`: for
+  // each, the meat on it, { item, cooked }, or null; or no spit at all), each piece of meat a
+  // slot to drag into your inventory or click to take, and the empty places a spot for raw meat.
+  showNearbyFire(fire) {
+    this.fireBox.hidden = !fire;
+    // (The menu moves up to make room: it and the Nearby box under it, centred together.)
+    const below = this.nearby.offsetHeight + 12;
+    if (below !== this.nearbyBelow) {
+      this.nearbyBelow = below;
+      this.nearby.parentElement.style.setProperty('--below', `${below}px`);
+    }
+    if (!fire) {
+      this.fireShown = '';
+      return;
+    }
+    this.fireBox.querySelector('.fire-status').textContent = fire.status;
+    const key = JSON.stringify(fire.spit?.map((piece) => piece?.item ?? null) ?? null);
+    if (key === this.fireShown) return;
+    this.fireShown = key;
+    this.fireSpit.hidden = !fire.spit;
+    this.fireSpit.replaceChildren(...(fire.spit ?? []).map((piece, place) => {
+      const slot = unfocusable(document.createElement('button'));
+      slot.innerHTML = '<span class="key"></span><span class="icon"></span><span class="count"></span>';
+      if (!piece) {
+        // An empty place on the skewer: drop raw meat here to put it on.
+        slot.className = 'slot fire-spot spit-place';
+        slot.dataset.spot = `spit-${place}`;
+        slot.title = 'Drag raw meat here to put it on the spit';
+        return slot;
+      }
+      slot.className = 'slot near spit-piece';
+      slot.title = `${ITEMS[piece.item].name} on the spit · click to take it, or drag onto a slot`;
+      showItemIcon(slot.querySelector('.icon'), piece.item);
+      slot.addEventListener('click', () => {
+        if (this.justDragged) this.justDragged = false;
+        else this.onTakeSpit(place, null);
+      });
+      slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => this.onTakeSpit(place, to), () => {}));
+      return slot;
+    }));
+  }
+
   update(survival, inventory, { prompt, progress }) {
     // In each group, craftable recipes first, then the rest, each in RECIPES order (#70). A
     // group shows once you know one of its recipes, with how many you can make now.
@@ -275,7 +384,7 @@ export class Hud {
   // there; letting go off the menu and hotbar drops it on the ground.
   // Drags the item shown in `slot` (a slot or an equipment box): dropped onto a slot, calls
   // onto(thatSlotsIndex); onto your character or Outfit box, wear(); off the menu, outside().
-  startDrag(down, slot, onto, outside, wear = null) {
+  startDrag(down, slot, onto, outside, wear = null, toFire = null) {
     if (down.button !== 0) return;
     const item = slot.querySelector('.icon').dataset.item;
     if (!item || item === 'shirt') return; // (the shirt stays on)
@@ -301,10 +410,13 @@ export class Hud {
       ghost.hidden = true;
       slot.classList.remove('dragging');
       const target = document.elementFromPoint(e.clientX, e.clientY);
-      const ontoSlot = target?.closest('.slot:not(.near)');
+      const ontoFire = target?.closest('.fire-spot');
+      const ontoSlot = target?.closest('.slot:not(.near):not(.fire-spot)');
       // The browser may still send a click to the slot where the drag started.
       this.justDragged = ontoSlot === slot || target?.closest('.slot') === slot;
-      if (ontoSlot) onto(Number(ontoSlot.dataset.index));
+      if (ontoFire) toFire?.(ontoFire.dataset.spot);
+      else if (target?.closest('#nearby-fire')) return; // (dropped by the fire but not on a spot: nothing)
+      else if (ontoSlot) onto(Number(ontoSlot.dataset.index));
       else if (target?.closest('#nearby')) outside(); // (into Nearby: put it on the ground)
       else if (wear && target?.closest('#equip-outfit, #character-view')) wear();
       else if (!target?.closest('#inventory, #hotbar')) outside();

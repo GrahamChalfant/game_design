@@ -23,7 +23,7 @@ export class Bushes {
       object.add(body);
       scene.add(object);
       world.grass.clear(x, z, 0.8);
-      world.obstacles.add({ x, z, radius: 0.45 });
+      world.obstacles.add({ x, z, radius: 0.45, height: 0.9 }); // (an arrow flies over it)
       this.all.push({ x, z, pickedAt: null, object, berries: body.userData.berries });
     }
     loadModel('berry-bush').then((model) => {

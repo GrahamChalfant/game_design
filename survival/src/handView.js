@@ -16,7 +16,15 @@ const HAND = new THREE.Vector3(0.2, -0.205, -0.42); // where the right hand rest
 // What you hold is drawn smaller than life (as if further off), so a 70 cm axe doesn't fill the
 // view: the hands are close to your eyes, and full-size things that close loom far too big.
 const HELD_SCALE = 0.62;
-const BOW_HAND = new THREE.Vector3(-0.12, -0.1, -0.62); // where the left hand holds the bow up
+// How the bow's held (where the left hand is; how far the bow's top tips away from you, and
+// leans over to the right, radians: negative leans it left): carried low and easy at your side,
+// its top leaning out to the left; raised a little, ready, as you take an arrow and nock it; and
+// up in front of you as you draw (to DRAW_GRIP), canted over to the left (BOW_AIM_CANT), away
+// from the arrow, as an instinctive archer cants a bow away from the arrow's side: the arrow lies
+// snug against the riser, and the string and the upper limb are out of your line of sight.
+const BOW_CARRY = { at: new THREE.Vector3(-0.17, -0.27, -0.54), tip: 0.12, lean: -0.3 };
+const BOW_READY = { at: new THREE.Vector3(-0.1, -0.16, -0.6), tip: 0.05, lean: -0.15 };
+const BOW_AIM_CANT = -0.28;
 // The bow arm, as an archer holds it: the forearm runs from the hand back toward your left
 // shoulder (BOW_SHOULDER, in the view), so it comes in from the lower left nearly along your line
 // of sight, pushing the bow toward what you aim at. The riser runs up through the fist; the hand
@@ -43,10 +51,15 @@ const DRAW_LENGTH = 0.36; // meters the string is drawn back at full draw, towar
 //    bow gets heavier; held at full draw, the bow arm starts to tremble;
 //  - release: the string snaps forward and quivers, the bow kicks in the hand, and the right
 //    hand flies back past your cheek, fingers open, then drops away out of sight.
-const DRAW_GRIP = new THREE.Vector3(-0.02, -0.075, -0.62);
+// (Where the bow hand is at full draw: the arrow rest straight below the crosshair, a few
+// centimetres under your line of sight.)
+const DRAW_GRIP = new THREE.Vector3(-0.013, -0.1, -0.62);
 // At full draw the nock's under your eye and a little below the arrow rest (at your chin).
-const NOCK_ANCHOR = { x: 0, drop: 0.035 }; // the bow hand at full draw: the arrow just under your eye
-const ARROW_REST = new THREE.Vector3(-0.03, 0.058, 0); // where the shaft lies, from the bow hand's grip: on top of the fist, left of the stave
+// Drawn and aimed, the arrow points at what's under the crosshair: its line runs from the nock
+// through the arrow rest to the middle of the view, AIM_AT (in the view's space) at a usual
+// shot's range, and that's the way it flies, from the rest (see bowCentre and arrows.fire).
+const AIM_AT = new THREE.Vector3(0, 0, -25);
+const ARROW_REST = new THREE.Vector3(0.03, 0.058, 0); // where the shaft lies, from the bow hand's grip: on top of the fist, on the right of the stave (the side toward you, the inside)
 const REACH = 0.35; // the share of the draw spent bringing the arrow to the string
 const HAND_OFF = new THREE.Vector3(0.24, -0.44, -0.3); // the right hand, out of sight below, while you hold the bow
 // The right hand, from the nock, its fingers round the string: on the string at first, and at full
@@ -205,7 +218,8 @@ export class HandView {
       this.nocked.add(model.clone());
     });
     this.pulled = 0;
-    this.shot = { raise: 0, held: 0, release: Infinity, from: 0, wasDrawing: false, letGo: null };
+    this.restOffset = new THREE.Vector3().copy(ARROW_REST);
+    this.shot = { raise: 0, aim: 0, held: 0, release: Infinity, from: 0, wasDrawing: false, letGo: null };
     this.tools.torch = holder('torch', placeholders.torch(), () => {});
     this.tools.torch.add(this.flame);
     // A bandage roll, for winding round the left forearm.
@@ -310,7 +324,7 @@ export class HandView {
     const bow = this.tools.bow;
     if (!this.group.visible || !bow.visible) return null;
     this.group.updateWorldMatrix(true, false);
-    return this.group.localToWorld(this.left.position.clone().add(ARROW_REST));
+    return this.group.localToWorld(this.left.position.clone().add(this.restOffset));
   }
 
   // Swaps the bow's string (straight, tip to tip, in the model) for two halves that meet at the
@@ -345,14 +359,14 @@ export class HandView {
     });
   }
 
-  // Draws the string back `pull` meters at the middle (where the arrow's nocked), and `across`
-  // and `up` from in line with the bow (meters, in the view).
-  pullString(pull, across = 0, up = 0) {
+  // Draws the string's middle (where the arrow's nocked) to `at` (in the view, with the bow in
+  // the bow hand `l` as it's turned now): `pull` meters back from where it rests.
+  pullString(pull, at, l) {
     if (!this.string) return;
     this.pulled = pull;
-    const { ends, halves, z } = this.string;
-    // (The model's turned round: its string side, -z, is toward you, and its x is reversed.)
-    const nock = new THREE.Vector3(-across / BOW_SCALE, (ARROW_REST.y + up) / BOW_SCALE, z - pull / BOW_SCALE);
+    const { ends, halves } = this.string;
+    // (Into the model's own space: it's turned round, its string side toward you.)
+    const nock = at.clone().sub(l.position).applyQuaternion(this.tools.bow.quaternion.clone().invert()).divideScalar(BOW_SCALE);
     halves.forEach((half, k) => {
       const along = nock.clone().sub(ends[k]);
       half.scale.set(1, 1, along.length());
@@ -564,6 +578,7 @@ export class HandView {
     }
     if (!bow) {
       this.shot.raise = 0;
+      this.shot.aim = 0;
       this.shot.release = Infinity;
       this.shot.wasDrawing = false;
       this.place(this.right, right, HAND_OFF, snap, dt);
@@ -797,9 +812,15 @@ export class HandView {
     if (!drawing) shot.release += dt;
     const t = shot.release;
 
-    // Raised (or lowered), easing over a few tenths of a second.
-    shot.raise += ((drawing ? 1 : 0) - shot.raise) * (1 - Math.exp(-dt * (drawing ? 9 : 4)));
+    // Raised to ready as you start to draw, and up to aim as the string comes back (quickly,
+    // keeping up with the draw); after a shot, held up a moment, then lowered to carry again.
+    const follow = !drawing && t < 0.45; // (just loosed: still held up)
+    const ready = drawing || follow ? 1 : 0;
+    const aim = drawing ? smooth(Math.min(1, Math.max(0, (draw - REACH) / (1 - REACH)) / 0.5)) : follow ? shot.aim : 0;
+    shot.raise += (ready - shot.raise) * (1 - Math.exp(-dt * (ready > shot.raise ? 9 : 3)));
+    shot.aim += (aim - shot.aim) * (1 - Math.exp(-dt * (aim > shot.aim ? 14 : 3)));
     const raise = smooth(shot.raise);
+    const aimed = smooth(shot.aim);
     shot.held = drawing && draw >= 1 ? shot.held + dt : 0;
     // Held at full draw, the bow arm begins to shake.
     const shake = Math.min(1, shot.held / 4) * 0.0035;
@@ -809,13 +830,18 @@ export class HandView {
 
     const l = this.left;
     l.visible = true;
-    l.position.copy(BOW_HAND).add(new THREE.Vector3(bob[0], bob[1], 0)).lerp(DRAW_GRIP, raise).add(tremble);
+    // (Walking, the bow swings with your stride, less so the higher it's held.)
+    const swing = new THREE.Vector3(bob[0], bob[1], 0).multiplyScalar(1 - aimed);
+    l.position.copy(BOW_CARRY.at).lerp(BOW_READY.at, raise).lerp(DRAW_GRIP, aimed).add(swing).add(tremble);
     l.position.z -= kick * 0.025;
-    this.tools.bow.rotation.set(-kick * 0.18, Math.PI, -BOW_TILT * (1 - 0.6 * raise));
+    const held = (key, aimedAt) => THREE.MathUtils.lerp(THREE.MathUtils.lerp(BOW_CARRY[key], BOW_READY[key], raise), aimedAt, aimed);
+    this.tools.bow.rotation.set(-held('tip', 0) - kick * 0.18, Math.PI, held('lean', BOW_AIM_CANT));
     this.holdBow(l);
 
     // Where the shaft lies on the bow hand, and the nock on the string behind it.
-    const rest = l.position.clone().add(ARROW_REST);
+    // (The rest's on the bow: it turns with it. The model's turned round, so its -x is your right.)
+    this.restOffset.set(-ARROW_REST.x, ARROW_REST.y, 0).applyQuaternion(this.tools.bow.quaternion);
+    const rest = l.position.clone().add(this.restOffset);
     const reach = drawing ? smooth(Math.min(1, draw / REACH)) : 0;
     const pullT = drawing ? Math.max(0, Math.min(1, (draw - REACH) / (1 - REACH))) : 0;
     let pull = (1 - (1 - pullT) ** 2.2) * DRAW_LENGTH; // (quick at first, slowing to the anchor)
@@ -823,12 +849,18 @@ export class HandView {
       // The string springs forward past straight and quivers back to rest.
       pull = shot.from * Math.exp(-t / RELEASE.snap) * Math.cos(t * RELEASE.quiver * Math.PI * 2);
     }
-    // Drawn back toward your face: in under your eye, and down to your chin.
-    const anchor = drawing ? smooth(pullT) : 0;
-    const across = (NOCK_ANCHOR.x - l.position.x) * anchor;
-    const up = -NOCK_ANCHOR.drop * anchor;
-    this.pullString(Math.max(-0.02, pull), across, up);
-    const nock = new THREE.Vector3(l.position.x + across, rest.y + up, l.position.z + BRACE + Math.max(0, pull));
+    // Drawn back toward your face, in under your eye: as the bow comes up to aim, the nock
+    // comes onto the line from the crosshair's target back through the arrow rest, so the arrow
+    // points where it'll fly.
+    const nockZ = l.position.z + BRACE + Math.max(0, pull);
+    const sighted = AIM_AT.clone().lerp(rest, (nockZ - AIM_AT.z) / (rest.z - AIM_AT.z));
+    // (On the string at first, in line with the stave, level with the rest.)
+    const onBow = new THREE.Vector3(0, ARROW_REST.y, 0).applyQuaternion(this.tools.bow.quaternion).add(l.position);
+    onBow.z = nockZ;
+    const nock = onBow.lerp(sighted, drawing ? aimed : 0);
+    const strung = nock.clone();
+    strung.z = l.position.z + BRACE + Math.max(-0.02, pull); // (springing forward past straight as it's loosed)
+    this.pullString(Math.max(-0.02, pull), strung, l);
     // (The hand turned about its hook, which stays on the nock.)
     const turn = ON_STRING.clone().slerp(ANCHORED, smooth(pullT));
     const onString = nock.clone().sub(HOOK.clone().applyQuaternion(turn));
