@@ -194,6 +194,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
           hud.toast('The fire catches');
         }
       } else if (pressedE && !needsLighting && fuel && campfires.addWood(fire, fuel)) {
+        player.reach();
         inventory.remove(fuel, 1);
         sfx('add-wood', fire);
         hud.toast(fuel === 'wood' ? '-1 Log' : '-1 Stick');
@@ -231,6 +232,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         } else prompt = `The meat's burnt · ${take}`;
         if (input.startedUsingTool()) {
           clickUsed = true;
+          player.reach();
           give(campfires.takeMeat(fire), 1);
         }
       } else if (held === 'spit' && !spit) {
@@ -238,6 +240,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         if (input.startedUsingTool()) {
           clickUsed = true;
           inventory.remove('spit', 1);
+          player.reach();
           campfires.addSpit(fire, player.facing);
           sfx('add-wood', fire);
           hud.toast('The spit is up. Put raw meat on it to cook');
@@ -249,6 +252,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         if (input.startedUsingTool()) {
           clickUsed = true;
           inventory.remove('rawMeat', 1);
+          player.reach();
           campfires.putMeat(fire);
           sfx('rummage', fire);
         }
@@ -271,11 +275,13 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       if (pressedE && pile.item === 'backpack') {
         // The backpack isn't stored in a slot: finding it gives you its extra slots, with
         // whatever was in it when you put it down.
+        player.reach();
         pickups.remove(pile);
         inventory.putOnBackpack(pile.contents);
         sfx('cloth');
         hud.toast(pile.contents ? 'You put your backpack back on' : 'Found a backpack! Press Tab to open it');
       } else if (pressedE) {
+        player.reach();
         const taken = pickups.pickUp(pile, inventory);
         if (taken > 0) sfx('pickup');
         hud.toast(taken > 0 ? `+${taken} ${name}` : 'Inventory full');
@@ -283,11 +289,16 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     } else if (!fire && bush && hasBerries(bush, now)) {
       // A berry bush in fruit: E picks a handful.
       prompt = 'Berry bush · E to pick berries';
-      if (pressedE) give('berries', bushes.pick(bush, now), bush.x, bush.z);
+      if (pressedE) {
+        player.reach();
+        give('berries', bushes.pick(bush, now), bush.x, bush.z);
+      }
     } else if (!fire && carcass) {
-      // A shot animal: hold E to butcher it for meat, hide and intestines.
+      // A shot animal: hold E to butcher it for meat, hide and intestines, with your knife in
+      // your hand (you can't cut it up without one).
       const time = BUTCHER_TIME[carcass.kind];
-      butcheringNow = input.isDown('KeyE');
+      const knife = held === 'knife';
+      butcheringNow = knife && input.isDown('KeyE');
       if (butcheringNow) {
         busy = 'butcher';
         // Step up to it and face it, so your hands are on it (you can start from 1.8 m off).
@@ -303,7 +314,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       }
       butchering = butcheringNow ? butchering + dt : 0;
       progress = butchering / time;
-      prompt = butcheringNow ? 'Butchering…' : `A dead ${carcass.kind} · hold E to butcher it`;
+      if (butcheringNow) prompt = 'Butchering…';
+      else if (knife) prompt = `A dead ${carcass.kind} · hold E to butcher it`;
+      else if (inventory.count('knife') > 0) prompt = `A dead ${carcass.kind} · select your knife to butcher it`;
+      else prompt = `A dead ${carcass.kind} · you need a knife to butcher it (craft one: Tab)`;
       if (butchering >= time) {
         butchering = 0;
         const { x: cx, z: cz } = carcass.position;
@@ -342,6 +356,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         prompt = `A ${trap.caught} is caught! · E to take it`;
         if (pressedE) {
           // Taking the catch out breaks the trap: you'll need to craft another.
+          player.reach();
           const caught = traps.collect(trap);
           traps.remove(trap);
           for (const [item, count] of Object.entries(ANIMAL_DROPS[caught])) give(item, count, trap.x, trap.z);
@@ -350,6 +365,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       } else {
         prompt = 'Trap is set · E to pick it up';
         if (pressedE) {
+          player.reach();
           traps.remove(trap);
           give('trap', 1);
         }
@@ -387,6 +403,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         prompt = 'No room for a campfire here';
       } else if (input.startedUsingTool()) {
         inventory.remove('campfire', 1);
+        player.reach();
         campfires.build(spot.x, spot.z);
       } else {
         prompt = 'Click to place the campfire';
@@ -408,6 +425,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         prompt = 'No room for a trap here';
       } else if (input.startedUsingTool()) {
         inventory.remove('trap', 1);
+        player.reach();
         traps.place(spot.x, spot.z, player.facing);
         sfx('trap-set', spot);
         hud.toast('Trap set. Rabbits nearby will be drawn to it.');
@@ -560,7 +578,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         sfx('arrow-hit', axeTarget.position);
         if (hitAnimal(axeTarget, 'axe')) {
           animals.kill(axeTarget);
-          hud.toast(`You killed a ${axeTarget.kind}! Hold E next to it to butcher it`);
+          hud.toast(`You killed a ${axeTarget.kind}! Butcher it with your knife (hold E)`);
         } else hud.toast(`You hit the ${axeTarget.kind} with your axe`);
       } else sfx('swing');
     }
@@ -576,7 +594,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         const knife = inventory.slots[inventory.selected];
         if (hitAnimal(target, 'knife')) {
           animals.kill(target);
-          hud.toast(`You killed a ${target.kind}! Hold E next to it to butcher it`);
+          hud.toast(`You killed a ${target.kind}! Butcher it with your knife (hold E)`);
         } else hud.toast(`You stab the ${target.kind}`);
         knife.durability -= 1;
         if (knife.durability <= 0) {
@@ -641,7 +659,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     }
 
     // Butchering, you work with your knife if you have one, whatever's in your hand.
-    const inHand = busy === 'butcher' && inventory.count('knife') > 0 ? 'knife' : inventory.selectedItem;
+    const inHand = inventory.selectedItem;
     player.setAction(inHand, swinging, drinking, inventory.hasBackpack, busy);
     player.busyWith = busyWith;
     player.busyProgress = busyProgress;

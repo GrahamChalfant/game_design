@@ -31,6 +31,7 @@ const FAR = 650; // meters the camera draws to: past the haze on the clearest da
 // How close to the eye the camera draws: in first person your hands come right up to your face
 // (drawing the bow, eating), so nearer than over the shoulder.
 const NEAR = { first: 0.03, third: 0.1 };
+const SPRINT_FOV = 6; // degrees wider in first person while sprinting
 
 export function createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour, start = 'third' }) {
   const sky = createSky(scene, ambient, hour);
@@ -52,6 +53,8 @@ export function createViews({ camera, renderer, input, player, world, farView, h
   canvas.addEventListener('pointerdown', () => {
     if (!locked() && !panelOpen) canvas.requestPointerLock?.();
   });
+
+  let eye = EYE; // how high your eyes are now
 
   function apply() {
     setDrawChunks(NEAR_CHUNKS);
@@ -138,7 +141,15 @@ export function createViews({ camera, renderer, input, player, world, farView, h
         player.facing = yaw + Math.PI;
         player.hideFromCamera(true);
         player.object.rotation.y = player.facing;
-        camera.position.set(body.x, body.y + (player.sneaking ? CROUCHED_EYE : EYE), body.z);
+        // (Crouching, you sink down, and rise again, over a moment rather than at once.)
+        eye += ((player.sneaking ? CROUCHED_EYE : EYE) - eye) * (1 - Math.exp(-dt * 9));
+        camera.position.set(body.x, body.y + eye, body.z);
+        // Sprinting, the view widens a touch (a sense of speed), and settles back as you slow.
+        const fov = 70 + (player.sprinting ? SPRINT_FOV : 0);
+        if (Math.abs(camera.fov - fov) > 0.01) {
+          camera.fov += (fov - camera.fov) * (1 - Math.exp(-dt * 6));
+          camera.updateProjectionMatrix();
+        }
         camera.position.addScaledVector(lookDir.clone().setY(0).normalize(), 0.15);
         camera.lookAt(camera.position.clone().add(lookDir));
         return;

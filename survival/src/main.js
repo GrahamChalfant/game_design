@@ -108,7 +108,7 @@ animals.onFlee = (animal) => {
 arrows.onKill = (animal) => {
   sound.play('arrow-hit', animal.position);
   blood.splat(animal.position.x, animal.position.z, animal.radius * 0.9);
-  hud.toast(`You shot a ${animal.kind}! Hold E next to it to butcher it`);
+  hud.toast(`You shot a ${animal.kind}! Butcher it with your knife (hold E)`);
 };
 arrows.onHit = (animal) => {
   sound.play('arrow-hit', animal.position);
@@ -723,7 +723,8 @@ renderer.setAnimationLoop(() => {
   world.update(dt, clock.elapsedTime, player.position);
   // Up a hunting stand, animals don't notice you, as if you were sneaking. (While you're down
   // a cave, they wait for you.)
-  if (!player.cave) animals.update(dt, player.position, player.sneaking || pois.upAStand(player.position.x, player.position.z, player.feet));
+  const upStand = pois.upAStand(player.position.x, player.position.z, player.feet);
+  if (!player.cave) animals.update(dt, player.position, player.sneaking || upStand, player.sprinting && !upStand);
   // The grass lies flat round you and the animals (nearest first), so a rabbit isn't lost in it.
   world.grass.trample([
     { x: player.position.x, z: player.position.z, radius: 0.9 },

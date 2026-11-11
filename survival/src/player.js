@@ -9,8 +9,11 @@ const TORCH_LIGHT_RANGE = 14; // meters its light reaches
 const TORCH_TIP = 0.52; // the top of the torch (where the flame goes), above the hand
 const TORCH_HOLD_TILT = -Math.PI / 2 + 0.35; // turns the torch in the hand: upright, leaning a little forward
 const RADIUS = 0.4;
-const WALK_SPEED = 5;
-const SNEAK_SPEED = 2.2;
+const WALK_SPEED = 3.4; // (a steady walk; hold Shift to sprint)
+const SPRINT_SPEED = 6.5;
+const CLIP_WALK_SPEED = 5; // the pace player.glb's walk is made for (played slower or faster to match)
+const SNEAK_SPEED = 1.7; // (a careful crouching walk: half walking pace)
+const CLIP_SNEAK_SPEED = 2.2; // the pace player.glb's sneak is made for
 const SWIM_SPEED = 2.2;
 const SWIM_DEPTH = 1.25; // once the water is this deep, the player swims with their head above water
 const TURN_SPEED = 12;
@@ -34,7 +37,9 @@ const FALL_DAMAGE = 9; // health lost per meter dropped beyond that
 const KNIFE_GRIP_OFFSET = 0.01; // nudge so the middle of knife.glb's handle (1 cm below its origin) sits in the fist
 const STAB_TIME = 0.32; // seconds a knife jab lasts: a quick thrust, then the arm comes back
 const STAB_THRUST = 0.3;
-export const SIP_TIME = 1.1; // seconds a drink from the flask takes // the share of the jab spent thrusting forward
+export const SIP_TIME = 1.1; // seconds a drink from the flask takes
+export const REACH_TIME = 0.55; // seconds a reach for something takes (picking it up, putting it down)
+export const LAND_TIME = 0.35; // seconds the body takes to absorb landing from a jump or a drop // the share of the jab spent thrusting forward
 const FADE_TIME = 0.15; // seconds to blend from one animation to the next
 const POSE_SPEED = 8; // how quickly the arms move into and out of a pose (see poseArms)
 const HURT_TIME = 0.45; // seconds the player reels after being hit
@@ -54,6 +59,7 @@ export class Player {
     this.standingHeight = 0; // how high above the ground the rock or stump underfoot is, if any
     this.jumpSpeed = 0;
     this.crouched = false;
+    this.sprinting = false; // holding Shift, on the move (see update)
     this.bounds = bounds;
     this.spawn = spawn.clone();
     this.alive = true;
@@ -111,6 +117,9 @@ export class Player {
     this.busyProgress = 0; // how far through what it's busy with (0-1), where that's timed
     this.chopPhase = 0; // how far through the current chop (0-1; the axe bites at 0.45)
     this.sipTime = 0; // counts down through a drink from the flask
+    this.reachTime = 0; // counts down through reaching for something (see reach)
+    this.landTime = 0; // counts down after landing from a jump or a fall...
+    this.landHard = 0; // ...and how hard it was (0-1)
     this.drawAmount = 0; // how far the bow is drawn (0–1), while drawing it
     this.pose = null; // the arm pose being shown (stays set while it fades out)
     this.poseWeight = 0;
@@ -239,7 +248,7 @@ export class Player {
     else if (this.drinking) this.play('drink');
     else if (this.chopping || this.swingTime > 0) this.play('chop');
     else if (this.busy === 'searchLow' || this.busy === 'butcher' || this.busy === 'lightFire') this.play('crouch'); // down on your knees
-    else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? SNEAK_SPEED : WALK_SPEED));
+    else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? CLIP_SNEAK_SPEED : CLIP_WALK_SPEED));
     else this.play(this.sneaking ? 'crouch' : 'idle');
     const clip = this.playing;
     const before = clip.time;
@@ -391,6 +400,11 @@ export class Player {
     this.stabTime = STAB_TIME;
   }
 
+  // Reaching out to take something (or put something down): the free hand goes out and back.
+  reach() {
+    this.reachTime = REACH_TIME;
+  }
+
   // A drink from the flask: up to the lips, tipped, and down again.
   sip() {
     this.sipTime = SIP_TIME;
@@ -405,6 +419,8 @@ export class Player {
     this.stabTime = Math.max(0, this.stabTime - dt);
     this.swingTime = Math.max(0, (this.swingTime ?? 0) - dt);
     this.sipTime = Math.max(0, this.sipTime - dt);
+    this.reachTime = Math.max(0, this.reachTime - dt);
+    this.landTime = Math.max(0, this.landTime - dt);
     // How far out the arm is in a jab: shoots out fast, comes back slower (0 → 1 → 0).
     const p = 1 - this.stabTime / STAB_TIME;
     this.jab = this.stabTime === 0 ? 0 : p < STAB_THRUST ? 1 - (1 - p / STAB_THRUST) ** 2 : 1 - ((p - STAB_THRUST) / (1 - STAB_THRUST)) ** 2;
@@ -436,12 +452,14 @@ export class Player {
     const depth = this.cave ? 0 : world.terrain.waterDepth(this.position.x, this.position.z);
     this.swimming = depth > SWIM_DEPTH;
     // Wading slows you down the deeper you go; swimming is slower still.
-    // Press C to crouch or stand back up, or hold Shift: slower, and animals don't notice you
-    // as soon.
+    // Press C to crouch or stand back up: slower, and animals don't notice you as soon.
+    // Hold Shift to sprint (not crouched, wading deep, drawing the bow or busy with your hands);
+    // animals hear you coming from further off.
     if (input.wasPressed('KeyC')) this.crouched = !this.crouched;
-    this.sneaking = (this.crouched || input.isDown('ShiftLeft', 'ShiftRight')) && !this.swimming;
+    this.sneaking = this.crouched && !this.swimming;
     const aiming = this.busy === 'draw'; // drawing a bow: walk slowly, still facing the aim
-    const landSpeed = this.sneaking || aiming ? SNEAK_SPEED : WALK_SPEED;
+    this.sprinting = moving && input.isDown('ShiftLeft', 'ShiftRight') && !this.sneaking && !aiming && !this.busy && depth < 0.3;
+    const landSpeed = this.sneaking || aiming ? SNEAK_SPEED : this.sprinting ? SPRINT_SPEED : WALK_SPEED;
     let speed = THREE.MathUtils.lerp(landSpeed, SWIM_SPEED, Math.min(1, depth / SWIM_DEPTH));
     // How steep the ground underfoot is (not up on a rock or a floor, or in the water).
     const onGround = !this.cave && !this.airborne && this.standingHeight < 0.05 && depth === 0;
@@ -464,7 +482,8 @@ export class Player {
       const target = aiming ? this.facing : Math.atan2(x, z);
       const diff = Math.atan2(Math.sin(target - this.facing), Math.cos(target - this.facing));
       this.facing += diff * Math.min(1, TURN_SPEED * dt);
-      this.walkTime += dt;
+      // (The stride quickens when you sprint, and slows crouched: the hands and body bob with it.)
+      this.walkTime += dt * (this.sprinting ? 1.45 : this.sneaking ? 0.75 : 1);
     }
     // Underground you walk on the cave's floor; on the surface, the land (or swim).
     const ground = this.cave ? this.cave.floorAt(this.position.x, this.position.z) : world.terrain.heightAt(this.position.x, this.position.z);
@@ -495,6 +514,10 @@ export class Player {
     if (this.airborne) this.fallFrom = Math.max(this.fallFrom ?? -Infinity, this.feet);
     else if (this.fallFrom !== null) {
       const fell = this.fallFrom - this.feet;
+      if (fell > 0.25) {
+        this.landTime = LAND_TIME;
+        this.landHard = Math.min(1, fell / 2);
+      }
       if (fell > SAFE_FALL && world.terrain.waterDepth(this.position.x, this.position.z) < 0.6) this.fallDamage += (fell - SAFE_FALL) * FALL_DAMAGE;
       this.fallFrom = null;
     }
