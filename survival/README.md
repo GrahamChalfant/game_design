@@ -230,7 +230,9 @@ of the screen. In the crafting list, each ingredient shows how many you have out
 you need (like 2/3 sticks): red until you have enough, then green.
 
 To make a campfire, press Tab and craft one (6 sticks), then select it and click to
-place it on open ground. Stand next to it and press E to light it (with the lighter, or a match).
+place it on open ground. To light it, select the lighter or the matches, stand next to it, and click
+and hold: you strike a match on the box (or flick the lighter), shelter the flame and put it to the
+kindling. (With anything else in your hand you can't light it.)
 A fire burns for 6 in-game hours; stand next to it and press E to add a log (2 more hours each,
 up to 16) or, with no logs, a stick (half an hour). A fire that's gone out needs more wood (E)
 and lighting again.
@@ -270,8 +272,9 @@ Craft a shelter (20 sticks, 6 rope, 4 hides), select it and click to build it a 
 ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
-Nights are dark away from a fire. Craft a torch (2 sticks), then click to light it with your lighter or a
-match (or hold it at a burning campfire and click). A lit torch lights up the ground around you and burns for 8 in-game hours (about 5 real
+Nights are dark away from a fire. Craft a torch (2 sticks), select it, and click and hold to light it:
+your other hand brings the lighter (or a match, if you've no lighter) up under its head, so the lighter
+only needs to be on you; or, next to a burning campfire, you hold the torch in the flames. A lit torch lights up the ground around you and burns for 8 in-game hours (about 5 real
 minutes at night) while you hold it, with your arm bent up in front of you; put away in your inventory, it
 keeps. Its slot shows how long it has left.
 Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows in your Outfit

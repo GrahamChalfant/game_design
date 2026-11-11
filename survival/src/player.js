@@ -33,7 +33,8 @@ const SAFE_FALL = 3; // meters you can drop without getting hurt
 const FALL_DAMAGE = 9; // health lost per meter dropped beyond that
 const KNIFE_GRIP_OFFSET = 0.01; // nudge so the middle of knife.glb's handle (1 cm below its origin) sits in the fist
 const STAB_TIME = 0.32; // seconds a knife jab lasts: a quick thrust, then the arm comes back
-const STAB_THRUST = 0.3; // the share of the jab spent thrusting forward
+const STAB_THRUST = 0.3;
+export const SIP_TIME = 1.1; // seconds a drink from the flask takes // the share of the jab spent thrusting forward
 const FADE_TIME = 0.15; // seconds to blend from one animation to the next
 const POSE_SPEED = 8; // how quickly the arms move into and out of a pose (see poseArms)
 const HURT_TIME = 0.45; // seconds the player reels after being hit
@@ -105,7 +106,11 @@ export class Player {
     this.stabTime = 0; // counts down after a stab, to jab the knife forward
     this.jab = 0; // how far out the arm is in that jab (0–1)
     this.swingTime = 0; // counts down through one axe swing at an animal
-    this.busy = null; // what the hands are doing: 'search', 'searchLow', 'eat', 'bandage', 'butcher', 'draw' or null
+    this.busy = null; // what the hands are doing: 'search', 'searchLow', 'eat', 'bandage', 'butcher', 'draw', 'lightFire', 'lightTorch' or null
+    this.busyWith = null; // lighting: what with ('lighter', 'matches', or 'fire' for a torch held to one)
+    this.busyProgress = 0; // how far through what it's busy with (0-1), where that's timed
+    this.chopPhase = 0; // how far through the current chop (0-1; the axe bites at 0.45)
+    this.sipTime = 0; // counts down through a drink from the flask
     this.drawAmount = 0; // how far the bow is drawn (0–1), while drawing it
     this.pose = null; // the arm pose being shown (stays set while it fades out)
     this.poseWeight = 0;
@@ -233,7 +238,7 @@ export class Player {
     else if (this.airborne) this.play('jump');
     else if (this.drinking) this.play('drink');
     else if (this.chopping || this.swingTime > 0) this.play('chop');
-    else if (this.busy === 'searchLow' || this.busy === 'butcher') this.play('crouch'); // down on your knees
+    else if (this.busy === 'searchLow' || this.busy === 'butcher' || this.busy === 'lightFire') this.play('crouch'); // down on your knees
     else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? SNEAK_SPEED : WALK_SPEED));
     else this.play(this.sneaking ? 'crouch' : 'idle');
     const clip = this.playing;
@@ -289,6 +294,14 @@ export class Player {
         const wind = t * 7;
         arm(1, [0.3, -0.55, 0.75], [-0.6, 0.1, 0.8]);
         arm(-1, [-0.2, -0.5, 0.8], [0.35 + Math.cos(wind) * 0.3, 0.05 + Math.sin(wind) * 0.3, 0.85]);
+      } else if (this.pose === 'lightFire') {
+        // Kneeling at the fire, both hands down at the kindling, sheltering the flame.
+        for (const side of [1, -1]) arm(side, [side * 0.15, -0.6, 0.8], [-side * 0.25, -0.7, 0.65]);
+      } else if (this.pose === 'lightTorch') {
+        // The torch held out in front, the other hand bringing the flame up to it (or, at a
+        // campfire, the torch reaching down into the flames).
+        if (this.busyWith === 'fire') arm(-1, [-0.1, -0.45, 0.9], [-0.05, -0.6, 0.8]);
+        else for (const side of [1, -1]) arm(side, [side * 0.2, -0.35, 0.9], [-side * 0.3, 0.05, 0.95]);
       } else if (this.pose === 'butcher') {
         // Kneeling over the carcass: the left hand holds it down, the right saws at it with the knife.
         const saw = Math.sin(t * 11) * 0.35;
@@ -353,6 +366,7 @@ export class Player {
   // One swing of the axe at an animal (the chopping animation, once through).
   swingAxe() {
     this.swingTime = this.clips?.chop?.getClip().duration ?? 0.8;
+    this.swingLength = this.swingTime;
     if (this.playing === this.clips?.chop) this.clips.chop.time = 0;
   }
 
@@ -377,6 +391,11 @@ export class Player {
     this.stabTime = STAB_TIME;
   }
 
+  // A drink from the flask: up to the lips, tipped, and down again.
+  sip() {
+    this.sipTime = SIP_TIME;
+  }
+
   update(dt, input, world) {
     // A lit torch flickers.
     this.flicker += dt;
@@ -385,6 +404,7 @@ export class Player {
     this.torchFlame.scale.setScalar(0.32 * (0.9 + 0.15 * flicker));
     this.stabTime = Math.max(0, this.stabTime - dt);
     this.swingTime = Math.max(0, (this.swingTime ?? 0) - dt);
+    this.sipTime = Math.max(0, this.sipTime - dt);
     // How far out the arm is in a jab: shoots out fast, comes back slower (0 → 1 → 0).
     const p = 1 - this.stabTime / STAB_TIME;
     this.jab = this.stabTime === 0 ? 0 : p < STAB_THRUST ? 1 - (1 - p / STAB_THRUST) ** 2 : 1 - ((p - STAB_THRUST) / (1 - STAB_THRUST)) ** 2;

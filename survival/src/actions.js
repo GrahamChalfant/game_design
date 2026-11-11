@@ -54,8 +54,13 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     }
   };
 
-  // What you can light a fire or a torch with: your lighter, or else a match (one used up
-  // each time). Null if you've neither.
+  // Lighting takes a moment, holding the mouse button (and the hands show it: see handView.js):
+  // a campfire with the lighter or the matches in your hand; a torch in your hand with a lighter
+  // or a match from your pocket (in your other hand), or held in a burning campfire.
+  const LIGHT_FIRE_TIME = { lighter: 1.6, matches: 2.2 }; // seconds
+  const LIGHT_TORCH_TIME = { lighter: 1.4, matches: 1.9, fire: 1.3 };
+  // What you can light a torch with: your lighter, or else a match (one used up each time).
+  // Null if you've neither.
   const fireStarter = () => (inventory.count('lighter') > 0 ? 'lighter' : inventory.count('matches') > 0 ? 'matches' : null);
   const withStarter = (starter) => (starter === 'lighter' ? 'with your lighter' : 'with a match');
   // Uses up a match if that's what you lit it with, with the sound of it catching.
@@ -133,6 +138,8 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     let usingNow = false;
     let drawingNow = false;
     let busy = null; // what the player's hands are doing, for their pose (see Player.busy)
+    let busyWith = null; // ...and, lighting something, what with
+    let busyProgress = 0;
     // Hold the mouse button for `time` seconds to use the held item. True once it's done.
     const holdToUse = (time) => {
       usingNow = input.usingTool();
@@ -144,6 +151,20 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       using = 0;
       return true;
     };
+    // Hold the mouse button to light the torch in your hand from `source` (a lighter, matches, or
+    // 'fire': a burning campfire). Returns the prompt while you're at it.
+    const lightTorchFrom = (source) => {
+      const done = holdToUse(LIGHT_TORCH_TIME[source]);
+      if (usingNow) {
+        busy = 'lightTorch';
+        busyWith = source;
+        busyProgress = progress;
+        clickUsed = true;
+      }
+      if (done) lightTorch(source === 'fire' ? null : source);
+      if (usingNow) return source === 'fire' ? 'Holding the torch in the flames…' : 'Lighting the torch…';
+      return source === 'fire' ? 'Click and hold to light the torch in the fire' : `Click and hold to light the torch ${withStarter(source)}`;
+    };
 
     if (fire) {
       // Tending a fire: E lights it (with a lighter or a match) or adds a log.
@@ -154,11 +175,24 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       const fuel = wood > 0 ? 'wood' : sticks > 0 ? 'stick' : null;
       const addFuel = fuel === 'wood' ? 'E to add a log' : fuel ? 'E to add a stick' : null;
       const starter = fireStarter();
+      // (To light a fire you need the lighter or the matches in your hand.)
+      const inHand = held === 'lighter' || held === 'matches' ? held : null;
       const needsLighting = !campfires.isBurning(fire) && fire.fuel > 0;
-      if (pressedE && needsLighting && starter) {
-        campfires.light(fire);
-        strike(starter, fire);
-        hud.toast('The fire catches');
+      let lighting = false;
+      if (needsLighting && inHand) {
+        const done = holdToUse(LIGHT_FIRE_TIME[inHand]);
+        lighting = usingNow;
+        if (usingNow) {
+          busy = 'lightFire';
+          busyWith = inHand;
+          busyProgress = progress;
+          clickUsed = true;
+        }
+        if (done) {
+          campfires.light(fire);
+          strike(inHand, fire);
+          hud.toast('The fire catches');
+        }
       } else if (pressedE && !needsLighting && fuel && campfires.addWood(fire, fuel)) {
         inventory.remove(fuel, 1);
         sfx('add-wood', fire);
@@ -172,7 +206,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         tend = addFuel ?? 'no wood to add';
       } else if (fire.fuel > 0) {
         status = 'Campfire: not lit';
-        tend = starter ? `E to light it ${withStarter(starter)}` : 'you need a lighter or matches to light it';
+        if (lighting) tend = 'lighting it…';
+        else if (inHand) tend = `click and hold to light it ${withStarter(inHand)}`;
+        else if (starter) tend = `select your ${starter === 'lighter' ? 'lighter' : 'matches'} to light it`;
+        else tend = 'you need a lighter or matches to light it';
       } else {
         status = 'The fire is out';
         tend = addFuel ?? 'it needs wood: logs or sticks';
@@ -218,11 +255,9 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       } else if (held === 'rawMeat') {
         prompt = `${status} · you need a spit to cook on: craft one (Tab, 3 wood)`;
       } else if (held === 'torch' && burning) {
-        prompt = `Click to light the torch · ${tend}`;
-        if (input.startedUsingTool()) lightTorch();
-      } else if (held === 'torch' && fireStarter()) {
-        prompt = `Click to light the torch ${withStarter(fireStarter())} · ${tend}`;
-        if (input.startedUsingTool()) lightTorch(fireStarter());
+        prompt = `${lightTorchFrom('fire')} · ${tend}`;
+      } else if (held === 'torch' && starter) {
+        prompt = `${lightTorchFrom(starter)} · ${tend}`;
       } else if (held === 'torch') {
         prompt = `${status} · light it, or find a lighter or matches, to light your torch`;
       }
@@ -395,12 +430,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     } else if (!fire && held === 'map') {
       prompt = 'Press M to look at the map';
     } else if (!fire && held === 'torch') {
-      // Light it with your lighter or a match, or at a burning campfire.
+      // Light it with your lighter or a match (in your other hand), or at a burning campfire.
       const starter = fireStarter();
-      if (starter) {
-        prompt = `Click to light the torch ${withStarter(starter)}`;
-        if (input.startedUsingTool()) lightTorch(starter);
-      } else prompt = 'Light it at a burning campfire, or with a lighter or matches';
+      if (starter) prompt = lightTorchFrom(starter);
+      else prompt = 'Light it at a burning campfire, or with a lighter or matches';
     } else if (!fire && held === 'litTorch') {
       const { burn } = inventory.slots[inventory.selected];
       prompt = `Lit torch · burns for ${formatFuel(burn)} more`;
@@ -417,9 +450,9 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         onDressed(held);
       }
     } else if (!fire && held === 'lighter') {
-      prompt = 'Keep it on you to light campfires (E next to one) and torches';
+      prompt = 'Hold it at a campfire to light it · keep it on you to light torches';
     } else if (!fire && held === 'matches') {
-      prompt = `${inventory.count('matches')} matches · each lights a campfire (E next to one) or a torch`;
+      prompt = `${inventory.count('matches')} matches · hold them at a campfire to light it · each lights a fire or a torch`;
     } else if (!fire && held === 'flask') {
       // Click at the water's edge (or in it) to fill up; anywhere else to take a drink.
       const flask = inventory.slots[inventory.selected];
@@ -439,6 +472,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         prompt = `Water flask ${flask.water}/${holds} · click to drink`;
         if (input.startedUsingTool()) {
           flask.water -= 1;
+          player.sip();
           survival.drink(FLASK_DRINK);
           sfx('gulp');
           hud.toast('Refreshing');
@@ -609,6 +643,9 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     // Butchering, you work with your knife if you have one, whatever's in your hand.
     const inHand = busy === 'butcher' && inventory.count('knife') > 0 ? 'knife' : inventory.selectedItem;
     player.setAction(inHand, swinging, drinking, inventory.hasBackpack, busy);
+    player.busyWith = busyWith;
+    player.busyProgress = busyProgress;
+    player.chopPhase = swinging ? chopBeat / CHOP_BEAT : 0;
     const warmFire = offGround ? null : campfires.near(x, z, WARMTH_REACH);
     const nearFire = Boolean(warmFire && campfires.isBurning(warmFire));
     const wet = !player.cave && world.terrain.waterDepth(x, z) > WET_DEPTH;
