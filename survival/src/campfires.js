@@ -17,6 +17,10 @@ const RAW = new THREE.Color(0xd2605e);
 const COOKED = new THREE.Color(0x9a5a2e);
 const BURNT = new THREE.Color(0x2e231d);
 const TURN_SPEED = 0.5; // radians a second the meat turns on the skewer
+// Where pieces of meat go along the skewer (meters from the middle, in the order they're put
+// on: the middle first, over the hottest part of the fire). Up to three at once.
+const SPIT_PLACES = [0, -0.3, 0.3];
+export const SPIT_HOLDS = SPIT_PLACES.length;
 
 // The spit model (spit.glb: the forked sticks and skewer, and "spit-meat"), loaded once.
 let spitModel = null;
@@ -91,41 +95,62 @@ export class Campfires {
     const object = new THREE.Group();
     object.rotation.y = facing;
     fire.object.add(object);
-    fire.spit = { object, meat: null, meatMesh: null };
+    // (`pieces`: the meat in each place along the skewer, { cooked } or null; `meshes`: each
+    // place's piece of meat, shown while there's meat there.)
+    fire.spit = { object, pieces: SPIT_PLACES.map(() => null), meshes: [] };
     spitLoaded().then((model) => {
       if (!model || !fire.spit) return;
       const copy = model.clone(true);
       copy.traverse((child) => (child.castShadow = child.receiveShadow = true));
       const meat = copy.getObjectByName('spit-meat');
       if (meat) {
-        // (Its own material, so each spit's meat can be its own colour.)
-        meat.traverse((child) => {
-          if (child.isMesh) child.material = child.material.clone();
+        // A piece for each place along the skewer, each with its own material (its own colour).
+        fire.spit.meshes = SPIT_PLACES.map((along, i) => {
+          const piece = i === 0 ? meat : meat.clone(true);
+          if (i > 0) meat.parent.add(piece);
+          piece.position.x += along;
+          piece.rotation.x = i * 2.1; // (not all turned alike)
+          piece.traverse((child) => {
+            if (child.isMesh) child.material = child.material.clone();
+          });
+          piece.visible = Boolean(fire.spit.pieces[i]);
+          return piece;
         });
-        meat.visible = Boolean(fire.spit.meat);
       }
-      fire.spit.meatMesh = meat;
       object.add(copy);
     });
   }
 
-  // Puts a piece of raw meat on the fire's spit.
-  putMeat(fire) {
-    fire.spit.meat = { cooked: 0 };
+  // The pieces of meat on the fire's spit ({ cooked } each), in the order they went on.
+  meatOn(fire) {
+    return (fire.spit?.pieces ?? []).filter(Boolean).sort((a, b) => a.at - b.at);
   }
 
-  // Takes the meat off the fire's spit: returns what it's become (rawMeat, cookedMeat or burntMeat).
-  takeMeat(fire) {
-    const { cooked } = fire.spit.meat;
-    fire.spit.meat = null;
-    return meatAfter(cooked);
+  // True if the fire's spit has room for another piece of meat.
+  spitHasRoom(fire) {
+    return Boolean(fire.spit?.pieces.includes(null));
+  }
+
+  // Puts a piece of raw meat on the fire's spit, in its next free place.
+  putMeat(fire) {
+    const { pieces } = fire.spit;
+    const i = pieces.indexOf(null);
+    if (i >= 0) pieces[i] = { cooked: 0, at: (this.putCount = (this.putCount ?? 0) + 1) };
+  }
+
+  // Takes a piece of meat off the fire's spit (`piece`, or the one that's been on longest):
+  // returns what it's become (rawMeat, cookedMeat or burntMeat).
+  takeMeat(fire, piece = this.meatOn(fire)[0]) {
+    const { pieces } = fire.spit;
+    pieces[pieces.indexOf(piece)] = null;
+    return meatAfter(piece.cooked);
   }
 
   // How loud the sizzle of meat cooking is at (x, z): 0 to 1.
   sizzleAt(x, z) {
     let loudest = 0;
     for (const fire of this.fires) {
-      if (!fire.spit?.meat || !this.isBurning(fire)) continue;
+      if (!this.meatOn(fire).length || !this.isBurning(fire)) continue;
       loudest = Math.max(loudest, 1 - Math.hypot(fire.x - x, fire.z - z) / 9);
     }
     return loudest;
@@ -156,22 +181,21 @@ export class Campfires {
     this.lastTime = time;
     for (const fire of this.fires) {
       // Meat on the spit cooks while the fire burns. (Left on through a night's sleep, it burns.)
-      const meat = fire.spit?.meat;
-      if (meat && this.isBurning(fire)) {
-        meat.cooked += seconds;
-        if (gameMinutes > 30) meat.cooked = BURN_TIME;
-      }
-      const meatMesh = fire.spit?.meatMesh;
-      if (meatMesh) {
-        meatMesh.visible = Boolean(meat);
-        if (meat) {
-          if (this.isBurning(fire)) meatMesh.rotation.x += seconds * TURN_SPEED;
-          const colour = meat.cooked < COOK_TIME
-            ? RAW.clone().lerp(COOKED, meat.cooked / COOK_TIME)
-            : COOKED.clone().lerp(BURNT, Math.min(1, Math.max(0, (meat.cooked - CHARRING) / (BURN_TIME - CHARRING))));
-          meatMesh.traverse((child) => child.isMesh && child.material.color.copy(colour));
+      fire.spit?.pieces.forEach((meat, i) => {
+        if (meat && this.isBurning(fire)) {
+          meat.cooked += seconds;
+          if (gameMinutes > 30) meat.cooked = BURN_TIME;
         }
-      }
+        const mesh = fire.spit.meshes[i];
+        if (!mesh) return;
+        mesh.visible = Boolean(meat);
+        if (!meat) return;
+        if (this.isBurning(fire)) mesh.rotation.x += seconds * TURN_SPEED;
+        const colour = meat.cooked < COOK_TIME
+          ? RAW.clone().lerp(COOKED, meat.cooked / COOK_TIME)
+          : COOKED.clone().lerp(BURNT, Math.min(1, Math.max(0, (meat.cooked - CHARRING) / (BURN_TIME - CHARRING))));
+        mesh.traverse((child) => child.isMesh && child.material.color.copy(colour));
+      });
       if (fire.lit) fire.fuel = Math.max(0, fire.fuel - gameMinutes);
       // Once the wood runs out the fire goes out, and needs lighting again.
       if (fire.fuel === 0) fire.lit = false;

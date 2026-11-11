@@ -283,9 +283,11 @@ Craft a hide parka (6 hides, 3 rope), select it and click to put it on. It shows
 slot, and on your character as a knee-length hide coat with a fur-trimmed hood. It keeps out most of the mountain cold, so you can climb up there by
 day, and halves the chill of a night outdoors. Nights up the mountains still need a fire.
 To cook, craft a cooking spit (3 sticks), hold it next to a campfire and click to set it up over
-the fire. Then hold raw meat there and click to put it on the spit: over a burning fire it's
-cooked in 30 seconds, and burnt if you leave it on for a minute (it darkens as it starts to
-burn). Click to take it off, and away from the fire click and hold to eat. Eating meat raw
+the fire. Then hold raw meat there and hold the mouse button for a second to put it on the spit
+(up to three pieces at once, each cooking on its own): over a burning fire a piece is cooked in
+30 seconds, and burnt if you leave it on for a minute (it darkens as it starts to burn). Hold the
+mouse button for a second to take a piece off (the one that's been on longest; a hold, so you
+don't take one off by accident), and away from the fire click and hold to eat. Eating meat raw
 works in a pinch, but it makes you sick, and burnt meat isn't worth much. When you're full you
 won't eat any more, and when you're not thirsty you won't drink.
 
