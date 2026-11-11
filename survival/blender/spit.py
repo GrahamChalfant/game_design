@@ -1,8 +1,11 @@
 # The cooking spit (spit.glb) that stands over a campfire (src/campfires.js): two forked sticks
 # driven in either side of the fire ring (which is 0.4 m across to the stones' middles), a
 # peeled green stick across the forks for the skewer, and on it a piece of meat ("spit-meat",
-# its origin on the skewer, so the game can turn it and shows it only while there's meat on).
-# The meat is pale here: the game tints it raw red, cooked brown or burnt black.
+# its origin on the skewer, so the game can turn it and shows it only while there's meat on; the
+# game copies it for each piece, up to three along the skewer).
+# The meat is the steak you carry (hand_props.py's steak_shape: the same cut, the same marbling
+# and rim of fat), threaded on the skewer through its middle, lengthways. It's pale here: the
+# game tints it raw red, cooked brown or burnt black, as it does the one in your hand.
 # Run in an open Blender (Blender MCP or the Text Editor), or: blender -b --python spit.py
 import math, os, random, runpy
 from mathutils import Vector
@@ -13,7 +16,7 @@ Builder, build, export, shared, tone, blend, PAL = R['Builder'], R['build'], R['
 tube, end_grain, bark_colour, g = R['tube'], R['end_grain'], R['bark_colour'], R['g']
 build_hinged = R['build_hinged']
 
-PAL.update(green_wood=0xc9b48a, green_wood_dark=0xa8925f, meat_pale=0xeadbd2, meat_fat=0xf6efe6)
+PAL.update(green_wood=0xc9b48a, green_wood_dark=0xa8925f)
 
 SIDE = 0.62  # the forks stand this far either side of the fire's middle
 BAR = 0.8  # the skewer's height, resting in the forks (clear of the logs, in the flames' tips)
@@ -52,16 +55,10 @@ end_grain(b, rings[0], path[0][0], Vector((-1, 0, 0)))
 end_grain(b, rings[-1], path[-1][0], Vector((1, 0, 0)))
 frame = build('spit', b, shared('spit-wood'))
 
-# The meat: a lumpy roast threaded on the skewer, pale (the game tints it), streaked with fat.
-def flesh(t, a, normal):
-    fat = math.sin(t * 11 + math.cos(a) * 2) > 0.75
-    return tone('meat_fat' if fat else 'meat_pale', 0.05)
-
-
-m = Builder()
-profile = [0.012, 0.055, 0.075, 0.08, 0.072, 0.078, 0.06, 0.012]
-path = [(Vector((-0.15 + 0.3 * k / (len(profile) - 1), BAR + 0.004 * math.sin(k * 2.1), 0)), r) for k, r in enumerate(profile)]
-tube(m, path, 10, flesh, rough=0.22, seed=12)
+# The meat: the steak, its middle on the skewer (pale: the game tints it). A generous cut, about
+# 19 cm across (the one in your hand, close to your eyes, reads big at 14).
+H = runpy.run_path(os.path.join(HERE, 'hand_props.py'), init_globals={'DEFS_ONLY': True})
+m = H['steak_shape'](Vector((0, BAR - 0.045, 0)), size=1.4)
 meat = build_hinged('spit-meat', m, shared('spit-meat', 0.8), (0, BAR, 0))
 
 export([frame, meat], 'spit.glb')
