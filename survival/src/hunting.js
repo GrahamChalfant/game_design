@@ -78,9 +78,10 @@ export const KNIFE_RANGE = 1.6; // meters from the player's centre to the tip of
 export const KNIFE_ARC = Math.PI / 3; // stabs hit anything within ±60° of where you face
 export const KNIFE_COOLDOWN = 0.45; // seconds between stabs (hold the button to keep stabbing)
 
-export function fleeDistance(kind, sneaking) {
+export const SPRINT_NOISE = 1.6; // sprinting, animals notice you this many times further off
+export function fleeDistance(kind, sneaking, sprinting = false) {
   const d = FLEE_DISTANCE[kind];
-  return sneaking ? d.crouching : d.standing;
+  return sneaking ? d.crouching : sprinting ? d.standing * SPRINT_NOISE : d.standing;
 }
 
 // Applies one hit ('arrow' or 'knife'); returns true if the animal is now dead.

@@ -53,14 +53,15 @@ const AT_REST = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.15, 0.3, 
 const LET_GO = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.6, 0.9, -1.0)); // (fingers opened, hand turned away)
 const RELEASE = { snap: 0.07, quiver: 16, follow: 0.12, away: 0.5 }; // seconds: string settles, Hz, follow-through, hand drops away
 const SWAY = 0.012; // how far the hand bobs as you walk
-const TORCH_TILT = -0.25; // the torch in the hand, leaning away from you
+const TORCH_TILT = -0.25; // the torch leaning away from you (the wrist bent: it runs straight through the fist)
 // The wrist bent forward, so a knife points ahead out of the fist (the forearm stays as it was).
 const KNIFE_BEND = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.95, 0, 0));
 const BUTCHER_BEND = new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.75, 0, 0)); // (further, the blade pointing down)
 const NO_BEND = new THREE.Quaternion();
 const WRIST = new THREE.Vector3(0.003, 0, 0.065); // the wrist joint, in the hand model's space (the right's; the left's is mirrored)
 const PALM_UP = -1.45; // how far the hand rolls over to hold something on its palm (radians, round the forearm)
-const AXE_TILT = -0.55; // the axe in the hand, its head tipped forward
+const AXE_TILT = -0.55; // the axe's head tipped forward (the wrist bent: its handle runs straight through the fist)
+const bendOf = (x) => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), x);
 const BREATH = 0.0025; // how far the hands rise and fall as you breathe
 const LOOK_LAG = 0.012; // how far the hands trail behind as you turn your head (m per radian/s)
 const EASE_IN = 16; // how quickly a hand settles into a new pose (1/s)
@@ -170,7 +171,7 @@ export class HandView {
     this.flame.traverse((child) => (child.userData.keepColours = true));
     // (Their models are made to sit in the hand along its length, +y: turn them to point ahead.)
     // (The axe model's blade faces +z: turned round, so its edge faces ahead, away from you.)
-    this.tools.axe = holder('axe', placeholders.axe(), (g) => g.rotation.set(AXE_TILT, Math.PI, -0.1));
+    this.tools.axe = holder('axe', placeholders.axe(), (g) => g.rotation.set(0, Math.PI, 0));
     this.tools.knife = holder('knife', placeholders.knife(), (g) => {
       g.scale.setScalar(0.9); // (small already: life size reads better)
       g.rotation.set(-0.1, 0, 0.1); // (up through the fist: the wrist bends it forward, KNIFE_BEND)
@@ -196,7 +197,7 @@ export class HandView {
     });
     this.pulled = 0;
     this.shot = { raise: 0, held: 0, release: Infinity, from: 0, wasDrawing: false, letGo: null };
-    this.tools.torch = holder('torch', placeholders.torch(), (g) => g.rotation.set(TORCH_TILT, 0, 0));
+    this.tools.torch = holder('torch', placeholders.torch(), () => {});
     this.tools.torch.add(this.flame);
     // A bandage roll, for winding round the left forearm.
     this.roll = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.07, 10), new THREE.MeshLambertMaterial({ color: 0xe9e3d4 }));
@@ -389,7 +390,9 @@ export class HandView {
     if (MEAT[item] && this.meatMaterial) this.meatMaterial.color.set(MEAT[item]);
 
     const walk = player.walkTime;
-    const bob = new THREE.Vector3(Math.sin(walk * 8.9) * SWAY, -Math.abs(Math.cos(walk * 8.9)) * SWAY, 0);
+    // (Sprinting, the hands swing harder and drop a little: arms pumping.)
+    const sway = SWAY * (player.sprinting ? 2.2 : 1);
+    const bob = new THREE.Vector3(Math.sin(walk * 8.9) * sway, -Math.abs(Math.cos(walk * 8.9)) * sway - (player.sprinting ? 0.025 : 0), 0);
     let right = null; // { p, q } where each hand's going this frame, or null: down out of sight
     let left = null;
     let snap = false; // straight there (a quick, exact move), rather than easing in
@@ -437,11 +440,13 @@ export class HandView {
         [0.53, pose(0.04, -0.255, -0.54, -0.15, 0.25, -0.28, -0.72), easeOut],
         [1, pose(0.17, -0.22, -0.42, -0.2, 0.3, -0.15, 0), smooth],
       ], u);
-      const axe = this.tools.axe;
-      axe.rotation.x = AXE_TILT + right.w;
+      // (The axe tipped by bending the wrist, so its handle stays in the fist.)
+      const bend = bendOf(AXE_TILT + right.w);
+      right.q.multiply(bend);
       // The left hand further up the handle, turned the same way.
-      const handle = new THREE.Vector3(0, 1, 0).applyQuaternion(axe.quaternion).multiplyScalar(0.12);
-      left = { p: right.p.clone().add(handle.applyQuaternion(right.q)), q: right.q.clone() };
+      const handle = new THREE.Vector3(0, 0.12, 0).applyQuaternion(right.q);
+      left = { p: right.p.clone().add(handle), q: right.q.clone() };
+      this.bends.right.want = this.bends.left.want = bend;
       snap = true;
     } else if (player.jab > 0 && tool === 'knife') {
       grips.right = 'handle';
@@ -519,14 +524,15 @@ export class HandView {
     } else if (tool === 'axe' || tool === 'knife') {
       grips.right = 'handle';
       right = rest(...HAND.toArray(), -0.15, 0.3, -0.12);
-      if (tool === 'knife') {
-        right.q.multiply(KNIFE_BEND);
-        this.bends.right.want = KNIFE_BEND;
-      }
+      const bend = tool === 'knife' ? KNIFE_BEND : bendOf(AXE_TILT);
+      right.q.multiply(bend);
+      this.bends.right.want = bend;
     } else if (tool === 'torch') {
       grips.right = 'handle';
       // A torch held low and out ahead, leaning away, its flame off to the right of the view.
       right = rest(0.24, -0.305, -0.54, -0.4, 0.3, -0.12);
+      right.q.multiply(bendOf(TORCH_TILT));
+      this.bends.right.want = bendOf(TORCH_TILT);
     } else if (PROPS.includes(tool)) {
       grips.right = HOLD[tool];
       // A small thing held up in the right hand, where you can see it.
@@ -571,8 +577,6 @@ export class HandView {
       this.rigs.right.update(dt);
       this.rigs.left.update(dt);
     }
-    if (!(player.chopping || player.swingTime > 0)) this.tools.axe.rotation.x = AXE_TILT;
-    if (!(busy === 'lightTorch' && player.busyWith === 'fire')) this.tools.torch.rotation.x = TORCH_TILT;
     // The bow, in the left hand's grip.
     this.tools.bow.position.copy(this.left.position);
 
@@ -698,13 +702,17 @@ export class HandView {
         [0.85, pose(0.09, -0.31, -0.64, -0.6, 0.2, 0.15, -0.9)],
         [1, pose(0.16, -0.31, -0.58, -0.45, 0.28, 0, -0.3), smooth],
       ], p);
-      // (Its head tipped forward and down into the flames.)
-      this.tools.torch.rotation.x = TORCH_TILT + right.w;
+      // (Its head tipped forward and down into the flames: the wrist bent.)
+      const bend = bendOf(TORCH_TILT + right.w);
+      right.q.multiply(bend);
+      this.bends.right.want = bend;
       return { right, left: null };
     }
     // The torch held up and leaning in; the left hand brings the lighter (or a match, struck
     // with a flick of the thumb) up under its head, and holds the flame there until it catches.
     const right = pose(0.1, -0.2, -0.46, -0.25, 0.25, 0.4);
+    right.q.multiply(bendOf(TORCH_TILT));
+    this.bends.right.want = bendOf(TORCH_TILT);
     const torch = this.tools.torch;
     torch.updateMatrix();
     const head = this.flame.position.clone().applyMatrix4(torch.matrix).applyQuaternion(right.q).add(right.p);

@@ -47,7 +47,8 @@ automatically whenever you save a file.
 | Key | Action |
 | --- | --- |
 | W A S D / arrow keys | Walk |
-| C, or hold Shift | Crouch: move slowly so animals don't notice you as soon. C stays on until you press it again |
+| Hold Shift | Sprint (animals hear you coming from further off) |
+| C | Crouch: move slowly so animals don't notice you as soon. Stays on until you press C again |
 | 1–6, or click a slot | Pick an item from the hotbar |
 | Left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
 | Space | Jump, including onto rocks and stumps that are low enough |

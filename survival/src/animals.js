@@ -213,9 +213,9 @@ export class Animals {
     return best;
   }
 
-  update(dt, playerPosition, sneaking) {
+  update(dt, playerPosition, sneaking, sprinting = false) {
     for (const animal of this.all) {
-      if (!animal.dead) this.updateAnimal(animal, dt, playerPosition, sneaking);
+      if (!animal.dead) this.updateAnimal(animal, dt, playerPosition, sneaking, sprinting);
       else if (animal.dying != null) this.updateDying(animal, dt);
     }
     // (Rabbits drawn to a set trap stay, so traps keep working while you're away.)
@@ -245,14 +245,14 @@ export class Animals {
     }
   }
 
-  updateAnimal(animal, dt, playerPosition, sneaking) {
+  updateAnimal(animal, dt, playerPosition, sneaking, sprinting) {
     const { config, position } = animal;
     const playerDistance = Math.hypot(position.x - playerPosition.x, position.z - playerPosition.z);
 
     // Notice the player and bolt; settle down again once well away.
     let direction = null;
     let speed = 0;
-    if (playerDistance < fleeDistance(animal.kind, sneaking)) {
+    if (playerDistance < fleeDistance(animal.kind, sneaking, sprinting)) {
       if (animal.state !== 'flee') this.onFlee(animal);
       animal.state = 'flee';
     }

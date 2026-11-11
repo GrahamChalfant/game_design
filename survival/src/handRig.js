@@ -16,7 +16,8 @@ export const GRIPS = {
   open: { ...all([0.1, 0.12, 0.08]), thumb: [0, -0.15, 0, 0] },
   // Closed round a handle (the axe, the knife, the torch, the bow's grip): the fingers wrapped
   // round it, the thumb across them.
-  handle: { ...all([1.28, 1.45, 0.9]), pinky: [1.36, 1.5, 0.95], thumb: [0.4, 0.4, 0.6, 0.5] },
+  // (Fitted in Blender round a 32 mm handle: closed on it, not through it.)
+  handle: { ...all([1.15, 1.4, 0.85]), ring: [1.18, 1.42, 0.85], pinky: [1.25, 1.45, 0.9], thumb: [0.4, 0.35, 0.55, 0.45] },
   // Round the lighter: the fingers wrapped round its body, the thumb up on the wheel.
   lighter: { ...all([1.2, 1.5, 0.95]), thumb: [0.35, -0.1, 0.35, 0.3] },
   // A match between the thumb and the tip of the index finger, the others tucked away.
@@ -37,7 +38,7 @@ export const GRIPS = {
 
 // Where a handle passes through the hand closed in the `handle` grip (the hand model's own space):
 // the hand's placed so that's at its origin, as the things it holds expect.
-export const GRIP_CENTRE = new THREE.Vector3(-0.024, 0, -0.034);
+export const GRIP_CENTRE = new THREE.Vector3(-0.028, 0, -0.024);
 
 export class HandRig {
   // `root`: the hand's part tree (fp-r-hand or fp-l-hand); `side`: 1 for the right, -1 the left.
