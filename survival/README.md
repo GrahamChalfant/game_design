@@ -257,12 +257,16 @@ intestines.
 To hunt deer, make a bow. Stones lie in little groups by the rocks and the lake shore (press E
 to pick them up); a taken stone comes back three days later, so once you've picked an area clean you'll need to look further afield. A bowstring takes 1 intestines; once you hold a bowstring you can craft a bow
 (3 sticks, 2 bowstrings), and once you hold a bow, arrows (1 stick and 1 stone make 3). Select the
-bow, aim with the crosshair (or the mouse) and hold the button to draw (you turn to aim and walk
-slowly); let go to shoot. The arrow leaves the middle of the bow and flies at what you aimed at,
-nearly straight, then drops as it goes on. The further you draw, the faster it flies and the
+bow, aim with the crosshair (a small dot in the middle of the view while you've a bow and the
+mouse is captured; otherwise the mouse pointer) and hold the button to draw (you turn to aim and walk
+slowly); let go to shoot. The arrow leaves the bow's arrow rest and flies at what you aimed at,
+nearly straight, then drops as it goes on; drawn, the arrow on the string points right at the
+crosshair, so it flies the way it looks. It flies over low things (bushes, fences, rocks it
+clears, a campfire) but stops in a tree trunk. The further you draw, the faster it flies and the
 further it holds true (10 m on a light draw, 55 m drawn all the way; aim further and it drops
-short). In first person you see the whole shot: the bow comes up, your right hand brings an arrow up and
-nocks it, the shaft lying on top of your bow hand, then draws the string back to your chin (the
+short). In first person you see the whole shot: you carry the bow low at your side; drawing, it comes up
+a little while your right hand brings an arrow up and nocks it (the shaft lying on top of your bow
+hand, on the right of the bow), then up to aim, canted over to the left, as the string comes back under your eye (the
 bow arm starts to shake if you hold it there long); let go and the string snaps forward and
 quivers, the bow kicks, and your hand flies back past your cheek. Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
 follow one in flight, and a running animal can get away. One hit kills a deer or

@@ -11,7 +11,7 @@ const SIZE = 1.6;
 const STREAK = { length: 1.8, width: 0.035, opacity: 0.4 };
 const GLINT = 0.28; // meters across: a soft pale spot at the fletching, so it shows from behind too
 const LIFETIME = 8; // seconds: one still flying after this (off over the edge of the map) is gone
-const TREE_HEIGHT = 9; // arrows this low over a tree's trunk hit it
+const TREE_HEIGHT = 9; // arrows this low over a tree's trunk hit it (or anything else that doesn't say how tall it is)
 
 // Arrows in flight. Each leaves the bow aimed so it flies true to the point you aimed at (if
 // it's within reach of the draw; past that it drops short), and from then on it's just thrown:
@@ -113,7 +113,7 @@ export class Arrows {
           landed = p.setY(ground);
           break;
         }
-        if (p.y - ground < TREE_HEIGHT && !obstacles.isClear(p.x, p.z, 0)) {
+        if (p.y - ground < TREE_HEIGHT && blocks(obstacles, p, ground)) {
           landed = p;
           blocked = true;
           break;
@@ -185,6 +185,19 @@ export class Arrows {
     for (const arrow of this.flying) this.scene.remove(arrow.object);
     this.flying = [];
   }
+}
+
+// True if something stands in the way of an arrow at `p` (`ground` the ground's height there):
+// its footprint's under the arrow and it reaches up as high. Each thing is as tall as its `top`
+// (rocks, logs, stumps: what you can stand on) or its `height` over the ground (bushes, fences,
+// the campfire: low things an arrow flies over), or else a tree's height.
+function blocks(obstacles, p, ground) {
+  for (const o of obstacles.near(p.x, p.z, 0)) {
+    if (Math.hypot(o.x - p.x, o.z - p.z) > o.radius) continue;
+    const top = o.top ?? ground + (o.height ?? TREE_HEIGHT);
+    if (p.y < top) return true;
+  }
+  return false;
 }
 
 // The velocity, at `speed`, that carries a thrown arrow through the point `sight` away (the

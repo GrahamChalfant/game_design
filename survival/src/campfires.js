@@ -65,7 +65,7 @@ export class Campfires {
     this.scene.add(object);
 
     this.world.grass.clear(x, z, RADIUS + 0.5);
-    const obstacle = { x, z, radius: RADIUS };
+    const obstacle = { x, z, radius: RADIUS, height: 0.4 }; // (stones and wood: an arrow flies over it)
     this.world.obstacles.add(obstacle);
     const fire = { x, z, fuel: START_FUEL, lit: false, object, pit, flames, light, obstacle, flicker: Math.random() * 100 };
     this.fires.push(fire);

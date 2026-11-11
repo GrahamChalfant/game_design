@@ -77,6 +77,10 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     get mode() {
       return view;
     },
+    // True while the mouse is captured (looking around with it): you aim at the middle of the view.
+    get locked() {
+      return locked();
+    },
     // Puts the camera's draw distance and field of view back (after the binoculars).
     restoreCamera() {
       camera.near = NEAR[view];

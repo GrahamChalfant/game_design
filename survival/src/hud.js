@@ -32,6 +32,7 @@ export class Hud {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
+    this.crosshair = document.getElementById('crosshair');
     this.toasts = document.getElementById('toasts');
     this.gameOver = document.getElementById('game-over');
     this.survived = document.getElementById('survived');
@@ -185,6 +186,13 @@ export class Hud {
       slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => this.onTakeNearby(pile, to), () => {}));
       return slot;
     }));
+  }
+
+  // The crosshair, a small dot in the middle of the view: `shown` while you've a bow in hand to aim
+  // with (and the mouse is captured, so shots go there), brighter while you're drawing it.
+  showCrosshair(shown, drawing) {
+    this.crosshair.classList.toggle('shown', shown && !this.inventoryOpen);
+    this.crosshair.classList.toggle('drawing', drawing);
   }
 
   update(survival, inventory, { prompt, progress }) {

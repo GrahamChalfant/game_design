@@ -130,7 +130,7 @@ export function ruinRoads(scene, random, terrain, { paths, stops }, addLog, obst
   gate.rotation.y = Math.PI / 2 - along; // the road runs through between its posts
   scene.add(gate);
   for (const side of [-1, 1]) {
-    obstacles.add({ x: at.x - Math.sin(along) * side * (ROAD_WIDTH / 2 + 0.3), z: at.z + Math.cos(along) * side * (ROAD_WIDTH / 2 + 0.3), radius: 0.15 });
+    obstacles.add({ x: at.x - Math.sin(along) * side * (ROAD_WIDTH / 2 + 0.3), z: at.z + Math.cos(along) * side * (ROAD_WIDTH / 2 + 0.3), radius: 0.15, height: 1.4 });
   }
   // Signposts at each cabin's end of the road.
   for (const stop of stops.slice(1)) {
@@ -141,7 +141,7 @@ export function ruinRoads(scene, random, terrain, { paths, stops }, addLog, obst
     sign.position.set(x, terrain.heightAt(x, z), z);
     sign.rotation.y = random.range(0, Math.PI * 2);
     scene.add(sign);
-    obstacles.add({ x, z, radius: 0.12 });
+    obstacles.add({ x, z, radius: 0.12, height: 1.9 });
   }
 }
 
