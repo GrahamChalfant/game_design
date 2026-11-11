@@ -155,11 +155,11 @@ export function buildWreck(scene, world) {
   for (const suitcase of SUITCASES) {
     const object = withSuitcaseModel(suitcase.color);
     place(object, suitcase);
-    world.obstacles.add({ x: suitcase.x, z: suitcase.z, radius: 0.4 });
+    world.obstacles.add({ x: suitcase.x, z: suitcase.z, radius: 0.4, height: 0.4 });
     containers.push({ ...suitcase, label: 'the suitcase', object });
   }
   for (let d = -3; d <= 3; d += 1.5) {
-    world.obstacles.add({ x: PLANE.x + along.x * d, z: PLANE.z + along.y * d, radius: 1 });
+    world.obstacles.add({ x: PLANE.x + along.x * d, z: PLANE.z + along.y * d, radius: 1, height: 2.4 }); // (the fuselage)
   }
   // The wing: a row of circles along its length (it's about 5.8 m long and 1.6 m wide), low
   // enough to hop up onto and walk along.

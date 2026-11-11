@@ -704,6 +704,7 @@ renderer.setAnimationLoop(() => {
   campfires.update(survival.alive ? dt * survival.clockSpeed * TIME_SPEED : 0, clock.elapsedTime);
   if (!survival.alive && player.alive) player.die();
   hud.update(survival, inventory, actions);
+  hud.showCrosshair(survival.alive && !spotting && views.locked && inventory.selectedItem === 'bow', player.busy === 'draw');
   // The Nearby box: what's on the ground within reach (1.5 m, five feet), while the menu's open.
   if (hud.inventoryOpen) hud.showNearby(player.cave ? [] : pickups.within(player.position.x, player.position.z, NEARBY_REACH));
   updateCompass();
