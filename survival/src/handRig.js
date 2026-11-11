@@ -18,6 +18,10 @@ export const GRIPS = {
   // round it, the thumb across them.
   // (Fitted in Blender round a 32 mm handle: closed on it, not through it.)
   handle: { ...all([1.15, 1.4, 0.85]), ring: [1.18, 1.42, 0.85], pinky: [1.25, 1.45, 0.9], thumb: [0.4, 0.35, 0.55, 0.45] },
+  // Round the bow's grip, as an archer holds it: the riser pressed into the heel of the thumb, the
+  // fingers curled loosely round the front of it (not clenched: a tight fist twists the bow), the
+  // thumb along the near side, pointing ahead.
+  bow: { index: [0.95, 1.2, 0.7], middle: [1.05, 1.3, 0.75], ring: [1.1, 1.35, 0.8], pinky: [1.2, 1.4, 0.85], thumb: [0.55, 0.35, 0.45, 0.35] },
   // Round the lighter: the fingers wrapped round its body, the thumb up on the wheel.
   lighter: { ...all([1.2, 1.5, 0.95]), thumb: [0.35, -0.1, 0.35, 0.3] },
   // A match between the thumb and the tip of the index finger, the others tucked away.

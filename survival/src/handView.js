@@ -17,7 +17,16 @@ const HAND = new THREE.Vector3(0.2, -0.205, -0.42); // where the right hand rest
 // view: the hands are close to your eyes, and full-size things that close loom far too big.
 const HELD_SCALE = 0.62;
 const BOW_HAND = new THREE.Vector3(-0.12, -0.1, -0.62); // where the left hand holds the bow up
-const BOW_ARM = [0.35, -0.85, 0.1]; // the left forearm's angle: in from the lower left, like an archer's
+// The bow arm, as an archer holds it: the forearm runs from the hand back toward your left
+// shoulder (BOW_SHOULDER, in the view), so it comes in from the lower left nearly along your line
+// of sight, pushing the bow toward what you aim at. The riser runs up through the fist; the hand
+// is turned about it so the palm faces right and a little ahead (BOW_TWIST: the riser pressed
+// into the heel of the thumb, the knuckles angled across the back of it), the wrist bent to suit.
+const BOW_SHOULDER = new THREE.Vector3(-0.2, -0.45, 0);
+const BOW_TWIST = 0.95; // radians the palm's turned from facing straight right toward the target
+// (And pitched: the riser runs a little diagonally across the palm, from the heel of the thumb
+// up between the first two knuckles, so the wrist sits low, below the fist, not behind it.)
+const BOW_PITCH = 0.75;
 const BOW_TILT = -0.12; // the bow leans this far over (radians)
 // The bow at full size: an adult's bow is 62–70 inches (about 1.6–1.8 m), near enough as tall as
 // the archer, so held up at arm's length it runs off the top and bottom of the view. (bow.glb is
@@ -754,6 +763,24 @@ export class HandView {
     flame.scale.setScalar(0.035 * size * flicker);
   }
 
+  // Turns the bow hand `l` round the bow's riser (as the bow's turned now): the riser up through
+  // the fist, the palm turned toward the target (BOW_TWIST); and bends the wrist so the forearm
+  // (the sleeve) runs back to the shoulder.
+  holdBow(l) {
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.tools.bow.quaternion);
+    const frame = (x, y, z) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+    // The hand: +y up the riser; +x (the left hand's palm) facing right, turned toward the target.
+    const palm = new THREE.Vector3(Math.cos(BOW_TWIST), 0, -Math.sin(BOW_TWIST));
+    palm.addScaledVector(up, -palm.dot(up)).normalize();
+    const hand = frame(palm, up, palm.clone().cross(up)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), BOW_PITCH));
+    // The forearm: +z back along it to the shoulder, its +y as near the riser's up as it can be.
+    const back = BOW_SHOULDER.clone().sub(l.position).normalize();
+    const side = up.clone().cross(back).normalize();
+    const forearm = frame(side, back.clone().cross(side), back);
+    l.quaternion.copy(hand);
+    this.bends.left.want = forearm.invert().multiply(hand);
+  }
+
   // The bow in your hands: `draw` is how far it's drawn (0-1), or null if you're not drawing.
   animateBow(dt, draw, bob) {
     const shot = this.shot;
@@ -784,8 +811,8 @@ export class HandView {
     l.visible = true;
     l.position.copy(BOW_HAND).add(new THREE.Vector3(bob[0], bob[1], 0)).lerp(DRAW_GRIP, raise).add(tremble);
     l.position.z -= kick * 0.025;
-    l.rotation.set(...BOW_ARM);
     this.tools.bow.rotation.set(-kick * 0.18, Math.PI, -BOW_TILT * (1 - 0.6 * raise));
+    this.holdBow(l);
 
     // Where the shaft lies on the bow hand, and the nock on the string behind it.
     const rest = l.position.clone().add(ARROW_REST);
@@ -808,7 +835,7 @@ export class HandView {
 
     // The right hand: the arrow pinched by its nock as it comes up, then three fingers hooked
     // round the string; they spring open as it goes.
-    this.grips.left = 'handle';
+    this.grips.left = 'bow';
     this.grips.right = drawing ? (reach < 0.85 ? 'pinch' : 'string') : 'open';
     r.visible = true;
     if (drawing) {
