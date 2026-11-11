@@ -382,7 +382,7 @@ The next time you load the game, your model replaces the stand-in automatically.
 
 | File | What it is | Size |
 | --- | --- | --- |
-| `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `sneak`, `crouch`, `chop`, `swim`, `drink`, `jump` and `die`. The close-up details (face, knit toque, the coat's collar, pockets and cuffs, thumbs, boot soles) are a separate mesh, `player-details`, added and exported by `blender/player_details.py` | ~1.8 m tall |
+| `player.glb` | The survivor, facing you in Blender's **Front** view, with its animations. Needs a bone called `hand_R`, a backpack mesh called `player-pack`, and clips called `idle`, `walk`, `run`, `sneak`, `crouch`, `chop`, `swim`, `drink`, `jump` and `die`. The close-up details (face, knit toque, the coat's collar, pockets and cuffs, thumbs, boot soles) are a separate mesh, `player-details`, added and exported by `blender/player_details.py` | ~1.8 m tall |
 | `pine.glb` | Spruce mixed into the forests: drooping, ragged tiers of branches, darker underneath, over a bare stretch of trunk (rebuilt by `blender/conifers.py`, as are the other pines and the pine sapling) | ~9 m tall |
 | `lookout.glb` | The fire lookout tower: four timber legs, stairs, and a cab with windows on top. The stairs, landings and cab floor need to match where the player can walk (`TOWER` in `src/lookout.js`), and meshes with `roof`, `wall`, `window`, `floor` or `stair` in their names turn see-through whenever they're between the camera and the player | ~15 m tall, ~4 m across at the foot |
 | `pine-small.glb` | Young pine | ~3.5 m tall |

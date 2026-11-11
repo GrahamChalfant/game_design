@@ -11,7 +11,9 @@ const TORCH_HOLD_TILT = -Math.PI / 2 + 0.35; // turns the torch in the hand: upr
 const RADIUS = 0.4;
 const WALK_SPEED = 3.4; // (a steady walk; hold Shift to sprint)
 const SPRINT_SPEED = 6.5;
-const CLIP_WALK_SPEED = 5; // the pace player.glb's walk is made for (played slower or faster to match)
+// The paces player.glb's walk and run are made for (each played slower or faster to match).
+const CLIP_WALK_SPEED = 3.4;
+const CLIP_RUN_SPEED = 6.5;
 const SNEAK_SPEED = 1.7; // (a careful crouching walk: half walking pace)
 const CLIP_SNEAK_SPEED = 2.2; // the pace player.glb's sneak is made for
 const SWIM_SPEED = 2.2;
@@ -47,7 +49,7 @@ const KNOCKBACK = 7; // m/s a hit throws the player back at first
 const TORCH_LEAN = 0.25; // a held torch leans this far forward from upright (radians)
 // Where each foot comes down in player.glb's walking animations, as a share of the cycle (they
 // start on the left foot's contact: blender/player_anim.py), so footstep sounds land with the feet.
-const FOOTFALLS = { walk: [0.0, 0.5], sneak: [0.0, 0.5] };
+const FOOTFALLS = { walk: [0.0, 0.5], run: [0.0, 0.5], sneak: [0.0, 0.5] };
 
 export class Player {
   constructor(scene, spawn, bounds, spawnFacing = 0) {
@@ -248,7 +250,9 @@ export class Player {
     else if (this.drinking) this.play('drink');
     else if (this.chopping || this.swingTime > 0) this.play('chop');
     else if (this.busy === 'searchLow' || this.busy === 'butcher' || this.busy === 'lightFire') this.play('crouch'); // down on your knees
-    else if (moving) this.play(this.sneaking ? 'sneak' : 'walk', speed / (this.sneaking ? CLIP_SNEAK_SPEED : CLIP_WALK_SPEED));
+    else if (moving && this.sneaking) this.play('sneak', speed / CLIP_SNEAK_SPEED);
+    else if (moving && this.sprinting && this.clips.run) this.play('run', speed / CLIP_RUN_SPEED);
+    else if (moving) this.play('walk', speed / CLIP_WALK_SPEED);
     else this.play(this.sneaking ? 'crouch' : 'idle');
     const clip = this.playing;
     const before = clip.time;

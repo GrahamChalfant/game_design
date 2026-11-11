@@ -1,8 +1,10 @@
 # The player's animations, authored here pose by pose (survivor.py calls `animate` on the rig
 # it builds the body round, so they're made fresh with the model every time):
 #   idle   breathing, a slow shift of weight, a look about
-#   walk   the game's walking pace is 5 m/s: a jog, with a moment in the air each stride,
-#          arms pumping, the body leaning into it and turning against the hips
+#   walk   a brisk walk (the game's walking pace, 3.4 m/s): one foot always down, heel then toe,
+#          the arms swinging easily against the legs, the hips rising over the standing leg
+#   run    a sprint (6.5 m/s, holding Shift): leaning into it, driving the knees up, the back heel
+#          kicking high, a long moment in the air each stride, the arms pumping hard
 #   sneak  crouched low, long careful steps, arms held in
 #   crouch squatting down (searching low, butchering; and crouched still)
 #   jump   push off, tuck in the air, reach for the ground
@@ -165,31 +167,64 @@ def idle():
 
 
 def walk():
-    """A jog: contact, down, push off, in the air; then the same with the legs swapped."""
-    length = 0.708
-    lean = {'spine': (9, 0, 0), 'head': (-8, 0, 0)}
-    contact = dict(lean, hips_at=(0, -0.01, 0), hips=(0, -5, 0), spine=(9, 9, 0),
-                   thigh_L=(32, 0, 0), shin_L=(-14, 0, 0), foot_L=(-14, 0, 0),
-                   thigh_R=(-22, 0, 0), shin_R=(-68, 0, 0), foot_R=(55, 0, 0),
-                   upperarm_R=(18, 0, -10), lowerarm_R=(96, 0, 0), hand_R=(6, 0, 0),
-                   upperarm_L=(-36, 0, 12), lowerarm_L=(72, 0, 0), hand_L=(6, 0, 0))
-    down = dict(lean, hips_at=(0.012, -0.05, 0), hips=(0, -2, 2), spine=(11, 4, 0),
-                thigh_L=(10, 0, 0), shin_L=(-30, 0, 0), foot_L=(0, 0, 0),
-                thigh_R=(12, 0, 0), shin_R=(-95, 0, 0), foot_R=(45, 0, 0),
-                upperarm_R=(4, 0, -10), lowerarm_R=(90, 0, 0),
-                upperarm_L=(-16, 0, 12), lowerarm_L=(80, 0, 0))
-    push = dict(lean, hips_at=(0.006, 0.0, 0), hips=(0, 4, 0), spine=(9, -6, 0),
-                thigh_L=(-24, 0, 0), shin_L=(-12, 0, 0), foot_L=(42, 0, 0),
-                thigh_R=(48, 0, 0), shin_R=(-60, 0, 0), foot_R=(5, 0, 0),
-                upperarm_R=(-26, 0, -10), lowerarm_R=(76, 0, 0),
-                upperarm_L=(14, 0, 12), lowerarm_L=(96, 0, 0))
-    air = dict(lean, hips_at=(0, 0.03, 0), hips=(0, 5, 0), spine=(9, -9, 0),
-               thigh_L=(-26, 0, 0), shin_L=(-70, 0, 0), foot_L=(55, 0, 0),
-               thigh_R=(40, 0, 0), shin_R=(-22, 0, 0), foot_R=(-10, 0, 0),
-               upperarm_R=(-36, 0, -10), lowerarm_R=(72, 0, 0),
-               upperarm_L=(18, 0, 12), lowerarm_L=(96, 0, 0))
+    """A walk: the front heel comes down, the weight goes onto it, the back leg swings through
+    past it, and the standing heel lifts as the other leg reaches out; then the other side.
+    Authored for 3.4 m/s (about a metre a step)."""
+    length = 0.62
+    upright = {'head': (-3, 0, 0)}
+    contact = dict(upright, hips_at=(0, -0.022, 0), hips=(0, -5, 0), spine=(4, 6, 0),
+                   thigh_L=(27, 0, 0), shin_L=(-4, 0, 0), foot_L=(-18, 0, 0),
+                   thigh_R=(-19, 0, 0), shin_R=(-14, 0, 0), foot_R=(26, 0, 0),
+                   upperarm_R=(24, 0, -7), lowerarm_R=(30, 0, 0), hand_R=(4, 0, 0),
+                   upperarm_L=(-24, 0, 7), lowerarm_L=(14, 0, 0), hand_L=(4, 0, 0))
+    down = dict(upright, hips_at=(0.01, -0.036, 0), hips=(0, -2, 1.5), spine=(5, 2, 0),
+                thigh_L=(15, 0, 0), shin_L=(-18, 0, 0), foot_L=(0, 0, 0),
+                thigh_R=(-9, 0, 0), shin_R=(-46, 0, 0), foot_R=(46, 0, 0),
+                upperarm_R=(13, 0, -7), lowerarm_R=(26, 0, 0),
+                upperarm_L=(-13, 0, 7), lowerarm_L=(18, 0, 0))
+    passing = dict(upright, hips_at=(0.012, 0.006, 0), hips=(0, 0, 2.5), spine=(4, 0, 0),
+                   thigh_L=(0, 0, 0), shin_L=(-3, 0, 0), foot_L=(2, 0, 0),
+                   thigh_R=(23, 0, 0), shin_R=(-64, 0, 0), foot_R=(22, 0, 0),
+                   upperarm_R=(2, 0, -7), lowerarm_R=(20, 0, 0),
+                   upperarm_L=(-2, 0, 7), lowerarm_L=(20, 0, 0))
+    up = dict(upright, hips_at=(0.006, 0.0, 0), hips=(0, 3, 1), spine=(4, -3, 0),
+              thigh_L=(-14, 0, 0), shin_L=(-6, 0, 0), foot_L=(14, 0, 0),
+              thigh_R=(31, 0, 0), shin_R=(-20, 0, 0), foot_R=(-10, 0, 0),
+              upperarm_R=(-14, 0, -7), lowerarm_R=(16, 0, 0),
+              upperarm_L=(14, 0, 7), lowerarm_L=(27, 0, 0))
     half = length / 2
-    steps = [(0.0, contact), (0.25, down), (0.5, push), (0.75, air)]
+    steps = [(0.0, contact), (0.22, down), (0.5, passing), (0.78, up)]
+    keys = [(half * f, p) for f, p in steps] + [(half + half * f, mirror(p)) for f, p in steps] + [(length, contact)]
+    return keys, length
+
+
+def run():
+    """A sprint: land on the front foot under the body, sink, drive off it with the knee of the
+    other leg coming high through, then fly; then the other side. Authored for 6.5 m/s."""
+    length = 0.52
+    lean = {'spine': (15, 0, 0), 'head': (-13, 0, 0)}
+    contact = dict(lean, hips_at=(0, -0.03, 0.02), hips=(4, -7, 0), spine=(15, 11, 0),
+                   thigh_L=(36, 0, 0), shin_L=(-20, 0, 0), foot_L=(-8, 0, 0),
+                   thigh_R=(-18, 0, 0), shin_R=(-92, 0, 0), foot_R=(55, 0, 0),
+                   upperarm_R=(48, 0, -12), lowerarm_R=(98, 0, 0), hand_R=(8, 0, 0),
+                   upperarm_L=(-48, 0, 14), lowerarm_L=(78, 0, 0), hand_L=(8, 0, 0))
+    down = dict(lean, hips_at=(0.012, -0.07, 0.02), hips=(5, -3, 2), spine=(17, 5, 0),
+                thigh_L=(14, 0, 0), shin_L=(-38, 0, 0), foot_L=(4, 0, 0),
+                thigh_R=(20, 0, 0), shin_R=(-122, 0, 0), foot_R=(40, 0, 0),
+                upperarm_R=(22, 0, -12), lowerarm_R=(94, 0, 0),
+                upperarm_L=(-24, 0, 14), lowerarm_L=(86, 0, 0))
+    drive = dict(lean, hips_at=(0.008, 0.0, 0.02), hips=(4, 5, 0), spine=(14, -7, 0),
+                 thigh_L=(-30, 0, 0), shin_L=(-10, 0, 0), foot_L=(48, 0, 0),
+                 thigh_R=(70, 0, 0), shin_R=(-86, 0, 0), foot_R=(10, 0, 0),
+                 upperarm_R=(-38, 0, -12), lowerarm_R=(76, 0, 0),
+                 upperarm_L=(40, 0, 14), lowerarm_L=(100, 0, 0))
+    fly = dict(lean, hips_at=(0, 0.045, 0.02), hips=(4, 7, 0), spine=(14, -11, 0),
+               thigh_L=(-28, 0, 0), shin_L=(-96, 0, 0), foot_L=(55, 0, 0),
+               thigh_R=(54, 0, 0), shin_R=(-34, 0, 0), foot_R=(-6, 0, 0),
+               upperarm_R=(-50, 0, -12), lowerarm_R=(74, 0, 0),
+               upperarm_L=(50, 0, 14), lowerarm_L=(100, 0, 0))
+    half = length / 2
+    steps = [(0.0, contact), (0.2, down), (0.5, drive), (0.75, fly)]
     keys = [(half * f, p) for f, p in steps] + [(half + half * f, mirror(p)) for f, p in steps] + [(length, contact)]
     return keys, length
 
@@ -310,7 +345,7 @@ def animate(arm, old_actions):
     for name, make in (('idle', idle), ('crouch', crouch), ('jump', jump), ('drink', drink), ('swim', swim), ('die', die)):
         keys, length = make() if name != 'idle' else (make(), 3.0)
         made.append(clip(arm, name, keys, length))
-    for name, make in (('walk', walk), ('sneak', sneak), ('chop', chop)):
+    for name, make in (('walk', walk), ('run', run), ('sneak', sneak), ('chop', chop)):
         keys, length = make()
         made.append(clip(arm, name, keys, length))
     arm.animation_data.action = None
