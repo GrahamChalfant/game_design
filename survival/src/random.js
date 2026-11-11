@@ -20,8 +20,10 @@ export function createRandom(seed) {
 export function createNoise(seed) {
   const random = createRandom(seed);
   const size = 256;
-  const values = Array.from({ length: size * size }, () => random.next() * 2 - 1);
-  const at = (x, y) => values[(((y % size) + size) % size) * size + (((x % size) + size) % size)];
+  // (In a typed array, each corner looked up once, wrapped round with & 255 (the same cell as
+  // the remainder, for whole numbers either side of 0): it's called millions of times laying the
+  // map out, and every value comes out exactly as before.)
+  const values = Float64Array.from({ length: size * size }, () => random.next() * 2 - 1);
   const smooth = (t) => t * t * (3 - 2 * t);
 
   return (x, y) => {
@@ -29,8 +31,14 @@ export function createNoise(seed) {
     const y0 = Math.floor(y);
     const sx = smooth(x - x0);
     const sy = smooth(y - y0);
-    const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * sx;
-    const bottom = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * sx;
+    const i0 = x0 & 255;
+    const i1 = (x0 + 1) & 255;
+    const row0 = (y0 & 255) * size;
+    const row1 = ((y0 + 1) & 255) * size;
+    const a = values[row0 + i0];
+    const c = values[row1 + i0];
+    const top = a + (values[row0 + i1] - a) * sx;
+    const bottom = c + (values[row1 + i1] - c) * sx;
     return top + (bottom - top) * sy;
   };
 }

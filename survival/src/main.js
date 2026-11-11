@@ -178,7 +178,7 @@ function underfoot() {
     }
     return 'wood'; // a floor: a cabin, the tower, a hunting stand
   }
-  return GROUND_SOUNDS[world.terrain.groundAt(x, z).kind] ?? 'grass';
+  return GROUND_SOUNDS[world.terrain.groundKind(x, z)] ?? 'grass';
 }
 function updateFootsteps() {
   const { x, z } = player.position;

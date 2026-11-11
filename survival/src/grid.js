@@ -48,10 +48,24 @@ export class SpatialGrid {
     }
   }
 
-  // True if nothing comes within `gap` meters of (x, z).
+  // True if nothing comes within `gap` meters of (x, z). (The same cells as near(), walked with
+  // plain loops: it's called millions of times while the map's laid out, and a generator is slow.)
   isClear(x, z, gap) {
-    for (const o of this.near(x, z, gap)) {
-      if (Math.hypot(o.x - x, o.z - z) <= o.radius + gap) return false;
+    const r = gap + this.maxRadius;
+    const size = this.cellSize;
+    const minX = Math.floor((x - r) / size);
+    const maxX = Math.floor((x + r) / size);
+    const minZ = Math.floor((z - r) / size);
+    const maxZ = Math.floor((z + r) / size);
+    for (let cx = minX; cx <= maxX; cx++) {
+      for (let cz = minZ; cz <= maxZ; cz++) {
+        const cell = this.cells.get((cx + 32768) * 65536 + (cz + 32768));
+        if (!cell) continue;
+        for (let i = 0; i < cell.length; i++) {
+          const o = cell[i];
+          if (Math.hypot(o.x - x, o.z - z) <= o.radius + gap) return false;
+        }
+      }
     }
     return true;
   }

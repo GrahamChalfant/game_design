@@ -179,7 +179,7 @@ uniform vec3 uTrample[${TRAMPLE_COUNT}];`)
       if (outside(x, z)) continue;
       const kind = pickCover(random, Math.max(0, terrain.forest(x, z)));
       if (!kind) continue;
-      if (!COVER_GROUND.has(terrain.groundAt(x, z).kind) || terrain.waterDepth(x, z) > 0) continue;
+      if (!COVER_GROUND.has(terrain.groundKind(x, z)) || terrain.waterDepth(x, z) > 0) continue;
       if (!cleared.isClear(x, z, 0) || (obstacles && !obstacles.isClear(x, z, 0.12))) continue;
       const cover = placeCover(kind, x, z, random, terrain);
       if (kind === 'shrub') tintLikeGround(cover, terrain, x, z, 0x7e8452);
@@ -193,7 +193,7 @@ uniform vec3 uTrample[${TRAMPLE_COUNT}];`)
       if (outside(x, z)) continue;
       const carpet = pickCarpet(random, x, z, Math.max(0, terrain.forest(x, z)));
       if (!carpet) continue;
-      const ground = terrain.groundAt(x, z).kind;
+      const ground = terrain.groundKind(x, z);
       // (On stony ground, every other plant: lichen and heath among the stones.)
       const stony = ground === 'stony' && random.next() < 0.5;
       if (!(ground === 'grass' || stony || ((ground === 'rock' || ground === 'stony') && carpet.kind === 'lichen')) || terrain.waterDepth(x, z) > 0) continue;
