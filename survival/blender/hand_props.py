@@ -3,11 +3,14 @@
 #   prop-matchbox  a box of matches: kraft card, a red label, a dark striker down each side
 #   prop-match     one match: a pale wooden stick with a red head
 #   prop-flask     a water flask: a flat round body in an olive canvas cover, a steel neck and cap
+#   prop-steak     a steak: a thick, uneven slab of meat with a rim of fat down one side and a little
+#                  marbling; pale, so the game can tint it raw, cooked or burnt (stands on its edge,
+#                  the hand gripping its lower edge)
 # Each is built round where the hand grips it, standing up along +y (like axe.glb and the
 # knife), front toward +z. The lighter's flame comes out at y = 0.05; the match's at its head,
 # y = 0.036.
 # Run in an open Blender (Blender MCP or the Text Editor), or: blender -b --python hand_props.py
-import math, os, runpy
+import math, os, random, runpy
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -20,6 +23,7 @@ PAL.update(
     kraft=0xc9a56c, kraft_dark=0xa98a58, label_red=0xa23a2c, label_cream=0xe6dcc2, striker=0x4a3a30,
     match_wood=0xd8c08e, match_head=0xa8322a, match_tip=0xe0d2b0,
     canvas=0x5c603c, canvas_dark=0x474a2f, canvas_seam=0x3c3e28,
+    steak_lean=0xcfc6be, steak_lean_dark=0xa89e96, steak_fat=0xfff6e6, steak_marble=0xfbf6ef,
 )
 
 
@@ -91,5 +95,41 @@ def flask():
     return build('prop-flask', b, shared('hand-prop', 0.8))
 
 
-export([lighter(), matchbox(), match(), flask()], 'hand-props.glb')
+def steak():
+    b = Builder()
+    random.seed(17)
+    # The outline: a lopsided oval, wider at the top, a few gentle dents in its edge.
+    n = 22
+    outline = []
+    for i in range(n):
+        a = math.tau * i / n
+        r = 1 + 0.06 * math.sin(a * 3 + 0.7) + 0.04 * math.sin(a * 5 + 1.9) + random.uniform(-0.025, 0.025)
+        x = math.cos(a) * 0.068 * r
+        y = math.sin(a) * 0.047 * r + 0.012 * (math.sin(a) > 0) * math.sin(a)
+        outline.append((x, y + 0.045, a))  # (its lower edge at about y = 0: where the hand holds it)
+    def fat(a):
+        # The rim of fat runs round the top left.
+        return 0.0 < ((a - 1.9) % math.tau) < 1.6
+    rings = []
+    # Thick in the middle, thinner at the edge: a slab with rounded sides, a little uneven.
+    # (Ring by ring from the middle of one cut face, out over the edge and back in over the other,
+    # so both faces are made of small faces that can be marbled.)
+    for k, z in ((0.04, -0.0142), (0.35, -0.014), (0.65, -0.0132), (0.86, -0.012), (0.97, -0.009), (1.0, -0.003),
+                 (1.0, 0.003), (0.97, 0.009), (0.86, 0.012), (0.65, 0.0132), (0.35, 0.014), (0.04, 0.0142)):
+        rings.append([Vector((x * k, 0.045 + (y - 0.045) * k, z * (1 + 0.15 * math.sin(a * 2 + 1)))) for x, y, a in outline])
+    angle = {i: outline[i][2] for i in range(n)}
+    def colour(c, normal):
+        a = math.atan2((c.y - 0.045) / 0.047, c.x / 0.068)
+        if fat(a) and (abs(normal.z) < 0.85 or math.hypot(c.x / 0.068, (c.y - 0.045) / 0.047) > 0.8):
+            return tone('steak_fat', 0.03)
+        if abs(normal.z) > 0.85:
+            # The cut faces: lean, with streaks of marbling across it.
+            streak = math.sin(c.x * 160 + c.y * 90) + math.sin(c.x * 70 - c.y * 210)
+            return tone('steak_marble' if streak > 1.25 else ('steak_lean_dark' if streak < -1.1 else 'steak_lean'), 0.04)
+        return tone('steak_lean_dark', 0.04)
+    loft(b, rings, colour)
+    return build('prop-steak', b, shared('hand-prop-meat', 0.7))
+
+
+export([lighter(), matchbox(), match(), flask(), steak()], 'hand-props.glb')
 print('@@ hand props done')

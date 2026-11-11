@@ -54,6 +54,12 @@ const LET_GO = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.6, 0.9, -1.
 const RELEASE = { snap: 0.07, quiver: 16, follow: 0.12, away: 0.5 }; // seconds: string settles, Hz, follow-through, hand drops away
 const SWAY = 0.012; // how far the hand bobs as you walk
 const TORCH_TILT = -0.25; // the torch in the hand, leaning away from you
+// The wrist bent forward, so a knife points ahead out of the fist (the forearm stays as it was).
+const KNIFE_BEND = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.95, 0, 0));
+const BUTCHER_BEND = new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.75, 0, 0)); // (further, the blade pointing down)
+const NO_BEND = new THREE.Quaternion();
+const WRIST = new THREE.Vector3(0.003, 0, 0.065); // the wrist joint, in the hand model's space (the right's; the left's is mirrored)
+const PALM_UP = -1.45; // how far the hand rolls over to hold something on its palm (radians, round the forearm)
 const AXE_TILT = -0.55; // the axe in the hand, its head tipped forward
 const BREATH = 0.0025; // how far the hands rise and fall as you breathe
 const LOOK_LAG = 0.012; // how far the hands trail behind as you turn your head (m per radian/s)
@@ -106,6 +112,9 @@ export class HandView {
     // close round what they hold. Each placed so a handle in its grip runs through its origin.
     this.rigs = null;
     this.grips = { right: 'relaxed', left: 'relaxed' };
+    // The wrists: how far each hand's bent from its forearm (the sleeve stays with the forearm).
+    this.forearms = {};
+    this.bends = { right: { want: NO_BEND, now: new THREE.Quaternion() }, left: { want: NO_BEND, now: new THREE.Quaternion() } };
     loadModel('fp-hands').then((model) => {
       if (!model) return;
       const rigs = {};
@@ -120,6 +129,7 @@ export class HandView {
           this.sleeves.push(cloth.material);
         }
         hand.traverse((child) => (child.frustumCulled = false));
+        if (cloth) this.forearms[side] = { cloth, at: cloth.position.clone(), turn: cloth.quaternion.clone(), pivot: WRIST.clone().setX(WRIST.x * sign) };
         wrist.remove(wrist.userData.shapes);
         wrist.add(hand);
         rigs[side] = new HandRig(hand, sign);
@@ -163,7 +173,7 @@ export class HandView {
     this.tools.axe = holder('axe', placeholders.axe(), (g) => g.rotation.set(AXE_TILT, Math.PI, -0.1));
     this.tools.knife = holder('knife', placeholders.knife(), (g) => {
       g.scale.setScalar(0.9); // (small already: life size reads better)
-      g.rotation.set(-Math.PI / 2 + 0.35, 0, 0.25);
+      g.rotation.set(-0.1, 0, 0.1); // (up through the fist: the wrist bends it forward, KNIFE_BEND)
     });
     // The bow is held in the left hand, but kept upright whatever the arm's angle: it follows the
     // hand (see update) rather than turning with it.
@@ -190,16 +200,15 @@ export class HandView {
     this.tools.torch.add(this.flame);
     // A bandage roll, for winding round the left forearm.
     this.roll = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.07, 10), new THREE.MeshLambertMaterial({ color: 0xe9e3d4 }));
-    this.roll.rotation.z = Math.PI / 2;
-    this.roll.position.set(0, 0.04, -0.05);
+    this.roll.position.set(-0.014, 0.012, -0.012); // (in the fingers, standing up)
     this.right.add(this.roll);
     this.wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.1, 10, 1, true), this.roll.material);
     this.wrap.rotation.x = Math.PI / 2;
     this.wrap.position.z = 0.12;
     this.left.add(this.wrap);
 
-    // Small things in the hands (hand-props.glb, from blender/hand_props.py; the meat's the spit's
-    // roast, spit.glb; the berries, berry.glb). Each in the hand that holds it, its grip at the fist.
+    // Small things in the hands (hand-props.glb, from blender/hand_props.py, the steak included;
+    // the berries, berry.glb). Each in the hand that holds it, its grip at the fist.
     this.props = {};
     const prop = (key, hand, fit) => {
       const group = new THREE.Group();
@@ -236,12 +245,12 @@ export class HandView {
       g.position.set(-0.012, 0.035, -0.012);
       g.rotation.y = Math.PI / 2;
     });
+    // (A steak laid across the palm, along the fingers, the hand turned palm up to carry it.)
     prop('meat', this.right, (g) => {
-      g.position.set(-0.01, 0.03, -0.012);
-      g.rotation.set(0.2, 0, Math.PI / 2);
-      g.scale.setScalar(0.42);
+      g.position.set(-0.008, -0.05, 0.03);
+      g.rotation.set(0, Math.PI / 2, 0);
     });
-    prop('berries', this.right, (g) => g.position.set(0, 0.06, -0.01));
+    prop('berries', this.right, (g) => g.position.set(-0.014, 0, 0.036)); // (a handful on the palm)
     loadModel('hand-props').then((model) => {
       if (!model) return;
       const take = (name) => model.getObjectByName(name) ?? model.getObjectByName(`${name}.001`);
@@ -250,16 +259,13 @@ export class HandView {
         const part = take(name);
         if (part) this.props[key].add(part.clone());
       }
-    });
-    loadModel('spit').then((model) => {
-      const roast = model?.getObjectByName('spit-meat');
-      if (!roast) return;
-      const meat = roast.clone();
-      meat.position.set(0, 0, 0);
-      meat.rotation.set(0, 0, 0);
-      meat.material = roast.material.clone();
-      this.meatMaterial = meat.material;
-      this.props.meat.add(meat);
+      // The steak (pale: tinted raw, cooked or burnt, as on the spit).
+      const steak = take('prop-steak')?.clone();
+      if (steak) {
+        steak.material = steak.material.clone();
+        this.meatMaterial = steak.material;
+        this.props.meat.add(steak);
+      }
     });
     loadModel('berry').then((model) => {
       if (!model) return;
@@ -399,17 +405,18 @@ export class HandView {
     };
 
     if (busy === 'drinkWater') {
-      grips.right = grips.left = 'cup';
+      grips.right = grips.left = 'scoop';
       // Kneeling at the water: both hands down into it, cupped, and up to your mouth.
       for (const group of Object.values(this.tools)) group.visible = false;
       this.flame.visible = false;
       const u = (t % 1.7) / 1.7;
+      // (Palms up, side by side: each hand rolled over, the right one way and the left the other.)
       const scoop = (side) => along([
-        [0, pose(side * 0.08, -0.5, -0.46, -1.3, side * 0.2, side * 0.35)],
-        [0.25, pose(side * 0.06, -0.5, -0.52, -1.45, side * 0.25, side * 0.45), easeOut],
-        [0.55, pose(side * 0.035, -0.15, -0.21, 0.15, side * 0.35, side * 0.7), smooth],
-        [0.78, pose(side * 0.035, -0.13, -0.18, 0.55, side * 0.35, side * 0.7), smooth],
-        [1, pose(side * 0.08, -0.5, -0.46, -1.3, side * 0.2, side * 0.35), easeIn],
+        [0, pose(side * 0.06, -0.45, -0.48, -0.9, side * 0.15, -side * 1.4)],
+        [0.25, pose(side * 0.05, -0.46, -0.53, -1.0, side * 0.2, -side * 1.45), easeOut],
+        [0.55, pose(side * 0.04, -0.2, -0.27, -0.3, side * 0.2, -side * 1.4), smooth],
+        [0.78, pose(side * 0.04, -0.17, -0.23, 0.15, side * 0.2, -side * 1.4), smooth],
+        [1, pose(side * 0.06, -0.45, -0.48, -0.9, side * 0.15, -side * 1.4), easeIn],
       ], u);
       [right, left] = [scoop(1), scoop(-1)];
     } else if (bow) {
@@ -441,6 +448,8 @@ export class HandView {
       // A knife jab: punched out ahead, the wrist turning the blade over as it goes.
       const j = player.jab;
       right = pose(0.2 - 0.08 * j, -0.205 + 0.06 * j, -0.42 - 0.28 * j, -0.15 - 0.2 * j, 0.3 - 0.25 * j, -0.12 + 0.35 * j);
+      right.q.multiply(KNIFE_BEND);
+      this.bends.right.want = KNIFE_BEND;
       snap = true;
     } else if (busy === 'lightFire') {
       ({ right, left } = this.lightFire(player.busyWith, player.busyProgress, flicker));
@@ -453,24 +462,25 @@ export class HandView {
       for (const group of Object.values(this.tools)) group.visible = false;
       this.wrap.visible = true;
       this.roll.visible = true;
-      this.roll.rotation.x = this.time * 9;
+      this.roll.rotation.y = this.time * 9; // (turning as it unwinds)
       const a = this.time * 7;
       left = pose(0.08, -0.22, -0.44, 0.2, -1.2, 0);
       right = pose(0.08 + Math.cos(a) * 0.065, -0.17 + Math.sin(a) * 0.065, -0.44 + Math.sin(a) * 0.02, 0.2, 0.4, 0);
       snap = t > 0.25;
     } else if (busy === 'eat') {
-      grips.right = 'wide';
+      grips.right = 'cup';
       // Eating: what's in your hand up to your mouth, a bite (a tug as you tear it), and down
       // again while you chew.
       this.showProp(item, 'right');
       const u = (t % 1.15) / 1.15;
       right = along([
-        [0, pose(0.13, -0.2, -0.37, -0.05, 0.35, -0.15)],
-        [0.3, pose(0.03, -0.15, -0.23, 0.7, 0.3, 0.05), smooth],
-        [0.4, pose(0.035, -0.16, -0.25, 0.8, 0.3, 0.08), easeOut],
-        [0.48, pose(0.04, -0.165, -0.27, 0.65, 0.3, 0.02), easeOut],
-        [0.85, pose(0.12, -0.19, -0.34, 0.05, 0.35, -0.12), smooth],
-        [1, pose(0.13, -0.2, -0.37, -0.05, 0.35, -0.15), smooth],
+        // (Palm up, the food on it, tipped up toward your mouth.)
+        [0, pose(0.13, -0.2, -0.37, -0.05, 0.35, PALM_UP)],
+        [0.3, pose(0.03, -0.17, -0.24, 0.55, 0.3, PALM_UP + 0.2), smooth],
+        [0.4, pose(0.035, -0.175, -0.26, 0.65, 0.3, PALM_UP + 0.25), easeOut],
+        [0.48, pose(0.04, -0.18, -0.28, 0.5, 0.3, PALM_UP + 0.2), easeOut],
+        [0.85, pose(0.12, -0.19, -0.34, 0.05, 0.35, PALM_UP), smooth],
+        [1, pose(0.13, -0.2, -0.37, -0.05, 0.35, PALM_UP), smooth],
       ], u);
     } else if (busy === 'butcher') {
       [grips.right, grips.left] = ['handle', 'open'];
@@ -479,6 +489,8 @@ export class HandView {
       this.tools.knife.visible = true;
       const saw = Math.sin(this.time * 11);
       right = pose(0.12 + saw * 0.035, -0.28, -0.5 - saw * 0.06, -0.35, 0.2, 0.1);
+      right.q.multiply(BUTCHER_BEND); // (the blade down into it)
+      this.bends.right.want = BUTCHER_BEND;
       left = pose(-0.11, -0.3 + Math.max(0, Math.sin(this.time * 11 + 1)) * 0.012, -0.52, -0.4, -0.25, 0);
       snap = t > 0.25;
     } else if (busy === 'search' || busy === 'searchLow') {
@@ -500,13 +512,17 @@ export class HandView {
       const u = 1 - player.sipTime / SIP_TIME;
       right = along([
         [0, rest(0.15, -0.24, -0.4, -0.1, 0.35, -0.15)],
-        [0.32, pose(0.025, -0.07, -0.19, 1.15, 0.25, 0.05), smooth],
-        [0.7, pose(0.025, -0.065, -0.18, 1.45, 0.25, 0.05), smooth],
+        [0.32, pose(0.02, -0.11, -0.22, 1.15, 0, -0.1), smooth],
+        [0.7, pose(0.02, -0.1, -0.21, 1.35, 0, -0.1), smooth],
         [1, rest(0.15, -0.24, -0.4, -0.1, 0.35, -0.15), smooth],
       ], u);
     } else if (tool === 'axe' || tool === 'knife') {
       grips.right = 'handle';
       right = rest(...HAND.toArray(), -0.15, 0.3, -0.12);
+      if (tool === 'knife') {
+        right.q.multiply(KNIFE_BEND);
+        this.bends.right.want = KNIFE_BEND;
+      }
     } else if (tool === 'torch') {
       grips.right = 'handle';
       // A torch held low and out ahead, leaning away, its flame off to the right of the view.
@@ -515,7 +531,9 @@ export class HandView {
       grips.right = HOLD[tool];
       // A small thing held up in the right hand, where you can see it.
       this.showProp(item, 'right');
-      right = rest(0.13, tool === 'flask' ? -0.22 : -0.175, tool === 'flask' ? -0.4 : -0.37, -0.1, 0.35, -0.15);
+      const onPalm = tool === 'meat' || tool === 'berries';
+      if (onPalm) grips.right = 'cup';
+      right = rest(0.13, tool === 'flask' ? -0.22 : -0.175, tool === 'flask' ? -0.4 : -0.37, -0.1, 0.35, onPalm ? PALM_UP : -0.15);
     }
     if (!bow) {
       this.shot.raise = 0;
@@ -523,6 +541,17 @@ export class HandView {
       this.shot.wasDrawing = false;
       this.place(this.right, right, HAND_OFF, snap, dt);
       this.place(this.left, left, L_OFF, snap, dt);
+    }
+    // The wrists: the sleeve turned back by the bend, so it stays along the forearm.
+    for (const side of ['right', 'left']) {
+      const bend = this.bends[side];
+      bend.now.slerp(bend.want, snap ? 1 : 1 - Math.exp(-dt * EASE_IN));
+      bend.want = NO_BEND;
+      const arm = this.forearms[side];
+      if (!arm) continue;
+      const back = bend.now.clone().invert();
+      arm.cloth.quaternion.copy(back).multiply(arm.turn);
+      arm.cloth.position.copy(arm.at).sub(arm.pivot).applyQuaternion(back).add(arm.pivot);
     }
     if (this.rigs) {
       this.rigs.right.grip(grips.right);
@@ -666,7 +695,7 @@ export class HandView {
     torch.updateMatrix();
     const head = this.flame.position.clone().applyMatrix4(torch.matrix).applyQuaternion(right.q).add(right.p);
     // (The flame's a hand's height above the fist: the fist under the head, the forearm down and back.)
-    const under = { p: head.clone().add(new THREE.Vector3(-0.005, -0.11, 0.025)), q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.5, -0.25, -0.1)) };
+    const under = { p: head.clone().add(new THREE.Vector3(-0.03, -0.15, 0.03)), q: new THREE.Quaternion().setFromEuler(new THREE.Euler(0.5, -0.25, -0.1)) };
     const key = source === 'matches' ? 'matchLeft' : 'lighterLeft';
     this.props[key].visible = true;
     const lightAt = source === 'matches' ? 0.4 : 0.38;
