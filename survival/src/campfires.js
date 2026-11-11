@@ -19,7 +19,7 @@ const BURNT = new THREE.Color(0x2e231d);
 const TURN_SPEED = 0.5; // radians a second the meat turns on the skewer
 // Where pieces of meat go along the skewer (meters from the middle, in the order they're put
 // on: the middle first, over the hottest part of the fire). Up to three at once.
-const SPIT_PLACES = [0, -0.3, 0.3];
+const SPIT_PLACES = [0, -0.24, 0.24];
 export const SPIT_HOLDS = SPIT_PLACES.length;
 
 // The spit model (spit.glb: the forked sticks and skewer, and "spit-meat"), loaded once.
@@ -64,7 +64,9 @@ export class Campfires {
     const flames = placeholders.flames();
     flames.position.y = 0.15;
     const light = new THREE.PointLight(0xff9a3c, 0, 12, 1.6);
-    light.position.y = 0.9;
+    // (The glow, up over the flames and the spit: anything closer to the meat, a hand's breadth
+    // from the light, and the light washes it out.)
+    light.position.y = 1.2;
     object.add(pit, flames, light);
     this.scene.add(object);
 
