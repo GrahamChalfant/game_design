@@ -108,7 +108,7 @@ animals.onFlee = (animal) => {
 arrows.onKill = (animal) => {
   sound.play('arrow-hit', animal.position);
   blood.splat(animal.position.x, animal.position.z, animal.radius * 0.9);
-  hud.toast(`You shot a ${animal.kind}! Hold E next to it to butcher it`);
+  hud.toast(`You shot a ${animal.kind}! Butcher it with your knife (hold E)`);
 };
 arrows.onHit = (animal) => {
   sound.play('arrow-hit', animal.position);

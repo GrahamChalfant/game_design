@@ -265,8 +265,9 @@ nocks it, the shaft lying on top of your bow hand, then draws the string back to
 bow arm starts to shake if you hold it there long); let go and the string snaps forward and
 quivers, the bow kicks, and your hand flies back past your cheek. Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
 follow one in flight, and a running animal can get away. One hit kills a deer or
-a rabbit, which stumbles on and falls over, with the arrow stuck in it; hold E next to
-it to butcher it (a deer takes 4 s and gives 6 raw meat, 2 hides and 2 intestines). The bow
+a rabbit, which stumbles on and falls over, with the arrow stuck in it; select your knife and
+hold E next to it to butcher it (you can't without a knife; a deer takes 4 s and gives 6 raw meat,
+2 hides and 2 intestines). The bow
 breaks after 30 shots. An arrow that misses lands in the ground, where you can pick it up again. All the numbers are in `src/hunting.js`.
 Craft a shelter (20 sticks, 6 rope, 4 hides), select it and click to build it a few steps
 ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a

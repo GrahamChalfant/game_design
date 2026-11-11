@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { loadModel } from './models.js';
 import * as placeholders from './placeholders.js';
-import { SIP_TIME } from './player.js';
+import { LAND_TIME, REACH_TIME, SIP_TIME } from './player.js';
 import { GRIP_CENTRE, HandRig } from './handRig.js';
 
 // What you see of your own hands in the first-person view: your arms in their sleeves, in wool
@@ -535,6 +535,18 @@ export class HandView {
       if (onPalm) grips.right = 'cup';
       right = rest(0.13, tool === 'flask' ? -0.22 : -0.175, tool === 'flask' ? -0.4 : -0.37, -0.1, 0.35, onPalm ? PALM_UP : -0.15);
     }
+    // Reaching for something on the ground (or putting something down): the free left hand goes
+    // out and down, open, closes on it, and comes back.
+    if (!left && !bow && player.reachTime > 0) {
+      const u = 1 - player.reachTime / REACH_TIME;
+      left = along([
+        [0, pose(...L_OFF.toArray(), -0.3, -0.3, 0.15)],
+        [0.42, pose(-0.045, -0.29, -0.56, -0.45, -0.2, 0.2), easeOut],
+        [0.58, pose(-0.045, -0.3, -0.55, -0.4, -0.2, 0.2)],
+        [1, pose(...L_OFF.toArray(), -0.3, -0.3, 0.15), easeIn],
+      ], u);
+      grips.left = u < 0.45 ? 'open' : 'claw';
+    }
     if (!bow) {
       this.shot.raise = 0;
       this.shot.release = Infinity;
@@ -578,7 +590,9 @@ export class HandView {
     this.look = look;
     const dip = smooth(swap.dip);
     const breathe = Math.sin(this.time * 1.7) * BREATH;
-    this.group.position.set(this.lag.x, this.lag.y + breathe - dip * SWAP.depth, 0);
+    // Landing from a jump or a drop: the hands dip with the knees, then come back up.
+    const land = player.landTime > 0 ? Math.sin(Math.PI * (1 - player.landTime / LAND_TIME)) * (0.012 + 0.03 * player.landHard) : 0;
+    this.group.position.set(this.lag.x, this.lag.y + breathe - dip * SWAP.depth - land, 0);
     this.group.rotation.set(-dip * 0.5, 0, 0);
   }
 

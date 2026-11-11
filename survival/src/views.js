@@ -53,6 +53,8 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     if (!locked() && !panelOpen) canvas.requestPointerLock?.();
   });
 
+  let eye = EYE; // how high your eyes are now
+
   function apply() {
     setDrawChunks(NEAR_CHUNKS);
     redrawModels();
@@ -138,7 +140,9 @@ export function createViews({ camera, renderer, input, player, world, farView, h
         player.facing = yaw + Math.PI;
         player.hideFromCamera(true);
         player.object.rotation.y = player.facing;
-        camera.position.set(body.x, body.y + (player.sneaking ? CROUCHED_EYE : EYE), body.z);
+        // (Crouching, you sink down, and rise again, over a moment rather than at once.)
+        eye += ((player.sneaking ? CROUCHED_EYE : EYE) - eye) * (1 - Math.exp(-dt * 9));
+        camera.position.set(body.x, body.y + eye, body.z);
         camera.position.addScaledVector(lookDir.clone().setY(0).normalize(), 0.15);
         camera.lookAt(camera.position.clone().add(lookDir));
         return;
