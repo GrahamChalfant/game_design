@@ -27,6 +27,10 @@ const TURN_SPEED = 12;
 const JUMP_SPEED = 5.5; // how fast you leave the ground: about a 0.75 m hop, 0.55 s in the air
 const GRAVITY = 20;
 const JUMP_MAX_DEPTH = 0.3; // too deep in the water to jump beyond this
+// Stamina (0-100): sprinting drains it (about 8 s from full) and each jump takes a share; it comes
+// back once you've eased off for a moment, quicker standing still than walking. Run it right
+// down and you're winded: no sprinting or jumping until it's back up to RECOVERED.
+export const STAMINA = { max: 100, sprint: 12, jump: 14, pause: 0.8, walking: 10, standing: 20, recovered: 30 };
 const TOP_MARGIN = 0.1; // feet this close below the top of a rock or stump still clear it
 const TOP_OVERHANG = 0.25; // how far past a rock's edge the player can stand on it
 const STEP = 0.6; // the most you can step up or down onto a floor (stairs, the tower) without jumping
@@ -128,6 +132,9 @@ export class Player {
     this.landTime = 0; // counts down after landing from a jump or a fall...
     this.landHard = 0; // ...and how hard it was (0-1)
     this.drawAmount = 0; // how far the bow is drawn (0–1), while drawing it
+    this.stamina = STAMINA.max;
+    this.winded = false; // ran out of stamina: can't sprint or jump until it's recovered a bit
+    this.rested = 0; // seconds since stamina was last spent
     this.pose = null; // the arm pose being shown (stays set while it fades out)
     this.poseWeight = 0;
     this.footfalls = 0; // feet that have come down since takeFootfalls was last called
@@ -467,7 +474,7 @@ export class Player {
     if (input.wasPressed('KeyC')) this.crouched = !this.crouched;
     this.sneaking = this.crouched && !this.swimming;
     const aiming = this.busy === 'draw'; // drawing a bow: walk slowly, still facing the aim
-    this.sprinting = moving && input.isDown('ShiftLeft', 'ShiftRight') && !this.sneaking && !aiming && !this.busy && depth < 0.3;
+    this.sprinting = moving && input.isDown('ShiftLeft', 'ShiftRight') && !this.sneaking && !aiming && !this.busy && depth < 0.3 && !this.winded;
     const landSpeed = this.sneaking || aiming ? SNEAK_SPEED : this.sprinting ? SPRINT_SPEED : WALK_SPEED;
     let speed = THREE.MathUtils.lerp(landSpeed, SWIM_SPEED, Math.min(1, depth / SWIM_DEPTH));
     // How steep the ground underfoot is (not up on a rock or a floor, or in the water).
@@ -513,7 +520,15 @@ export class Player {
     // Standing on something (not mid-jump), follow it up, or down a step, so walking down
     // stairs doesn't turn into a string of little falls. Anything further down, you fall.
     if (this.jumpSpeed === 0 && this.jumpHeight - this.standingHeight <= STEP) this.jumpHeight = this.standingHeight;
-    if (input.wasPressed('Space') && !this.airborne && depth < JUMP_MAX_DEPTH) this.jumpSpeed = JUMP_SPEED;
+    if (input.wasPressed('Space') && !this.airborne && depth < JUMP_MAX_DEPTH && !this.winded) {
+      this.jumpSpeed = JUMP_SPEED;
+      this.spend(STAMINA.jump);
+    }
+    if (this.sprinting) this.spend(STAMINA.sprint * dt);
+    else if ((this.rested += dt) > STAMINA.pause) {
+      this.stamina = Math.min(STAMINA.max, this.stamina + (moving ? STAMINA.walking : STAMINA.standing) * dt);
+      if (this.stamina >= STAMINA.recovered) this.winded = false;
+    }
     if (this.jumpSpeed !== 0 || this.airborne) {
       this.jumpSpeed -= GRAVITY * dt;
       this.jumpHeight += this.jumpSpeed * dt;
@@ -577,6 +592,13 @@ export class Player {
     this.alive = false;
   }
 
+  // Uses up `amount` of stamina; all of it, and you're winded.
+  spend(amount) {
+    this.stamina = Math.max(0, this.stamina - amount);
+    this.rested = 0;
+    if (this.stamina === 0) this.winded = true;
+  }
+
   reset() {
     this.alive = true;
     this.cave = null;
@@ -586,6 +608,8 @@ export class Player {
     this.fallFrom = null;
     this.fallDamage = 0;
     this.crouched = false;
+    this.stamina = STAMINA.max;
+    this.winded = false;
     this.body.rotation.x = 0;
     this.hurtTime = 0;
     this.knock.set(0, 0);

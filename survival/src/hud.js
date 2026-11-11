@@ -32,6 +32,8 @@ export class Hud {
     this.clock = document.getElementById('clock');
     this.prompt = document.getElementById('prompt');
     this.progress = document.getElementById('progress');
+    this.stamina = document.getElementById('stamina');
+    this.staminaFull = 0; // seconds it's been full (the bar fades away once it has been a moment)
     this.toasts = document.getElementById('toasts');
     this.gameOver = document.getElementById('game-over');
     this.survived = document.getElementById('survived');
@@ -185,6 +187,15 @@ export class Hud {
       slot.addEventListener('pointerdown', (e) => this.startDrag(e, slot, (to) => this.onTakeNearby(pile, to), () => {}));
       return slot;
     }));
+  }
+
+  // The stamina bar over the hotbar (`stamina` 0-1): shown while it's being used or coming back,
+  // amber while you're winded, and fading away a moment after it's full again.
+  updateStamina(dt, stamina, winded) {
+    this.staminaFull = stamina >= 1 ? this.staminaFull + dt : 0;
+    this.stamina.classList.toggle('shown', this.staminaFull < 1 && !this.inventoryOpen);
+    this.stamina.classList.toggle('winded', winded);
+    this.stamina.firstElementChild.style.width = `${stamina * 100}%`;
   }
 
   update(survival, inventory, { prompt, progress }) {
