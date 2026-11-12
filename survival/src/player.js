@@ -575,13 +575,19 @@ export class Player {
     };
   }
 
-  // True when standing in, or facing, water close enough to drink.
+  // The water you're standing in, or facing, close enough to drink: 'fresh', 'salt' (the
+  // sea's), or null if there's none.
+  waterInReach(world) {
+    if (this.cave) return null;
+    const { terrain } = world;
+    const spots = [this.position, this.ahead(1.2)].filter(({ x, z }) => terrain.waterDepth(x, z) > 0.02);
+    if (!spots.length) return null;
+    return spots.some(({ x, z }) => !terrain.isSea(x, z)) ? 'fresh' : 'salt';
+  }
+
+  // True when standing in, or facing, fresh water close enough to drink.
   canDrink(world) {
-    if (this.cave) return false;
-    const { x, z } = this.ahead(1.2);
-    return (
-      world.terrain.waterDepth(this.position.x, this.position.z) > 0.02 || world.terrain.waterDepth(x, z) > 0.02
-    );
+    return this.waterInReach(world) === 'fresh';
   }
 
   // The standing tree in front of the player, close enough to chop, if any.

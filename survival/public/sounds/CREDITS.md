@@ -10,6 +10,10 @@ lake ice also of its high "ping", and the birds of the traffic behind them), fad
 made mono and levelled to the same loudness (EBU R128). No NonCommercial recordings are used. (The lake ice, `ice*.mp3`, is kept here but not played
 in the game for now.)
 
+The sea's sounds, `sea.mp3`, `sea-wind.mp3` and `wave.mp3` … `wave-4.mp3`, aren't recordings:
+they're made from noise by [`audio/make_sea.py`](../../audio/make_sea.py), part of this game, and
+levelled the same way.
+
 | File | Recording | By | Licence | Used |
 | --- | --- | --- | --- | --- |
 | `wind.mp3` | [Wind in a forest](https://freesound.org/people/Magnesus/sounds/606960/) | Magnesus | CC0 | 24 s loop |

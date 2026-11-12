@@ -172,6 +172,7 @@ function updateSound(dt, paused, busy = {}) {
     woods: Math.min(1, Math.max(0, terrain.forest(x, z) + 0.3)),
     listener: { x, z, right: { x: hearing.x / across, z: hearing.z / across } },
     animals: animals.all,
+    shoreAt: player.cave ? null : terrain.seaEdgeAt,
     cooking: paused ? 0 : campfires.sizzleAt(x, z), // meat on a spit, over a burning fire
     eating: !paused && busy.eating,
     drinking: !paused && busy.drinking,
