@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createActions } from './actions.js';
+import { PlacementGhost } from './placement.js';
 import { Daylight } from './daylight.js';
 import { createPainterlyRenderer } from './painterly.js';
 import { Animals } from './animals.js';
@@ -447,6 +448,14 @@ const aimPoint = () => {
   }
   return best;
 };
+// Where the line of sight meets the ground (null looking at the sky): where to put things down.
+const groundAim = () => {
+  views.aim(aimNdc);
+  aimRay.setFromCamera(aimNdc, camera);
+  return aimRay.intersectObject(world.terrain.ground, true)[0]?.point ?? null;
+};
+// The see-through preview of a campfire, shelter or trap, before you build it.
+const placementGhost = new PlacementGhost(scene);
 // Where an arrow leaves from: the middle of the bow (in your hand, in first person), or about
 // your chest, a little ahead of you.
 const launchPoint = () => {
@@ -465,7 +474,7 @@ const openContainer = () => {
     characterView.faceForward();
   }
 };
-const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: (from) => startSpotting(from), onDressed, onOpenContainer: openContainer, aimPoint, launchPoint, lookRay });
+const updateActions = createActions({ sfx: (name, at) => sound.play(name, at), input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep: sleep, onBinoculars: (from) => startSpotting(from), onDressed, onOpenContainer: openContainer, aimPoint, launchPoint, lookRay, groundAim, placementGhost });
 
 // The player says things out loud when they're in trouble, in a speech bubble.
 // Each line is said at most once per evening/cold spell.
