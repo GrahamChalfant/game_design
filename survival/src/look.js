@@ -73,6 +73,102 @@ export function needleMaterial(material) {
   return result;
 }
 
+// The berry bushes' leaves (berry-bush.glb's leaf cards, made by blender/berry_bush.py), drawn
+// once like the needles: light on clear, the vertex colour giving the shade. Two sprigs side by
+// side (u 0–0.5 and 0.5–1, a card shows one), each a twig running from v = 0 (top, where the
+// card joins its stem) to its tip (bottom), with alternate oval leaves, pointed and angled
+// toward the tip, smaller further out, and one at the end. Each leaf is lit down one side of
+// its midrib and shaded down the other, with a pale midrib and a few veins, so a leaf reads as
+// a leaf, not a blob. (A card is 0.62 as wide as it is long, so the leaves are drawn that much
+// wider across to come out the right shape.)
+let leaves = null;
+function leafTexture() {
+  if (leaves) return leaves;
+  const W = 512, H = 256, CARD = 0.62;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  let seed = 11;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const grey = (l) => `rgb(${Math.round(l)},${Math.round(l)},${Math.round(l)})`;
+  const leaf = (x, y, angle, length) => {
+    const w = length * (0.36 + rand() * 0.08);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    const outline = (side) => {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(side * w * 0.75, length * 0.12, side * w * 0.62, length * 0.72, 0, length);
+      ctx.closePath();
+    };
+    for (const side of [-1, 1]) {
+      outline(side);
+      ctx.fillStyle = grey(side < 0 ? 205 + rand() * 25 : 150 + rand() * 25);
+      ctx.fill();
+    }
+    ctx.strokeStyle = grey(240);
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, length * 0.92);
+    ctx.stroke();
+    ctx.lineWidth = 0.8;
+    for (let v = 0.2; v < 0.8; v += 0.16) {
+      for (const side of [-1, 1]) {
+        ctx.strokeStyle = grey(side < 0 ? 228 : 180);
+        ctx.beginPath();
+        ctx.moveTo(0, length * v);
+        ctx.quadraticCurveTo(side * w * 0.25, length * (v + 0.05), side * w * 0.45, length * (v + 0.12));
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  };
+  for (let s = 0; s < 2; s++) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(s * W / 2, 0, W / 2, H);
+    ctx.clip(); // (a sprig never runs into the one beside it)
+    // Drawn in a frame shaped like the card (CARD wide for 1 long), stretched onto its half.
+    ctx.translate(s * W / 2, 0);
+    ctx.scale(1 / CARD, 1);
+    const mid = (W / 2) * CARD * 0.5;
+    const lean = (rand() - 0.5) * 14;
+    const at = (t) => [mid + lean * t + Math.sin(t * 5 + s) * 4, t * H * 0.84];
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = grey(120);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let t = 0; t <= 1; t += 0.05) ctx.lineTo(...at(t));
+    ctx.stroke();
+    let side = rand() < 0.5 ? -1 : 1;
+    for (let t = 0.06; t < 0.8; t += 0.1 + rand() * 0.04) {
+      const [x, y] = at(t);
+      leaf(x, y, side * (0.75 + rand() * 0.3), (82 - 30 * t) * (0.85 + rand() * 0.3));
+      side = -side;
+    }
+    const [x, y] = at(1);
+    leaf(x, y - 6, (rand() - 0.5) * 0.3, 52);
+    ctx.restore();
+  }
+  leaves = new THREE.CanvasTexture(canvas);
+  leaves.colorSpace = THREE.SRGBColorSpace;
+  leaves.anisotropy = 4;
+  return leaves;
+}
+
+// The material for a berry bush's leaf cards (named 'bush-leaves' in the model): the leaf
+// texture, cut out where it's clear, seen from both sides.
+export function leafMaterial(material) {
+  const result = material.clone();
+  result.map = leafTexture();
+  result.alphaTest = 0.5;
+  result.side = THREE.DoubleSide;
+  return result;
+}
+
 // Window glass (material 'glass' in a model, as in the plane's windows): see-through, tinted
 // by its vertex colours (darker low down, catching the sky higher up), glossy.
 export function glassMaterial(material) {
@@ -266,7 +362,7 @@ const SURFACE_OF = {
   metal: 'metal', truck: 'metal',
   cloth: 'cloth', backpack: 'cloth', suitcase: 'cloth', player: 'cloth',
   animal: 'fur',
-  shelter: 'plain', 'berry-bush': 'plain', berry: 'plain', 'spit-meat': 'plain',
+  shelter: 'plain', 'bush-wood': 'wood', 'bush-berries': 'plain', berry: 'plain', 'spit-meat': 'plain',
 };
 export const surfaceFor = (materialName) => SURFACE_OF[materialName.split('.')[0]];
 

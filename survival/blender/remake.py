@@ -627,32 +627,7 @@ def trap():
     return build('trap', b, shared('trap'))
 
 
-def berry_bush():
-    """A low blueberry bush: twiggy, with small clusters of leaves; its berries a separate part
-    ('berries', hidden once picked)."""
-    random.seed(607)
-    bush, berries = Builder(), Builder()
-    tips = []
-    for k in range(9):
-        a = math.tau * k / 9 + random.uniform(-0.3, 0.3)
-        lean = random.uniform(0.2, 0.32)
-        top = Vector((math.cos(a) * lean, random.uniform(0.4, 0.62), math.sin(a) * lean))
-        rod(bush, (math.cos(a) * 0.03, 0, math.sin(a) * 0.03), top, 0.012, 0.005, lambda c, n: tone('twig', 0.06), sides=4)
-        tips.append(top)
-        for f in (0.45, 0.75):  # side shoots
-            p = Vector((0, 0, 0)).lerp(top, f)
-            side = p + Vector((random.uniform(-0.12, 0.12), random.uniform(0.02, 0.1), random.uniform(-0.12, 0.12)))
-            rod(bush, p, side, 0.006, 0.003, lambda c, n: tone('twig', 0.06), sides=3)
-            tips.append(side)
-    for t in tips:  # leaf clusters on every tip and along the stems
-        for _ in range(2):
-            c = t + Vector((random.uniform(-0.05, 0.05), random.uniform(-0.04, 0.03), random.uniform(-0.05, 0.05)))
-            bush.stone(tuple(c), (0.07, 0.04, 0.06), lambda: tone(random.choice(('leaf', 'leaf', 'leaf_dark', 'leaf_light')), 0.06), points=9)
-    for t in random.sample(tips, 9):  # berries, in little clusters
-        for _ in range(3):
-            c = t + Vector((random.uniform(-0.05, 0.05), random.uniform(-0.06, -0.01), random.uniform(-0.05, 0.05)))
-            berries.stone(tuple(c), (0.014, 0.014, 0.014), lambda: tone(random.choice(('berry', 'berry_dark')), 0.06), points=8)
-    return [build('berry-bush', bush, shared('berry-bush')), build('berries', berries, shared('berry-bush'))]
+# (The berry bush is made by berry_bush.py.)
 
 
 def fern():
@@ -862,7 +837,7 @@ def remake():
     made += [('stump', [stump()]), ('tree-dead', [dead_tree()]), ('logs', [firewood()])]
     made += [('suitcase', suitcase()), ]
     made += [('barrel', [barrel()]), ('chest', chest()), ('supply-crate', supply_crate()), ('ammo-box', ammo_box()), ('locker', locker()), ('cupboard', cupboard()), ('weathered-pack', weathered_pack())]
-    made += [('campfire', [campfire()]), ('log-pile', [log_pile()]), ('fire-ring', [fire_ring()]), ('torch', [torch()]), ('bedroll', [bedroll()]), ('trap', [trap()]), ('berry-bush', berry_bush()), ('grass-fern', [fern()])]
+    made += [('campfire', [campfire()]), ('log-pile', [log_pile()]), ('fire-ring', [fire_ring()]), ('torch', [torch()]), ('bedroll', [bedroll()]), ('trap', [trap()]), ('grass-fern', [fern()])]
     made += [('bones', [bones()]), ('axe', [axe()]), ('axe-ground', [axe_ground()])]
     made += [('shelter', [shelter()])]
     return made
