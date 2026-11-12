@@ -10,14 +10,26 @@ lake ice also of its high "ping", and the birds of the traffic behind them), fad
 made mono and levelled to the same loudness (EBU R128). No NonCommercial recordings are used. (The lake ice, `ice*.mp3`, is kept here but not played
 in the game for now.)
 
-The sea's sounds, `sea.mp3`, `sea-wind.mp3` and `wave.mp3` … `wave-4.mp3`, aren't recordings:
-they're made from noise by [`audio/make_sea.py`](../../audio/make_sea.py), part of this game, and
-levelled the same way.
-
 | File | Recording | By | Licence | Used |
 | --- | --- | --- | --- | --- |
-| `wind.mp3` | [Wind in a forest](https://freesound.org/people/Magnesus/sounds/606960/) | Magnesus | CC0 | 24 s loop |
-| `water.mp3` | [Water-lap-against-rocks-lake.wav](https://freesound.org/people/salilnair/sounds/524688/) | salilnair | CC0 | 24 s loop, from 2 s |
+| `wind.mp3` | [Wind in a pine tree, constant…](https://freesound.org/people/felix.blume/sounds/655501/) | felix.blume | CC0 | 28 s loop, from 20 s, filtered above 2.8 kHz (the crickets and birds) |
+| `gale.mp3` | [Nor_Easter_2022.wav](https://freesound.org/people/sysdub/sounds/628850/) | sysdub | CC0 | 38 s loop |
+| `gale-indoors.mp3` | [Strong Wind 5](https://freesound.org/people/AleXZavesa/sounds/854079/) | AleXZavesa | CC BY 4.0 | 22 s loop, from 4 s |
+| `river.mp3` | [Large stream or small river](https://freesound.org/people/HowardV/sounds/777116/) | HowardV | CC0 | 26 s loop, from 3 s |
+| `sea.mp3` | [Ocean Waves, Rocky Beach](https://freesound.org/people/goochiano/sounds/623051/) | goochiano | CC0 | 41 s loop |
+| `sea-wind.mp3` | [Wind in the reed](https://freesound.org/people/Funkelfang/sounds/844604/) (a windy day on the Baltic shore) | Funkelfang | CC0 | 38 s loop |
+| `wave.mp3`, `wave-2.mp3`, `wave-3.mp3`, `wave-4.mp3` | [waves ocean crash on beach nearby wide big metallic sound.flac](https://freesound.org/people/kyles/sounds/450634/) | kyles | CC0 | 0.5–6.5, 22.8–28.8, 33.3–36.3 and 44.8–51.8 s |
+| `brush.mp3` … `brush-4.mp3` | [Rustling Foliage in Forest](https://freesound.org/people/sillygrizzlies/sounds/635053/) | sillygrizzlies | CC0 | 0.8 s each, from 2.2, 3.1, 3.9 and 4.95 s |
+| `brush-5.mp3` … `brush-8.mp3` | [foliage leaves rustle brush movement.flac](https://freesound.org/people/kyles/sounds/637547/) | kyles | CC0 | 0.8 s each, from 5, 14.2, 17.6 and 30.5 s |
+| `roof-rattle.mp3` | [Wind Through Window Screen Whistles, Rattles](https://freesound.org/people/CHallSmith/sounds/870882/) | CHallSmith | CC0 | 30 s loop, from 9 s |
+| `creak.mp3`, `creak-2.mp3` … `creak-7.mp3` | [tree wind creaking.wav](https://freesound.org/people/HMTSCCSound/sounds/554651/) | HMTSCCSound | CC0 | 0.9–3, 10.8–12.1, 13.8–15.1, 18.9–21.5, 21.7–25.3, 31.8–33.1 and 43.8–45.1 s |
+| `branch-fall.mp3` | [Falling branch.wav](https://freesound.org/people/marcolo91/sounds/153156/) | marcolo91 | CC0 | whole |
+| `branch-fall-2.mp3` | [Se quiebra un rama.wav](https://freesound.org/people/Josethehedgehog/sounds/390363/) | Josethehedgehog | CC0 | 0.1–0.9 s |
+| `branch-fall-3.mp3` | [branch break snap crunch nice.wav](https://freesound.org/people/kyles/sounds/452109/) | kyles | CC0 | 0.3–1.9 s |
+| `shiver.mp3` … `shiver-5.mp3` | [ShiveringTeeth.aiff](https://freesound.org/people/mickdow/sounds/184177/) | mickdow | CC0 | 0–2, 2.3–4, 4.4–6.5, 9.3–11 and 12–14 s |
+| `shiver-6.mp3` | [Chattering Teeth](https://freesound.org/people/danlucaz/sounds/517676/) | danlucaz | CC0 | 0.3–1.9 s |
+| `shiver-7.mp3` | [brr.mp3](https://freesound.org/people/sparkle.and.feyed/sounds/558684/) | sparkle.and.feyed | CC0 | 0.35–1.1 s |
+| `twig.mp3`, `twig-2.mp3` … `twig-8.mp3` | [Twig being snapped (multiple takes)](https://freesound.org/people/ZoshP/sounds/552006/) | ZoshP | CC0 | 0.4 s each, from 0.33, 1.83, 2.93, 4.73, 5.93, 7.93, 10.93 and 12.93 s |
 | `fire.mp3` | [fire small campfire crackling short +air tone.flac](https://freesound.org/people/kyles/sounds/637523/) | kyles | CC0 | 30 s loop |
 | `owl.mp3` | [owl_hooting_000102_0145S3 002-070 000-002 007-015.wav](https://freesound.org/people/Gerent/sounds/558398/) | Gerent | CC0 | 1.1–3.7 s |
 | `wolf.mp3` | [Cooper Creek 20160313_014852 solitary wolf howl very clear](https://freesound.org/people/betchkal/sounds/500646/) | betchkal | CC0 | one howl, 29–38.5 s |

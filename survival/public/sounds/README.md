@@ -7,20 +7,24 @@ time it plays, one is picked at random.
 
 They're recordings from Freesound, public domain (CC0) or free to use with credit (CC BY), cut
 and levelled for the game. [CREDITS.md](CREDITS.md) lists each one: where it came from, who
-recorded it, its licence and the stretch used. The sea's sounds (`sea`, `sea-wind` and the
-`wave` takes) are the exception: they're made from noise by
-[`audio/make_sea.py`](../../audio/make_sea.py) (run it again to remake them).
+recorded it, its licence and the stretch used.
 
 To listen to every sound on its own, run the game's server (`python3 serve.py`) and open
 http://localhost:8000/listen.html: a button per sound, and one per take.
 
 | File name | When it plays | How |
 | --- | --- | --- |
-| `wind` | Always outdoors; louder up the mountains | Looping |
-| `water` | Near a lake or the river | Looping |
+| `wind` | A breeze in the trees, always outdoors; louder up the mountains and on a windy day | Looping |
+| `gale` | Out in a blizzard (it drowns the breeze) | Looping |
+| `gale-indoors` | A blizzard heard from indoors: in a shelter, cabin or tower, or (quieter) down a cave | Looping |
+| `river` | Near the river (and, quieter, a creek), and the waterfall (from up to 80 m away). A lake is still: no sound of its own | Looping |
 | `sea` | The sea's roar, from up to 250 m inland: louder and clearer the nearer the shore, only its low rumble from further off | Looping |
 | `sea-wind` | The wind off the open sea, down on the shore (less in the trees) | Looping |
 | `wave`, `wave-2` … `wave-4` | A wave breaking on the shingle and dragging back over the stones, every 5–10 s while you can hear the sea, from the shore near you (heard five times as far as most sounds) | Played once |
+| `roof-rattle` | In a shelter on a windy day, and hard in a blizzard: the wind shaking the roof | Looping |
+| `creak`, `branch-fall` | In the woods in a strong wind: trunks creaking round you, and now and then a branch cracking and coming down | Played once, from somewhere around you |
+| `shiver` | Freezing: your teeth chattering, or a "brr", every few seconds | Played once |
+| `brush`, `twig` | Pushing through the boughs of a tree or a bush: a rustle every step or so, and now and then a twig snapping | Played once each time |
 | `fire` | Near a burning campfire | Looping |
 | `junco`, `chickadee`, `raven` | By day, now and then (rarely: the north is quiet, and quieter still in the cold): a dark-eyed junco's "tsip" calls or trill, a chickadee (black-capped: they winter in the southern Yukon too), or a common raven's croak | Played once each time, from somewhere around you, a little higher or lower (every one-off sound is) |
 | `owl` | At night, now and then (a great horned or a boreal owl) | Played once |

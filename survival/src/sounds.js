@@ -1,22 +1,27 @@
 // The sounds of the place, the far north (the Yukon, the Northwest Territories) as the cold
 // sets in. Mostly a great quiet: the wind, and now and then a bird of the boreal winter (a
 // junco, a chickadee, a raven). By night, owls, and wolves far off. Deer moving about
-// nearby; water lapping, a campfire crackling, and dripping and bats down a cave. Down by the
-// sea, its roar, waves breaking on the shingle, and the wind off the open water.
+// nearby; the river running, a campfire crackling, and dripping and bats down a cave. Down by
+// the sea, its roar, waves breaking on the shingle, and the wind off the open water. A
+// blizzard howls (muffled, from indoors, the roof rattling), trees creak and now and then a
+// branch comes down in a strong wind, pushing through the boughs of a tree or a bush rustles
+// and snaps twigs, and you shiver when you're freezing.
 //
 // Every sound is a recording in public/sounds/ named after it (see SOUNDS below), e.g.
 // public/sounds/raven.mp3; most have a few takes (raven-2.mp3, raven-3.mp3, ...), and each time
 // one is picked at random. They're field recordings and sound effects from Freesound, public
-// domain or free to use with credit: public/sounds/CREDITS.md lists them. (The sea's are made
-// by audio/make_sea.py instead: there's no recording in them.) A sound with no
+// domain or free to use with credit: public/sounds/CREDITS.md lists them. A sound with no
 // recording is simply not heard. Open listen.html (with the game's server running) to hear
 // each one on its own.
 //
 // Browsers only allow sound once you've clicked or pressed a key, so it starts then.
 // N turns it off and on (remembered for next time).
 export const SOUNDS = {
-  wind: 'loop', // stronger up the mountains
-  water: 'loop', // by a lake or the river
+  wind: 'loop', // a breeze in the trees: stronger up the mountains and on a windy day
+  gale: 'loop', // out in a blizzard
+  'gale-indoors': 'loop', // a blizzard heard from indoors (a shelter, a cabin, a cave)
+  river: 'loop', // by the river or a creek (a lake is still: no sound of its own)
+  'roof-rattle': 'loop', // the wind shaking the roof over you, in a shelter on a windy day or a blizzard
   fire: 'loop', // by a burning campfire (crackle and all)
   sizzle: 'loop', // meat cooking on a fire
   sea: 'loop', // the sea's roar, heard from well inland (muffled the further you are)
@@ -38,6 +43,9 @@ export const SOUNDS = {
   'bow-draw': 'once', 'bow-shoot': 'once', 'arrow-hit': 'once', 'arrow-land': 'once', stab: 'once', swing: 'once',
   chew: 'once', gulp: 'once', rummage: 'once', bandage: 'once', pickup: 'once', 'fire-light': 'once',
   'add-wood': 'once', 'trap-set': 'once', cloth: 'once', splash: 'once', land: 'once',
+  brush: 'once', twig: 'once', // pushing through a tree's boughs or a bush, and a twig snapping
+  creak: 'once', 'branch-fall': 'once', // in the woods in a strong wind: a trunk creaking, a branch coming down
+  shiver: 'once', // freezing: teeth chattering, a "brr"
 };
 // How loud each one-off sound plays, from right beside you (the recordings are all levelled to
 // about the same loudness; this sets them against each other). Anything not listed plays at 1.
@@ -52,6 +60,7 @@ const LEVEL = {
   chew: 1.6, gulp: 1.5, rummage: 0.8, bandage: 0.8, cloth: 0.8, pickup: 0.8,
   hurt: 0.8, 'bow-draw': 1.0,
   wave: 0.9,
+  brush: 0.55, twig: 0.5, creak: 0.7, 'branch-fall': 0.8, shiver: 0.7,
 };
 // Sounds that carry further than most: heard this many times as far (a breaking wave, from
 // a long way inland).
@@ -70,7 +79,7 @@ export class Sound {
     this.files = {}; // name → [AudioBuffer, ...]: its takes
     this.folder = null; // where the recordings turned out to be served from
     this.loops = {};
-    this.timers = { birds: 6, owl: 8, wolf: 40, wave: 1, drip: 1, bat: 5, busy: 0 };
+    this.timers = { birds: 6, owl: 8, wolf: 40, wave: 1, drip: 1, bat: 5, busy: 0, brush: 0, creak: 8, branch: 30, shiver: 0 };
     this.deer = new WeakMap(); // deer → seconds until its next footstep (or bleat)
     this.muted = readMuted();
     this.time = 0;
@@ -169,10 +178,12 @@ export class Sound {
     return this.muted;
   }
 
-  // Call every frame. `env`: { paused, night, underground, cold (0–1), water (0–1: how close
-  // the water is), fire (0–1), woods (0–1), listener: { x, z } (the player), animals (all of
-  // them, for the deer), shoreAt (x → the z of the sea's edge, south of you), and what the
-  // player's busy with: cooking, eating, drinking, searching, bandaging }.
+  // Call every frame. `env`: { paused, night, underground, cold (0–1), breeze (0–1: the
+  // weather's wind), storm (0–1: how much of a blizzard is blowing), sheltered (indoors), river
+  // (0–1: how close running water is), fire (0–1), woods (0–1), brushing (pushing through a
+  // tree or a bush), freezing, listener: { x, z } (the player), animals (all of them, for the
+  // deer), shoreAt (x → the z of the sea's edge, south of you), and what the player's busy
+  // with: cooking, eating, drinking, searching, bandaging }.
   update(dt, env) {
     if (!this.ctx) return;
     if (env.listener) this.listener = env.listener;
@@ -183,9 +194,17 @@ export class Sound {
     const set = (name, level, smooth = 0.4) => this.loops[name]?.gain.gain.setTargetAtTime(env.paused ? 0 : level, now, smooth);
     const outside = env.underground ? 0 : 1;
     const gust = 0.75 + 0.25 * Math.sin(this.time * 0.37) * Math.sin(this.time * 0.11);
-    // (A blizzard howls: the weather's wind, 0–1.)
-    set('wind', outside * Math.min(1, 0.05 + 0.3 * env.cold + 0.65 * (env.storm ?? 0)) * gust);
-    set('water', outside * 0.27 * env.water, 0.3);
+    // The breeze, and a blizzard: outdoors, its full howl (drowning the breeze); indoors or
+    // down a cave, the muffled storm outside.
+    const storm = env.storm ?? 0;
+    const indoors = env.sheltered ? 1 : 0;
+    set('wind', outside * (1 - indoors) * (1 - 0.8 * storm) * Math.min(1, 0.08 + 0.3 * env.cold + 0.35 * (env.breeze ?? 0)) * gust);
+    set('gale', outside * (1 - indoors) * 0.9 * storm, 1);
+    set('gale-indoors', (env.underground ? 0.35 : indoors * 0.7) * storm, 0.6);
+    set('river', outside * 0.3 * (env.river ?? 0), 0.4);
+    // (Over you in a shelter: the wind shaking the roof, hard in a blizzard.)
+    const blow = Math.max(storm, env.breeze ?? 0);
+    set('roof-rattle', indoors * Math.max(0, Math.min(1, 1.3 * blow - 0.2)) * 0.6, 0.8);
     set('fire', outside * 0.35 * env.fire, 0.2);
     set('sizzle', 0.6 * (env.cooking || 0)); // (a quiet recording)
     // The sea: its roar, louder and clearer the nearer the shore (from further off, only its
@@ -250,6 +269,29 @@ export class Sound {
     if (env.underground && this.timers.bat <= 0) {
       this.timers.bat = rand(15, 35);
       this.play('bat', this.around(4, 12));
+    }
+    // Pushing through the boughs of a tree or a bush: a rustle each step or so, now and then a
+    // twig snapping.
+    if (env.brushing && this.timers.brush <= 0) {
+      this.timers.brush = rand(0.4, 0.65);
+      this.play('brush', null, 0.8 + 0.4 * Math.random());
+      if (Math.random() < 0.25) this.play('twig');
+    }
+    // A strong wind in the woods: trunks creaking round you, and now and then a branch
+    // coming down somewhere near.
+    const woodsWind = outside * (1 - indoors) * Math.min(1, env.woods ?? 0) * Math.max(0, blow - 0.3) / 0.7;
+    if (woodsWind > 0.05 && this.timers.creak <= 0) {
+      this.timers.creak = rand(4, 12) / woodsWind;
+      this.play('creak', this.around(5, 20));
+    }
+    if (woodsWind > 0.4 && this.timers.branch <= 0) {
+      this.timers.branch = rand(25, 70) / woodsWind;
+      this.play('branch-fall', this.around(8, 25));
+    }
+    // Freezing: your teeth chattering, a "brr", every few seconds.
+    if (env.freezing && this.timers.shiver <= 0) {
+      this.timers.shiver = rand(3, 7);
+      this.play('shiver');
     }
     // Busy hands: chewing, gulping, rummaging, winding a bandage (each recording a second or so).
     const busy = env.eating ? ['chew', 0.9, 1.2] : env.drinking ? ['gulp', 0.8, 1.0]
