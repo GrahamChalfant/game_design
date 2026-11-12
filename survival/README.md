@@ -197,6 +197,14 @@ you're about to run out; the thermometer goes from a cool blue when you're freez
 at its hottest. You'll say so when you get hungry or thirsty. Temperature falls at night and in the water, and rises near a burning
 fire. If it reaches zero, you start losing health.
 
+The weather changes every few hours: clear blue skies, a few clouds with a little snow, overcast
+with snow falling, and now and then (every three or four days, never on the first) a blizzard. A
+blizzard always builds out of overcast weather, and you get an hour's warning: the wind rises,
+the snow thickens and the light goes. In a blizzard you can barely see 20 m, the wind howls, and
+out in the open by day you get half as warm as usual and cool down twice as fast, so get to a
+shelter, a cave or a fire. The icon by the clock shows the weather. The numbers are at the top of
+`src/weather.js` and (for the cold) `src/survival.js`.
+
 Up the mountains, spruce grow on the lower slopes, then scree and bare rock, then snow. The air
 gets colder the higher you climb: above the snowline (the upper part of the trail, the saddle and
 the observatory) you lose warmth even in the daytime, and you'll freeze in under a minute unless
@@ -321,6 +329,9 @@ computer, or to compare, add `?classic` to the address to turn it off.
 To test faster, add `?speed=20` to the address (for example http://localhost:8000/?speed=20).
 Time then passes 20 times faster.
 
+To see one kind of weather all the time, add `?weather=clear`, `?weather=fewClouds`,
+`?weather=overcast` or `?weather=blizzard` to the address.
+
 ## Project layout
 
 ```
@@ -336,7 +347,8 @@ src/terrain.js        The land: the sea, the hills, the mountains and their trai
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
 src/water.js          The lakes, the flowing river and creeks, and ripples around the player
 src/grass.js          Swaying grass tufts
-src/snow.js           Light snowfall
+src/snow.js           Falling snow: none, a light flurry, or a blizzard driven on the wind
+src/weather.js        The weather: clear, a few clouds, overcast or a blizzard, changing every few hours
 src/player.js         Player movement, swimming and collisions
 src/trees.js          Choppable trees: chopping progress, falling and stumps
 src/seeThrough.js     Makes trees see-through where they'd hide the player

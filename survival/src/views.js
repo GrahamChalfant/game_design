@@ -33,8 +33,8 @@ const FAR = 650; // meters the camera draws to: past the haze on the clearest da
 const NEAR = { first: 0.03, third: 0.1 };
 const SPRINT_FOV = 6; // degrees wider in first person while sprinting
 
-export function createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour, start = 'third' }) {
-  const sky = createSky(scene, ambient, hour);
+export function createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour, weather, start = 'third' }) {
+  const sky = createSky(scene, ambient, hour, weather);
   let view = VIEWS.includes(start) ? start : 'third';
   let yaw = player.facing + Math.PI; // 0 looks north (-z)
   let pitch = -0.08;
