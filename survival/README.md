@@ -141,11 +141,14 @@ A few birds fly over by day. The north is quiet: you hear the wind (louder up th
 and, now and then by day, a bird of the boreal winter (a junco's "tsip", chickadees, a raven's
 croak); owls and wolves far
 off at night; deer walking, bleating, and snorting as they bolt from you; water nearby, a
-campfire's crackle, and dripping and bats down a cave. Your footsteps sound like what's
+campfire's crackle, and dripping and bats down a cave. Toward the coast you hear the sea's roar
+(muffled from far inland), and down on the shore, waves breaking on the shingle and the wind off
+the open water. (You can't drink the sea, or fill the flask from it: it's salt.) Your footsteps sound like what's
 underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things you do have a
 sound: chopping and trees crashing down, the bow, arrows landing, eating, drinking, cooking,
-searching, bandaging, lighting a fire, and you'll hear it when you're hurt. Every sound is a real
-recording (from Freesound: see `public/sounds/README.md` and its credits), and `listen.html`
+searching, bandaging, lighting a fire, and you'll hear it when you're hurt. Every sound but the
+sea's is a real recording (from Freesound: see `public/sounds/README.md` and its credits; the
+sea's are made by `audio/make_sea.py`), and `listen.html`
 plays each on its own. Press N to turn the sound off and on.
 
 What's in each place to search is rolled each game. All the numbers are at the top of
@@ -360,6 +363,7 @@ src/traps.js          Snare traps that catch rabbits
 src/hunting.js        Bow hunting numbers and rules (stones, one-shot kills, flee distances, yield)
 src/arrows.js         Arrows in flight
 sim/hunting-sim.mjs   Node check of the hunting rules: node sim/hunting-sim.mjs
+audio/make_sea.py     Makes the sea's sounds (waves, roar, sea wind) into public/sounds/: python audio/make_sea.py
 src/pickups.js        Items lying on the ground
 src/wreck.js          The crashed plane at the start, and where the starting items lie
 src/lookout.js        The fire lookout tower: where it stands, and its supply crate

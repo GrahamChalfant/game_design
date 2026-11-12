@@ -462,6 +462,9 @@ export function createTerrain(noise, bounds) {
     const level = waterLevelAt(x, z);
     return level === -Infinity ? 0 : Math.max(0, level - heightAt(x, z));
   };
+  // True if the water at (x, z) is the sea's: salt, not fit to drink. (Not a pond, a lake, the
+  // river or a creek, even where the river runs into the sea.)
+  const isSea = (x, z) => z > coastZ(x) - 30 && waterDepth(x, z) > 0 && waterLevelAt(x, z) === SEA_LEVEL;
   // Which way the ground rises at (x, z) and how steeply: { x, z } meters up per meter
   // across. Reuses one object, so copy it if you keep it.
   const slope = { x: 0, z: 0 };
@@ -703,6 +706,9 @@ export function createTerrain(noise, bounds) {
     canClimb,
     waterLevelAt,
     waterDepth,
+    isSea,
+    // The z of the sea's edge, south of you along x (about 7 m out from coastZ).
+    seaEdgeAt: (x) => coastZ(x) + 7,
     nearWater,
     forest,
     mountainAt,

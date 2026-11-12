@@ -159,6 +159,8 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     const offGround = upHigh || Boolean(player.cave);
     const onGround = (thing) => (offGround ? null : thing);
     const canDrink = !offGround && player.canDrink(world);
+    // At the sea's edge (or in it), where the water's salt.
+    const atSea = !offGround && !canDrink && player.waterInReach(world) === 'salt';
     // You drink until you've had enough (and won't start when you're not thirsty).
     const thirsty = survival.thirst < (drinkingBefore ? 100 : FULL);
     const drinking = canDrink && thirsty && input.isDown('KeyE');
@@ -579,6 +581,8 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
           sfx('step-water');
           hud.toast('Flask filled');
         }
+      } else if (atSea && flask.water < holds) {
+        prompt = `Water flask ${flask.water}/${holds} · the sea's salt: fill it at a lake or the river`;
       } else if (flask.water === 0) {
         prompt = 'The flask is empty · fill it at the lake or river';
       } else if (survival.thirst >= FULL) {
@@ -744,6 +748,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
     }
     // (With a flask in hand, the flask's prompt already says how to drink here.)
     if (canDrink && !(held === 'flask' && !drinking)) prompt = drinking ? 'Drinking…' : thirsty ? 'Hold E to drink' : "You're not thirsty";
+    else if (atSea && held !== 'flask' && input.isDown('KeyE')) prompt = "The sea's salt: you can't drink it. Find a lake or the river";
 
     // Under a shelter you're warm, and at night E sleeps until morning.
     // So are you inside a cabin or a cave.
