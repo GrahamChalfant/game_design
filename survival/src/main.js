@@ -910,5 +910,3 @@ renderer.setAnimationLoop(() => {
   draw();
 });
 
-
-
