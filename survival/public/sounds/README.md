@@ -17,7 +17,7 @@ http://localhost:8000/listen.html: a button per sound, and one per take.
 | `wind` | A breeze in the trees, always outdoors; louder up the mountains and on a windy day | Looping |
 | `gale` | Out in a blizzard (it drowns the breeze) | Looping |
 | `gale-indoors` | A blizzard heard from indoors: in a shelter, cabin or tower, or (quieter) down a cave | Looping |
-| `river` | Near the river (and, quieter, a creek). A lake is still: no sound of its own | Looping |
+| `river` | Near the river (and, quieter, a creek), and the waterfall (from up to 80 m away). A lake is still: no sound of its own | Looping |
 | `sea` | The sea's roar, from up to 250 m inland: louder and clearer the nearer the shore, only its low rumble from further off | Looping |
 | `sea-wind` | The wind off the open sea, down on the shore (less in the trees) | Looping |
 | `wave`, `wave-2` … `wave-4` | A wave breaking on the shingle and dragging back over the stones, every 5–10 s while you can hear the sea, from the shore near you (heard five times as far as most sounds) | Played once |
