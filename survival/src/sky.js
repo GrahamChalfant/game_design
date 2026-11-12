@@ -9,6 +9,8 @@ import { skyPath } from './daylight.js';
 //   warmer near the horizon) by day, and the moon and stars by night;
 // - clouds: low-poly cumulus made in Blender (blender/sky.py → clouds.glb), drifting slowly
 //   on the wind, high above the land, and fading into the haze far off.
+// The weather (src/weather.js) says how many clouds are out (none on a clear day, all of them
+// when it's overcast) and how blue the sky deepens overhead (grey in a blizzard).
 const RADIUS = 600; // meters: the dome (inside the camera's far plane, 650)
 const CLOUDS = {
   count: 60,
@@ -23,8 +25,9 @@ const CLOUDS = {
 };
 const NIGHT_SKY = new THREE.Color(0x1b2440);
 const DAY_DEEP = new THREE.Color(0x6f8fb8); // overhead, the sky deepens towards this blue
+const CLEAR_DEEP = new THREE.Color(0x3f7cc8); // ...and on a clear day, this one
 
-export function createSky(scene, ambient, hour) {
+export function createSky(scene, ambient, hour, weather = () => null) {
   const group = new THREE.Group();
   group.visible = false;
   scene.add(group);
@@ -95,6 +98,9 @@ export function createSky(scene, ambient, hour) {
       turn: random() * Math.PI * 2,
     });
   }
+  // (Which go first as the sky clears: a share `clouds` of the weather's are out.)
+  const order = mulberry(11);
+  for (const cloud of clouds) cloud.rank = order();
   const haze = { uHaze: { value: new THREE.Color() }, uHazeRange: { value: new THREE.Vector2(CLOUDS.hazeFrom, CLOUDS.hazeTo) } };
   const cloudMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, fog: false, emissive: 0x000000 });
   // Far-off clouds fade into the haze (the sky's own fog), so none pop in or out.
@@ -152,7 +158,10 @@ export function createSky(scene, ambient, hour) {
       // own light, so their undersides are soft grey rather than dark.
       cloudMaterial.emissive.copy(ambient.color).multiplyScalar(0.32 * Math.min(1, ambient.intensity / 1.65));
       // Overhead: the sky light's colour, deeper and bluer by day, dark blue at night.
-      deep.copy(ambient.color).multiplyScalar(0.82).lerp(DAY_DEEP, 0.35);
+      const sky = weather() ?? { deep: 0.35, clouds: 1, grey: 0, blue: 0 };
+      deep.copy(ambient.color).multiplyScalar(0.82).lerp(DAY_DEEP, sky.deep);
+      if (isDay && sky.blue > 0) deep.lerp(CLEAR_DEEP, sky.blue * Math.min(1, ambient.intensity / 1.65));
+      if (sky.grey > 0) deep.lerp(scene.fog.color, sky.grey);
       uniforms.uZenith.value.copy(deep).lerp(NIGHT_SKY, isDay ? 0 : 0.6);
       uniforms.uSunColor.value.set(isDay ? 0xfff0d0 : 0x8090b0).lerp(new THREE.Color(0xff9a50), isDay ? 1 - THREE.MathUtils.smoothstep(Math.sin(angle), 0.05, 0.4) : 0);
 
@@ -163,14 +172,18 @@ export function createSky(scene, ambient, hour) {
       const half = CLOUDS.tile / 2;
       for (const cloud of clouds) {
         const mesh = meshes[cloud.shape];
-        if (!mesh) continue;
+        if (!mesh || cloud.rank >= sky.clouds) continue;
         const wrap = (v, centre) => ((((v - centre + half) % CLOUDS.tile) + CLOUDS.tile) % CLOUDS.tile) - half + centre;
         position.set(wrap(cloud.x + drift.x, camera.position.x), cloud.y, wrap(cloud.z + drift.y, camera.position.z));
         quaternion.setFromAxisAngle(up, cloud.turn);
         scale.set(cloud.scale, cloud.scale * 0.8, cloud.scale);
         mesh.setMatrixAt(counts[cloud.shape]++, matrix.compose(position, quaternion, scale));
       }
-      for (const mesh of meshes) if (mesh) mesh.instanceMatrix.needsUpdate = true;
+      meshes.forEach((mesh, shape) => {
+        if (!mesh) return;
+        mesh.count = counts[shape];
+        mesh.instanceMatrix.needsUpdate = true;
+      });
     },
   };
 }

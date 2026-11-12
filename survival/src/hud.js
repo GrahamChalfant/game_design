@@ -368,8 +368,11 @@ export class Hud {
     this.freezing.hidden = !survival.isFreezing;
 
     const { day, hour, minute } = survival.clock;
-    const icon = isNight(survival.hourOfDay) ? '🌙' : '☀️';
+    // (The icon for the weather too: see src/weather.js and `weather` in main.js.)
+    const kind = this.weather ?? 'overcast';
+    const icon = kind === 'blizzard' ? '🌨️' : isNight(survival.hourOfDay) ? '🌙' : { clear: '☀️', fewClouds: '🌤️', overcast: '☁️' }[kind];
     this.clock.textContent = `${icon} Day ${day} · ${pad(hour)}:${pad(minute)}`;
+    this.clock.title = this.weatherName ?? '';
 
     this.prompt.hidden = !prompt;
     if (prompt) this.prompt.textContent = prompt;
@@ -426,12 +429,14 @@ export class Hud {
   }
 
   // A short message that floats up and fades, like "+4 Wood".
-  toast(text) {
+  // (`ms`: how long it stays up, for longer news.)
+  toast(text, ms = 1600) {
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = text;
+    toast.style.animationDuration = `${ms}ms`;
     this.toasts.append(toast);
-    setTimeout(() => toast.remove(), 1600);
+    setTimeout(() => toast.remove(), ms);
   }
 
   // A card at the top of the screen saying a new recipe can be crafted. Several at once (like

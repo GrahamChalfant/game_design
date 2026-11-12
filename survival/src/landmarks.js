@@ -28,6 +28,26 @@ export const BRIDGE = { half: 0.8, end: 4.4, reach: 7.6, rim: 7.0, across: 4.6 }
 export const DOCK = { half: 1.1, length: 14 };
 export const BARN = { half: [5, 7], wall: 4.2, door: 2.1 };
 export const HUT = { half: [1.8, 2.1], wall: 2.0, door: 0.55, box: [-1.0, -1.4] };
+// The old timber road bridge over the river: its deck's half width and half length (along +z),
+// and its railings either side.
+export const ROAD_BRIDGE = { half: 2.3, length: 9, rail: 2.45 };
+// The burnt cabin: what's left of its walls (a cabin's size: see CABIN in poiModels.js), the
+// stone chimney still standing, and a tin box under the floorboards.
+export const RUIN = { half: [2.75, 2.25], chimney: [1.9, -2.3], box: [-1.1, -0.6] };
+// The trailhead's notice board (facing +z).
+export const BOARD = { half: 0.9 };
+// What the board says.
+const TRAIL_NOTE = 'A notice board, the paint flaking: "PASS TRAIL. Over the mountains to the lake, 4 km. Blizzard shelter above the ravine. Footbridge over the ravine CLOSED. The observatory on the saddle keeps emergency supplies. Waterfall 100 m west."';
+// The cabins that aren't plain log cabins (see pois.js): their Blender models, and the circles
+// you can't walk through round them outside ([x, z, radius] in the cabin's own space).
+export const CABIN_STYLES = {
+  // The fisherman's shack: tin-roofed, a rowboat upturned beside it, a drying rack behind.
+  shack: { model: 'cabin-shack', outside: [[-4.4, -0.6, 0.6], [-4.4, 0.5, 0.6], [-4.4, 1.6, 0.6], [-1.2, -3.6, 0.12], [1.2, -3.6, 0.12]] },
+  // The homestead: a clapboard farmhouse, a half-fallen shed, and a stone well.
+  homestead: { model: 'cabin-homestead', outside: [[6.2, -1.6, 1.0], [6.2, -0.2, 1.0], [7.0, -0.9, 1.0], [-5.0, 3.4, 0.75]], well: [-5.0, 3.4] },
+  // The hunter's cabin: logs, antlers over the door, a smokehouse out back.
+  hunter: { model: 'cabin-hunter', outside: [[-4.9, -1.4, 1.05]] },
+};
 
 // How much ground each keeps clear, and how far its floors reach (from its middle).
 export const LANDMARKS = {
@@ -37,6 +57,10 @@ export const LANDMARKS = {
   dock: { clearing: 2, reach: 16, model: 'dock' },
   barn: { clearing: 9, reach: 9, model: 'barn' },
   den: { clearing: 6, reach: 0, model: null },
+  roadbridge: { clearing: 4, reach: 10, model: 'road-bridge' },
+  ruin: { clearing: 7, reach: 0, model: 'cabin-burnt' },
+  board: { clearing: 2, reach: 0, model: 'notice-board' },
+  falls: { clearing: 9, reach: 0, model: 'waterfall' },
 };
 export const isLandmark = (kind) => kind in LANDMARKS;
 
@@ -94,6 +118,18 @@ export function landmarkObstacles(poi, at, line) {
     ];
   }
   if (poi.kind === 'den') return entranceRocks().map(([x, z, size]) => at(x, z, size * 0.9));
+  if (poi.kind === 'roadbridge') {
+    // The railings, up on the deck (you can wade under the bridge).
+    const { rail, length } = ROAD_BRIDGE;
+    const extra = { above: poi.base - 1 };
+    return [...line([-rail, -length], [-rail, length], 0.12, extra), ...line([rail, -length], [rail, length], 0.12, extra)];
+  }
+  if (poi.kind === 'ruin') {
+    // The back wall and one side still stand waist-high; the chimney.
+    const [W, D] = RUIN.half;
+    return [...line([-W, -D], [W - 1.5, -D], 0.2), ...line([-W, -D], [-W, D - 1], 0.2), at(...RUIN.chimney, 0.6)];
+  }
+  if (poi.kind === 'board') return [at(-BOARD.half, 0, 0.1), at(BOARD.half, 0, 0.1)];
   return [];
 }
 
@@ -110,6 +146,9 @@ export function landmarkFloor(poi, p) {
   }
   if (poi.kind === 'dock') {
     if (Math.abs(p.x) < DOCK.half && p.z > -0.5 && p.z < DOCK.length) return 0;
+  }
+  if (poi.kind === 'roadbridge') {
+    if (Math.abs(p.x) < ROAD_BRIDGE.rail && Math.abs(p.z) < ROAD_BRIDGE.length) return 0;
   }
   return null;
 }
@@ -190,6 +229,26 @@ export function buildLandmark(poi, random, add, groundAt) {
     supplies.userData.keep = true;
     group.add(supplies);
     add(supplies, 'the emergency box', ...HUT.box, poi.base, 'hut');
+  } else if (poi.kind === 'roadbridge') {
+    const { half, length, rail } = ROAD_BRIDGE;
+    box(half * 2, 0.2, length * 2, 0x7a6a58, 0, -0.1, 0);
+    for (const side of [-1, 1]) box(0.15, 0.9, length * 2, 0x6a5a48, side * rail, 0.45, 0);
+  } else if (poi.kind === 'ruin') {
+    const [W, D] = RUIN.half;
+    box(W * 2 - 1.5, 0.9, 0.3, 0x2b2622, -0.75, 0.45, -D);
+    box(0.3, 0.7, D * 2 - 1, 0x2b2622, -W, 0.35, -0.5);
+    box(1.0, 4.2, 1.0, 0x6d6862, ...[RUIN.chimney[0], 2.1, RUIN.chimney[1]]);
+    const tin = ammoBox();
+    tin.position.set(RUIN.box[0], groundAt(...RUIN.box) + 0.02, RUIN.box[1]);
+    tin.userData.keep = true;
+    group.add(tin);
+    add(tin, 'the scorched tin box', ...RUIN.box, poi.base + groundAt(...RUIN.box), 'ruin');
+  } else if (poi.kind === 'board') {
+    box(BOARD.half * 2, 1.0, 0.08, 0x7a6550, 0, 1.4, 0);
+    for (const side of [-1, 1]) box(0.12, 2.0, 0.12, 0x5d4a3a, side * BOARD.half, 1.0, -0.06);
+    add({ userData: { open() {} } }, 'the notice board', 0, 0.6, poi.base, 'board', { standing: true, read: TRAIL_NOTE });
+  } else if (poi.kind === 'falls') {
+    group.add(waterfallStandIn(poi.drop ?? 9));
   } else if (poi.kind === 'den') {
     // The wolves' den: a hole under a rocky bank, with bones scattered in front of it.
     group.add(caveEntrance(random, groundAt));
@@ -207,4 +266,48 @@ export function buildLandmark(poi, random, add, groundAt) {
     group.add(remains);
   }
   return group;
+}
+
+// A stand-in for the waterfall (until waterfall.glb loads): a sheet of falling water from the
+// rock step's lip down into the pool, `drop` meters, facing +z.
+function waterfallStandIn(drop) {
+  const sheet = new THREE.Mesh(new THREE.PlaneGeometry(4, drop, 1, 8), fallingWater());
+  sheet.name = 'waterfall-water';
+  sheet.position.set(0, drop / 2, 0.6);
+  return sheet;
+}
+
+// Falling water, for the waterfall's sheet ("waterfall-water", its uv's v running up it) and the
+// foam where it hits the pool ("waterfall-foam"): white streaks rushing down it (or churning
+// out across the foam), see-through between them. `fallsClock.value` is the time (see pois.js).
+export const fallsClock = { value: 0 };
+export function fallingWater(foam = false) {
+  const material = new THREE.MeshStandardMaterial({ color: 0xe4eef0, roughness: 0.35, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  material.defines = { USE_UV: '', ...(foam ? { FOAM: '' } : {}) };
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = fallsClock;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform float uTime;
+        float fallHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float fallNoise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(fallHash(i), fallHash(i + vec2(1.0, 0.0)), f.x), mix(fallHash(i + vec2(0.0, 1.0)), fallHash(i + 1.0), f.x), f.y);
+        }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        #ifdef FOAM
+          vec2 q = vec2(vUv.x * 9.0, vUv.y * 5.0 - uTime * 0.6);
+          float streak = fallNoise(q) * 0.6 + fallNoise(q * 2.3 + 7.0) * 0.4;
+          float edge = smoothstep(0.0, 0.25, vUv.y) * (1.0 - smoothstep(0.55, 1.0, vUv.y));
+          diffuseColor.a *= smoothstep(0.35, 0.75, streak) * edge * 0.85;
+        #else
+          vec2 q = vec2(vUv.x * 14.0, vUv.y * 3.0 + uTime * 2.6);
+          float streak = fallNoise(q) * 0.65 + fallNoise(q * vec2(2.0, 3.1) + 3.0) * 0.35;
+          diffuseColor.rgb *= 0.82 + 0.25 * streak;
+          diffuseColor.a *= mix(0.35, 0.95, smoothstep(0.3, 0.7, streak)) * smoothstep(0.0, 0.08, vUv.x) * (1.0 - smoothstep(0.92, 1.0, vUv.x));
+        #endif`);
+  };
+  return material;
 }

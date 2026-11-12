@@ -6,14 +6,16 @@ import { createNoise, createRandom } from './random.js';
 import { createTerrain } from './terrain.js';
 import { Trees } from './trees.js';
 import { stoneSpots } from './hunting.js';
-import { CRASH, FLIGHT_PATH, flightPoint, onFlightPath, trailPoint } from './crashTrail.js';
+import { CRASH, FLIGHT_PATH, onFlightPath, trailPoint } from './crashTrail.js';
+import { damageFlightPath } from './flightPath.js';
 import { SpatialGrid } from './grid.js';
 import { hashOf } from './worldCache.js';
 import { LOOKOUT, lookoutBase, lookoutObstacles, lookoutStructure } from './lookout.js';
-import { placePois, poiClearing, poiObstacles, poiStructure } from './pois.js';
+import { fromPoi, placePois, poiClearing, poiObstacles, poiStructure } from './pois.js';
+import { CABIN_STYLES } from './landmarks.js';
 import { KEEP_CLEAR, ROAD_WIDTH, alongRoads, fixedRoads, ruinRoads } from './roads.js';
 import { scatterDetails } from './details.js';
-import { BOUNDS, MAP_SEED, RAVINE, REGIONS, TOWER, TRAIL, inBounds, nearestOnTrail, ravineAt, regionAt } from './layout.js';
+import { BOUNDS, MAP_SEED, RAVINE, REGIONS, TOWER, TRAIL, WEST_TOWER, inBounds, nearestOnTrail, ravineAt, regionAt } from './layout.js';
 const SAP_KINDS = new Set(['pine', 'pine-tall', 'pine-wide', 'pine-skinny']); // (grown trees, not saplings or snags)
 
 // The playable area (see layout.js: 2 km by 3 km, the crash at 0,0 near the south coast). Only
@@ -80,6 +82,7 @@ const PUDDLES = { every: 4, chance: 0.2, rut: 0.8, length: [0.6, 1.6], width: [0
 function roadPuddles(random, terrain, paths) {
   const out = [];
   for (const path of paths) {
+    if (path.foot) continue; // (no ruts on a footpath)
     for (let i = 1; i < path.length; i++) {
       const [a, b] = [path[i - 1], path[i]];
       const d = Math.hypot(b.x - a.x, b.z - a.z);
@@ -152,11 +155,16 @@ export function buildWorld(scene, treeCache = null) {
   // Obstacles are circles on the ground the player can't walk into: { x, z, radius }.
   const obstacles = new SpatialGrid();
   // The fire lookout tower goes first, so trees and rocks keep clear of it.
+  // (And the older one up on Bald Knob, in the west.)
   const lookout = { x: TOWER.x, z: TOWER.z, heading: TOWER.heading, hasMap: true };
-  lookout.base = lookoutBase(lookout, terrain); // the height of its foot
-  for (const o of lookoutObstacles(lookout, lookout.base)) obstacles.add(o);
+  const westLookout = { x: WEST_TOWER.x, z: WEST_TOWER.z, heading: WEST_TOWER.heading, hasMap: false, old: true };
+  const lookouts = [lookout, westLookout];
+  for (const spot of lookouts) {
+    spot.base = lookoutBase(spot, terrain); // the height of its foot
+    for (const o of lookoutObstacles(spot, spot.base)) obstacles.add(o);
+  }
   // Buildings you can walk up into: each has floorAt(x, z, maxY) and roofOver(x, z, feet).
-  const structures = [lookoutStructure(lookout, lookout.base)];
+  const structures = lookouts.map((spot) => lookoutStructure(spot, spot.base));
   // Then the cabins, caves and hunting stands (see pois.js), each with a clearing round it.
   const pois = placePois(terrain);
   // The old fire road from the tower out east, and the farm's dirt road north off the map
@@ -175,7 +183,7 @@ export function buildWorld(scene, treeCache = null) {
   drawModelsAround(SPAWN.x, SPAWN.z);
   terrain.drawAround(SPAWN.x, SPAWN.z, Infinity);
   const clearings = new SpatialGrid();
-  for (const { x, z } of alongRoads(roads.paths, 3)) clearings.add({ x, z, radius: ROAD_WIDTH / 2 + 1.2 });
+  for (const { x, z, half, foot } of alongRoads(roads.paths, 3)) clearings.add({ x, z, radius: half + (foot ? 0.4 : 1.2) });
   for (const poi of pois) {
     clearings.add(poiClearing(poi));
     for (const o of poiObstacles(poi)) obstacles.add(o);
@@ -183,7 +191,7 @@ export function buildWorld(scene, treeCache = null) {
   }
   const isFree = (x, z, spacing) =>
     Math.hypot(x, z) > CRASH_CLEARING &&
-    Math.hypot(x - lookout.x, z - lookout.z) > LOOKOUT.clearing &&
+    lookouts.every((spot) => Math.hypot(x - spot.x, z - spot.z) > LOOKOUT.clearing) &&
     clearings.isClear(x, z, 0) &&
     Math.hypot(x - SPAWN.x, z - SPAWN.z) > SPAWN_CLEARING &&
     nearestOnTrail(x, z).distance > TRAIL.halfWidth + 1.5 && // (the mountain trail stays open)
@@ -344,26 +352,18 @@ export function buildWorld(scene, treeCache = null) {
   // Fallen trees, old fences, and the ruin of the fire road.
   const details = scatterDetails(scene, { random, terrain, obstacles, isFree, pois, bounds: BOUNDS, hectares: HECTARES });
   ruinRoads(scene, random, terrain, roads, details.addLog, obstacles);
-  // The plane's way in over the trees: trunks snapped off along its path (higher the further
-  // back, where it was still coming down), their tops lying where they fell, toppled forward
-  // the way it was flying.
-  const flightRandom = createRandom(mapSeed + 37);
-  const snags = [];
-  for (let back = 52; back < FLIGHT_PATH.to; back += flightRandom.range(3, 6)) {
-    const side = flightRandom.range(-FLIGHT_PATH.half, FLIGHT_PATH.half);
-    const { x, z } = flightPoint(back, side);
-    if (terrain.forest(x, z) < -0.1 || terrain.waterDepth(x, z) > 0 || !obstacles.isClear(x, z, 0.8)) continue;
-    const width = flightRandom.range(0.7, 1.1);
-    const tall = 1.4 + ((back - 50) / (FLIGHT_PATH.to - 50)) * 3.5 * flightRandom.range(0.7, 1.1);
-    const y = terrain.heightAt(x, z) - 0.1;
-    snags.push(transform(x, y, z, flightRandom.range(0, Math.PI * 2), 1, [width, tall / 0.45, width]));
-    obstacles.add({ x, z, radius: 0.3 * width, top: y + tall });
-    // Its top, lying a few meters on, the way the plane was going (back towards the crash).
-    const fall = flightPoint(back - flightRandom.range(4, 8), side + flightRandom.range(-2, 2));
-    const heading = Math.atan2(-(fall.z - z), fall.x - x) + flightRandom.range(-0.5, 0.5);
-    if (obstacles.isClear(fall.x, fall.z, 0.6) && terrain.waterDepth(fall.x, fall.z) === 0) details.addLog(fall.x, fall.z, heading, flightRandom.range(4, 7), flightRandom.range(0.14, 0.2));
-  }
-  scene.add(instancedModel('stump', placeholders.stump(), snags));
+  // The plane's way in over the trees: snapped, uprooted and leaning spruce along its path.
+  damageFlightPath(scene, {
+    random: createRandom(mapSeed + 37),
+    terrain,
+    obstacles,
+    clear: (x, z, radius) =>
+      obstacles.isClear(x, z, radius) &&
+      clearings.isClear(x, z, 0) &&
+      Math.hypot(x, z) > CRASH_CLEARING &&
+      !terrain.crashTrail.near(x, z, 2) &&
+      !terrain.nearWater(x, z, 1),
+  });
   scene.add(instancedModel('puddle', puddle(), roadPuddles(createRandom(mapSeed + 23), terrain, roads.paths)));
 
   // Loose stones (for arrowheads) lie in small groups by the rocks and the lake shore,
@@ -395,7 +395,10 @@ export function buildWorld(scene, treeCache = null) {
     stones,
     sticks,
     lookout,
+    lookouts,
     pois,
+    // Wells you can drink from (the homestead's).
+    wells: pois.filter((poi) => CABIN_STYLES[poi.style]?.well).map((poi) => fromPoi(poi, ...CABIN_STYLES[poi.style].well)),
     roads: roads.paths,
     creeks: terrain.creeks,
     structures,

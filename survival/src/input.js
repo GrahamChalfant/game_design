@@ -27,10 +27,13 @@ export class Input {
     element.addEventListener('pointermove', track);
     element.addEventListener('pointerdown', (e) => {
       track(e);
+      // (The right button cancels putting something down: see actions.js.)
+      if (e.button === 2) this.pressed.add('MouseRight');
       if (e.button !== 0) return;
       this.mouseDown = true;
       this.pressed.add('MouseLeft');
     });
+    element.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('pointerup', () => (this.mouseDown = false));
     element.addEventListener(
       'wheel',
