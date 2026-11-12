@@ -152,12 +152,6 @@ export function buildWorld(scene) {
   const lookout = { x: TOWER.x, z: TOWER.z, heading: TOWER.heading, hasMap: true };
   const westLookout = { x: WEST_TOWER.x, z: WEST_TOWER.z, heading: WEST_TOWER.heading, hasMap: false, old: true };
   const lookouts = [lookout, westLookout];
-  for (const spot of lookouts) {
-    spot.base = lookoutBase(spot, terrain); // the height of its foot
-    for (const o of lookoutObstacles(spot, spot.base)) obstacles.add(o);
-  }
-  // Buildings you can walk up into: each has floorAt(x, z, maxY) and roofOver(x, z, feet).
-  const structures = lookouts.map((spot) => lookoutStructure(spot, spot.base));
   // Then the cabins, caves and hunting stands (see pois.js), each with a clearing round it.
   const pois = placePois(terrain);
   // The old fire road from the tower out east, and the farm's dirt road north off the map
@@ -171,7 +165,18 @@ export function buildWorld(scene) {
     if (roadPoints.some(({ x, z }) => Math.hypot(x - pois[i].x, z - pois[i].z) < reach - 1)) pois.splice(i, 1);
   }
   terrain.setRoads(roads.paths, ROAD_WIDTH);
+  // (The roads are cut into the hillsides, which moves the ground near them: everything standing
+  // on it is set on the ground as it is now.)
+  const settled = new Map(placePois(terrain).map((poi) => [poi.seed, poi]));
+  for (const poi of pois) Object.assign(poi, { base: settled.get(poi.seed).base, rim: settled.get(poi.seed).rim, drop: settled.get(poi.seed).drop });
+  for (const truck of roads.trucks) truck.base = terrain.heightAt(truck.x, truck.z);
   pois.push(...roads.trucks);
+  for (const spot of lookouts) {
+    spot.base = lookoutBase(spot, terrain); // the height of its foot
+    for (const o of lookoutObstacles(spot, spot.base)) obstacles.add(o);
+  }
+  // Buildings you can walk up into: each has floorAt(x, z, maxY) and roofOver(x, z, feet).
+  const structures = lookouts.map((spot) => lookoutStructure(spot, spot.base));
   // Everything is drawn around the player as they move: start where they spawn.
   drawModelsAround(SPAWN.x, SPAWN.z);
   terrain.drawAround(SPAWN.x, SPAWN.z, Infinity);
