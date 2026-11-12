@@ -154,10 +154,51 @@ export function lookoutStructure(spot, base) {
   };
 }
 
+// The note in the old west tower's locker.
+const OLD_NOTE = `A logbook, the last page: "Closing this tower for good. The new one on the east hill has the better view. Smoke seen over the west foothills last week: the old cabin out there burned. The county road's bridge is sagging. Don't trust it with a truck."`;
+
+// Builds both towers (see world.lookouts), as one thing to ask: what's in reach, which
+// binoculars you're at, and so on.
+export function buildLookouts(scene, world) {
+  const towers = world.lookouts.map((spot) => buildLookout(scene, world, spot));
+  const combined = {
+    all: towers,
+    x: towers[0].x,
+    z: towers[0].z,
+    // Whichever tower's binoculars you were last at.
+    binoculars: towers[0].binoculars,
+    look: towers[0].look,
+    update(...args) {
+      for (const tower of towers) tower.update(...args);
+    },
+    binocularsNear(x, z, feet) {
+      const tower = towers.find((t) => t.binocularsNear(x, z, feet));
+      if (tower) Object.assign(combined, { binoculars: tower.binoculars, look: tower.look, x: tower.x, z: tower.z });
+      return Boolean(tower);
+    },
+    near(x, z, reach, feet) {
+      for (const tower of towers) {
+        const found = tower.near(x, z, reach, feet);
+        if (found) {
+          combined.searching = tower;
+          return found;
+        }
+      }
+      return null;
+    },
+    search(c) {
+      return (towers.find((t) => t.owns(c)) ?? towers[0]).search(c);
+    },
+    reset() {
+      for (const tower of towers) tower.reset();
+    },
+  };
+  return combined;
+}
+
 // Builds the tower and what's in its cab. Searching the crate and the locker works like a
 // suitcase at the wreck.
-export function buildLookout(scene, world) {
-  const spot = world.lookout;
+export function buildLookout(scene, world, spot = world.lookout) {
   const tower = new THREE.Group();
   tower.position.set(spot.x, spot.base, spot.z);
   tower.rotation.y = spot.heading;
@@ -201,7 +242,9 @@ export function buildLookout(scene, world) {
       spot.hasMap ? 'a map of the area' : null,
     ),
     // (The ranger's note points you on north: the way over the mountains, and what's beyond.)
-    { ...container("the ranger's locker", CAB.locker, [['torch', 2], ['rope', 2]], lockerObject, "the ranger's note"), standing: true, read: RANGER_NOTE }, // searched standing up
+    spot.old
+      ? { ...container("the ranger's locker", CAB.locker, [['matches', 4], ['bandage', 1]], lockerObject, "an old logbook"), standing: true, read: OLD_NOTE }
+      : { ...container("the ranger's locker", CAB.locker, [['torch', 2], ['rope', 2]], lockerObject, "the ranger's note"), standing: true, read: RANGER_NOTE }, // searched standing up
   ];
   const setOpen = (c, open) => {
     c.searched = open;
@@ -211,7 +254,8 @@ export function buildLookout(scene, world) {
   // Whatever part of the tower is between the camera and the player fades (see cutaway.js).
   // (The railing never fades.)
   const cutaway = new Cutaway(structure);
-  loadModel('lookout').then((model) => {
+  // (The old tower: weathered grey, a pane or two out, if its model exists; else the usual one.)
+  (spot.old ? loadModel('lookout-old').then((model) => model ?? loadModel('lookout')) : loadModel('lookout')).then((model) => {
     if (!model) return;
     model.traverse((child) => (child.castShadow = child.receiveShadow = true));
     structure.clear();
@@ -243,6 +287,9 @@ export function buildLookout(scene, world) {
         if (distance < reach && Math.abs(feet - c.y) < SEARCH_HEIGHT) [best, reach] = [c, distance];
       }
       return best;
+    },
+    owns(c) {
+      return containers.includes(c);
     },
     // Opens it and returns what was inside.
     search(c) {

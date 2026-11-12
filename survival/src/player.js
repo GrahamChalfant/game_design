@@ -580,7 +580,8 @@ export class Player {
     if (this.cave) return false;
     const { x, z } = this.ahead(1.2);
     return (
-      world.terrain.waterDepth(this.position.x, this.position.z) > 0.02 || world.terrain.waterDepth(x, z) > 0.02
+      world.terrain.waterDepth(this.position.x, this.position.z) > 0.02 || world.terrain.waterDepth(x, z) > 0.02 ||
+      (world.wells ?? []).some((well) => Math.hypot(well.x - x, well.z - z) < 1.2) // (a bucket down the well)
     );
   }
 

@@ -437,8 +437,9 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         sfx('pickup');
         // (What's inside stays inside until you take it: { item, count } each.)
         container.contents = loot.map(([item, count]) => ({ item, count }));
-        if (loot.length === 0) hud.toast(`${container.label[0].toUpperCase()}${container.label.slice(1)} is empty`);
-        else onOpenContainer(container);
+        if (loot.length === 0) {
+          if (!container.read) hud.toast(`${container.label[0].toUpperCase()}${container.label.slice(1)} is empty`); // (a notice to read has nothing in it)
+        } else onOpenContainer(container);
       }
     } else if (!fire && trap) {
       // At a trap: E takes the catch out, or picks the empty trap back up.
