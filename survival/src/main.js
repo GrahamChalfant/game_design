@@ -21,6 +21,7 @@ import { createRandom } from './random.js';
 import { Player, STAMINA } from './player.js';
 import { updateSeeThrough } from './seeThrough.js';
 import { Snowfall } from './snow.js';
+import { Weather } from './weather.js';
 import { Traps } from './traps.js';
 import { buildWreck, START_ITEMS } from './wreck.js';
 import { buildLookout } from './lookout.js';
@@ -92,6 +93,27 @@ const player = new Player(scene, world.spawn, BOUNDS, Math.PI);
 const snow = new Snowfall(scene);
 const daylight = new Daylight(scene, sun, ambient, snow);
 const survival = new Survival();
+// Clear, a few clouds, overcast or a blizzard (src/weather.js), changing every few hours.
+const weather = new Weather(Math.random, new URLSearchParams(location.search).get('weather'));
+// What to tell the player as the weather turns.
+const WEATHER_NEWS = {
+  warning: 'A blizzard is coming: find shelter or a fire',
+  blizzard: "A blizzard! The cold cuts right through you",
+  clearing: 'The blizzard is blowing itself out',
+};
+// How hard the wind's blowing, beyond a breezy day (0–1): for its sound.
+const gale = () => Math.max(0, (weather.now.wind - 0.15) / 0.85);
+// Sets the weather for now (after Daylight has set the light, and the views the fog).
+function applyWeather() {
+  const news = weather.update(survival.minutesSurvived / 60);
+  if (news && survival.alive) hud.toast(WEATHER_NEWS[news], 5000);
+  weather.light(scene, sun, ambient);
+  views.widenFog();
+  weather.fog(scene);
+  snow.setWeather({ amount: weather.now.snow, wind: weather.now.wind, windAngle: weather.now.windAngle });
+  hud.weather = weather.now.kind;
+  hud.weatherName = weather.now.name;
+}
 const inventory = new Inventory();
 const campfires = new Campfires(scene, world);
 const shelters = new Shelters(scene, world);
@@ -144,6 +166,7 @@ function updateSound(dt, paused, busy = {}) {
     night: isNight(survival.hourOfDay),
     underground,
     cold: player.cave ? 0 : terrain.coldAt(x, z),
+    storm: player.cave ? 0 : gale(),
     water: player.cave ? 0 : terrain.nearWater(x, z, 3) ? 1 : terrain.nearWater(x, z, 12) ? 0.45 : 0,
     fire: player.cave ? 0 : fire,
     woods: Math.min(1, Math.max(0, terrain.forest(x, z) + 0.3)),
@@ -642,7 +665,7 @@ function updateCompass() {
 
 // --- The camera: over the shoulder or first person (V switches; see views.js) ---
 // Add ?view=first to the URL to start in first person.
-const views = createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour: () => survival.hourOfDay, start: new URLSearchParams(location.search).get('view') });
+const views = createViews({ camera, renderer, input, player, world, farView, hud, scene, ambient, sun, hour: () => survival.hourOfDay, weather: () => weather.now, start: new URLSearchParams(location.search).get('view') });
 // Your hands and what's in them, in the first-person view (see handView.js).
 const hands = new HandView(camera, scene);
 
@@ -750,7 +773,7 @@ renderer.setAnimationLoop(() => {
     world.update(0, clock.elapsedTime, player.position); // keeps the scenery around the player drawn
     pickups.update(clock.elapsedTime, player.position.x, player.position.z);
     daylight.update(survival.hourOfDay, cameraTarget);
-    views.widenFog();
+    applyWeather();
     darkenUnderground();
     updateSound(dt, true);
     input.endFrame();
@@ -783,7 +806,7 @@ renderer.setAnimationLoop(() => {
   player.wear(inventory.outfit);
   // Lit torches burn down, whether they're in your hand or not.
   if (survival.alive && inventory.burnTorches(dt * survival.clockSpeed * TIME_SPEED) > 0) hud.toast('Your torch burned out');
-  survival.update(dt, actions, TIME_SPEED);
+  survival.update(dt, { ...actions, storm: player.cave ? 0 : weather.now.storm }, TIME_SPEED);
   thinkAloud(actions);
   campfires.update(survival.alive ? dt * survival.clockSpeed * TIME_SPEED : 0, clock.elapsedTime);
   if (!survival.alive && player.alive) player.die();
@@ -859,7 +882,7 @@ renderer.setAnimationLoop(() => {
   snow.update(dt, clock.elapsedTime, !spotting ? camera.position : cameraTarget, { close: !spotting, roofs: world.structures, cave: Boolean(player.cave) });
   // Move the sun/moon for the time of day, keeping its shadows centred on the player.
   daylight.update(survival.hourOfDay, cameraTarget);
-  views.widenFog();
+  applyWeather();
   darkenUnderground();
   // Through the binoculars you can see a long way: push the haze right back.
   if (spotting) {
@@ -870,3 +893,4 @@ renderer.setAnimationLoop(() => {
   input.endFrame();
   draw();
 });
+

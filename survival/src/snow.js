@@ -7,7 +7,10 @@ import * as THREE from 'three';
 // flakes would be a few stray dots in the air, so in the close-up views the box shrinks round
 // the camera and fills with more, smaller flakes. Flakes under a roof aren't shown, and none
 // fall down a cave.
-const COUNT = 1400; // flakes made (the most shown at once)
+//
+// How much falls, and how hard the wind drives it, is the weather's (see setWeather): none on a
+// clear day, the light flurry when overcast, four times as much blown sideways in a blizzard.
+const COUNT = 5600; // flakes made (the most shown at once: a blizzard, close up)
 const NEAR = 1.5; // in the close-up views, no flakes this close to the camera (meters)
 const LOOKS = {
   above: { shown: 350, area: 50, height: 25, below: 5, size: 0.14 },
@@ -25,6 +28,9 @@ export class Snowfall {
       this.drift[i] = Math.random() * Math.PI * 2;
     }
     this.look = null;
+    this.amount = 1; // how much is falling (1: a light flurry)
+    this.wind = new THREE.Vector2(); // meters a second it blows the flakes sideways
+    this.fall = 1.6; // meters a second they fall
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(COUNT * 3), 3));
     this.points = new THREE.Points(
@@ -36,10 +42,21 @@ export class Snowfall {
         transparent: true,
         opacity: 0.9,
         depthWrite: false,
+        fog: false, // (the flakes are all close by: in a blizzard's whiteout the fog would hide them)
       }),
     );
     this.points.frustumCulled = false;
     scene.add(this.points);
+  }
+
+  // The weather: `amount` of snow (0 none, 1 a light flurry, 3 a blizzard), `wind` 0–1 blowing
+  // toward `windAngle` (radians round from +x toward +z).
+  setWeather({ amount, wind, windAngle }) {
+    this.amount = amount;
+    this.wind.set(Math.cos(windAngle), Math.sin(windAngle)).multiplyScalar(wind * 9);
+    this.fall = 1.6 + wind * 2.4;
+    // (Driven snow: bigger, clumped flakes, so it reads as a storm.)
+    if (this.look) this.points.material.size = this.look.size * (1 + 0.6 * wind);
   }
 
   // `center`: where to keep the snow (the camera in the close-up views). `close`: in those
@@ -48,18 +65,21 @@ export class Snowfall {
   update(dt, time, center, { close = false, roofs = [], cave = false } = {}) {
     const look = close ? LOOKS.close : LOOKS.above;
     if (look !== this.look) this.relook(look, center);
-    this.points.visible = !cave;
-    if (cave) return;
+    const count = Math.min(COUNT, Math.round(look.shown * this.amount));
+    this.points.visible = !cave && count > 0;
+    if (!this.points.visible) return;
+    this.points.geometry.setDrawRange(0, count);
     const { area, height, below } = look;
     // (Only the buildings close by need checking: a cabin or stand is its `poi`'s spot.)
     const nearby = roofs.filter((s) => s.roofOver && (!s.poi || Math.hypot(s.poi.x - center.x, s.poi.z - center.z) < area));
     const flakes = this.flakes;
     const shown = this.points.geometry.attributes.position;
-    for (let i = 0; i < look.shown; i++) {
-      let y = flakes[i * 3 + 1] - dt * 1.6;
+    for (let i = 0; i < count; i++) {
+      let y = flakes[i * 3 + 1] - dt * this.fall;
       if (y < center.y - below) y += height;
-      const x = wrap(flakes[i * 3] + Math.sin(time + this.drift[i]) * dt * 0.3, center.x, area);
-      const z = wrap(flakes[i * 3 + 2], center.z, area);
+      const gust = 0.8 + 0.4 * Math.sin(time * 1.3 + this.drift[i]);
+      const x = wrap(flakes[i * 3] + (Math.sin(time + this.drift[i]) * 0.3 + this.wind.x * gust) * dt, center.x, area);
+      const z = wrap(flakes[i * 3 + 2] + this.wind.y * gust * dt, center.z, area);
       flakes[i * 3] = x;
       flakes[i * 3 + 1] = wrapHeight(y, center.y, height, below);
       flakes[i * 3 + 2] = z;
