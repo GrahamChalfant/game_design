@@ -168,7 +168,8 @@ export class Sound {
     const set = (name, level, smooth = 0.4) => this.loops[name]?.gain.gain.setTargetAtTime(env.paused ? 0 : level, now, smooth);
     const outside = env.underground ? 0 : 1;
     const gust = 0.75 + 0.25 * Math.sin(this.time * 0.37) * Math.sin(this.time * 0.11);
-    set('wind', outside * (0.05 + 0.3 * env.cold) * gust);
+    // (A blizzard howls: the weather's wind, 0–1.)
+    set('wind', outside * Math.min(1, 0.05 + 0.3 * env.cold + 0.65 * (env.storm ?? 0)) * gust);
     set('water', outside * 0.27 * env.water, 0.3);
     set('fire', outside * 0.35 * env.fire, 0.2);
     set('sizzle', 0.6 * (env.cooking || 0)); // (a quiet recording)
