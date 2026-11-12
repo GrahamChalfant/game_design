@@ -16,7 +16,7 @@ in the game for now.)
 | `gale.mp3` | [Nor_Easter_2022.wav](https://freesound.org/people/sysdub/sounds/628850/) | sysdub | CC0 | 38 s loop |
 | `gale-indoors.mp3` | [Strong Wind 5](https://freesound.org/people/AleXZavesa/sounds/854079/) | AleXZavesa | CC BY 4.0 | 22 s loop, from 4 s |
 | `river.mp3` | [Large stream or small river](https://freesound.org/people/HowardV/sounds/777116/) | HowardV | CC0 | 26 s loop, from 3 s |
-| `sea.mp3` | [Ocean Waves, Rocky Beach](https://freesound.org/people/goochiano/sounds/623051/) | goochiano | CC0 | 41 s loop |
+| `sea.mp3` | [Ocean Waves, Rocky Beach](https://freesound.org/people/goochiano/sounds/623051/) | goochiano | CC0 | 41 s, less 5.75–7.25 s (someone speaking, cut out and the join crossfaded): a 39 s loop |
 | `sea-wind.mp3` | [Wind in the reed](https://freesound.org/people/Funkelfang/sounds/844604/) (a windy day on the Baltic shore) | Funkelfang | CC0 | 38 s loop |
 | `wave.mp3`, `wave-2.mp3`, `wave-3.mp3`, `wave-4.mp3` | [waves ocean crash on beach nearby wide big metallic sound.flac](https://freesound.org/people/kyles/sounds/450634/) | kyles | CC0 | 0.5–6.5, 22.8–28.8, 33.3–36.3 and 44.8–51.8 s |
 | `brush.mp3` … `brush-4.mp3` | [Rustling Foliage in Forest](https://freesound.org/people/sillygrizzlies/sounds/635053/) | sillygrizzlies | CC0 | 0.8 s each, from 2.2, 3.1, 3.9 and 4.95 s |
