@@ -142,7 +142,9 @@ and, now and then by day, a bird of the boreal winter (a junco's "tsip", chickad
 croak); owls and wolves far
 off at night; deer walking, bleating, and snorting as they bolt from you; the river running and
 the sea breaking on the shore (a lake is still and quiet); a blizzard's howl (muffled once
-you're indoors); rustling and snapping twigs as you push through trees and bushes; a
+you're indoors, the roof rattling over you); trees creaking and the odd branch coming down in a
+strong wind; your teeth chattering when you're freezing; rustling and snapping twigs as you push
+through trees and bushes; a
 campfire's crackle, and dripping and bats down a cave. Your footsteps sound like what's
 underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things you do have a
 sound: chopping and trees crashing down, the bow, arrows landing, eating, drinking, cooking,

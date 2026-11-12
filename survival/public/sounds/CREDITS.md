@@ -19,6 +19,14 @@ in the game for now.)
 | `sea.mp3` | [Ocean Waves, Rocky Beach](https://freesound.org/people/goochiano/sounds/623051/) | goochiano | CC0 | 41 s loop |
 | `brush.mp3` … `brush-4.mp3` | [Rustling Foliage in Forest](https://freesound.org/people/sillygrizzlies/sounds/635053/) | sillygrizzlies | CC0 | 0.8 s each, from 2.2, 3.1, 3.9 and 4.95 s |
 | `brush-5.mp3` … `brush-8.mp3` | [foliage leaves rustle brush movement.flac](https://freesound.org/people/kyles/sounds/637547/) | kyles | CC0 | 0.8 s each, from 5, 14.2, 17.6 and 30.5 s |
+| `roof-rattle.mp3` | [Wind Through Window Screen Whistles, Rattles](https://freesound.org/people/CHallSmith/sounds/870882/) | CHallSmith | CC0 | 30 s loop, from 9 s |
+| `creak.mp3`, `creak-2.mp3` … `creak-7.mp3` | [tree wind creaking.wav](https://freesound.org/people/HMTSCCSound/sounds/554651/) | HMTSCCSound | CC0 | 0.9–3, 10.8–12.1, 13.8–15.1, 18.9–21.5, 21.7–25.3, 31.8–33.1 and 43.8–45.1 s |
+| `branch-fall.mp3` | [Falling branch.wav](https://freesound.org/people/marcolo91/sounds/153156/) | marcolo91 | CC0 | whole |
+| `branch-fall-2.mp3` | [Se quiebra un rama.wav](https://freesound.org/people/Josethehedgehog/sounds/390363/) | Josethehedgehog | CC0 | 0.1–0.9 s |
+| `branch-fall-3.mp3` | [branch break snap crunch nice.wav](https://freesound.org/people/kyles/sounds/452109/) | kyles | CC0 | 0.3–1.9 s |
+| `shiver.mp3` … `shiver-5.mp3` | [ShiveringTeeth.aiff](https://freesound.org/people/mickdow/sounds/184177/) | mickdow | CC0 | 0–2, 2.3–4, 4.4–6.5, 9.3–11 and 12–14 s |
+| `shiver-6.mp3` | [Chattering Teeth](https://freesound.org/people/danlucaz/sounds/517676/) | danlucaz | CC0 | 0.3–1.9 s |
+| `shiver-7.mp3` | [brr.mp3](https://freesound.org/people/sparkle.and.feyed/sounds/558684/) | sparkle.and.feyed | CC0 | 0.35–1.1 s |
 | `twig.mp3`, `twig-2.mp3` … `twig-8.mp3` | [Twig being snapped (multiple takes)](https://freesound.org/people/ZoshP/sounds/552006/) | ZoshP | CC0 | 0.4 s each, from 0.33, 1.83, 2.93, 4.73, 5.93, 7.93, 10.93 and 12.93 s |
 | `fire.mp3` | [fire small campfire crackling short +air tone.flac](https://freesound.org/people/kyles/sounds/637523/) | kyles | CC0 | 30 s loop |
 | `owl.mp3` | [owl_hooting_000102_0145S3 002-070 000-002 007-015.wav](https://freesound.org/people/Gerent/sounds/558398/) | Gerent | CC0 | 1.1–3.7 s |

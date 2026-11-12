@@ -182,6 +182,7 @@ function updateSound(dt, paused, busy = {}) {
     sheltered: Boolean(busy.shelter),
     ...(player.cave ? { sea: 0, river: 0 } : terrain.waterSounds(x, z)),
     brushing: !paused && brushing(dt),
+    freezing: survival.alive && survival.isFreezing,
     fire: player.cave ? 0 : fire,
     woods: Math.min(1, Math.max(0, terrain.forest(x, z) + 0.3)),
     listener: { x, z, right: { x: hearing.x / across, z: hearing.z / across } },
@@ -907,5 +908,6 @@ renderer.setAnimationLoop(() => {
   input.endFrame();
   draw();
 });
+
 
 
