@@ -36,6 +36,7 @@ import { HandView } from './handView.js';
 import { CRASH } from './crashTrail.js';
 import { Survival } from './survival.js';
 import { buildWorld, BOUNDS } from './world.js';
+import { loadTreeCache, saveTreeCache } from './worldCache.js';
 import { FALLS, MAP_SEED } from './layout.js';
 
 // The map is the same every game (see layout.js); so are the bushes and the animals' start.
@@ -82,7 +83,10 @@ scene.add(sun, sun.target);
 
 // --- Game objects ---
 const input = new Input(renderer.domElement);
-const world = buildWorld(scene, SEED);
+// (The forest's trees, as laid out last time and kept in the browser: much quicker than laying
+// them out again. Kept again whenever they had to be laid out afresh: see worldCache.js.)
+const world = buildWorld(scene, await loadTreeCache());
+if (world.treeCacheToSave) setTimeout(() => saveTreeCache(world.treeCacheToSave), 3000);
 const wreck = buildWreck(scene, world);
 const lookout = buildLookouts(scene, world); // (both fire towers: see lookout.js)
 const mapView = new MapView(world);

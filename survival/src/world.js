@@ -9,6 +9,7 @@ import { stoneSpots } from './hunting.js';
 import { CRASH, FLIGHT_PATH, onFlightPath, trailPoint } from './crashTrail.js';
 import { damageFlightPath } from './flightPath.js';
 import { SpatialGrid } from './grid.js';
+import { hashOf } from './worldCache.js';
 import { LOOKOUT, lookoutBase, lookoutObstacles, lookoutStructure } from './lookout.js';
 import { fromPoi, placePois, poiClearing, poiObstacles, poiStructure } from './pois.js';
 import { CABIN_STYLES } from './landmarks.js';
@@ -138,7 +139,12 @@ const SPAWN = { x: 0.5, z: 14 };
 const SPAWN_CLEARING = 4;
 
 // Builds the map: the same every time (see layout.js).
-export function buildWorld(scene) {
+// `treeCache`: the forest's trees as laid out last time (see worldCache.js), or null. The world
+// it returns has `treeCacheToSave` set if they were laid out afresh, to keep for next time.
+// (Bump this if the way trees are placed changes in a way the key below can't see.)
+const TREE_CACHE_VERSION = 1;
+
+export function buildWorld(scene, treeCache = null) {
   const mapSeed = MAP_SEED;
   const random = createRandom(mapSeed);
   const noise = createNoise(mapSeed + 1);
@@ -208,39 +214,65 @@ export function buildWorld(scene) {
 
   // Open spruce woodland grows in clumps across the valley, closing into deep forest further in.
   const forest = Object.fromEntries(Object.keys(FOREST_RADIUS).map((kind) => [kind, []]));
+  const kinds = Object.keys(FOREST_RADIUS);
   let placedTrees = 0;
-  scatter(random, Math.round(FOREST_PER_HECTARE * HECTARES), (x, z) => {
+  // (Each tree as it's placed, in order, for keeping: see below.)
+  const kept = { numbers: [], kinds: [] };
+  const plant = (kind, tree) => {
+    forest[kind].push(tree);
+    kept.numbers.push(tree.x, tree.z, tree.y, tree.rotation, tree.scale, tree.obstacle.radius);
+    kept.kinds.push(kinds.indexOf(kind));
+    return tree;
+  };
+  const forestSpot = (x, z) => {
     const woods = terrain.forest(x, z);
     if (woods < random.range(-0.15, 0.45)) return null;
     const deep = THREE.MathUtils.smoothstep(woods, ...DEEP_FROM);
     if (!isFree(x, z, THREE.MathUtils.lerp(FOREST_SPACING.open, FOREST_SPACING.deep, deep)) || !soil(x, z)) return null;
     const mix = random.next() < deep ? DEEP_FOREST_MIX : FOREST_MIX;
     const kind = mix[placedTrees++ % mix.length];
-    const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
-    forest[kind].push(tree);
-    return tree;
-  });
+    return plant(kind, place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3)));
+  };
   // The understory, in among the trees of the deep forest.
-  scatter(random, Math.round(UNDERSTORY_PER_HECTARE * HECTARES), (x, z) => {
+  const understorySpot = (x, z) => {
     const deep = THREE.MathUtils.smoothstep(terrain.forest(x, z), ...DEEP_FROM);
     if (deep < random.range(0.2, 1) || !isFree(x, z, UNDERSTORY_SPACING) || !soil(x, z)) return null;
     const kind = UNDERSTORY_MIX[placedTrees++ % UNDERSTORY_MIX.length];
-    const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.6, 1.1));
-    forest[kind].push(tree);
-    return tree;
-  });
+    return plant(kind, place(x, z, FOREST_RADIUS[kind], random.range(0.6, 1.1)));
+  };
   // Up the mountains (the band right across the map).
   const range = { minX: BOUNDS.minX, maxX: BOUNDS.maxX, minZ: -2000, maxZ: -1200 };
   const rangeHectares = ((range.maxX - range.minX) * (range.maxZ - range.minZ)) / 10000;
-  scatterIn(random, range, Math.round(SPRUCE_PER_HECTARE * rangeHectares), (x, z) => {
+  const spruceSpot = (x, z) => {
     const up = terrain.mountainAt(x, z);
     // Thinner the higher you go, and none above the treeline.
     if (up < 0.02 || up > TREELINE * random.range(0.8, 1.05) || !isFree(x, z, FOREST_SPACING.open * 0.6) || !soil(x, z)) return null;
     const kind = random.pick(up > SNOWY_ABOVE ? SNOWY_SPRUCE : SPRUCE);
-    const tree = place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3));
-    forest[kind].push(tree);
-    return tree;
-  });
+    return plant(kind, place(x, z, FOREST_RADIUS[kind], random.range(0.8, 1.3)));
+  };
+  // Placing them is most of the time it takes to lay the world out (millions of spots tried),
+  // so they're kept in the browser and read back next time (worldCache.js), if nothing they
+  // depend on has changed: what's already on the map, the land, the settings and the code that
+  // places them all go into the key.
+  const treeKey = forestKey({ random, terrain, obstacles, clearings, code: [forestSpot, understorySpot, spruceSpot, isFree, soil, place, scatterIn, scatter] });
+  let treeCacheToSave = null;
+  if (treeCache?.key === treeKey) {
+    // (Just as they were placed: the same obstacles in the same order, and the random numbers
+    // carry on from where they'd have got to.)
+    const { numbers, kinds: kindAt } = treeCache;
+    for (let i = 0; i < kindAt.length; i++) {
+      const [x, z, y, rotation, scale, radius] = numbers.subarray(i * 6, i * 6 + 6);
+      const obstacle = obstacles.add({ x, z, radius });
+      forest[kinds[kindAt[i]]].push({ x, y, z, rotation, scale, obstacle });
+    }
+    random.restore(treeCache.random);
+    placedTrees = treeCache.placedTrees;
+  } else {
+    scatter(random, Math.round(FOREST_PER_HECTARE * HECTARES), forestSpot);
+    scatter(random, Math.round(UNDERSTORY_PER_HECTARE * HECTARES), understorySpot);
+    scatterIn(random, range, Math.round(SPRUCE_PER_HECTARE * rangeHectares), spruceSpot);
+    treeCacheToSave = { key: treeKey, numbers: Float64Array.from(kept.numbers), kinds: Uint8Array.from(kept.kinds), random: random.save(), placedTrees };
+  }
   for (const [kind, spots] of Object.entries(forest)) {
     trees.add(kind, placeholders.conifer(), spots);
   }
@@ -355,6 +387,7 @@ export function buildWorld(scene) {
   scene.add(grass.group);
 
   return {
+    treeCacheToSave,
     terrain,
     obstacles,
     trees,
@@ -412,4 +445,31 @@ function transform(x, y, z, rotation, scale, stretch = [1, 1, 1]) {
     new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotation),
     new THREE.Vector3(scale * stretch[0], scale * stretch[1], scale * stretch[2]),
   );
+}
+
+// The key the forest's kept trees are filed under: everything placing them depends on. Where the
+// random numbers have got to; everything already on the map (and the clearings kept open); the
+// land, sampled across the map (how wooded, how far up the mountains, how high, what ground,
+// near water, the crash's trail, the mountain trail, the ravine, the plane's path); the tree
+// settings; and the code that places them.
+function forestKey({ random, terrain, obstacles, clearings, code }) {
+  const values = [TREE_CACHE_VERSION, MAP_SEED, random.save()];
+  for (const grid of [obstacles, clearings]) {
+    values.push(grid.count);
+    for (const o of grid) values.push(o.x, o.z, o.radius, o.top ?? -1, o.height ?? -1);
+  }
+  for (let i = 0; i <= 30; i++) {
+    for (let j = 0; j <= 45; j++) {
+      const x = BOUNDS.minX + ((BOUNDS.maxX - BOUNDS.minX) * i) / 30 + 0.37;
+      const z = BOUNDS.minZ + ((BOUNDS.maxZ - BOUNDS.minZ) * j) / 45 + 0.61;
+      values.push(terrain.forest(x, z), terrain.mountainAt(x, z), terrain.heightAt(x, z), terrain.groundKind(x, z),
+        terrain.nearWater(x, z, 2) ? 1 : 0, terrain.crashTrail.near(x, z, 2) ? 1 : 0, nearestOnTrail(x, z).distance,
+        ravineAt(x, z).distance, onFlightPath(x, z)?.side ?? 9999);
+    }
+  }
+  values.push(JSON.stringify({ FOREST_PER_HECTARE, FOREST_RADIUS, FOREST_MIX, DEEP_FOREST_MIX, FOREST_SPACING, DEEP_FROM,
+    UNDERSTORY_PER_HECTARE, UNDERSTORY_MIX, UNDERSTORY_SPACING, SPRUCE, SNOWY_SPRUCE, SPRUCE_PER_HECTARE, SNOWY_ABOVE, TREELINE,
+    BOUNDS, HECTARES, CRASH_CLEARING, SPAWN_CLEARING, SPAWN, LOOKOUT, TRAIL, RAVINE, FLIGHT_PATH }));
+  for (const fn of code) values.push(fn.toString().replace(/\r/g, '')); // (whatever the files' line endings)
+  return hashOf(values);
 }
