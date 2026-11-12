@@ -350,9 +350,9 @@ src/world.js          Builds the map: places the trees, rocks and grass
 src/landmarks.js      The observatory, the broken bridge, the stone hut, the dock, the barn and the wolves' den
 src/stream.js         Splits the map into chunks; only the ones around the player are drawn
 src/grid.js           Finds things near a spot quickly (trees, rocks, items on the ground)
-src/terrain.js        The land: the sea, the hills, the mountains and their trail, the lake, ponds, the river and creeks, the ground colours and how cold it is
+src/terrain.js        The land: the sea, the hills, the mountains and their trail, the lake, ponds, the river (its snowmelt headwaters above the waterfall: `HEADWATERS`) and creeks, the ground colours and how cold it is
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
-src/water.js          The lakes, the flowing river and creeks, and ripples around the player
+src/water.js          The lakes, the flowing river, its headwaters above the waterfall and the creeks (shallows, current, rapids, foam at the banks, the sky mirrored in them), the rings under the waterfall, the foam round the boulders in the river, and ripples around the player
 src/grass.js          Swaying grass tufts
 src/snow.js           Falling snow: none, a light flurry, or a blizzard driven on the wind
 src/weather.js        The weather: clear, a few clouds, overcast or a blizzard, changing every few hours
@@ -462,6 +462,11 @@ The next time you load the game, your model replaces the stand-in automatically.
 | `fallen-log.glb` | Fallen trunk, 1 m long and 1 m thick (stretched per copy) | 1 × 1 m |
 | `fence.glb`, `fence-broken.glb` | One 2.5 m length of split-rail fence, whole or with a rail down | 2.5 m long |
 | `lookout.glb` | The fire lookout tower: frame, four flights of stairs, landings, cab with windows, balcony and railing, metal roof. Stairs, floors, walls, windows and roof are separate parts that fade when in the way (rebuilt by `blender/lookout.py`) | ~16 m tall |
+| `waterfall.glb` | The waterfall: the rock faces either side of it (`waterfall-cliff`: buttresses of split granite along the land's rock step, mossy on top, dark and wet by the water), the stones in the lip and round the pool (`waterfall-rocks`), and the water, which the game gives its moving materials: two falling sheets (`waterfall-water`, `waterfall-water-front`), the stream above (`waterfall-water-top`) and the foam on the pool (`waterfall-foam`). The game stretches it to the land's real drop (built by `blender/waterfall.py`) | ~52 m wide, made for a 9 m drop |
+| `bank-edge-1.glb`, `bank-edge-2.glb` | Torn lengths of river bank: an undercut face of dark earth under a lip of sod, roots hanging out, stones in its foot, grass leaning over. Origin at the waterline, the water toward the model's front (built by `blender/shore.py`, as are the three rows below) | 3.4 m long |
+| `bank-stones-1.glb` … `bank-stones-3.glb` | Cobbles and small boulders along a waterline, half in and half out: on the river's banks, down the river above the waterfall and its forks, and as shingle on the sea's tide line | 1.6–3 m long |
+| `driftwood-1.glb` … `driftwood-3.glb` | Bleached, barkless trunks: one with its root wad, one with broken branch stubs, one forked. Thrown up the sea's beach and lodged along the river's banks; you can jump onto them | 4.4–6.2 m long |
+| `shore-rock-1.glb` … `shore-rock-3.glb` | The sea's rocks: a dome, a long low ledge and a stack, each with smaller ones round its foot, dark and wet up to the tide line | 3–4.5 m across, 1–2.5 m tall |
 | `logs.glb`, `axe-ground.glb`, `clod.glb`, `debris.glb`, `landing-wheel.glb` | Things lying about: dropped firewood, the axe, crash clods, a panel of plane skin, a torn-off wheel | small |
 | `torch.glb` | The torch, held by the grip (origin); the flame sits 0.52 m up | 0.7 m |
 | `barrel.glb`, `ammo-box.glb`, `weathered-pack.glb`, `cupboard.glb`, `chest.glb`, `locker.glb`, `supply-crate.glb` | Things you search; lids and doors (`*-lid`, `*-door…`, `*-flap`) are hinged parts the game swings open | 0.3–1.8 m |

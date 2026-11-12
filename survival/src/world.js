@@ -129,6 +129,31 @@ function snowOnRock() {
 }
 // How far a rock, scaled and stretched, reaches out from its middle.
 const rockReach = (shape, scale, stretch) => shape.reach * scale * Math.max(stretch[0], stretch[2]);
+// What lies along the water's edges (blender/shore.py's models; see buildWorld).
+const EDGE_MODELS = {
+  rock: ['bank-edge-1', 'bank-edge-2', 'bank-stones-1', 'bank-stones-2', 'bank-stones-3', 'shore-rock-1', 'shore-rock-2', 'shore-rock-3'],
+  wood: ['driftwood-1', 'driftwood-2', 'driftwood-3'],
+};
+const STONES = ['bank-stones-1', 'bank-stones-2', 'bank-stones-3'];
+const DRIFTWOOD = { 'driftwood-1': { length: 6.2, radius: 0.26 }, 'driftwood-2': { length: 4.4, radius: 0.19 }, 'driftwood-3': { length: 5.2, radius: 0.22 } };
+const SHORE_ROCKS = { 'shore-rock-1': { radius: 1.5, height: 1.5 }, 'shore-rock-2': { radius: 1.7, height: 1.0 }, 'shore-rock-3': { radius: 1.1, height: 2.5 } };
+// The river's banks: none along its first `from` points (the waterfall's pool); `waterline`, how
+// far out past the channel's edge the water reaches up the bank; then, at each point on each
+// side, the chance of a torn length of bank (`edge`), of cobbles (`stones`), of a lodged trunk.
+const BANKS = { from: 12, waterline: 0.33, edge: 0.34, stones: 0.3, drift: 0.02 };
+// The river above the waterfall: at each point on each side, the chance of a torn length of
+// bank (in grass) and of cobbles; the chance of a boulder in it where it's `calm` and where
+// it's `rough` (the slope `rapids`).
+const HEADWATERS = { edge: 0.3, stones: 0.4, level: 0.06, calm: 0.05, rough: 0.34, rapids: [0.08, 0.35] }; // (`level`: the slope below which flat cobbles can lie along it)
+// The sea's shore: something tried every `step` meters along it. The chance of a rock (on open
+// beach, and in rocky stretches), of shingle on the tide line, of a drifted trunk (likewise);
+// and nothing within `mouth` meters of where the river runs out.
+const SEA_SHORE = { step: 2.5, rocks: [0.14, 0.85], shingle: 0.6, drift: [0.07, 0.17], mouth: 14 };
+// Boulders in the river: none in its first `from` points (the waterfall's pool and the spill out
+// of it) or its last `fromMouth`; the chance of one at each point where the water's `calm` and
+// where it's `rough` (the slope `rapids`: from where it starts to break to all white); and
+// `apart`, the clear water left round each (a way through for a swimmer).
+const RIVER_STONES = { from: 14, fromMouth: 12, calm: 0.05, rough: 0.5, rapids: [0.02, 0.11], apart: 0.9 };
 const ROCK_TOP = 0.9; // rocks taper, so the player stands a little below the very top
 // Rocks take their shape from this list in turn, so small ones are common and large ones rare.
 const ROCK_MIX = ['rock', 'rock-small', 'rock-flat', 'rock-small', 'rock', 'rock-tall', 'rock-small', 'rock-large'];
@@ -355,6 +380,191 @@ export function buildWorld(scene) {
       obstacles.isClear(x, z, 0.3),
   );
 
+  // (These last, each with its own random numbers, so nothing else on the map moves for them.)
+  // Boulders standing in the river, their tops out of the water: plenty where it runs steep
+  // and white, the odd one near a bank where it's calm. The water piles up against each and
+  // trails away below it (see `wakes` in water.js).
+  const riverRandom = createRandom(mapSeed + 41); // (its own, so the rest of the map stays the same)
+  const wakes = [];
+  const riverRocks = { rock: [], 'rock-flat': [] };
+  const course = terrain.riverPoints;
+  for (let i = RIVER_STONES.from; i < course.length - RIVER_STONES.fromMouth; i++) {
+    const [before, p, after] = [course[i - 2], course[i], course[i + 2]];
+    const run = Math.hypot(after.x - before.x, after.z - before.z);
+    const fall = Math.max(0, before.level - after.level) / run;
+    const steep = THREE.MathUtils.smoothstep(fall, ...RIVER_STONES.rapids);
+    if (riverRandom.next() > THREE.MathUtils.lerp(RIVER_STONES.calm, RIVER_STONES.rough, steep)) continue;
+    const along = Math.atan2(after.z - before.z, after.x - before.x);
+    // (In the rapids anywhere across it; in calm water out toward a bank.)
+    const out = (steep > 0.3 ? riverRandom.range(-0.75, 0.75) : riverRandom.pick([-1, 1]) * riverRandom.range(0.55, 0.85)) * p.halfWidth;
+    const x = p.x - Math.sin(along) * out;
+    const z = p.z + Math.cos(along) * out;
+    const flat = riverRandom.next() < 0.12;
+    const name = flat ? 'rock-flat' : 'rock';
+    const shape = ROCK_SHAPES[name];
+    const scale = riverRandom.range(...(flat ? [0.8, 1.2] : [0.9, 1.5]));
+    const stretch = [riverRandom.range(0.9, 1.4), riverRandom.range(0.8, 1.1), riverRandom.range(0.9, 1.3)];
+    if (!clearings.isClear(x, z, 0) || !obstacles.isClear(x, z, shape.radius * scale + RIVER_STONES.apart)) continue;
+    // Its top this far out of the water (the rest of it under, down into the bed).
+    const top = p.level + riverRandom.range(...(flat ? [0.16, 0.3] : [0.3, 0.65]));
+    const y = top - shape.height * scale * stretch[1];
+    const obstacle = { x, z, radius: shape.radius * scale, top: y + shape.height * ROCK_TOP * scale * stretch[1] };
+    obstacles.add(obstacle);
+    riverRocks[name].push(transform(x, y, z, riverRandom.range(0, Math.PI * 2), scale, stretch));
+    wakes.push({ x, z, level: p.level, radius: shape.reach * scale * Math.max(stretch[0], stretch[2]) * (flat ? 0.95 : 0.7), along, fall, steep });
+  }
+  terrain.water.addWakes(wakes);
+  for (const [name, transforms] of Object.entries(riverRocks)) scene.add(instancedModel(name, placeholders.rock(), transforms));
+
+  // The water's edges. Along the river: torn lengths of bank (bare earth under a lip of sod,
+  // roots hanging out), cobbles at the waterline, the odd bleached trunk lodged against the
+  // bank. Along the river above the waterfall: much the same, smaller. Along the sea: outcrops and boulders in rocky
+  // stretches, shingle on the tide line, and driftwood (whole trees, roots and all) thrown up
+  // the beach. (The models are blender/shore.py's.)
+  const edgeRandom = createRandom(mapSeed + 43);
+  const edges = Object.fromEntries([...EDGE_MODELS.wood, ...EDGE_MODELS.rock].map((name) => [name, []]));
+  const facing = (dx, dz) => Math.atan2(dx, dz); // the turn that points a model's +z along (dx, dz)
+  const edgeClear = (x, z, radius = 0) => inBounds(x, z, 2) && clearings.isClear(x, z, 0) && Math.hypot(x, z) > CRASH_CLEARING && obstacles.isClear(x, z, radius);
+  // A trunk lying on the ground through (x, z), along `heading`; you can jump onto it.
+  const addDriftwood = (x, z, heading, scale) => {
+    const name = edgeRandom.pick(EDGE_MODELS.wood);
+    const { length, radius } = DRIFTWOOD[name];
+    const [dx, dz] = [Math.cos(heading), -Math.sin(heading)];
+    const half = (length * scale) / 2;
+    for (let t = -half; t <= half; t += 1) if (!edgeClear(x + dx * t, z + dz * t, radius * scale + 0.3)) return;
+    // (Lying on the land, or the bed where that's under water: never floating.)
+    const h0 = terrain.heightAt(x - dx * half, z - dz * half);
+    const h1 = terrain.heightAt(x + dx * half, z + dz * half);
+    edges[name].push(new THREE.Matrix4().compose(
+      new THREE.Vector3(x, (h0 + h1) / 2 - 0.05, z),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, heading, Math.atan2(h1 - h0, half * 2), 'YZX')),
+      new THREE.Vector3(scale, scale, scale),
+    ));
+    for (let t = -half + radius; t <= half - radius; t += 0.8) {
+      const [ox, oz] = [x + dx * t, z + dz * t];
+      obstacles.add({ x: ox, z: oz, radius: radius * scale + 0.05, top: terrain.heightAt(ox, oz) + radius * scale * 1.9, log: true });
+    }
+  };
+  for (let i = BANKS.from; i < course.length - 1; i++) {
+    const [p, q] = [course[i], course[i + 1]];
+    const along = Math.atan2(q.z - p.z, q.x - p.x);
+    for (const side of [-1, 1]) {
+      const [nx, nz] = [-Math.sin(along) * side, Math.cos(along) * side]; // out from the middle, toward this bank
+      const waterline = p.halfWidth + BANKS.waterline;
+      const roll = edgeRandom.next();
+      if (roll < BANKS.edge) {
+        const [x, z] = [p.x + nx * (waterline + 0.1), p.z + nz * (waterline + 0.1)];
+        if (edgeClear(x, z)) edges[edgeRandom.pick(['bank-edge-1', 'bank-edge-2'])].push(transform(x, p.level, z, facing(-nx, -nz), edgeRandom.range(0.8, 1.1)));
+      } else if (roll < BANKS.edge + BANKS.stones) {
+        const [x, z] = [p.x + nx * (waterline - 0.15), p.z + nz * (waterline - 0.15)];
+        if (edgeClear(x, z)) edges[edgeRandom.pick(STONES)].push(transform(x, p.level, z, facing(-nx, -nz) + edgeRandom.range(-0.3, 0.3), edgeRandom.range(0.9, 1.5)));
+      } else if (roll < BANKS.edge + BANKS.stones + BANKS.drift) {
+        // (Lodged along the bank, its butt upstream, half in the shallows.)
+        addDriftwood(p.x + nx * (waterline + 0.2), p.z + nz * (waterline + 0.2), -along + edgeRandom.range(-0.35, 0.35), edgeRandom.range(0.5, 0.8));
+      }
+    }
+  }
+  // The river above the waterfall and the forks that feed it (see HEADWATERS in terrain.js):
+  // cobbles down both sides, torn banks where the main stream runs through grass, and boulders
+  // standing in it, more of them where it comes down steep.
+  // (Every rock stands on the ground: boulders bedded in the stream's bed, tall enough to stand
+  // well out of the water; loose rocks on the banks. Flat clusters of cobbles only where the
+  // stream runs level, up on the bank at the waterline: laid on a slope they'd hang in the air.)
+  const headWakes = [];
+  const headRocks = { rock: [], 'rock-tall': [], 'rock-small': [] };
+  const bedded = (name, x, z, scale, stretch, sunk) => {
+    const shape = ROCK_SHAPES[name];
+    const y = terrain.heightAt(x, z) - shape.height * scale * stretch[1] * sunk;
+    headRocks[name].push(transform(x, y, z, edgeRandom.range(0, Math.PI * 2), scale, stretch));
+    return y + shape.height * scale * stretch[1];
+  };
+  const dress = (points, main) => {
+    for (let i = 3; i < points.length - (main ? 3 : 9); i++) { // (not where a fork runs into the main stream)
+      const [before, p, after] = [points[i - 2], points[i], points[i + 2]];
+      const along = Math.atan2(after.z - before.z, after.x - before.x);
+      const fall = Math.max(0, before.level - after.level) / Math.hypot(after.x - before.x, after.z - before.z);
+      for (const side of [-1, 1]) {
+        const [nx, nz] = [-Math.sin(along) * side, Math.cos(along) * side];
+        const roll = edgeRandom.next();
+        if (main && roll < HEADWATERS.edge && fall < 0.12 && terrain.groundKind(p.x + nx * (p.halfWidth + 1.5), p.z + nz * (p.halfWidth + 1.5)) === 'grass') {
+          const [x, z] = [p.x + nx * (p.halfWidth + 0.3), p.z + nz * (p.halfWidth + 0.3)];
+          if (edgeClear(x, z)) edges[edgeRandom.pick(['bank-edge-1', 'bank-edge-2'])].push(transform(x, p.level, z, facing(-nx, -nz), edgeRandom.range(0.65, 0.9)));
+        } else if (roll < HEADWATERS.edge + HEADWATERS.stones) {
+          if (main && fall < HEADWATERS.level) {
+            const out = p.halfWidth + 0.45;
+            edges[edgeRandom.pick(STONES)].push(transform(p.x + nx * out, p.level - 0.05, p.z + nz * out, facing(-nx, -nz) + edgeRandom.range(-0.3, 0.3), edgeRandom.range(0.5, 0.8)));
+          } else {
+            // Loose rocks on the bank, one or two, half sunk in the ground.
+            for (let k = edgeRandom.next() < 0.4 ? 2 : 1; k > 0; k--) {
+              const name = edgeRandom.next() < 0.7 ? 'rock-small' : 'rock';
+              const scale = name === 'rock' ? edgeRandom.range(0.45, 0.85) : edgeRandom.range(0.9, 1.9);
+              const out = p.halfWidth + ROCK_SHAPES[name].radius * scale + edgeRandom.range(0, 0.8);
+              const slip = edgeRandom.range(-1, 1);
+              const [x, z] = [p.x + nx * out + Math.cos(along) * slip, p.z + nz * out + Math.sin(along) * slip];
+              const top = bedded(name, x, z, scale, [edgeRandom.range(0.9, 1.3), edgeRandom.range(0.8, 1.1), edgeRandom.range(0.9, 1.3)], 0.35);
+              if (name === 'rock') obstacles.add({ x, z, radius: ROCK_SHAPES.rock.radius * scale, top: top - ROCK_SHAPES.rock.height * scale * (1 - ROCK_TOP) });
+            }
+          }
+        }
+      }
+      if (!main) continue;
+      const steep = THREE.MathUtils.smoothstep(fall, ...HEADWATERS.rapids);
+      if (edgeRandom.next() > THREE.MathUtils.lerp(HEADWATERS.calm, HEADWATERS.rough, steep)) continue;
+      // A boulder in the stream: a tall one where it's narrow, as big as leaves the water a way round.
+      const name = p.halfWidth < 1 || edgeRandom.next() < 0.4 ? 'rock-tall' : 'rock';
+      const shape = ROCK_SHAPES[name];
+      const scale = Math.min(edgeRandom.range(0.9, 1.6), (p.halfWidth * 0.62) / shape.radius);
+      const stretch = [edgeRandom.range(0.9, 1.3), edgeRandom.range(0.9, 1.2), edgeRandom.range(0.9, 1.3)];
+      const out = edgeRandom.range(-0.55, 0.55) * p.halfWidth;
+      const [x, z] = [p.x - Math.sin(along) * out, p.z + Math.cos(along) * out];
+      // (Only if, bedded a quarter of its height, it stands clear of the water.)
+      const tall = shape.height * scale * stretch[1];
+      if (terrain.heightAt(x, z) + tall * 0.75 < p.level + 0.22 || !obstacles.isClear(x, z, shape.radius * scale + 0.3)) continue;
+      const top = bedded(name, x, z, scale, stretch, 0.25);
+      obstacles.add({ x, z, radius: shape.radius * scale, top: top - tall * (1 - ROCK_TOP) });
+      // (White water round it where the stream's level enough for it to lie on.)
+      if (fall < 0.16) headWakes.push({ x, z, level: p.level, radius: shape.reach * scale * Math.max(stretch[0], stretch[2]) * 0.6, along, fall, steep });
+    }
+  };
+  dress(terrain.headwaters.main, true);
+  for (const fork of terrain.headwaters.forks) dress(fork, false);
+  terrain.water.addWakes(headWakes);
+  for (const [name, transforms] of Object.entries(headRocks)) scene.add(instancedModel(name, placeholders.rock(), transforms));
+  // The sea's shore, from one side of the map to the other.
+  const mouth = course[course.length - 1];
+  for (let x = BOUNDS.minX + 4; x < BOUNDS.maxX - 4; x += SEA_SHORE.step) {
+    if (Math.abs(x - mouth.x) < SEA_SHORE.mouth) continue; // (the river runs out here)
+    const edgeZ = terrain.seaEdgeAt(x);
+    // Rocky stretches and open beach, in turn along the coast.
+    const rocky = THREE.MathUtils.smoothstep(Math.sin(x * 0.021 + 1.3) + 0.6 * Math.sin(x * 0.0057 + 0.4), -0.2, 0.9);
+    if (edgeRandom.next() < THREE.MathUtils.lerp(SEA_SHORE.rocks[0], SEA_SHORE.rocks[1], rocky)) {
+      const name = edgeRandom.pick(EDGE_MODELS.rock.filter((n) => n.startsWith('shore-rock')));
+      const shape = SHORE_ROCKS[name];
+      const scale = edgeRandom.range(0.7, 1.4);
+      const rx = x + edgeRandom.range(-1.5, 1.5);
+      // (Up the beach, on the tide line, or out in the shallows: only as deep as it stands tall.)
+      const rz = edgeZ + edgeRandom.range(-8, Math.min(5, shape.height * scale * 2.2));
+      if (edgeClear(rx, rz, shape.radius * scale + 0.4)) {
+        const y = terrain.heightAt(rx, rz) - 0.12 * scale;
+        obstacles.add({ x: rx, z: rz, radius: shape.radius * scale, top: y + shape.height * ROCK_TOP * scale });
+        edges[name].push(transform(rx, y, rz, edgeRandom.range(0, Math.PI * 2), scale));
+      }
+    }
+    if (edgeRandom.next() < SEA_SHORE.shingle) {
+      const sz = edgeZ + 0.4 - 8 * edgeRandom.next() ** 2; // (thickest along the tide line, thinning up the beach)
+      const sx = x + edgeRandom.range(-1.5, 1.5);
+      if (edgeClear(sx, sz)) edges[edgeRandom.pick(STONES)].push(transform(sx, terrain.heightAt(sx, sz) + 0.12, sz, edgeRandom.range(-0.5, 0.5), edgeRandom.range(1, 1.7)));
+    }
+    if (edgeRandom.next() < THREE.MathUtils.lerp(SEA_SHORE.drift[0], SEA_SHORE.drift[1], rocky)) {
+      // (Mostly lying along the tide line; the odd one end-on, its top in the water.)
+      const endOn = edgeRandom.next() < 0.25;
+      const heading = endOn ? edgeRandom.pick([1, -1]) * Math.PI / 2 + edgeRandom.range(-0.4, 0.4) : edgeRandom.pick([0, Math.PI]) + edgeRandom.range(-0.5, 0.5);
+      addDriftwood(x + edgeRandom.range(-1.5, 1.5), edgeZ - (endOn ? edgeRandom.range(0, 2.5) : edgeRandom.range(1.5, 7)), heading, edgeRandom.range(0.8, 1.35));
+    }
+  }
+  for (const name of EDGE_MODELS.rock) if (edges[name].length) scene.add(instancedModel(name, placeholders.rock(), edges[name]));
+  for (const name of EDGE_MODELS.wood) if (edges[name].length) scene.add(instancedModel(name, placeholders.rock(), edges[name]));
+
   const grass = createGrass(mapSeed, terrain, BOUNDS, { trees, obstacles });
   grass.update(0, SPAWN.x, SPAWN.z, true);
   scene.add(grass.group);
@@ -387,7 +597,7 @@ export function buildWorld(scene) {
       drawModelsAround(player.x, player.z);
       terrain.drawAround(player.x, player.z);
       grass.update(time, player.x, player.z);
-      terrain.water.update(time, player.x, player.z, terrain.waterDepth(player.x, player.z) > 0.02);
+      terrain.water.update(time, player.x, player.z, terrain.waterDepth(player.x, player.z) > 0.02, scene.background);
       trees.update(dt);
     },
   };

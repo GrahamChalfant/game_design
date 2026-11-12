@@ -391,7 +391,7 @@ function useModel(place, model) {
       if (/roof/.test(child.name) && place.poi.kind === 'stand' && !model.userData.canopy) child.visible = false;
       // The waterfall's water, moving.
       if (/^waterfall-(water|foam)/.test(child.name)) {
-        child.material = fallingWater(/foam/.test(child.name));
+        child.material = fallingWater(/foam/.test(child.name) ? 'foam' : /top/.test(child.name) ? 'top' : 'sheet');
         child.castShadow = child.receiveShadow = false;
       }
     });

@@ -91,6 +91,28 @@ const RIVER = [
   { x: -170, z: -1080 }, { x: -230, z: -900 }, { x: -160, z: -720 },
   { x: -210, z: -520 }, { x: -140, z: -330 }, { x: -175, z: -150 }, { x: -130, z: 20 }, { x: -150, z: 200 },
 ];
+// The river above the waterfall: snowmelt off the mountains. Its main stream comes down the
+// gully between two peaks, out onto the rock shelf and across it to the waterfall's lip; smaller
+// forks run down out of the snow to join it. Each course is [x, z] from its top down, laid
+// along the gullies the land already has (a fork's last point is where it meets the main one).
+const HEADWATERS = {
+  step: 2.5, // meters between points along each
+  lip: 6.5, // meters behind the waterfall's lip the main stream ends (the waterfall's model takes over there)
+  reach: 12, // meters from its middle its banks are cut back to
+  merge: 4, // points down the main stream a fork runs in alongside it before it's one with it
+  shelf: [116, 90, 62, 36, 16], // across the shelf: meters behind the lip...
+  wander: [0, 2.5, -3, 2, 0], // ...and to one side of its middle
+  main: {
+    halfWidth: [0.7, 1.4], depth: [0.3, 0.6], below: 0.3, // (at its top, and at the lip; how far below the ground its surface lies)
+    course: [[-350, -1600], [-327, -1597], [-308, -1590], [-298, -1567], [-291, -1545], [-288, -1522], [-285, -1498], [-285, -1475], [-289, -1452], [-297, -1436], [-291, -1415], [-284, -1397], [-268, -1380], [-252, -1362]],
+  },
+  fork: { halfWidth: [0.35, 0.7], depth: [0.12, 0.22], below: 0.12 },
+  forks: [
+    [[-380, -1530], [-371, -1508], [-358, -1488], [-346, -1468], [-332, -1449], [-312, -1438], [-297, -1436]],
+    [[-250, -1530], [-256, -1507], [-261, -1484], [-264, -1462], [-274, -1441], [-274, -1417], [-284, -1397]],
+    [[-270, -1560], [-270, -1536], [-270, -1512], [-280, -1491], [-285, -1475]],
+  ],
+};
 // Little creeks: clear, shallow and stony, running down off the hills into the river and the
 // lakes. Each is traced uphill from where it meets the water until the ground stops rising.
 const CREEKS = {
@@ -189,7 +211,8 @@ export function createTerrain(noise, bounds) {
     const side = dx * c - dz * s;
     const behind = -(dx * s + dz * c) + 0.012 * side * side;
     const across = 1 - smoothstep(Math.abs(side), FALLS.width / 2, FALLS.width / 2 + 24);
-    falls.shelf = smoothstep(behind, -1.2, 1.6) * across * (1 - smoothstep(behind, 70, 110));
+    // (It runs back to the mountainside, so the river comes down onto it: no hollow behind.)
+    falls.shelf = smoothstep(behind, -1.2, 1.6) * across * (1 - smoothstep(behind, 125, 170));
     falls.face = (1 - smoothstep(Math.abs(behind - 0.2), 1.4, 3)) * (1 - smoothstep(Math.abs(side), FALLS.width / 2, FALLS.width / 2 + 8));
     return falls;
   };
@@ -339,7 +362,24 @@ export function createTerrain(noise, bounds) {
   const lakes = PONDS.map(({ x, z, radius, depth }, index) => createLake(noise, index, radius, depth, baseHeight, () => [x, z]));
   // A river running down out of the mountains, through the foothills, west of the crash and out
   // into the sea.
-  const river = createRiverAlong(noise, RIVER, (x, z) => withLakes(baseHeight(x, z), x, z, lakes));
+  const lowerRiver = createRiverAlong(noise, RIVER, (x, z) => withLakes(baseHeight(x, z), x, z, lakes));
+  // ...and above the waterfall, down out of the snow (see HEADWATERS).
+  const headwaters = createHeadwaters((x, z) => withLakes(baseHeight(x, z), x, z, lakes), fallsTop + 0.1);
+  // Both together: `points` are the lower river's; `nearest` finds either (the headwaters'
+  // marked `upper`, with the `depth` of their channel).
+  const river = {
+    points: lowerRiver.points,
+    carve: lowerRiver.carve,
+    nearest: (x, z) => {
+      const up = headwaters.nearest(x, z);
+      const low = lowerRiver.nearest(x, z);
+      if (up && !(low && low.distance - low.halfWidth < up.distance - up.halfWidth)) {
+        up.upper = true;
+        return up;
+      }
+      return low;
+    },
+  };
   const nearRiver = (x, z, distance) =>
     river.points.some((p, i) => i % 4 === 0 && Math.hypot(p.x - x, p.z - z) < distance);
   const massifs = [{ x: 0, z: (RANGE.southFoot(0) + RANGE.northFoot(0)) / 2, radius: 1100, peaks: [] }];
@@ -422,7 +462,9 @@ export function createTerrain(noise, bounds) {
     const scarHeight = crashTrail.at(x, z).height;
     const h = withLakes(baseHeight(x, z), x, z, lakes) + (scarHeight ? scarHeight * (1 - stoneAt(x, z)) : 0);
     const r = river.nearest(x, z);
-    return r && fallsAt(x, z).shelf < 0.2 ? Math.min(h, river.carve(r)) : h;
+    if (!r) return h;
+    if (r.upper) return Math.min(h, headwaters.carve(r)); // (cut into the shelf too, to the lip)
+    return fallsAt(x, z).shelf < 0.2 ? Math.min(h, river.carve(r)) : h;
   };
   const lakeOrRiverLevel = (x, z) => {
     const near = nearestLake(x, z);
@@ -794,6 +836,9 @@ export function createTerrain(noise, bounds) {
     crashTrail,
     groundAt,
     riverPoints: river.points, // the river's path, from the mountains down to the sea
+    // The river above the waterfall: { main, forks: [...] }, each a list of points like the
+    // river's, from its top down (see HEADWATERS).
+    headwaters: { main: headwaters.main, forks: headwaters.forks },
     openWaterOut,
     // Why the last step was refused, if it was: 'sea', 'lake' or 'mountain' (see canClimb).
     turnedBack: null,
@@ -870,7 +915,7 @@ export function createTerrain(noise, bounds) {
         // The sea, and the big lake (flat sheets the land hides the edges of).
         { level: SEA_LEVEL, minX: bounds.minX - 600, maxX: bounds.maxX + 600, minZ: Math.min(...[-1, 0, 1].map((k) => coastZ(k * 900))) - 60, maxZ: bounds.maxZ + 700, sea: true },
         { level: LAKE.level, minX: bounds.minX - 600, maxX: bounds.maxX + 600, minZ: -2560, maxZ: -1960 },
-      ]);
+      ], terrain.headwaters);
       return terrain;
     },
   };
@@ -919,6 +964,80 @@ function withLakes(h, x, z, lakes) {
     if (d < 1.35) h = lake.bed + (h - lake.bed) * smoothstep(d, 0.7, 1.35);
   }
   return h;
+}
+
+// The river above the waterfall (see HEADWATERS): its main stream and the forks that join it,
+// each laid along its course, smoothed, flowing downhill (its surface never rises) and cutting
+// a channel where the land's in its way. `heightAt` is the land so far; `lipLevel` the water's
+// surface where it runs across the rock shelf to the waterfall's lip.
+function createHeadwaters(heightAt, lipLevel) {
+  const [s, c] = [Math.sin(FALLS.heading), Math.cos(FALLS.heading)];
+  const lay = (course, { halfWidth, depth, below }, floor, straight = 0) => {
+    let points = [];
+    for (let i = 1; i < course.length; i++) {
+      const [a, b] = [course[i - 1], course[i]];
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      for (let d = 0; d < length; d += HEADWATERS.step) points.push({ x: a[0] + ((b[0] - a[0]) * d) / length, z: a[1] + ((b[1] - a[1]) * d) / length });
+    }
+    points.push({ x: course[course.length - 1][0], z: course[course.length - 1][1] });
+    // Rounded off (twice over), its ends where they were; the last `straight` points left alone.
+    for (let pass = 0; pass < 2; pass++) {
+      points = points.map((p, i) => {
+        const reach = Math.min(3, i, points.length - 1 - straight - i);
+        if (reach <= 0) return p;
+        let [x, z] = [0, 0];
+        for (let k = i - reach; k <= i + reach; k++) [x, z] = [x + points[k].x, z + points[k].z];
+        return { x: x / (reach * 2 + 1), z: z / (reach * 2 + 1) };
+      });
+    }
+    // It winds a little from side to side (not at its ends, nor where it's left straight).
+    const seed = course[0][0] * 0.37;
+    points = points.map((p, i) => {
+      const [before, after] = [points[Math.max(i - 1, 0)], points[Math.min(i + 1, points.length - 1)]];
+      const heading = Math.atan2(after.z - before.z, after.x - before.x);
+      const wind = (1.1 * Math.sin(i * 0.31 + seed) + 0.6 * Math.sin(i * 0.83 + seed * 2)) * smoothstep(Math.min(i, points.length - 1 - straight - i), 0, 8);
+      return { x: p.x - Math.sin(heading) * wind, z: p.z + Math.cos(heading) * wind };
+    });
+    let level = Infinity;
+    points.forEach((p, i) => {
+      const t = i / (points.length - 1);
+      const [before, after] = [points[Math.max(i - 1, 0)], points[Math.min(i + 1, points.length - 1)]];
+      const heading = Math.atan2(after.z - before.z, after.x - before.x);
+      p.halfWidth = halfWidth[0] + (halfWidth[1] - halfWidth[0]) * t;
+      p.depth = depth[0] + (depth[1] - depth[0]) * t;
+      const across = [-1, 0, 1].map((side) => heightAt(p.x - Math.sin(heading) * side * (p.halfWidth + 1), p.z + Math.cos(heading) * side * (p.halfWidth + 1)));
+      level = Math.min(level, Math.min(...across) - below);
+      p.level = Math.max(level, floor);
+    });
+    return points;
+  };
+  const onShelf = HEADWATERS.shelf.map((behind, i) => [FALLS.x - behind * s + HEADWATERS.wander[i] * c, FALLS.z - behind * c - HEADWATERS.wander[i] * s]);
+  const lip = [FALLS.x - HEADWATERS.lip * s, FALLS.z - HEADWATERS.lip * c];
+  const main = lay([...HEADWATERS.main.course, ...onShelf, lip], HEADWATERS.main, lipLevel, 4);
+  const forks = HEADWATERS.forks.map((course) => {
+    // It comes in to the main stream's side, then swings round to run down it a little way, its
+    // surface settling to the main stream's (a hair above, so the two don't flicker): they merge
+    // rather than one stopping dead against the other.
+    const nearestOnMain = (x, z) => main.reduce((best, p) => (Math.hypot(p.x - x, p.z - z) < Math.hypot(best.x - x, best.z - z) ? p : best));
+    const [ex, ez] = course[course.length - 1];
+    const join = nearestOnMain(ex, ez);
+    const end = main[Math.min(main.indexOf(join) + HEADWATERS.merge, main.length - 1)];
+    const before = course[course.length - 2];
+    const back = Math.hypot(before[0] - join.x, before[1] - join.z);
+    const approach = [join.x + ((before[0] - join.x) / back) * 3, join.z + ((before[1] - join.z) / back) * 3];
+    const points = lay([...course.slice(0, -1), approach, [end.x, end.z]], HEADWATERS.fork, end.level);
+    const settling = points.slice(-(HEADWATERS.merge + 3));
+    settling.forEach((p, k) => {
+      p.level += (nearestOnMain(p.x, p.z).level + 0.02 - p.level) * smoothstep((k + 1) / settling.length, 0, 0.7);
+    });
+    return points;
+  });
+  const index = channelIndex([{ points: main }, ...forks.map((points) => ({ points }))], HEADWATERS.reach);
+  const carve = ({ distance, level, halfWidth, depth }) =>
+    distance < halfWidth
+      ? level - 0.15 - depth * (1 - (distance / halfWidth) ** 2)
+      : level - 0.15 + (distance - halfWidth) * 0.7;
+  return { main, forks, nearest: index.nearest, carve };
 }
 
 // A river following `course` (points from its spring down to its mouth), meandering a little
@@ -1046,8 +1165,9 @@ function channelIndex(courses, reach) {
     }
   }
   // The closest point on any of them to (x, z), if it's within reach:
-  // { distance, level, halfWidth }. Reuses one object, so copy it if you keep it.
-  const result = { distance: 0, level: 0, halfWidth: 0 };
+  // { distance, level, halfWidth, depth (if its points have one) }. Reuses one object, so copy
+  // it if you keep it.
+  const result = { distance: 0, level: 0, halfWidth: 0, depth: 0 };
   const nearest = (px, pz) => {
     const segments = grid.get(key(Math.floor(px / CELL), Math.floor(pz / CELL)));
     if (!segments) return null;
@@ -1066,6 +1186,7 @@ function channelIndex(courses, reach) {
         result.distance = d;
         result.level = a.level + (b.level - a.level) * t;
         result.halfWidth = a.halfWidth + (b.halfWidth - a.halfWidth) * t;
+        if (a.depth !== undefined) result.depth = a.depth + (b.depth - a.depth) * t;
       }
     }
     return best < reach ? result : null;
