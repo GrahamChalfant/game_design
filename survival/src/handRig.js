@@ -36,6 +36,8 @@ export const GRIPS = {
   scoop: { ...all([0.2, 0.25, 0.15]), pinky: [0.25, 0.3, 0.2], thumb: [0.15, -0.05, 0.05, 0.05] },
   // Three fingers hooked round the bow string, the little finger and thumb tucked in.
   string: { index: [0.3, 1.35, 0.6], middle: [0.3, 1.4, 0.65], ring: [0.35, 1.35, 0.6], pinky: [1.2, 1.4, 0.9], thumb: [1.0, 0.4, 0.8, 0.6] },
+  // Round a bandage roll (about 5 cm across): the fingers curled over it, the thumb along its end.
+  roll: { ...all([0.8, 0.95, 0.6]), pinky: [0.9, 1.0, 0.65], thumb: [0.4, 0.15, 0.3, 0.3] },
   // Rummaging: fingers half-bent, reaching.
   claw: { ...all([0.55, 0.85, 0.55]), thumb: [0.2, 0.2, 0.4, 0.4] },
 };

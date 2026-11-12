@@ -109,7 +109,7 @@ export const RECIPES = [
     name: 'Stone knife',
     count: 1,
     cost: { stick: 1, stone: 1 },
-    description: `Equip it and click to stab up close, or hold it at a young tree to cut sticks. A deer takes two. Breaks after ${KNIFE_DURABILITY} hits`,
+    description: `Equip it and click to slash up close, or hold it at a young tree to cut sticks. A deer takes two. Breaks after ${KNIFE_DURABILITY} hits`,
   },
   {
     item: 'arrow',
