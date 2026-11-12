@@ -98,9 +98,41 @@ const FOLLOW_THROUGH = new THREE.Vector3(0.05, -0.01, 0.12); // (back along the 
 const RELEASE = { snap: 0.07, quiver: 16, follow: 0.12, away: 0.5 }; // seconds: string settles, Hz, follow-through, hand drops away
 const SWAY = 0.012; // how far the hand bobs as you walk
 const TORCH_TILT = -0.25; // the torch leaning away from you (the wrist bent: it runs straight through the fist)
-// The wrist bent forward, so a knife points ahead out of the fist (the forearm stays as it was).
-const KNIFE_BEND = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.95, 0, 0));
-const BUTCHER_BEND = new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.75, 0, 0)); // (further, the blade pointing down)
+// The arm behind a hand (see reach): where each shoulder is, in the view (a little below, beside
+// and behind your eyes), and how long the upper arm and the forearm are (meters, to the wrist).
+// The elbow's wherever those put it for where the hand is, hanging down and a little out from
+// your side; the forearm, in its sleeve, runs from there to the wrist. So an arm always comes up
+// into view from where your own would: from below, off your shoulder, never from beside your head.
+const SHOULDER = { right: new THREE.Vector3(0.19, -0.23, 0.04), left: new THREE.Vector3(-0.19, -0.23, 0.04) };
+const UPPER_ARM = 0.3;
+const FOREARM = 0.27;
+// How far a wrist bends (radians): the fist tipped toward the thumb or the little finger (the
+// knuckles forward, as a knife's point goes), and bent toward the palm or the back of the hand.
+// Nothing asks for more than this: past it a wrist looks broken.
+const WRIST_BENDS = { tilt: [-0.6, 0.35], flex: [-1.0, 1.1] };
+// The knife in your hand: a fist round the handle, the forearm turned in a little (KNIFE.roll:
+// 0 is thumb up, as to shake hands; a quarter turn more is palm down), the wrist tipped forward
+// (tilt), the blade lying forward of square in the fist (KNIFE_SET), as a knife's held: between
+// them they point it up and ahead, and no one of them has to do it all.
+const KNIFE = { roll: 0.75, flex: 0.1, tilt: -0.45 };
+const KNIFE_SET = -0.42;
+const KNIFE_REST = new THREE.Vector3(0.2, -0.175, -0.44); // where the knife hand rests (a little higher than HAND: more of the forearm shows)
+// A slash, as the hand goes ([how far through it, x, y, z, roll, flex, tilt]): drawn back up to
+// the right, the wrist cocked back and the forearm turned out so the blade stands up; then cut
+// across and down to the left, the arm reaching out through the middle of it, the forearm
+// turning over to palm down and the wrist snapping forward, so the point sweeps over in an arc
+// and the edge leads; and back to rest. The elbow follows the hand (reach).
+const SLASH = [
+  [0, KNIFE_REST.x, KNIFE_REST.y, KNIFE_REST.z, KNIFE.roll, KNIFE.flex, KNIFE.tilt],
+  [0.26, 0.22, -0.08, -0.38, -0.55, -0.3, 0.2, (u) => easeOut(u)],
+  [0.44, 0.13, -0.14, -0.52, 0.35, -0.05, -0.25, (u) => easeIn(u)],
+  [0.6, -0.02, -0.225, -0.5, 1.3, 0.25, -0.55, (u) => linear(u)],
+  [1, KNIFE_REST.x, KNIFE_REST.y, KNIFE_REST.z, KNIFE.roll, KNIFE.flex, KNIFE.tilt, (u) => smooth(u)],
+];
+// Butchering: the knife hand palm down over the carcass, the elbow out to the side as you lean
+// over it, so the forearm comes in across from the lower right and the blade lies forward and
+// across, into it.
+const BUTCHER = { roll: 1.25, flex: 0.35, tilt: -0.6, out: 1.1, lift: -0.35 };
 // The left hand flat, palm down (its palm is its +x), fingers ahead, the thumb in toward the middle.
 const PALM_DOWN_LEFT = (() => {
   const palm = new THREE.Vector3(0, -1, 0);
@@ -110,9 +142,6 @@ const PALM_DOWN_LEFT = (() => {
 const NO_BEND = new THREE.Quaternion();
 // Where each elbow is (in the view), for the forearms of hands busy in front of you: low and out
 // to each side, a little ahead of your shoulders.
-// Through a knife slash the elbow comes out to the right, so the forearm lies across the view
-// and the hand and blade stay in sight ahead of it.
-const SLASH_ELBOW = new THREE.Vector3(0.32, -0.38, -0.22);
 const ELBOW = { right: new THREE.Vector3(0.24, -0.46, -0.04), left: new THREE.Vector3(-0.24, -0.46, -0.04) };
 // A bandage roll: about 5 cm across and 6 wide, held in the fingers ('roll' grip), its axis along
 // the hand (where it sits, from the hand's grip point). Wound round the left forearm, over the
@@ -127,6 +156,7 @@ const BANDAGE = { left: new THREE.Vector3(0.04, -0.08, -0.62), elbow: new THREE.
 const WRIST = new THREE.Vector3(0.003, 0, 0.065); // the wrist joint, in the hand model's space (the right's; the left's is mirrored)
 const PALM_UP = -1.45; // how far the hand rolls over to hold something on its palm (radians, round the forearm)
 const AXE_TILT = -0.55; // the axe's head tipped forward (the wrist bent: its handle runs straight through the fist)
+const AXIS = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
 const bendOf = (x) => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), x);
 const BREATH = 0.0025; // how far the hands rise and fall as you breathe
 const LOOK_LAG = 0.012; // how far the hands trail behind as you turn your head (m per radian/s)
@@ -240,7 +270,7 @@ export class HandView {
     this.tools.axe = holder('axe', placeholders.axe(), (g) => g.rotation.set(0, Math.PI, 0));
     this.tools.knife = holder('knife', placeholders.knife(), (g) => {
       g.scale.setScalar(0.9); // (small already: life size reads better)
-      g.rotation.set(-0.1, 0, 0.1); // (up through the fist: the wrist bends it forward, KNIFE_BEND)
+      g.rotation.set(KNIFE_SET, 0, 0.1); // (lying forward in the fist: the wrist tips it the rest of the way, KNIFE)
     });
     // The bow is held in the left hand, but kept upright whatever the arm's angle: it follows the
     // hand (see update) rather than turning with it.
@@ -526,18 +556,10 @@ export class HandView {
       snap = true;
     } else if (player.jab > 0 && tool === 'knife') {
       grips.right = 'handle';
-      // A knife slash: drawn back up to the right, the blade cocked out that way, then cut down
-      // and across to the lower left, the wrist turning through it so the edge leads; and back
-      // to rest. (The forearm follows behind it, back to the elbow.)
-      const rest = pose(...HAND.toArray(), -0.15, 0.3, -0.12);
-      right = along([
-        [0, rest],
-        [0.28, pose(0.26, -0.12, -0.46, -0.15, 0.6, -0.4), easeOut],
-        [0.58, pose(0.0, -0.2, -0.5, -0.2, 1.1, 0.2), easeIn],
-        [1, pose(...HAND.toArray(), -0.15, 0.3, -0.12), smooth],
-      ], player.slash);
-      right.q.multiply(KNIFE_BEND);
-      this.aimForearm('right', right.q, right.p, ELBOW.right.clone().lerp(SLASH_ELBOW, player.jab));
+      // A knife slash (SLASH): the hand's taken through it, and its arm goes with it (reach).
+      const [x, y, z, roll, flex, tilt] = alongNumbers(SLASH, player.slash);
+      // (The elbow lifts out to the side as the arm swings across.)
+      right = this.reach('right', new THREE.Vector3(x, y, z), { roll, flex, tilt, out: 0.4 + 0.5 * player.jab });
       snap = true;
     } else if (busy === 'lightFire') {
       ({ right, left } = this.lightFire(player.busyWith, player.busyProgress, flicker));
@@ -573,13 +595,11 @@ export class HandView {
       // Over the carcass: the left hand holding it down, the right sawing with the knife.
       for (const group of Object.values(this.tools)) group.visible = false;
       this.tools.knife.visible = true;
-      // (The knife hand down from the lower right, the blade down into it, sawing along; the left
-      // hand flat on the carcass, palm down, pressing as each stroke pulls; both forearms back
-      // to the elbows.)
+      // (The knife hand down from the lower right, palm down, the blade forward and down into it,
+      // sawing along; the left hand flat on the carcass, palm down, pressing as each stroke
+      // pulls; both forearms back to the elbows.)
       const saw = Math.sin(this.time * 11);
-      right = pose(0.1 + saw * 0.03, -0.24, -0.46 - saw * 0.05, -0.35, 0.2, 0.1);
-      right.q.multiply(BUTCHER_BEND); // (the blade down into it)
-      this.aimForearm('right', right.q, right.p, ELBOW.right);
+      right = this.reach('right', new THREE.Vector3(0.16 - saw * 0.035, -0.22, -0.43 - saw * 0.02), BUTCHER);
       const press = Math.max(0, Math.sin(this.time * 11 + 1)) * 0.01;
       left = { p: new THREE.Vector3(-0.1, -0.25 - press, -0.47), q: PALM_DOWN_LEFT.clone(), w: 0 };
       this.aimForearm('left', left.q, left.p, ELBOW.left);
@@ -608,10 +628,13 @@ export class HandView {
         [0.7, pose(0.02, -0.1, -0.21, 1.35, 0, -0.1), smooth],
         [1, rest(0.15, -0.24, -0.4, -0.1, 0.35, -0.15), smooth],
       ], u);
-    } else if (tool === 'axe' || tool === 'knife') {
+    } else if (tool === 'knife') {
+      grips.right = 'handle';
+      right = this.reach('right', KNIFE_REST.clone().add(bob), KNIFE);
+    } else if (tool === 'axe') {
       grips.right = 'handle';
       right = rest(...HAND.toArray(), -0.15, 0.3, -0.12);
-      const bend = tool === 'knife' ? KNIFE_BEND : bendOf(AXE_TILT);
+      const bend = bendOf(AXE_TILT);
       right.q.multiply(bend);
       this.bends.right.want = bend;
     } else if (tool === 'torch') {
@@ -876,6 +899,48 @@ export class HandView {
     this.aimForearm('right', turn, at, DRAW_ELBOW.start.clone().lerp(DRAW_ELBOW.anchor, smooth(pull)));
   }
 
+  // A hand at `at` (its grip, in the view) on the end of its arm (`side`: 'right' or 'left'):
+  // works out where the elbow is (see SHOULDER), runs the forearm from there to the wrist, and
+  // turns the hand from the forearm only as an arm can: `roll` (radians: the forearm turned about
+  // itself, 0 thumb up, toward palm down), and at the wrist `flex` (bent toward the palm; less
+  // than 0, toward the back of the hand) and `tilt` (tipped toward the thumb; less than 0, toward
+  // the little finger, the knuckles forward), each kept to what a wrist does (WRIST_BENDS).
+  // `out`: how far the elbow's swung out from your side (0: straight down), and `lift`: how far
+  // it's raised (-1: hanging down; above 0, higher than the hand, as when you lean over
+  // something). Returns the hand's pose ({ p, q }), and bends its wrist to suit.
+  reach(side, at, { roll = 0, flex = 0, tilt = 0, out = 0.4, lift = -1 } = {}) {
+    const sign = side === 'right' ? 1 : -1;
+    const clamp = (value, [least, most]) => Math.min(most, Math.max(least, value));
+    const bend = new THREE.Quaternion().setFromAxisAngle(AXIS.z, roll * sign)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(AXIS.y, clamp(flex, WRIST_BENDS.flex) * sign))
+      .multiply(new THREE.Quaternion().setFromAxisAngle(AXIS.x, clamp(tilt, WRIST_BENDS.tilt)));
+    const shoulder = SHOULDER[side];
+    // (The wrist, from the grip, in the hand's own space: where the forearm ends.)
+    const joint = new THREE.Vector3((WRIST.x - GRIP_CENTRE.x) * sign, WRIST.y - GRIP_CENTRE.y, WRIST.z - GRIP_CENTRE.z);
+    const q = new THREE.Quaternion();
+    const wrist = at.clone();
+    // (The wrist's place depends on how the hand's turned, and that on where the forearm comes
+    // from: a few rounds settle it.)
+    for (let i = 0; i < 4; i++) {
+      // The elbow: where the upper arm and the forearm meet, on the side `out` says.
+      const span = wrist.clone().sub(shoulder);
+      const far = Math.min(UPPER_ARM + FOREARM - 0.002, Math.max(0.05, span.length()));
+      span.normalize();
+      const along = (UPPER_ARM ** 2 - FOREARM ** 2 + far ** 2) / (2 * far);
+      const drop = new THREE.Vector3(out * sign, lift, 0.1);
+      drop.addScaledVector(span, -drop.dot(span)).normalize();
+      const elbow = shoulder.clone().addScaledVector(span, along).addScaledVector(drop, Math.sqrt(Math.max(0, UPPER_ARM ** 2 - along ** 2)));
+      // The forearm: back from the wrist to the elbow; thumb up is toward the upper arm.
+      const back = elbow.clone().sub(wrist).normalize();
+      const up = shoulder.clone().sub(elbow);
+      up.addScaledVector(back, -up.dot(back)).normalize();
+      q.setFromRotationMatrix(new THREE.Matrix4().makeBasis(up.clone().cross(back), up, back)).multiply(bend);
+      wrist.copy(joint).applyQuaternion(q).add(at);
+    }
+    this.bends[side].want = bend;
+    return { p: at.clone(), q, w: 0 };
+  }
+
   // Bends a hand's wrist (`side`: 'right' or 'left'; the hand turned `turn`, at `at`) so its
   // forearm, the sleeve, runs back from it to `elbow` (in the view), whatever the hand's doing:
   // never swinging out sideways or pointing at you because the hand's turned.
@@ -1070,6 +1135,20 @@ function along(keys, t) {
     return { p: a.p.clone().lerp(b.p, u), q: a.q.clone().slerp(b.q, u), w: a.w + (b.w - a.w) * u };
   }
   return keys[keys.length - 1][1];
+}
+// The numbers `t` of the way along a run of keys [time, ...numbers, ease] (times 0-1, rising): each
+// ease (the last thing in a key, if it has one) shapes the move into that key.
+function alongNumbers(keys, t) {
+  const numbers = (key) => key.slice(1).filter((value) => typeof value === 'number');
+  if (t <= keys[0][0]) return numbers(keys[0]);
+  for (let i = 1; i < keys.length; i++) {
+    if (t > keys[i][0]) continue;
+    const ease = keys[i].find((value) => typeof value === 'function') ?? smooth;
+    const u = ease((t - keys[i - 1][0]) / Math.max(1e-6, keys[i][0] - keys[i - 1][0]));
+    const from = numbers(keys[i - 1]);
+    return numbers(keys[i]).map((to, k) => from[k] + (to - from[k]) * u);
+  }
+  return numbers(keys[keys.length - 1]);
 }
 const easeIn = (u) => Math.max(0, Math.min(1, u)) ** 2.4; // speeding up (a strike)
 const easeOut = (u) => 1 - (1 - Math.max(0, Math.min(1, u))) ** 2.4; // slowing down (coming to rest)
