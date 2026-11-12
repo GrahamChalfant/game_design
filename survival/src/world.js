@@ -204,7 +204,7 @@ export function buildWorld(scene) {
   // Buildings you can walk up into: each has floorAt(x, z, maxY) and roofOver(x, z, feet).
   const structures = lookouts.map((spot) => lookoutStructure(spot, spot.base));
   // Everything is drawn around the player as they move: start where they spawn.
-  drawModelsAround(SPAWN.x, SPAWN.z);
+  drawModelsAround(SPAWN.x, SPAWN.z, true);
   terrain.drawAround(SPAWN.x, SPAWN.z, Infinity);
   const clearings = new SpatialGrid();
   for (const { x, z, half, foot } of alongRoads(roads.paths, 3)) clearings.add({ x, z, radius: half + (foot ? 0.4 : 1.2) });
@@ -589,7 +589,7 @@ export function buildWorld(scene) {
     spawn: new THREE.Vector3(SPAWN.x, terrain.heightAt(SPAWN.x, SPAWN.z), SPAWN.z),
     // Builds what's around (x, z) right away, e.g. after the player jumps back to the start.
     drawAround(x, z) {
-      drawModelsAround(x, z);
+      drawModelsAround(x, z, true);
       terrain.drawAround(x, z, Infinity);
       grass.update(0, x, z, true);
     },

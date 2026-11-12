@@ -19,6 +19,7 @@ const HEATH_BRIGHTNESS = 2.5; // (the leaf texture is mid-grey; a little darker 
 const VERGE = [0.35, 1.1];
 const VERGE_MIX = ['grass-tall', 'grass-tall', 'grass-wide', 'grass-clump', 'grass-seed', 'grass-wisp'];
 const GRASS_CHUNKS = 2; // grass is small, so it's only drawn this many chunks out from the player
+const BY_CHUNK = new Set(['heath', 'lichen']); // drawn a chunk at a time (see drawByChunk)
 const GRASS_BUDGET_MS = 2; // the most time per frame spent growing grass
 const UP = new THREE.Vector3(0, 1, 0);
 // Each tuft picks a model from this list at random, so repeating a name makes it more common.
@@ -234,25 +235,79 @@ uniform vec3 uTrample[${TRAMPLE_COUNT}];`)
   for (const m of new Set([cover.material, ...Object.values(cover.materials)])) flattens(m);
   for (const name of COVER_KINDS) kinds.push({ name, geometry: cover.shapes[name], material: cover.materials[name] ?? cover.material, mesh: null });
   let shownKeys = [];
+  // A list of tufts as the numbers an InstancedMesh holds (each one's matrix, and its colour).
+  const numbersOf = (tufts) => {
+    if (tufts.numbers) return tufts.numbers;
+    const matrices = new Float32Array(tufts.length * 16);
+    const colors = new Float32Array(tufts.length * 3);
+    tufts.forEach((tuft, i) => {
+      tuft.matrix.toArray(matrices, i * 16);
+      tuft.color.toArray(colors, i * 3);
+    });
+    return (tufts.numbers = { matrices, colors });
+  };
+  // The carpet is most of what grows (tens of thousands of plants around you): each chunk's is
+  // a mesh of its own, so the chunks behind you or off to the side aren't drawn at all.
+  const centre = new THREE.Vector3();
+  const drawByChunk = (kind) => {
+    kind.meshes ??= new Map();
+    for (const [key, mesh] of kind.meshes) {
+      if (shownKeys.includes(key) && mesh.userData.tufts === chunks.get(key)?.[kind.name]) continue;
+      group.remove(mesh);
+      mesh.dispose();
+      kind.meshes.delete(key);
+    }
+    for (const key of shownKeys) {
+      const tufts = chunks.get(key)?.[kind.name];
+      if (!tufts?.length || kind.meshes.has(key)) continue;
+      const mesh = new THREE.InstancedMesh(kind.geometry, kind.material ?? material, tufts.length);
+      mesh.receiveShadow = true;
+      mesh.userData.tufts = tufts;
+      centre.set(0, 0, 0);
+      tufts.forEach((tuft, i) => {
+        mesh.setMatrixAt(i, tuft.matrix);
+        mesh.setColorAt(i, tuft.color);
+        centre.x += tuft.matrix.elements[12] / tufts.length;
+        centre.y += tuft.matrix.elements[13] / tufts.length;
+        centre.z += tuft.matrix.elements[14] / tufts.length;
+      });
+      let reach = 0;
+      for (const { matrix: { elements: e } } of tufts) reach = Math.max(reach, (e[12] - centre.x) ** 2 + (e[13] - centre.y) ** 2 + (e[14] - centre.z) ** 2);
+      mesh.boundingSphere = new THREE.Sphere(centre.clone(), Math.sqrt(reach) + 2);
+      group.add(mesh);
+      kind.meshes.set(key, mesh);
+    }
+  };
   const draw = () => {
     for (const kind of kinds) {
-      const tufts = shownKeys.flatMap((key) => chunks.get(key)?.[kind.name] ?? []);
-      if (!kind.mesh || kind.mesh.instanceMatrix.count < tufts.length) {
+      if (BY_CHUNK.has(kind.name)) {
+        drawByChunk(kind);
+        continue;
+      }
+      const count = shownKeys.reduce((sum, key) => sum + (chunks.get(key)?.[kind.name]?.length ?? 0), 0);
+      if (!kind.mesh || kind.mesh.instanceMatrix.count < count) {
         if (kind.mesh) {
           group.remove(kind.mesh);
           kind.mesh.dispose();
         }
-        kind.mesh = new THREE.InstancedMesh(kind.geometry, kind.material ?? material, Math.max(64, Math.ceil(tufts.length * 1.5)));
+        kind.mesh = new THREE.InstancedMesh(kind.geometry, kind.material ?? material, Math.max(64, Math.ceil(count * 1.5)));
         kind.mesh.receiveShadow = true;
         kind.mesh.frustumCulled = false;
         kind.mesh.setColorAt(0, new THREE.Color());
         group.add(kind.mesh);
       }
-      tufts.forEach((tuft, i) => {
-        kind.mesh.setMatrixAt(i, tuft.matrix);
-        kind.mesh.setColorAt(i, tuft.color);
-      });
-      kind.mesh.count = tufts.length;
+      // (Each chunk's copied in as one block of numbers, worked out once: this runs every time
+      // a chunk comes or goes, for everything that grows.)
+      let at = 0;
+      for (const key of shownKeys) {
+        const list = chunks.get(key)?.[kind.name];
+        if (!list?.length) continue;
+        const { matrices, colors } = numbersOf(list);
+        kind.mesh.instanceMatrix.array.set(matrices, at * 16);
+        kind.mesh.instanceColor.array.set(colors, at * 3);
+        at += list.length;
+      }
+      kind.mesh.count = count;
       kind.mesh.instanceMatrix.needsUpdate = true;
       kind.mesh.instanceColor.needsUpdate = true;
     }

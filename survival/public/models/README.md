@@ -44,6 +44,8 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `pine-snow.glb`, `pine-small-snow.glb` | Snowy spruce | 2,243 / 1,749 | blender/conifers.py |
 | `sapling-pine.glb` | Sapling | 897 | blender/conifers.py |
 | `near/pine.glb` … `near/sapling-pine.glb` | The same spruce in needle cards, drawn within 26 m of the player | 2,488–12,120 | blender/conifers.py (DETAIL) |
+| `distant/pine.glb` … `distant/sapling-pine.glb` | The same spruce with fewer, wider boughs, drawn past 50 m from the player | 386–1,205 | blender/conifers.py (DISTANT) |
+| `distant/tree-dead.glb` | The dead tree, simplified, drawn past 50 m from the player | 379 | blender/distant_dead_tree.py |
 | `tree-dead.glb` | Bare dead tree | 1,265 | blender/remake.py |
 | `rock.glb`, `rock-small.glb`, `rock-flat.glb`, `rock-tall.glb`, `rock-large.glb` | Rocks | 1,280 / 320 / 1,280 / 1,280 / 1,280 | blender/remake.py |
 | `grass-fern.glb` | Fern, pale (tinted by the ground; the grass tufts themselves are drawn in code) | 256 | blender/remake.py |
@@ -65,6 +67,6 @@ See "Adding models from Blender" in `survival/README.md` for sizes and orientati
 - `blender/remake.py` builds rocks, dead wood, the plane's scattered wreckage, the containers, camp props, the shelter, bones, the axe and more from scratch;
 - `blender/fine.py` runs `places.py`, `lookout.py` and `props.py` with finer parts (rounder logs, bevelled boards). Run on their own, those make the old low-poly versions;
 - `blender/smooth_rigged.py` rounds off the rigged animals (the deer, rabbit and the like) under their rigs;
-- `blender/conifers.py` makes the spruce, and with `DETAIL = True` the needle-card versions in `near/` that are drawn near the player;
+- `blender/conifers.py` makes the spruce, with `DETAIL = True` the needle-card versions in `near/` that are drawn near the player, and with `DISTANT = True` the simple ones in `distant/` that are drawn far from them;
 - `blender/berry_bush.py` makes the berry bush the same way: leaf cards the game paints with a leaf texture, and its berries as a separate model.
 The grass tufts are cards of fine blades, drawn in code (`src/look.js`).

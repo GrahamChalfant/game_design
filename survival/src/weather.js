@@ -19,9 +19,9 @@ import * as THREE from 'three';
 //   snow: how much snow falls (1: the light flurry, 4 a blizzard) · wind: how hard it blows it sideways (0–1)
 //   storm: how much it chills you (see stepTemperature in survival.js)
 export const KINDS = {
-  clear: { name: 'Clear', sun: 1.2, ambient: 1.05, blue: 0.75, grey: 0, deep: 0.8, clouds: 0, fog: 1.3, fogCap: Infinity, snow: 0, wind: 0, storm: 0 },
-  fewClouds: { name: 'A few clouds', sun: 1.1, ambient: 1.0, blue: 0.6, grey: 0, deep: 0.65, clouds: 0.3, fog: 1.15, fogCap: Infinity, snow: 0.35, wind: 0.1, storm: 0 },
-  overcast: { name: 'Overcast', sun: 1, ambient: 1, blue: 0, grey: 0, deep: 0.35, clouds: 1, fog: 1, fogCap: Infinity, snow: 1, wind: 0.15, storm: 0 },
+  clear: { name: 'Clear', sun: 1.2, ambient: 1.05, blue: 0.75, grey: 0, deep: 0.8, clouds: 0, fog: 16, fogCap: Infinity, snow: 0, wind: 0, storm: 0 },
+  fewClouds: { name: 'A few clouds', sun: 1.1, ambient: 1.0, blue: 0.6, grey: 0, deep: 0.65, clouds: 0.3, fog: 7, fogCap: Infinity, snow: 0.35, wind: 0.1, storm: 0 },
+  overcast: { name: 'Overcast', sun: 1, ambient: 1, blue: 0, grey: 0, deep: 0.35, clouds: 1, fog: 2.2, fogCap: Infinity, snow: 1, wind: 0.15, storm: 0 },
   blizzard: { name: 'Blizzard', sun: 0.25, ambient: 0.8, blue: 0, grey: 0.85, deep: 0, clouds: 0, fog: 1, fogCap: 22, snow: 4, wind: 1, storm: 1 },
 };
 // What each kind can turn into next, and how likely each is.

@@ -106,15 +106,18 @@ export function seeThroughMaterial(material) {
 }
 
 // Makes a copy of `material` (already given its onBeforeCompile) fade by distance from the
-// player, in a fine stipple: a detailed model (`fadeIn` true) shows within `near` meters and
-// fades out to `far`; its plain stand-in does the opposite. Each pixel in between is drawn by
-// exactly one of the two, so as you walk the one hands over to the other gradually instead of
-// popping. The distance is to the copy's own origin, so a whole tree fades together.
-export function lodFade(material, fadeIn, near, far) {
+// player, in a fine stipple. A model's drawn in versions, each over its own stretch of
+// distance, and where two stretches meet the one hands over to the other across a band:
+// `inner` ([from, to] meters, or null) is the band this version fades in across (it isn't drawn
+// nearer than `from`), `outer` the band it fades out across (nor further than `to`). Each pixel
+// in a band is drawn by exactly one of the two versions, so as you walk the one hands over to
+// the other gradually instead of popping. The distance is to the copy's own origin, so a whole
+// tree fades together.
+export function lodFade(material, inner, outer) {
   const patched = material.clone();
   const before = material.onBeforeCompile;
   const key = material.customProgramCacheKey();
-  patched.customProgramCacheKey = () => `${key}|lod-${fadeIn ? 'in' : 'out'}-${near}-${far}`;
+  patched.customProgramCacheKey = () => `${key}|lod-${inner ?? ''}-${outer ?? ''}`;
   patched.onBeforeCompile = (shader, renderer) => {
     before?.call(patched, shader, renderer);
     shader.uniforms.uLodCenter = uniforms.uLodCenter;
@@ -135,10 +138,11 @@ export function lodFade(material, fadeIn, near, far) {
         '#include <clipping_planes_fragment>',
         `#include <clipping_planes_fragment>
         {
-          // 1 where the detailed model shows, 0 where the plain one does.
-          float detailShown = 1.0 - smoothstep(${near.toFixed(1)}, ${far.toFixed(1)}, distance(vLodRoot, uLodCenter));
+          float lodAway = distance(vLodRoot, uLodCenter);
           float lodDot = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-          ${fadeIn ? 'if (lodDot >= detailShown) discard;' : 'if (lodDot < detailShown) discard;'}
+          // (Across a band, the nearer version draws the dots under the line, the further the rest.)
+          ${inner ? `if (lodDot < 1.0 - smoothstep(${inner[0].toFixed(1)}, ${inner[1].toFixed(1)}, lodAway)) discard;` : ''}
+          ${outer ? `if (lodDot >= 1.0 - smoothstep(${outer[0].toFixed(1)}, ${outer[1].toFixed(1)}, lodAway)) discard;` : ''}
         }`,
       );
   };
