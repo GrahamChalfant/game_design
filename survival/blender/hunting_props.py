@@ -78,9 +78,23 @@ for s in (-1, 1):                       # lower and upper limb, from grip outwar
         rings.append(ring(Vector((0, y, z)), X, Y, w, d, 4, math.pi/4))
     tips.append(Vector((0, rings[-1][0].y, z)))
     b.loft(rings, lambda: col('wood', 0.06))
-# grip: hide wrap, 6-sided, slightly thicker, joins the limbs
-b.loft([ring(Vector((0, 0, z)), X, Y, 0.0252, 0.0228, 6) for z in (-0.075, -0.03, 0.03, 0.075)],
-       lambda: col('hide', 0.05))
+# grip: hide wrap, a rounded handle a hand closes round: slim where it's held (about 25 mm wide
+# and 31 deep; the first-person view draws it a fifth bigger, and the gloved fingers there are
+# fitted round that, src/handRig.js), a little fuller in the palm, flaring out at each end to
+# take in the limbs. (Its colours from a generator of its own, so the arrow's stay as they were.)
+def handle(center, rx, ry, n=12, power=3.5):
+    pts = []
+    for k in range(n):
+        c, s = math.cos(math.tau * k / n), math.sin(math.tau * k / n)
+        pts.append(center + X * (math.copysign(abs(c) ** (2 / power), c) * rx) + Y * (math.copysign(abs(s) ** (2 / power), s) * ry))
+    return pts
+GRIP = ((0.078, 0.0172, 0.0146), (0.058, 0.0172, 0.0146), (0.042, 0.0136, 0.015), (0.02, 0.0126, 0.0152), (0.0, 0.0125, 0.0155))
+hide = random.Random(23)
+def hide_col():
+    k = 1 + hide.uniform(-0.05, 0.05)
+    return (*[min(1, (((PAL['hide'] >> s) & 255) / 255) * k) ** 2.2 for s in (16, 8, 0)], 1.0)
+b.loft([handle(Vector((0, 0, s * z)), rx, ry) for s, (z, rx, ry) in [(-1, r) for r in GRIP] + [(1, r) for r in GRIP[-2::-1]]], hide_col)
+for _ in range(20): random.random()     # (the old six-sided grip's share of the shared generator)
 # string: thin 3-sided strand between the nocks (straight, bow braced)
 tz = L/2 - 0.02; sy = tips[1].y + 0.004
 b.loft([ring(Vector((0, sy, z)), X, Y, 0.0036, 0.0036, 3) for z in (-tz, tz)], col('bone'))
