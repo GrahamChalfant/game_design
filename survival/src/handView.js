@@ -88,7 +88,29 @@ const TORCH_TILT = -0.25; // the torch leaning away from you (the wrist bent: it
 // The wrist bent forward, so a knife points ahead out of the fist (the forearm stays as it was).
 const KNIFE_BEND = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.95, 0, 0));
 const BUTCHER_BEND = new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.75, 0, 0)); // (further, the blade pointing down)
+// The left hand flat, palm down (its palm is its +x), fingers ahead, the thumb in toward the middle.
+const PALM_DOWN_LEFT = (() => {
+  const palm = new THREE.Vector3(0, -1, 0);
+  const thumbSide = new THREE.Vector3(1, 0, 0.15).normalize();
+  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(palm, thumbSide, palm.clone().cross(thumbSide)));
+})();
 const NO_BEND = new THREE.Quaternion();
+// Where each elbow is (in the view), for the forearms of hands busy in front of you: low and out
+// to each side, a little ahead of your shoulders.
+const ELBOW = { right: new THREE.Vector3(0.24, -0.46, -0.04), left: new THREE.Vector3(-0.24, -0.46, -0.04) };
+// A knife thrust: from where it's held (HAND), straight ahead and in toward the middle, the blade
+// still pointing ahead (the wrist set, not rolled over).
+const STAB_TO = new THREE.Vector3(0.11, -0.16, -0.68);
+// A bandage roll: about 5 cm across and 6 wide, held in the fingers ('roll' grip), its axis along
+// the hand (where it sits, from the hand's grip point). Wound round the left forearm, over the
+// sleeve: WRAP (in the left hand's space, back along the forearm), turn by turn as it goes on.
+const ROLL = { radius: 0.024, width: 0.06, at: new THREE.Vector3(-0.012, 0, -0.006) };
+const WRAP = { at: new THREE.Vector3(-0.041, -0.003, 0.17), radius: 0.063, turns: 5, pitch: 0.022 };
+// Bandaging: where the left hand's held out (the forearm back from it to its elbow, raised into
+// view), and the arc
+// the right hand carries the roll over (radians round the forearm from its top: from its near
+// side up over and down its far side).
+const BANDAGE = { left: new THREE.Vector3(0.04, -0.08, -0.62), elbow: new THREE.Vector3(-0.2, -0.3, -0.3), rightElbow: new THREE.Vector3(0.3, -0.36, -0.34), arc: [-1.9, 1.0] };
 const WRIST = new THREE.Vector3(0.003, 0, 0.065); // the wrist joint, in the hand model's space (the right's; the left's is mirrored)
 const PALM_UP = -1.45; // how far the hand rolls over to hold something on its palm (radians, round the forearm)
 const AXE_TILT = -0.55; // the axe's head tipped forward (the wrist bent: its handle runs straight through the fist)
@@ -231,13 +253,21 @@ export class HandView {
     this.shot = { raise: 0, aim: 0, held: 0, release: Infinity, from: 0, wasDrawing: false, letGo: null };
     this.tools.torch = holder('torch', placeholders.torch(), () => {});
     this.tools.torch.add(this.flame);
-    // A bandage roll, for winding round the left forearm.
-    this.roll = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.07, 10), new THREE.MeshLambertMaterial({ color: 0xe9e3d4 }));
-    this.roll.position.set(-0.014, 0.012, -0.012); // (in the fingers, standing up)
+    // A bandage roll, for winding round the left forearm (see ROLL and WRAP): held in the fingers,
+    // its axis along the hand; and the turns it leaves round the sleeve, each a band a little
+    // askew, overlapping the last, shown one by one as they go on.
+    const gauze = new THREE.MeshLambertMaterial({ color: 0xe9e3d4, side: THREE.DoubleSide });
+    this.roll = new THREE.Mesh(new THREE.CylinderGeometry(ROLL.radius, ROLL.radius, ROLL.width, 14), gauze);
+    this.roll.position.copy(ROLL.at);
     this.right.add(this.roll);
-    this.wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.1, 10, 1, true), this.roll.material);
-    this.wrap.rotation.x = Math.PI / 2;
-    this.wrap.position.z = 0.12;
+    this.wrap = new THREE.Group();
+    this.wrap.position.copy(WRAP.at);
+    for (let i = 0; i < WRAP.turns; i++) {
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(WRAP.radius + i * 0.0006, WRAP.radius + i * 0.0006, 0.028, 16, 1, true), gauze);
+      band.rotation.set(Math.PI / 2 + (i % 2 ? 0.14 : -0.14), 0, 0);
+      band.position.z = i * WRAP.pitch;
+      this.wrap.add(band);
+    }
     this.left.add(this.wrap);
 
     // Small things in the hands (hand-props.glb, from blender/hand_props.py, the steak included;
@@ -416,6 +446,7 @@ export class HandView {
     this.nocked.visible = false;
     this.roll.visible = false;
     this.wrap.visible = false;
+    this.roll.rotation.set(0, 0, 0);
     const flicker = 0.9 + 0.1 * Math.sin(this.time * 13) + 0.05 * Math.sin(this.time * 31);
     this.flame.visible = item === 'litTorch';
     this.flame.scale.setScalar(0.32 * flicker);
@@ -431,7 +462,7 @@ export class HandView {
     const grips = this.grips; // how each hand's fingers close (see GRIPS in handRig.js)
     grips.right = 'relaxed';
     grips.left = 'relaxed';
-    const HOLD = { lighter: 'lighter', matches: 'box', flask: 'wide', meat: 'wide', berries: 'wide', bandage: 'wide' };
+    const HOLD = { lighter: 'lighter', matches: 'box', flask: 'wide', meat: 'wide', berries: 'wide', bandage: 'roll' };
     const bow = tool === 'bow' && !['bandage', 'eat', 'drinkWater'].includes(busy);
     const rest = (x, y, z, rx, ry, rz) => {
       const at = pose(x, y, z, rx, ry, rz);
@@ -482,27 +513,26 @@ export class HandView {
       snap = true;
     } else if (player.jab > 0 && tool === 'knife') {
       grips.right = 'handle';
-      // A knife jab: punched out ahead, the wrist turning the blade over as it goes.
+      // A knife thrust: driven straight out ahead and in toward the middle, the blade pointing
+      // ahead all the way (the wrist set), the forearm following behind it; and back.
       const j = player.jab;
-      right = pose(0.2 - 0.08 * j, -0.205 + 0.06 * j, -0.42 - 0.28 * j, -0.15 - 0.2 * j, 0.3 - 0.25 * j, -0.12 + 0.35 * j);
+      right = pose(...HAND.clone().lerp(STAB_TO, j).toArray(), -0.15 - 0.12 * j, 0.3 - 0.22 * j, -0.12);
       right.q.multiply(KNIFE_BEND);
-      this.bends.right.want = KNIFE_BEND;
+      this.aimForearm('right', right.q, right.p, ELBOW.right);
       snap = true;
     } else if (busy === 'lightFire') {
       ({ right, left } = this.lightFire(player.busyWith, player.busyProgress, flicker));
     } else if (busy === 'lightTorch') {
       ({ right, left } = this.lightTorch(player.busyWith, player.busyProgress, flicker));
     } else if (busy === 'bandage') {
-      [grips.right, grips.left] = ['wide', 'relaxed'];
-      // Bandaging: the left forearm held out across in front, the right hand winding the roll
-      // round and round it.
+      [grips.right, grips.left] = ['roll', 'relaxed'];
+      // Bandaging: the left forearm held out across in front of you, the right hand winding the
+      // roll round it, over the top, down the front, under and back up, working along it; the
+      // turns build up over the sleeve as it goes on.
       for (const group of Object.values(this.tools)) group.visible = false;
-      this.wrap.visible = true;
-      this.roll.visible = true;
-      this.roll.rotation.y = this.time * 9; // (turning as it unwinds)
-      const a = this.time * 7;
-      left = pose(0.08, -0.22, -0.44, 0.2, -1.2, 0);
-      right = pose(0.08 + Math.cos(a) * 0.065, -0.17 + Math.sin(a) * 0.065, -0.44 + Math.sin(a) * 0.02, 0.2, 0.4, 0);
+      ({ left, right } = this.bandage(player.busyProgress));
+      this.bends.left.want = NO_BEND; // (the left forearm straight on from the hand)
+      this.aimForearm('right', right.q, right.p, BANDAGE.rightElbow);
       snap = t > 0.25;
     } else if (busy === 'eat') {
       grips.right = 'cup';
@@ -524,11 +554,17 @@ export class HandView {
       // Over the carcass: the left hand holding it down, the right sawing with the knife.
       for (const group of Object.values(this.tools)) group.visible = false;
       this.tools.knife.visible = true;
+      // (The knife hand down from the lower right, the blade down into it, sawing along; the left
+      // hand flat on the carcass, palm down, pressing as each stroke pulls; both forearms back
+      // to the elbows.)
       const saw = Math.sin(this.time * 11);
-      right = pose(0.12 + saw * 0.035, -0.28, -0.5 - saw * 0.06, -0.35, 0.2, 0.1);
+      right = pose(0.1 + saw * 0.03, -0.24, -0.46 - saw * 0.05, -0.35, 0.2, 0.1);
       right.q.multiply(BUTCHER_BEND); // (the blade down into it)
-      this.bends.right.want = BUTCHER_BEND;
-      left = pose(-0.11, -0.3 + Math.max(0, Math.sin(this.time * 11 + 1)) * 0.012, -0.52, -0.4, -0.25, 0);
+      this.aimForearm('right', right.q, right.p, ELBOW.right);
+      const press = Math.max(0, Math.sin(this.time * 11 + 1)) * 0.01;
+      left = { p: new THREE.Vector3(-0.1, -0.25 - press, -0.47), q: PALM_DOWN_LEFT.clone(), w: 0 };
+      this.aimForearm('left', left.q, left.p, ELBOW.left);
+      grips.left = 'relaxed';
       snap = t > 0.25;
     } else if (busy === 'search' || busy === 'searchLow') {
       grips.right = grips.left = 'claw';
@@ -821,12 +857,55 @@ export class HandView {
   // Bends the draw hand's wrist (the hand turned `turn`, at `at`) so its forearm runs back to the
   // elbow (DRAW_ELBOW), `pull` (0-1) of the way to the anchor.
   drawWrist(turn, at, pull) {
-    const elbow = DRAW_ELBOW.start.clone().lerp(DRAW_ELBOW.anchor, smooth(pull));
-    const back = elbow.sub(at).normalize();
+    this.aimForearm('right', turn, at, DRAW_ELBOW.start.clone().lerp(DRAW_ELBOW.anchor, smooth(pull)));
+  }
+
+  // Bends a hand's wrist (`side`: 'right' or 'left'; the hand turned `turn`, at `at`) so its
+  // forearm, the sleeve, runs back from it to `elbow` (in the view), whatever the hand's doing:
+  // never swinging out sideways or pointing at you because the hand's turned.
+  aimForearm(side, turn, at, elbow) {
+    const back = elbow.clone().sub(at).normalize();
     const up = new THREE.Vector3(0, 1, 0);
-    const side = up.clone().cross(back).normalize();
-    const forearm = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, back.clone().cross(side), back));
-    this.bends.right.want = forearm.invert().multiply(turn.clone());
+    const across = up.clone().cross(back).normalize();
+    const forearm = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(across, back.clone().cross(across), back));
+    this.bends[side].want = forearm.invert().multiply(turn.clone());
+  }
+
+  // Bandaging, `p` (0-1) of the way through: the hands' poses ({ left, right }). The left arm
+  // held out ahead of you from the lower left, palm up (BANDAGE.left); the right hand, its forearm
+  // in from the lower right, carries the roll round the left forearm, the roll's axis along it:
+  // up from under its near side, over the top and down the far side (the wrist turning as far as
+  // a wrist can), then quickly back under, out of sight, for the next turn. The turns stay on as
+  // they're made (WRAP's bands), working along the forearm.
+  bandage(p) {
+    const at = BANDAGE.left.clone();
+    const along = BANDAGE.elbow.clone().sub(at).normalize(); // (from the left hand back along its forearm)
+    const palmUp = new THREE.Vector3(0, 1, 0).addScaledVector(along, -along.y).normalize();
+    const left = { p: at, q: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(palmUp, along.clone().cross(palmUp), along)), w: 0 };
+    const reached = Math.min(WRAP.turns, Math.floor(p * (WRAP.turns + 0.5)));
+    this.wrap.visible = true;
+    this.wrap.children.forEach((band, i) => (band.visible = i < Math.max(1, reached)));
+    this.roll.visible = true;
+    this.roll.rotation.set(0, this.time * 9, 0); // (turning as it unwinds)
+    // Round the forearm (angle 0 over the top, + toward its far side): most of each turn on the
+    // way over, the last of it quickly back underneath.
+    const u = (this.time * 1.1) % 1;
+    const over = 0.78;
+    const [from, to] = BANDAGE.arc;
+    const a = u < over ? from + (to - from) * smooth(u / over) : to + (from + Math.PI * 2 - to) * ((u - over) / (1 - over));
+    const z = WRAP.at.z + Math.min(reached, WRAP.turns - 1) * WRAP.pitch;
+    const centre = left.p.clone().add(WRAP.at.clone().setZ(z).applyQuaternion(left.q));
+    const up = new THREE.Vector3(0, 1, 0).addScaledVector(along, -along.y).normalize();
+    const far = along.clone().cross(up).normalize(); // (the forearm's far side, away from your right hand)
+    const out = (angle) => up.clone().multiplyScalar(Math.cos(angle)).addScaledVector(far, Math.sin(angle)).normalize();
+    // (The hand: its up along the forearm, so the roll's axis is too; its palm toward the arm.
+    // Under the arm, on the quick way back, it just turns from where it finished to where it
+    // starts again.)
+    const turnAt = (o) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(o, along, o.clone().cross(along)));
+    const q = u < over ? turnAt(out(a)) : turnAt(out(to)).slerp(turnAt(out(from)), smooth((u - over) / (1 - over)));
+    const rollAt = centre.addScaledVector(out(a), WRAP.radius + ROLL.radius + 0.004);
+    const right = { p: rollAt.sub(ROLL.at.clone().applyQuaternion(q)), q, w: 0 };
+    return { left, right };
   }
 
   // The bow in your hands: `draw` is how far it's drawn (0-1), or null if you're not drawing.

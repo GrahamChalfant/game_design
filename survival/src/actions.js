@@ -472,7 +472,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       } else {
         const done = holdToUse(BANDAGE_TIME);
         prompt = usingNow ? 'Bandaging…' : `Click and hold to use a bandage (+${BANDAGE_HEALING} health)`;
-        if (usingNow) busy = 'bandage';
+        if (usingNow) {
+          busy = 'bandage';
+          busyProgress = progress;
+        }
         if (done) {
           inventory.remove('bandage', 1);
           survival.eat(0, BANDAGE_HEALING);
