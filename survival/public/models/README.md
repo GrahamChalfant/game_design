@@ -45,12 +45,13 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `tree-dead.glb` | Bare dead tree | 1,265 | blender/remake.py |
 | `rock.glb`, `rock-small.glb`, `rock-flat.glb`, `rock-tall.glb`, `rock-large.glb` | Rocks | 1,280 / 320 / 1,280 / 1,280 / 1,280 | blender/remake.py |
 | `grass-fern.glb` | Fern, pale (tinted by the ground; the grass tufts themselves are drawn in code) | 256 | blender/remake.py |
-| `berry-bush.glb` | Berry bush, rust berry clusters; origin base centre | 1,298 | blender/remake.py |
+| `berry-bush.glb` | Berry bush: a low, rounded northern shrub, ~0.95 m tall and 1.2 m across. Twelve woody stems from one crown, grey-brown at the foot and forking into reddish twigs, under layered clusters of leaf cards (painted in the game with a see-through texture of leafy sprigs, `src/look.js`), dark inside, lighter on top, the odd sprig turned rust or gold; the bare stalks the berries hang from. Origin base centre | 5,086 | blender/berry_bush.py |
+| `berry-bush-berries.glb` | The bush's ripe berries: 15 bunches of round red berries hanging just proud of the leaves, round the sides and over the top (drawn with `berry-bush.glb`, hidden while the bush is picked) | 2,760 | blender/berry_bush.py |
 | `berry.glb` | Berry pickup (a sprig of 3 berries, stems, 2 leaves) | 1,268 | blender/props_smooth.py |
 | `knife.glb` | Stone knife, wood handle, slate blade; origin at the guard (top of the handle wrap), blade along +Z Blender / +Y glTF (like axe), edge toward -Y | 76 | food_props.py |
 
 **Wanted (placeholders in code until these land):**
-- `berry-bush.glb` — low bush ~0.9 m, origin base centre; berries as a child node named `berries` (hidden when picked).
+- `berry-bush.glb` and `berry-bush-berries.glb` — low bush ~0.95 m, origin base centre; the berries are their own model, at the same origin, so the game can hide them on a picked bush (both are drawn as instanced copies, like the trees).
 - `knife.glb` — landed; origin at the guard, blade +Y, on `hand_R` (code nudges it 1 cm so the fist holds the handle).
 
 Style, palette and poly budgets: `survival/blender/STYLE_GUIDE.md`.
@@ -62,5 +63,6 @@ See "Adding models from Blender" in `survival/README.md` for sizes and orientati
 - `blender/remake.py` builds rocks, dead wood, the plane's scattered wreckage, the containers, camp props, the shelter, bones, the axe and more from scratch;
 - `blender/fine.py` runs `places.py`, `lookout.py` and `props.py` with finer parts (rounder logs, bevelled boards). Run on their own, those make the old low-poly versions;
 - `blender/smooth_rigged.py` rounds off the rigged animals (the deer, rabbit and the like) under their rigs;
-- `blender/conifers.py` makes the spruce, and with `DETAIL = True` the needle-card versions in `near/` that are drawn near the player.
+- `blender/conifers.py` makes the spruce, and with `DETAIL = True` the needle-card versions in `near/` that are drawn near the player;
+- `blender/berry_bush.py` makes the berry bush the same way: leaf cards the game paints with a leaf texture, and its berries as a separate model.
 The grass tufts are cards of fine blades, drawn in code (`src/look.js`).
