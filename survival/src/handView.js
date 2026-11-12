@@ -97,10 +97,10 @@ const PALM_DOWN_LEFT = (() => {
 const NO_BEND = new THREE.Quaternion();
 // Where each elbow is (in the view), for the forearms of hands busy in front of you: low and out
 // to each side, a little ahead of your shoulders.
+// Through a knife slash the elbow comes out to the right, so the forearm lies across the view
+// and the hand and blade stay in sight ahead of it.
+const SLASH_ELBOW = new THREE.Vector3(0.32, -0.38, -0.22);
 const ELBOW = { right: new THREE.Vector3(0.24, -0.46, -0.04), left: new THREE.Vector3(-0.24, -0.46, -0.04) };
-// A knife thrust: from where it's held (HAND), straight ahead and in toward the middle, the blade
-// still pointing ahead (the wrist set, not rolled over).
-const STAB_TO = new THREE.Vector3(0.11, -0.16, -0.68);
 // A bandage roll: about 5 cm across and 6 wide, held in the fingers ('roll' grip), its axis along
 // the hand (where it sits, from the hand's grip point). Wound round the left forearm, over the
 // sleeve: WRAP (in the left hand's space, back along the forearm), turn by turn as it goes on.
@@ -513,12 +513,18 @@ export class HandView {
       snap = true;
     } else if (player.jab > 0 && tool === 'knife') {
       grips.right = 'handle';
-      // A knife thrust: driven straight out ahead and in toward the middle, the blade pointing
-      // ahead all the way (the wrist set), the forearm following behind it; and back.
-      const j = player.jab;
-      right = pose(...HAND.clone().lerp(STAB_TO, j).toArray(), -0.15 - 0.12 * j, 0.3 - 0.22 * j, -0.12);
+      // A knife slash: drawn back up to the right, the blade cocked out that way, then cut down
+      // and across to the lower left, the wrist turning through it so the edge leads; and back
+      // to rest. (The forearm follows behind it, back to the elbow.)
+      const rest = pose(...HAND.toArray(), -0.15, 0.3, -0.12);
+      right = along([
+        [0, rest],
+        [0.28, pose(0.26, -0.12, -0.46, -0.15, 0.6, -0.4), easeOut],
+        [0.58, pose(0.0, -0.2, -0.5, -0.2, 1.1, 0.2), easeIn],
+        [1, pose(...HAND.toArray(), -0.15, 0.3, -0.12), smooth],
+      ], player.slash);
       right.q.multiply(KNIFE_BEND);
-      this.aimForearm('right', right.q, right.p, ELBOW.right);
+      this.aimForearm('right', right.q, right.p, ELBOW.right.clone().lerp(SLASH_ELBOW, player.jab));
       snap = true;
     } else if (busy === 'lightFire') {
       ({ right, left } = this.lightFire(player.busyWith, player.busyProgress, flicker));
