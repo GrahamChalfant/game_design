@@ -24,6 +24,13 @@ from kit import OUT, PAL, Builder, build, export, g, material, reset
 # feathery instead of hard facets. Those trees go to public/models/near/. Run with
 # DETAIL = True set (runpy's init_globals) to make them; without it, the plain ones.
 DETAIL = globals().get('DETAIL', False)
+# ...and the simple versions drawn further off than about 45 m (see trees.js), where a tree is a
+# hand high on the screen: the same trees with about half the whorls and half the boughs in
+# each, every bough twice as wide and made of fewer faces, so the crown's as full and the same
+# shape and colours for about a sixth of the triangles (there are thousands of trees in view,
+# drawn twice each: once for their shadows). Those go to public/models/distant/. Run with
+# DISTANT = True set to make them.
+DISTANT = globals().get('DISTANT', False) and not DETAIL
 FRINGE = 0.55  # how far a fringe hangs, as a share of the bough's width there
 CARDS = None  # the current tree's needle cards, while it's being built (DETAIL only)
 fringe_random = random.Random()  # (its own, so adding fringes doesn't change the trees' shapes)
@@ -140,6 +147,12 @@ def bough(b, y, a, reach, t, snowy, droop=None):
     wide = min(max(reach * 0.26, 0.13), BOUGH_WIDTH)  # (short boughs stay full, so a slim tree isn't see-through)
     # (along, drop, half-width): hangs from the trunk, sags, then the tip flicks up a little.
     profile = ((0.0, 0.0, 0.05 + wide * 0.2), (0.4, 0.3, wide), (0.75, 0.72, wide * 0.88), (1.0, 0.78, wide * 0.2))
+    if DISTANT:
+        # Half as many boughs, each twice as wide and hanging a little lower (to close the gap
+        # to the whorl below), in two stretches, not three.
+        wide = min(max(reach * 0.5, 0.26), BOUGH_WIDTH * 2.1)
+        droop *= 1.7
+        profile = ((0.0, 0.0, 0.08 + wide * 0.3), (0.55, 0.45, wide), (1.0, 0.85, wide * 0.3))
     shade = random.uniform(0.9, 1.08)
     sections = []
     for f, drop, w in profile:
@@ -206,13 +219,16 @@ def conifer(name, height, radius, tiers, tips, bare, snowy, seed):
     # where the crown is too thin to hide it: a green stem and the leader carry on from there.
     trunk_r = max(0.04, radius * 0.065)
     lo, hi = height * bare + radius * 0.35, height * 0.95
-    b.pole((0, -SINK, 0), (0, height * 0.12, 0), trunk_r * 1.2, lambda: colour(random.choice(('bark', 'bark_dark')), 0.06), n=7, taper=0.82, wobble=0.06)
-    b.pole((0, height * 0.12, 0), (0, height * 0.72, 0), trunk_r * 0.97, lambda: colour('bark', 0.06), n=6, taper=0.55)
+    sides = 4 if DISTANT else 7
+    b.pole((0, -SINK, 0), (0, height * 0.12, 0), trunk_r * 1.2, lambda: colour(random.choice(('bark', 'bark_dark')), 0.06), n=sides, taper=0.82, wobble=0.06)
+    b.pole((0, height * 0.12, 0), (0, height * 0.72, 0), trunk_r * 0.97, lambda: colour('bark', 0.06), n=min(sides, 6), taper=0.55)
     # Up in the thin top the stem is this year's growth: green, not bark, so no brown stick shows.
-    b.pole((0, height * 0.72, 0), (0, hi, 0), trunk_r * 0.97 * 0.55, lambda: colour(random.choice(('needles_under', 'needles')), 0.06), n=6, taper=0.45)
+    b.pole((0, height * 0.72, 0), (0, hi, 0), trunk_r * 0.97 * 0.55, lambda: colour(random.choice(('needles_under', 'needles')), 0.06), n=min(sides, 6), taper=0.45)
     # Whorls from just above the bare stretch to near the top, closer together higher up (and
     # on slim trees, whose short boughs would otherwise leave gaps between them).
     spacing = min(0.55, max(0.24, (hi - lo) / (tiers * 1.2))) * min(1, max(0.7, radius / 1.6))
+    if DISTANT:
+        spacing *= 1.4
     whorls = max(4, int((hi - lo) / spacing) + 1)
     for w in range(whorls):
         t = w / (whorls - 1)
@@ -220,6 +236,8 @@ def conifer(name, height, radius, tiers, tips, bare, snowy, seed):
         reach = envelope(t, radius)
         # More boughs on the long low whorls, so they stay narrow and still close up.
         count = max(6, round((tips * 0.75 * (1 - t) + 4.5 * t) * max(1, reach / 1.1)))
+        if DISTANT:
+            count = max(5, round(count * 0.55))
         for j in range(count):
             if t < 0.3 and random.random() < 0.12:
                 continue  # (a missing branch, low down)
@@ -227,14 +245,14 @@ def conifer(name, height, radius, tiers, tips, bare, snowy, seed):
             bough(b, y + random.uniform(-0.06, 0.06), a, reach * random.uniform(0.82, 1.1), t, snowy)
         # Between the whorls, a few short side shoots (spruce grow these), so a slim crown reads
         # as one bushy column, not plates on a stick.
-        if height > radius * 7 and w + 1 < whorls:  # (slim trees only: the rest are full enough)
+        if height > radius * 7 and w + 1 < whorls and not DISTANT:  # (slim trees only: the rest are full enough)
             gap_y = lo + (hi - lo) * ((w + 0.5) / (whorls - 1)) ** 0.9
             for j in range(3):
                 a = w * 2.4 + 1.2 + TAU * j / 3 + random.uniform(-0.4, 0.4)
                 bough(b, gap_y, a, reach * random.uniform(0.55, 0.75), t, snowy)
     # The leader: this year's shoot, short and needled, blunt rather than a spike (the top
     # whorls' shoots reach up round its foot).
-    b.pole((0, hi - 0.25, 0), (0, height, 0), radius * 0.05 + 0.05, lambda: colour(random.choice(('needles_light', 'needles_mid', 'needles_tip')), 0.05), n=5, taper=0.3)
+    b.pole((0, hi - 0.25, 0), (0, height, 0), radius * 0.05 + 0.05, lambda: colour(random.choice(('needles_light', 'needles_mid', 'needles_tip')), 0.05), n=min(sides, 5), taper=0.3)
     if snowy:
         b.pole((0, height - 0.12, 0), (0, height + 0.02, 0), (radius * 0.05 + 0.05) * 0.45, lambda: colour('snow', 0.02), n=5, taper=0.5)
     parts = [build(name, b, shared('tree'))]
@@ -244,7 +262,7 @@ def conifer(name, height, radius, tiers, tips, bare, snowy, seed):
     return parts
 
 
-FOLDER = 'near/' if DETAIL else ''
+FOLDER = 'near/' if DETAIL else 'distant/' if DISTANT else ''
 os.makedirs(os.path.join(OUT, FOLDER), exist_ok=True)
 if bpy.app.background:
     reset()

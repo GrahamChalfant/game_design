@@ -29,6 +29,11 @@ const UNTINTED = new Set(['tree-dead']); // bare wood stays its own colour
 // Meters from the player within which spruce are drawn in full detail (their needle cards).
 const DETAIL_RADIUS = 26;
 const DETAIL_FADE = 7; // ...fading in from the plain ones over the last this many meters, not popping in
+// ...and meters from the player past which they're the simple ones (public/models/distant/: the
+// same trees in a third of the triangles), fading over to them across the last DISTANT_FADE.
+// Most of the trees in view are further off than this, each a hand high on the screen or less.
+const DISTANT_RADIUS = 50;
+const DISTANT_FADE = 8;
 const STUMP_RADIUS = 0.35;
 const STUMP_HEIGHT = 0.45;
 const FALL_TIME = 1.3; // seconds to topple over
@@ -211,13 +216,15 @@ export function treeModel(kind, placeholder, transforms, places) {
   // The spruce near the player are the needle-card ones (public/models/near/),
   // the rest the plain ones: the same boughs in the same places, just simpler.
   const detail = kind !== 'tree-dead' ? { name: `near/${kind}`, radius: DETAIL_RADIUS, fade: DETAIL_FADE } : undefined;
-  return instancedModel(kind, placeholder, transforms, prepare, tints, places, detail);
+  // (Shadows are only drawn on the ground near you: a young tree that far off can't reach it.)
+  const distant = { name: `distant/${kind}`, radius: DISTANT_RADIUS, fade: DISTANT_FADE, shadows: !KINDS[kind].small };
+  return instancedModel(kind, placeholder, transforms, prepare, tints, places, detail, distant);
 }
 
 // How tall a kind of tree's model stands, in meters, before it's scaled.
 export const treeHeight = (kind) => KINDS[kind].height;
 
-function treeTint({ x, z }) {
+export function treeTint({ x, z }) {
   const hash = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1;
   const shade = Math.abs(Math.sin(x * 39.346 + z * 11.135) * 24634.6345) % 1;
   const tint = TREE_TINTS[Math.floor(hash * TREE_TINTS.length)];

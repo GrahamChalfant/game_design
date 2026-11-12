@@ -592,6 +592,9 @@ const FIRST_SIGHT = {
 };
 const saidAbout = new Set();
 const SPOTTING_SHOW = 900; // through the binoculars, places this far away are drawn
+// On foot, places are drawn out to this share of how far the haze reaches, between this near
+// and this far (meters): across a valley on a clear day, close about you in a blizzard.
+const PLACES_SHOW = [0.35, 150, 700];
 
 // --- Caves (see caves.js) ---
 // Walking into a cave's hole with a lit torch in hand fades the screen to black and back,
@@ -756,7 +759,8 @@ function updateCamera(dt) {
   hands.update(dt, views.mode === 'first' && !spotting, inventory.selectedItem, inventory.outfit, player);
   // Fade whatever part of a building is between the camera and the player.
   lookout.update(dt, camera, player.feet, player.position);
-  const found = pois.update(dt, camera, player.feet, player.position, undefined, player.cave);
+  // (Cabins and the like show as far as the haze lets them be made out, not just close to.)
+  const found = pois.update(dt, camera, player.feet, player.position, THREE.MathUtils.clamp(scene.fog.far * PLACES_SHOW[0], PLACES_SHOW[1], PLACES_SHOW[2]), player.cave);
   if (found && !saidAbout.has(found.kind)) {
     saidAbout.add(found.kind);
     hud.say(FIRST_SIGHT[found.kind], 6);
@@ -769,14 +773,23 @@ function updateCamera(dt) {
 
 const painter = PAINTERLY ? createPainterlyRenderer(renderer, scene, camera) : null;
 const draw = () => {
-  views.updateFar();
+  views.updateFar(Boolean(spotting));
   if (painter) painter.render();
   else renderer.render(scene, camera);
 };
 
 // --- Main loop ---
 const clock = new THREE.Clock();
-let stoneCheckTimer = 0;
+const MENU_BUILD_MS = 12; // the most time per frame spent building the far view behind the menu
+// The next few of a long list, each frame, so that all of it comes round about once a second
+// (`name`: which list, to keep its place).
+const places = {};
+const someOf = (list, name, dt) => {
+  const count = Math.min(list.length, Math.ceil(list.length * dt));
+  const from = (places[name] ?? 0) % Math.max(1, list.length);
+  places[name] = from + count;
+  return from + count <= list.length ? list.slice(from, from + count) : [...list.slice(from), ...list.slice(0, from + count - list.length)];
+};
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05); // avoid huge jumps after a tab switch
 
@@ -793,6 +806,7 @@ renderer.setAnimationLoop(() => {
     hud.update(survival, inventory, { prompt: null });
     updateCamera(dt);
     world.update(0, clock.elapsedTime, player.position); // keeps the scenery around the player drawn
+    farView.update(MENU_BUILD_MS); // (nothing else to do: get on with the far view)
     pickups.update(clock.elapsedTime, player.position.x, player.position.z);
     daylight.update(survival.hourOfDay, cameraTarget);
     applyWeather();
@@ -878,25 +892,22 @@ renderer.setAnimationLoop(() => {
   traps.update();
   bushes.update(survival.minutesSurvived);
   pickups.update(clock.elapsedTime, player.position.x, player.position.z);
-  // Stones take days to come back, so once a second is plenty (there are thousands of spots).
-  stoneCheckTimer -= dt;
-  if (stoneCheckTimer <= 0) {
-    stoneCheckTimer = 1;
-    respawnStones(
-      world.stones,
-      survival.minutesSurvived,
-      (x, z) => pickups.find('stone', x, z, 0.3) !== null,
-      (spot) => pickups.drop('stone', 1, spot.x, spot.z),
-      player.position,
-    );
-    respawnStones(
-      world.sticks,
-      survival.minutesSurvived,
-      (x, z) => pickups.find('stick', x, z, 0.3) !== null,
-      (spot) => pickups.drop('stick', spot.count, spot.x, spot.z),
-      player.position,
-    );
-  }
+  // Stones take days to come back, so looking at each spot about once a second is plenty: a
+  // few of them every frame (there are thousands: all at once, it's a stutter every second).
+  respawnStones(
+    someOf(world.stones, 'stone', dt),
+    survival.minutesSurvived,
+    (x, z) => pickups.find('stone', x, z, 0.3) !== null,
+    (spot) => pickups.drop('stone', 1, spot.x, spot.z),
+    player.position,
+  );
+  respawnStones(
+    someOf(world.sticks, 'stick', dt),
+    survival.minutesSurvived,
+    (x, z) => pickups.find('stick', x, z, 0.3) !== null,
+    (spot) => pickups.drop('stick', spot.count, spot.x, spot.z),
+    player.position,
+  );
   wreck.update(dt);
   blood.update(dt);
   ambientLife.update(dt, survival.hourOfDay, player.position, Boolean(player.cave));

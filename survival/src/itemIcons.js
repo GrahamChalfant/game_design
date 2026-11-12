@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as placeholders from './placeholders.js';
+import { publicInFolder } from './models.js';
 
 // Inventory icons. Each item's picture is rendered in Blender (blender/icons.py) into
 // public/icons/<item>.png. If a picture is missing (or fails to load), the item is drawn here
@@ -342,8 +343,8 @@ for (const item of Object.keys(MODELS)) {
     showEverywhere();
     for (const callback of icon.waiting.splice(0)) callback(canvas);
   };
-  const tryFolder = (k) => {
-    if (k === ICON_FOLDERS.length) {
+  const tryFolder = (k, folders) => {
+    if (k === folders.length) {
       // No picture: draw the model instead.
       drawFallback(item, canvas);
       icon.url = canvas.toDataURL('image/png');
@@ -356,10 +357,11 @@ for (const item of Object.keys(MODELS)) {
       icon.url = picture.src;
       done();
     };
-    picture.onerror = () => tryFolder(k + 1);
-    picture.src = `${ICON_FOLDERS[k]}${item}.png`;
+    picture.onerror = () => tryFolder(k + 1, folders);
+    picture.src = `${folders[k]}${item}.png`;
   };
-  tryFolder(0);
+  // (The folder it'll be in here first: see models.js.)
+  publicInFolder.then((inFolder) => tryFolder(0, inFolder ? [...ICON_FOLDERS].reverse() : ICON_FOLDERS));
 }
 
 // The icon picture for an item, as an image URL (for the HUD).

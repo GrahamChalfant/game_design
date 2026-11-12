@@ -349,13 +349,19 @@ function lichenClump(r) {
     const a = r() * Math.PI * 2;
     const d = k === 0 ? 0 : 0.12 + r() * 0.22;
     const s = 0.09 + r() * 0.09;
-    const g = new THREE.IcosahedronGeometry(1, 2);
+    // (A cushion's a hand across, and there are thousands in view: no rounder than shows.)
+    const g = new THREE.IcosahedronGeometry(1, 1);
     const p = g.attributes.position;
     const colors = [];
+    const normals = [];
     const c = new THREE.Color();
     const seeds = [r() * 6, r() * 6];
+    const out = new THREE.Vector3();
     for (let i = 0; i < p.count; i++) {
       let [x, y, z] = [p.getX(i), p.getY(i), p.getZ(i)];
+      // (Lit as the round cushion it stands for, not as its few flat faces.)
+      out.set(x, Math.max(y, 0) * 1.6 + 0.25, z).normalize();
+      normals.push(out.x, out.y, out.z);
       const lump = 1 + 0.18 * Math.sin(x * 7 + seeds[0]) * Math.sin(z * 6 + seeds[1]) + 0.1 * Math.sin(y * 11 + x * 5);
       y = y < 0 ? y * 0.2 : y;
       p.setXYZ(i, Math.cos(a) * d + x * s * lump, (y * 0.55 * s) * lump - 0.01, Math.sin(a) * d + z * s * lump);
@@ -364,11 +370,10 @@ function lichenClump(r) {
       colors.push(c.r, c.g, c.b);
     }
     g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
     parts.push(g);
   }
-  const merged = mergeGeometries(parts);
-  merged.computeVertexNormals();
-  return merged;
+  return mergeGeometries(parts);
 }
 
 // The heath's plants, as tints of the leaf texture (linear-ish, the texture is mid-grey), and

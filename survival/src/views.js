@@ -26,7 +26,10 @@ const SHADE = { shadow: 0.55, fill: 1.6, exposure: 1.12 };
 // How close to the camera trees fade out (dotted, like the see-through hole), so branches don't
 // fill the view when you stand under a spruce or the camera backs into one.
 const NEAR_FADE = { third: 3.2, first: 0.9 };
-const FAR = 650; // meters the camera draws to: past the haze on the clearest day
+// Meters the camera draws to: as far as the haze lets you see (see updateFar), between these.
+// On a clear day that's right across the south of the map to the mountains (their crest is
+// 1.6 km from the crash).
+const FAR = [650, 2600];
 
 // How close to the eye the camera draws: in first person your hands come right up to your face
 // (drawing the bow, eating), so nearer than over the shoulder.
@@ -62,7 +65,7 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     world.drawAround(player.position.x, player.position.z); // (build the newly drawn ground now)
     farView.setAlways(true);
     camera.near = NEAR[view];
-    camera.far = FAR;
+    camera.far = FAR[1];
     camera.fov = view === 'first' ? 70 : 60;
     camera.updateProjectionMatrix();
     player.hideFromCamera(view === 'first');
@@ -84,7 +87,7 @@ export function createViews({ camera, renderer, input, player, world, farView, h
     // Puts the camera's draw distance and field of view back (after the binoculars).
     restoreCamera() {
       camera.near = NEAR[view];
-      camera.far = FAR;
+      camera.far = FAR[1];
       camera.fov = view === 'first' ? 70 : 60;
       camera.updateProjectionMatrix();
     },
@@ -104,8 +107,16 @@ export function createViews({ camera, renderer, input, player, world, farView, h
       return pointer.set((input.pointer.x / innerWidth) * 2 - 1, -(input.pointer.y / innerHeight) * 2 + 1);
     },
     // Keeps the rough far view out of the detailed chunks round the player.
-    updateFar() {
+    // (`spotting`: through the binoculars, which set how far the camera draws themselves.)
+    updateFar(spotting = false) {
       if (sky.visible) sky.update(camera, performance.now() / 1000);
+      farView.detail(camera);
+      // Nothing past the haze is worth drawing: on a dull day or at night, that's most of the map.
+      const far = THREE.MathUtils.clamp(scene.fog.far, ...FAR);
+      if (!spotting && Math.abs(camera.far - far) > 1) {
+        camera.far = far;
+        camera.updateProjectionMatrix();
+      }
       const [cx, cz] = chunkOf(player.position.x, player.position.z);
       const n = NEAR_CHUNKS;
       farView.setNear((cx - n) * CHUNK_SIZE, (cz - n) * CHUNK_SIZE, (cx + n + 1) * CHUNK_SIZE, (cz + n + 1) * CHUNK_SIZE);
