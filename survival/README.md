@@ -140,7 +140,9 @@ fences** run across the meadows, with rails down and gaps to slip through.
 A few birds fly over by day. The north is quiet: you hear the wind (louder up the mountains)
 and, now and then by day, a bird of the boreal winter (a junco's "tsip", chickadees, a raven's
 croak); owls and wolves far
-off at night; deer walking, bleating, and snorting as they bolt from you; water nearby, a
+off at night; deer walking, bleating, and snorting as they bolt from you; the river running and
+the sea breaking on the shore (a lake is still and quiet); a blizzard's howl (muffled once
+you're indoors); rustling and snapping twigs as you push through trees and bushes; a
 campfire's crackle, and dripping and bats down a cave. Your footsteps sound like what's
 underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things you do have a
 sound: chopping and trees crashing down, the bow, arrows landing, eating, drinking, cooking,

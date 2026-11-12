@@ -450,6 +450,17 @@ export function createTerrain(noise, bounds) {
     return Boolean(c && c.distance < c.halfWidth + 1 + margin);
   };
   // True if the only water near (x, z) is a creek (shallow enough to ford: roads cross them).
+  // How close the sea and running water are, for their sounds: { sea, river } each 0 (out of
+  // earshot) to 1 (right at it). The sea carries furthest; creeks are quieter than the river.
+  // (A still lake makes no sound of its own.)
+  const waterSounds = (x, z) => {
+    const fade = (distance, reach) => Math.max(0, Math.min(1, 1 - distance / reach));
+    const sea = fade(coastZ(x) + 7 - z, 90);
+    const r = river.nearest(x, z);
+    const c = creeks.nearest(x, z);
+    const river_ = Math.max(r ? fade(r.distance - r.halfWidth, 35) : 0, c ? 0.55 * fade(c.distance - c.halfWidth, 14) : 0);
+    return { sea, river: river_ };
+  };
   const creekOnly = (x, z) => {
     const c = creeks.nearest(x, z);
     if (!c || c.distance > c.halfWidth + 4) return false;
@@ -639,6 +650,7 @@ export function createTerrain(noise, bounds) {
     waterLevelAt,
     waterDepth,
     nearWater,
+    waterSounds,
     forest,
     mountainAt,
     coldAt,

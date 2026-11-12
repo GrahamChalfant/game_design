@@ -14,8 +14,12 @@ http://localhost:8000/listen.html: a button per sound, and one per take.
 
 | File name | When it plays | How |
 | --- | --- | --- |
-| `wind` | Always outdoors; louder up the mountains | Looping |
-| `water` | Near a lake or the river | Looping |
+| `wind` | A breeze in the trees, always outdoors; louder up the mountains and on a windy day | Looping |
+| `gale` | Out in a blizzard (it drowns the breeze) | Looping |
+| `gale-indoors` | A blizzard heard from indoors: in a shelter, cabin or tower, or (quieter) down a cave | Looping |
+| `river` | Near the river (and, quieter, a creek). A lake is still: no sound of its own | Looping |
+| `sea` | Near the sea: waves on the rocky shore | Looping |
+| `brush`, `twig` | Pushing through the boughs of a tree or a bush: a rustle every step or so, and now and then a twig snapping | Played once each time |
 | `fire` | Near a burning campfire | Looping |
 | `junco`, `chickadee`, `raven` | By day, now and then (rarely: the north is quiet, and quieter still in the cold): a dark-eyed junco's "tsip" calls or trill, a chickadee (black-capped: they winter in the southern Yukon too), or a common raven's croak | Played once each time, from somewhere around you, a little higher or lower (every one-off sound is) |
 | `owl` | At night, now and then (a great horned or a boreal owl) | Played once |
