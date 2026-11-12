@@ -18,10 +18,13 @@ export const GRIPS = {
   // round it, the thumb across them.
   // (Fitted in Blender round a 32 mm handle: closed on it, not through it.)
   handle: { ...all([1.15, 1.4, 0.85]), ring: [1.18, 1.42, 0.85], pinky: [1.25, 1.45, 0.9], thumb: [0.4, 0.35, 0.55, 0.45] },
-  // Round the bow's grip, as an archer holds it: the riser pressed into the heel of the thumb, the
-  // fingers curled loosely round the front of it (not clenched: a tight fist twists the bow), the
-  // thumb along the near side, pointing ahead.
-  bow: { index: [0.95, 1.2, 0.7], middle: [1.05, 1.3, 0.75], ring: [1.1, 1.35, 0.8], pinky: [1.2, 1.4, 0.85], thumb: [0.4, 0.15, 0.3, 0.25] },
+  // Round the bow's grip (a rounded handle about 30 mm wide and 37 deep, as it's drawn; the hand
+  // turned to it as handView.js's BOW_HOLD): the fingers laid round its far side, each closed joint
+  // by joint until it rests on the hide, their tips coming round onto its other side; the thumb
+  // across the near side, down to meet the fingertips.
+  // (Fitted against the grip's own shape, each segment 0.7 mm clear of it: to fit them again
+  // after changing the grip, the hands or how the bow's held, see handtest.html.)
+  bow: { index: [0.38, 1.17, 0.74], middle: [0.56, 1.59, 0.11], ring: [0.68, 1.56, 0], pinky: [0.7, 1.29, 0], thumb: [0.3, 0.5, 0.12, 0] },
   // Round the lighter: the fingers wrapped round its body, the thumb up on the wheel.
   lighter: { ...all([1.2, 1.5, 0.95]), thumb: [0.35, -0.1, 0.35, 0.3] },
   // A match between the thumb and the tip of the index finger, the others tucked away.
@@ -59,7 +62,8 @@ export class HandRig {
         return { part, rest: part.quaternion.clone() };
       });
     }
-    this.now = structuredClone(GRIPS.relaxed);
+    // (Each finger's bends its own: several fingers of a grip share one list.)
+    this.now = Object.fromEntries(Object.entries(GRIPS.relaxed).map(([name, bends]) => [name, [...bends]]));
     this.want = GRIPS.relaxed;
     this.extra = null; // set each frame for a moment's move on top of the grip, e.g. the thumb flicking
   }

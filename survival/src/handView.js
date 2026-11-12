@@ -27,14 +27,27 @@ const BOW_READY = { at: new THREE.Vector3(-0.1, -0.16, -0.6), tip: 0.05, lean: -
 const BOW_AIM_CANT = -0.28;
 // The bow arm, as an archer holds it: the forearm runs from the hand back toward your left
 // shoulder (BOW_SHOULDER, in the view), so it comes in from the lower left nearly along your line
-// of sight, pushing the bow toward what you aim at. The riser runs up through the fist; the hand
-// is turned about it so the palm faces right and a little ahead (BOW_TWIST: the riser pressed
-// into the heel of the thumb, the knuckles angled across the back of it), the wrist bent to suit.
+// of sight, pushing the bow toward what you aim at. The grip runs up through the fist, the hand
+// closed round it: the back of the hand to the left of the bow, the fingers round its far side,
+// their tips coming back into sight on its right, the thumb across the near side to meet them.
+// The hand's turned a little about the grip, the palm facing right and a little ahead
+// (BOW_TWIST), and tipped so the grip runs a little diagonally across the palm, the wrist low
+// (BOW_PITCH): both so the wrist is bent back no further than an archer's is (30-40 degrees; turned
+// much further, the forearm comes into the hand from the side).
 const BOW_SHOULDER = new THREE.Vector3(-0.2, -0.45, 0);
-const BOW_TWIST = 0.95; // radians the palm's turned from facing straight right toward the target
-// (And pitched: the riser runs a little diagonally across the palm, from the heel of the thumb
-// up between the first two knuckles, so the wrist sits low, below the fist, not behind it.)
-const BOW_PITCH = 0.75;
+const BOW_TWIST = 0.3; // radians the palm's turned from facing straight right toward the target
+const BOW_PITCH = 0.35;
+// How the hand's turned from the bow, then (in the bow's own space: the model's turned round, its
+// string toward you). Always the same, however the bow's tipped or canted: the fingers are fitted
+// round the grip as it lies in the hand this way (the 'bow' grip, handRig.js), touching it, not
+// through it.
+const BOW_HOLD = (() => {
+  const up = new THREE.Vector3(0, 1, 0);
+  const palm = new THREE.Vector3(Math.cos(BOW_TWIST), 0, -Math.sin(BOW_TWIST));
+  const hand = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(palm, up, palm.clone().cross(up)));
+  hand.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), BOW_PITCH));
+  return new THREE.Quaternion().setFromAxisAngle(up, Math.PI).invert().multiply(hand);
+})();
 const BOW_TILT = -0.12; // the bow leans this far over (radians)
 // The bow at full size: an adult's bow is 62–70 inches (about 1.6–1.8 m), near enough as tall as
 // the archer, so held up at arm's length it runs off the top and bottom of the view. (bow.glb is
@@ -59,7 +72,7 @@ const DRAW_GRIP = new THREE.Vector3(-0.013, -0.145, -0.62);
 // through the arrow rest to the middle of the view, AIM_AT (in the view's space) at a usual
 // shot's range, and that's the way it flies, from the rest (see bowCentre and arrows.fire).
 const AIM_AT = new THREE.Vector3(0, 0, -25);
-const ARROW_REST = new THREE.Vector3(0.03, 0.058, 0); // where the shaft lies, from the bow hand's grip: on top of the fist, on the right of the stave (the side toward you, the inside)
+const ARROW_REST = new THREE.Vector3(0.024, 0.049, 0); // where the shaft lies, from the bow hand's grip: on the tip of the first finger, where it comes round the grip, against the right of the stave (the side toward you, the inside)
 const REACH = 0.35; // the share of the draw spent bringing the arrow to the string
 const HAND_OFF = new THREE.Vector3(0.24, -0.44, -0.3); // the right hand, out of sight below, while you hold the bow
 // The right hand, from the nock, its fingers round the string: on the string at first, and at full
@@ -829,16 +842,13 @@ export class HandView {
     flame.scale.setScalar(0.035 * size * flicker);
   }
 
-  // Turns the bow hand `l` round the bow's riser (as the bow's turned now): the riser up through
-  // the fist, the palm turned toward the target (BOW_TWIST); and bends the wrist so the forearm
-  // (the sleeve) runs back to the shoulder.
+  // Turns the bow hand `l` to the bow's grip (as the bow's turned now): closed round it the one
+  // way its fingers fit (BOW_HOLD); and bends the wrist so the forearm (the sleeve) runs back to
+  // the shoulder.
   holdBow(l) {
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.tools.bow.quaternion);
     const frame = (x, y, z) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
-    // The hand: +y up the riser; +x (the left hand's palm) facing right, turned toward the target.
-    const palm = new THREE.Vector3(Math.cos(BOW_TWIST), 0, -Math.sin(BOW_TWIST));
-    palm.addScaledVector(up, -palm.dot(up)).normalize();
-    const hand = frame(palm, up, palm.clone().cross(up)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), BOW_PITCH));
+    const hand = this.tools.bow.quaternion.clone().multiply(BOW_HOLD);
     // The forearm: +z back along it to the shoulder, its +y as near the riser's up as it can be.
     const back = BOW_SHOULDER.clone().sub(l.position).normalize();
     const side = up.clone().cross(back).normalize();

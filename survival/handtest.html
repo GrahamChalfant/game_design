@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hand test</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #6f8196; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- A bench for the first-person hands (handView.js): the hands alone, with a pretend player,
+         seen through your own eyes or from a camera off to one side.
+         In the console: T.set({ item: 'bow', draw: 1 }); T.spy([x, y, z], [lookX, lookY, lookZ]); T.spy() -->
+    <script type="module">
+      import * as THREE from 'three';
+      import { HandView } from './src/handView.js';
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(1);
+      renderer.setSize(innerWidth, innerHeight);
+      document.body.appendChild(renderer.domElement);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x6f8196);
+      scene.add(new THREE.HemisphereLight(0xeef2ff, 0x5c5446, 1.6));
+      const sun = new THREE.DirectionalLight(0xfff1dc, 2.4);
+      sun.position.set(-2, 4, 3);
+      scene.add(sun);
+      const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.03, 300);
+      camera.position.set(0, 1.6, 0);
+      const spyCamera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.01, 50);
+      let spying = false;
+      const hands = new HandView(camera, scene);
+      const player = {
+        alive: true, swimming: false, drinking: false, busy: null, drawAmount: 0, walkTime: 0, sprinting: false,
+        chopping: false, swingTime: 0, jab: 0, slash: 0, reachTime: 0, sipTime: 0, landTime: 0, landHard: 0,
+      };
+      const state = { item: 'bow', outfit: 'jacket' };
+      const frame = (dt) => {
+        hands.update(dt, true, state.item, state.outfit, player);
+        renderer.render(scene, spying ? spyCamera : camera);
+      };
+      window.T = {
+        hands, player, state, THREE, camera,
+        // { item, draw: 0-1 or null }, then settled.
+        set({ item = state.item, draw = null, outfit = state.outfit } = {}) {
+          state.item = item;
+          state.outfit = outfit;
+          player.busy = draw === null ? null : 'draw';
+          player.drawAmount = draw ?? 0;
+          for (let i = 0; i < 240; i++) frame(1 / 60);
+        },
+        // Looks from `from` at `at` (both in the view's own space); nothing: back to your eyes.
+        spy(from, at) {
+          spying = !!from;
+          if (from) {
+            camera.updateWorldMatrix(true, false);
+            spyCamera.position.copy(camera.localToWorld(new THREE.Vector3(...from)));
+            spyCamera.up.set(0, 1, 0);
+            spyCamera.lookAt(camera.localToWorld(new THREE.Vector3(...at)));
+          }
+          frame(0);
+        },
+        frame,
+      };
+      addEventListener('resize', () => {
+        renderer.setSize(innerWidth, innerHeight);
+        for (const c of [camera, spyCamera]) {
+          c.aspect = innerWidth / innerHeight;
+          c.updateProjectionMatrix();
+        }
+      });
+      renderer.setAnimationLoop(() => frame(1 / 60));
+    </script>
+  </body>
+</html>
