@@ -128,6 +128,12 @@ uniform vec3 uTrample[${TRAMPLE_COUNT}];`)
   // drawn. Chunks out of sight are forgotten and grown again when you come back.
   const outside = (x, z) => x < bounds.minX - 5 || x > bounds.maxX + 5 || z < bounds.minZ - 5 || z > bounds.maxZ + 5;
   const cleared = new SpatialGrid(); // circles where the grass was cleared, e.g. under a campfire
+  // Where the plane ran along the ground (its gouges, the soil it pushed aside, and the bits
+  // between where it bounced): nothing grows there, and only a little just beside it (so the
+  // plants thin out towards it rather than stopping in a straight line).
+  const scarred = (x, z, random) =>
+    terrain.crashTrail.near(x, z, 0.3) || terrain.crashTrail.at(x, z).dirt > 0.02 ||
+    (terrain.crashTrail.near(x, z, 1.2) && random.next() < 0.7) || (terrain.crashTrail.near(x, z, 2.2) && random.next() < 0.35);
   const chunks = new Map(); // chunk key → { [model name]: [tuft] }
   // Grows one chunk a little at a time: it pauses (yields) every so often, so the work can be
   // spread over several frames. Returns the chunk's tufts, by model.
@@ -158,7 +164,7 @@ uniform vec3 uTrample[${TRAMPLE_COUNT}];`)
         if (ground.kind !== 'grass') continue;
         if (terrain.forest(x, z) > 0.1 && thin < FOREST_THINNING) continue;
       }
-      if (!cleared.isClear(x, z, 0)) continue;
+      if (!cleared.isClear(x, z, 0) || scarred(x, z, random)) continue;
       // The same colour the ground is drawn in, a little brighter so tufts stand out from it.
       const { r, g, b } = ground.color;
       // (Autumn grass and sedge: straw, picking up a little of the ground's colour.)
@@ -179,7 +185,7 @@ uniform vec3 uTrample[${TRAMPLE_COUNT}];`)
       if (outside(x, z)) continue;
       const kind = pickCover(random, Math.max(0, terrain.forest(x, z)));
       if (!kind) continue;
-      if (!COVER_GROUND.has(terrain.groundAt(x, z).kind) || terrain.waterDepth(x, z) > 0) continue;
+      if (!COVER_GROUND.has(terrain.groundAt(x, z).kind) || terrain.waterDepth(x, z) > 0 || scarred(x, z, random)) continue;
       if (!cleared.isClear(x, z, 0) || (obstacles && !obstacles.isClear(x, z, 0.12))) continue;
       const cover = placeCover(kind, x, z, random, terrain);
       if (kind === 'shrub') tintLikeGround(cover, terrain, x, z, 0x7e8452);
@@ -196,7 +202,7 @@ uniform vec3 uTrample[${TRAMPLE_COUNT}];`)
       const ground = terrain.groundAt(x, z).kind;
       // (On stony ground, every other plant: lichen and heath among the stones.)
       const stony = ground === 'stony' && random.next() < 0.5;
-      if (!(ground === 'grass' || stony || ((ground === 'rock' || ground === 'stony') && carpet.kind === 'lichen')) || terrain.waterDepth(x, z) > 0) continue;
+      if (!(ground === 'grass' || stony || ((ground === 'rock' || ground === 'stony') && carpet.kind === 'lichen')) || terrain.waterDepth(x, z) > 0 || scarred(x, z, random)) continue;
       if (!cleared.isClear(x, z, 0) || (obstacles && !obstacles.isClear(x, z, 0.25))) continue;
       const tuft = placeCover(carpet.kind, x, z, random, terrain);
       if (carpet.tint !== null) tintLikeGround(tuft, terrain, x, z, carpet.tint);

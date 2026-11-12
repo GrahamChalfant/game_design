@@ -6,7 +6,8 @@ import { createNoise, createRandom } from './random.js';
 import { createTerrain } from './terrain.js';
 import { Trees } from './trees.js';
 import { stoneSpots } from './hunting.js';
-import { CRASH, FLIGHT_PATH, flightPoint, onFlightPath, trailPoint } from './crashTrail.js';
+import { CRASH, FLIGHT_PATH, onFlightPath, trailPoint } from './crashTrail.js';
+import { damageFlightPath } from './flightPath.js';
 import { SpatialGrid } from './grid.js';
 import { LOOKOUT, lookoutBase, lookoutObstacles, lookoutStructure } from './lookout.js';
 import { placePois, poiClearing, poiObstacles, poiStructure } from './pois.js';
@@ -312,26 +313,18 @@ export function buildWorld(scene) {
   // Fallen trees, old fences, and the ruin of the fire road.
   const details = scatterDetails(scene, { random, terrain, obstacles, isFree, pois, bounds: BOUNDS, hectares: HECTARES });
   ruinRoads(scene, random, terrain, roads, details.addLog, obstacles);
-  // The plane's way in over the trees: trunks snapped off along its path (higher the further
-  // back, where it was still coming down), their tops lying where they fell, toppled forward
-  // the way it was flying.
-  const flightRandom = createRandom(mapSeed + 37);
-  const snags = [];
-  for (let back = 52; back < FLIGHT_PATH.to; back += flightRandom.range(3, 6)) {
-    const side = flightRandom.range(-FLIGHT_PATH.half, FLIGHT_PATH.half);
-    const { x, z } = flightPoint(back, side);
-    if (terrain.forest(x, z) < -0.1 || terrain.waterDepth(x, z) > 0 || !obstacles.isClear(x, z, 0.8)) continue;
-    const width = flightRandom.range(0.7, 1.1);
-    const tall = 1.4 + ((back - 50) / (FLIGHT_PATH.to - 50)) * 3.5 * flightRandom.range(0.7, 1.1);
-    const y = terrain.heightAt(x, z) - 0.1;
-    snags.push(transform(x, y, z, flightRandom.range(0, Math.PI * 2), 1, [width, tall / 0.45, width]));
-    obstacles.add({ x, z, radius: 0.3 * width, top: y + tall });
-    // Its top, lying a few meters on, the way the plane was going (back towards the crash).
-    const fall = flightPoint(back - flightRandom.range(4, 8), side + flightRandom.range(-2, 2));
-    const heading = Math.atan2(-(fall.z - z), fall.x - x) + flightRandom.range(-0.5, 0.5);
-    if (obstacles.isClear(fall.x, fall.z, 0.6) && terrain.waterDepth(fall.x, fall.z) === 0) details.addLog(fall.x, fall.z, heading, flightRandom.range(4, 7), flightRandom.range(0.14, 0.2));
-  }
-  scene.add(instancedModel('stump', placeholders.stump(), snags));
+  // The plane's way in over the trees: snapped, uprooted and leaning spruce along its path.
+  damageFlightPath(scene, {
+    random: createRandom(mapSeed + 37),
+    terrain,
+    obstacles,
+    clear: (x, z, radius) =>
+      obstacles.isClear(x, z, radius) &&
+      clearings.isClear(x, z, 0) &&
+      Math.hypot(x, z) > CRASH_CLEARING &&
+      !terrain.crashTrail.near(x, z, 2) &&
+      !terrain.nearWater(x, z, 1),
+  });
   scene.add(instancedModel('puddle', puddle(), roadPuddles(createRandom(mapSeed + 23), terrain, roads.paths)));
 
   // Loose stones (for arrowheads) lie in small groups by the rocks and the lake shore,
