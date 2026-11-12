@@ -57,17 +57,7 @@ export class Trees {
   // `spots` are { x, y, z, rotation, scale, obstacle }, one per tree of this kind.
   add(kind, placeholder, spots) {
     const transforms = spots.map((spot) => treeMatrix(spot, 0, null));
-    // Trees get a see-through hole wherever they'd hide the player.
-    const tints = UNTINTED.has(kind) ? undefined : spots.map(treeTint);
-    // (A model's needle cards are painted with see-through needles.)
-    const prepare = (material) => {
-      const result = seeThroughMaterial(material.name.startsWith('needles') ? needleMaterial(material) : material);
-      return kind === 'tree-dead' ? paintedSurface(result, 'wood') : softFoliage(result);
-    };
-    // The spruce near the player are the needle-card ones (public/models/near/),
-    // the rest the plain ones: the same boughs in the same places, just simpler.
-    const detail = kind !== 'tree-dead' ? { name: `near/${kind}`, radius: DETAIL_RADIUS, fade: DETAIL_FADE } : undefined;
-    const trees = instancedModel(kind, placeholder, transforms, prepare, tints, undefined, detail);
+    const trees = treeModel(kind, placeholder, transforms, spots);
     // Stumps start hidden, so tell them where they belong on the map.
     const stumps = instancedModel('stump', placeholders.stump(), spots.map(() => HIDDEN.clone()), undefined, undefined, spots);
     this.scene.add(trees, stumps);
@@ -207,6 +197,26 @@ export class Trees {
 }
 
 // A shade for the tree at this spot: the same spot always gets the same one.
+// Copies of a kind of tree, drawn the way the forest's are: `transforms` places each one and
+// `places` gives its { x, z } on the map (for its tint, and the chunk it's drawn with). Also
+// for trees that aren't choppable: the ones the plane knocked over (see flightPath.js).
+export function treeModel(kind, placeholder, transforms, places) {
+  // Trees get a see-through hole wherever they'd hide the player.
+  const tints = UNTINTED.has(kind) ? undefined : places.map(treeTint);
+  // (A model's needle cards are painted with see-through needles.)
+  const prepare = (material) => {
+    const result = seeThroughMaterial(material.name.startsWith('needles') ? needleMaterial(material) : material);
+    return kind === 'tree-dead' ? paintedSurface(result, 'wood') : softFoliage(result);
+  };
+  // The spruce near the player are the needle-card ones (public/models/near/),
+  // the rest the plain ones: the same boughs in the same places, just simpler.
+  const detail = kind !== 'tree-dead' ? { name: `near/${kind}`, radius: DETAIL_RADIUS, fade: DETAIL_FADE } : undefined;
+  return instancedModel(kind, placeholder, transforms, prepare, tints, places, detail);
+}
+
+// How tall a kind of tree's model stands, in meters, before it's scaled.
+export const treeHeight = (kind) => KINDS[kind].height;
+
 function treeTint({ x, z }) {
   const hash = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1;
   const shade = Math.abs(Math.sin(x * 39.346 + z * 11.135) * 24634.6345) % 1;
