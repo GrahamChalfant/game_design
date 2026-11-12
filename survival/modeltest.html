@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Model test</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #8fa3b8; overflow: hidden; }
+      canvas { display: block; }
+      #sheet { position: fixed; left: 0; top: 0; }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- A bench for looking a model over (public/models/<name>.glb, as the game loads and paints
+         it), standing on level ground at y = 0, so anything floating above it or sunk in it shows.
+         modeltest.html?model=cabin-homestead, then in the console:
+           T.view([x, y, z], [lookX, lookY, lookZ])              one view
+           T.sheet([[from, at], [from, at], ...], columns)       several, side by side
+           T.hide('roof')                                        parts whose names include it -->
+    <canvas id="sheet"></canvas>
+    <script type="module">
+      import * as THREE from 'three';
+      import { loadModel } from './src/models.js';
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(1);
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.shadowMap.enabled = true;
+      document.body.appendChild(renderer.domElement);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x8fa3b8);
+      scene.add(new THREE.HemisphereLight(0xeef2ff, 0x5c5446, 1.5));
+      const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+      sun.position.set(-8, 14, 10);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, near: 1, far: 50 });
+      scene.add(sun);
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x7d8f5e }));
+      ground.receiveShadow = true;
+      scene.add(ground);
+      const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.05, 300);
+      const name = new URLSearchParams(location.search).get('model') ?? 'cabin-homestead';
+      const model = await loadModel(name);
+      model.traverse((child) => (child.castShadow = child.receiveShadow = true));
+      scene.add(model);
+      const sheet = document.getElementById('sheet');
+      // (The page may have had no size yet when it loaded.)
+      const fit = () => {
+        renderer.setSize(innerWidth, innerHeight);
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+      };
+      const T = {
+        THREE, scene, model, camera, ground,
+        view(from, at) {
+          fit();
+          sheet.width = sheet.height = 0;
+          camera.position.set(...from);
+          camera.lookAt(...at);
+          renderer.render(scene, camera);
+        },
+        sheet(views, columns = 2) {
+          fit();
+          sheet.width = innerWidth;
+          sheet.height = innerHeight;
+          const g = sheet.getContext('2d');
+          const rows = Math.ceil(views.length / columns);
+          const [w, h] = [innerWidth / columns, innerHeight / rows];
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          views.forEach(([from, at], i) => {
+            camera.position.set(...from);
+            camera.lookAt(...at);
+            renderer.render(scene, camera);
+            g.drawImage(renderer.domElement, (i % columns) * w, Math.floor(i / columns) * h, w, h);
+          });
+          camera.aspect = innerWidth / innerHeight;
+          camera.updateProjectionMatrix();
+        },
+        hide(part, hidden = true) {
+          model.traverse((child) => child.name.includes(part) && (child.visible = !hidden));
+        },
+        // The lowest and highest point of each part (meters): what's off the ground, or under it.
+        parts() {
+          const out = {};
+          model.traverse((child) => {
+            if (!child.isMesh) return;
+            const box = new THREE.Box3().setFromObject(child);
+            out[child.name] = [box.min.y, box.max.y].map((v) => Math.round(v * 100) / 100);
+          });
+          return out;
+        },
+      };
+      window.T = T;
+      // (Something changing every frame, so a screenshot always has a fresh frame to take.)
+      const tick = document.createElement('div');
+      tick.style.cssText = 'position:fixed;right:0;bottom:0;width:2px;height:2px';
+      document.body.appendChild(tick);
+      let n = 0;
+      const beat = () => {
+        tick.style.background = n++ % 2 ? '#8fa3b8' : '#8fa3b9';
+        requestAnimationFrame(beat);
+      };
+      beat();
+      T.view([9, 5, 12], [0, 1.2, 0]);
+    </script>
+  </body>
+</html>
