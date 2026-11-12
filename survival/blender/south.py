@@ -1,4 +1,5 @@
-# The models for the places south of the mountains (src/layout.js, src/landmarks.js):
+# The models for the places south of the mountains (src/layout.js, src/landmarks.js; the
+# waterfall has its own script, waterfall.py):
 #   cabin-shack.glb      the fisherman's shack at the river mouth: board walls, a rusted tin
 #                        roof, an upturned rowboat beside it and a fish-drying rack behind;
 #   cabin-homestead.glb  the homestead: a small clapboard farmhouse, a half-fallen shed and a
@@ -9,8 +10,6 @@
 #                        stone chimney still standing;
 #   road-bridge.glb      the old timber road bridge over the river (deck along +z);
 #   notice-board.glb     the trailhead's notice board;
-#   waterfall.glb        the rock lip and the falling water ("waterfall-water", uv v running up
-#                        it; "waterfall-foam" on the pool), made for a 9 m drop;
 #   lookout-old.glb      the west lookout: lookout.py's tower, weathered grey with a rusted roof.
 # The cabins share the plain cabin's size and room (CABIN in src/poiModels.js: inside ±2.6 ×
 # ±2.1, walls 2.2 high, ridge 3.5; the bed, stove and table where the game's obstacles are;
@@ -526,92 +525,6 @@ for x, y in ((0.4, 1.7), (0.55, 1.3), (0.25, 1.15)):
 for s in (-1, 1):
     board.box((0, 2.3, s * 0.25), (2.3, 0.05, 0.6), c('shingle', 0.06), tilt=s * 0.5)
 export([build('notice-board', board, WOOD)], 'notice-board.glb')
-
-# =========================================================================================
-# THE WATERFALL (origin at the middle of the cliff's foot, at the pool's surface; the water
-# falls toward +z from the lip 9 m up)
-random.seed(37)
-DROP = 9.0
-rocks = Builder()
-# The lip: big blocks either side of the notch the water pours through, and slabs under it.
-for s in (-1, 1):
-    for k in range(4):
-        stone_into(rocks, (random.uniform(0.9, 1.4), random.uniform(0.6, 1.0), random.uniform(0.8, 1.2)), 500 + k + (s + 1) * 10,
-                   at=(s * (2.4 + k * 1.6), DROP - 0.5 + random.uniform(-0.2, 0.3), -0.4 + random.uniform(-0.3, 0.3)), turn=random.uniform(0, 3), mossy=True)
-for k in range(3):
-    stone_into(rocks, (0.9, 0.35, 0.8), 530 + k, at=(-1.2 + k * 1.2, DROP - 0.35, -1.0), turn=random.uniform(0, 3), mossy=False)
-# Blocks fallen at the cliff's foot either side of the water (the face itself is the land's).
-for s in (-1, 1):
-    for k in range(3):
-        stone_into(rocks, (random.uniform(0.8, 1.3), random.uniform(0.6, 1.0), 0.8), 540 + k + (s + 1) * 20,
-                   at=(s * (2.6 + k * 1.8), 0.0, 0.4 + random.uniform(-0.2, 0.3)), turn=random.uniform(0, 3), mossy=True)
-# Boulders round the pool's edge.
-for k in range(8):
-    a = math.pi * (0.1 + 0.8 * k / 7)
-    stone_into(rocks, (random.uniform(0.5, 1.0), random.uniform(0.4, 0.7), random.uniform(0.5, 0.9)), 580 + k,
-               at=(math.cos(a) * 7.5, 0.1, 6.0 - math.sin(a) * 0.5 + (k % 2) * 0.8), turn=random.uniform(0, 3), mossy=True)
-rock_object = build('waterfall-rocks', rocks, ROCK)
-
-
-def uv_mesh(name, verts, faces, uvs, colour):
-    me = bpy.data.meshes.new(name)
-    me.from_pydata([g(*v) for v in verts], [], faces)
-    uv = me.uv_layers.new(name='UVMap')
-    for p in me.polygons:
-        for li in p.loop_indices:
-            uv.data[li].uv = uvs[me.loops[li].vertex_index]
-    a = me.color_attributes.new('Col', 'FLOAT_COLOR', 'CORNER')
-    for d in a.data:
-        d.color = colour
-    me.materials.append(WATER)
-    o = bpy.data.objects.new(name, me)
-    bpy.context.scene.collection.objects.link(o)
-    return o
-
-
-WATER = material('water', 0.3)
-white = col('bone', 0)
-# The falling sheet: from the lip (a short run across the top, then over), bowing out as it falls.
-nu, nv = 6, 14
-verts, uvs = [], []
-for j in range(nv + 1):
-    t = j / nv  # 0 at the foot, 1 over the lip
-    y = DROP * t
-    out = 0.9 + 0.7 * (1 - t) ** 1.5  # bows out from the face lower down
-    half = 1.5 + 0.7 * (1 - t)  # and spreads as it falls
-    for i in range(nu + 1):
-        u = i / nu
-        verts.append(((u * 2 - 1) * half, y + 0.05, out - 0.6 * t))
-        uvs.append((u, t))
-faces = [(j * (nu + 1) + i, j * (nu + 1) + i + 1, (j + 1) * (nu + 1) + i + 1, (j + 1) * (nu + 1) + i) for j in range(nv) for i in range(nu)]
-sheet = uv_mesh('waterfall-water', verts, faces, uvs, white)
-# The stream over the shelf above, running to the lip (v rises toward the lip, like the sheet's).
-verts, uvs = [], []
-for j in range(7):
-    t = j / 6
-    z = -7 + 6.8 * t
-    for i in range(3):
-        u = i / 2
-        verts.append(((u * 2 - 1) * (1.0 + 0.4 * t), DROP + 0.12 - 0.1 * t, z))
-        uvs.append((u, 1 + t * 0.6))
-faces = [(j * 3 + i, j * 3 + i + 1, (j + 1) * 3 + i + 1, (j + 1) * 3 + i) for j in range(6) for i in range(2)]
-top = uv_mesh('waterfall-water-top', verts, faces, uvs, white)
-# The foam where it lands: a ring out across the pool (v: 0 in the middle to 1 at its edge).
-rings, sides = 4, 18
-verts, uvs = [(0, 0.06, 1.6)], [(0.5, 0)]
-for r in range(1, rings + 1):
-    for k in range(sides):
-        a = math.tau * k / sides
-        rr = 3.2 * r / rings
-        verts.append((math.cos(a) * rr, 0.06, 1.6 + math.sin(a) * rr * 0.8))
-        uvs.append((k / sides, r / rings))
-faces = [(0, 1 + (k + 1) % sides, 1 + k) for k in range(sides)]
-for r in range(rings - 1):
-    for k in range(sides):
-        a0, a1 = 1 + r * sides + k, 1 + r * sides + (k + 1) % sides
-        faces.append((a0, a1, a1 + sides, a0 + sides))
-foam = uv_mesh('waterfall-foam', verts, faces, uvs, white)
-export([rock_object, sheet, top, foam], 'waterfall.glb')
 
 # =========================================================================================
 # THE WEST LOOKOUT: lookout.py's tower, weathered: grey siding, a rusted roof.

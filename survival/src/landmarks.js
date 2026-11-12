@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { swappable } from './models.js';
 import { ammoBox, woodenCupboard } from './poiModels.js';
 import { caveEntrance, entranceRocks } from './caves.js';
+import { waterSky } from './water.js';
 
 // The fixed map's landmarks (see layout.js for where each stands), each a kind of place in
 // pois.js: the observatory, the broken footbridge over the ravine, the blizzard shelter, the
@@ -249,6 +250,7 @@ export function buildLandmark(poi, random, add, groundAt) {
     add({ userData: { open() {} } }, 'the notice board', 0, 0.6, poi.base, 'board', { standing: true, read: TRAIL_NOTE });
   } else if (poi.kind === 'falls') {
     group.add(waterfallStandIn(poi.drop ?? 9));
+    group.add(fallsMist([0, 0.3, 1.6], poi.drop ?? 9));
   } else if (poi.kind === 'den') {
     // The wolves' den: a hole under a rocky bank, with bones scattered in front of it.
     group.add(caveEntrance(random, groundAt));
@@ -277,18 +279,23 @@ function waterfallStandIn(drop) {
   return sheet;
 }
 
-// Falling water, for the waterfall's sheet ("waterfall-water", its uv's v running up it) and the
-// foam where it hits the pool ("waterfall-foam"): white streaks rushing down it (or churning
-// out across the foam), see-through between them. `fallsClock.value` is the time (see pois.js).
+// Falling water, for the waterfall's sheet ("waterfall-water", its uv's v running up it from
+// the foot to the lip), the stream sliding to the lip over the shelf above (`kind` 'top':
+// "waterfall-water-top", v from 1 at the back to 1.6 at the lip) and the foam where it hits the
+// pool ('foam': "waterfall-foam", v from 0 in the middle out to 1). The stream runs glassy and
+// teal to the lip and breaks white as it goes over; the sheet falls in separate strands, split
+// at the lip, picking up speed and tearing apart on the way down, ragged at its sides; the foam
+// boils outward from where it lands. `fallsClock.value` is the time (see pois.js).
 export const fallsClock = { value: 0 };
-export function fallingWater(foam = false) {
-  const material = new THREE.MeshStandardMaterial({ color: 0xe4eef0, roughness: 0.35, transparent: true, depthWrite: false, side: THREE.DoubleSide });
-  material.defines = { USE_UV: '', ...(foam ? { FOAM: '' } : {}) };
+export function fallingWater(kind = 'sheet') {
+  const material = new THREE.MeshStandardMaterial({ color: 0xe6eeee, roughness: 0.45, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  material.defines = { USE_UV: '', [kind === 'foam' ? 'FOAM' : kind === 'top' ? 'TOP' : 'SHEET']: '' };
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = fallsClock;
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform float uTime;
+        const vec3 GLASSY = vec3(0.2, 0.36, 0.36); // the river's pale teal, before it breaks
         float fallHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float fallNoise(vec2 p) {
           vec2 i = floor(p);
@@ -297,17 +304,90 @@ export function fallingWater(foam = false) {
           return mix(mix(fallHash(i), fallHash(i + vec2(1.0, 0.0)), f.x), mix(fallHash(i + vec2(0.0, 1.0)), fallHash(i + 1.0), f.x), f.y);
         }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
-        #ifdef FOAM
-          vec2 q = vec2(vUv.x * 9.0, vUv.y * 5.0 - uTime * 0.6);
-          float streak = fallNoise(q) * 0.6 + fallNoise(q * 2.3 + 7.0) * 0.4;
-          float edge = smoothstep(0.0, 0.25, vUv.y) * (1.0 - smoothstep(0.55, 1.0, vUv.y));
-          diffuseColor.a *= smoothstep(0.35, 0.75, streak) * edge * 0.85;
+        float edge = min(vUv.x, 1.0 - vUv.x) * 2.0; // 0 at its sides, 1 down the middle
+        #if defined(FOAM)
+          // Boiling white where the water lands, thinning to drifting flecks at its rim.
+          vec2 q = vec2(vUv.x * 18.0, vUv.y * 5.0 - uTime * 0.9);
+          float boil = fallNoise(q) * 0.55 + fallNoise(q * vec2(2.0, 2.3) + 7.0 + uTime * 0.3) * 0.45;
+          float thin = smoothstep(0.1, 1.0, vUv.y);
+          diffuseColor.a *= smoothstep(mix(0.12, 0.62, thin), mix(0.4, 0.8, thin), boil) * (1.0 - smoothstep(0.7, 1.0, vUv.y)) * 0.95;
+        #elif defined(TOP)
+          // The stream over the shelf: glassy, quickening, with white streaks gathering at the lip.
+          float toLip = clamp((vUv.y - 1.0) / 0.6, 0.0, 1.0);
+          float run = toLip * toLip * 3.0 + toLip * 2.0 - uTime * 1.3;
+          float streak = fallNoise(vec2(vUv.x * 9.0, run * 1.6)) * 0.6 + fallNoise(vec2(vUv.x * 20.0 + 3.0, run * 3.0)) * 0.4;
+          float white = smoothstep(mix(0.85, 0.35, toLip), mix(1.0, 0.65, toLip), streak);
+          diffuseColor.rgb = mix(GLASSY * (0.85 + 0.3 * streak), diffuseColor.rgb, white);
+          diffuseColor.a *= mix(0.8, 0.97, white) * smoothstep(0.0, 0.3, edge) * smoothstep(0.0, 0.15, toLip);
         #else
-          vec2 q = vec2(vUv.x * 14.0, vUv.y * 3.0 + uTime * 2.6);
-          float streak = fallNoise(q) * 0.65 + fallNoise(q * vec2(2.0, 3.1) + 3.0) * 0.35;
-          diffuseColor.rgb *= 0.82 + 0.25 * streak;
-          diffuseColor.a *= mix(0.35, 0.95, smoothstep(0.3, 0.7, streak)) * smoothstep(0.0, 0.08, vUv.x) * (1.0 - smoothstep(0.92, 1.0, vUv.x));
+          float fallen = clamp(1.0 - vUv.y, 0.0, 1.0); // 0 at the lip, 1 at the foot
+          // (Falling, it gathers speed: what it's fallen goes with the square of the time, so
+          // the streaks ride the square root of the drop and stretch out lower down.)
+          float ride = sqrt(fallen + 0.03) * 7.0 - uTime * 2.4;
+          float fine = fallNoise(vec2(vUv.x * 18.0, ride * 1.3));
+          float finer = fallNoise(vec2(vUv.x * 40.0 + 5.0, ride * 2.2 - uTime * 0.8));
+          float clump = fallNoise(vec2(vUv.x * 6.0 + 9.0, ride * 0.6));
+          float streak = fine * 0.45 + finer * 0.3 + clump * 0.25;
+          // Split into strands where the rocks at the lip part it; they sway a little as they fall.
+          float strands = fallNoise(vec2(vUv.x * 7.0 + 0.25 * sin(fallen * 5.0 - uTime * 0.6) * fallen, 3.7));
+          float strand = smoothstep(0.24, 0.42, strands);
+          // Lower down it tears into curtains, with gaps you see the rock through.
+          float torn = smoothstep(0.2, 0.5, clump + (1.0 - fallen) * 0.4);
+          // Its sides are ragged: more so the further it's fallen.
+          float sides = smoothstep(0.02, 0.2, edge + (fallNoise(vec2(ride * 1.5, vUv.x * 3.0)) - 0.5) * (0.12 + 0.4 * fallen));
+          // Glassy for a moment as it bends over the lip, then white.
+          float white = smoothstep(0.0, 0.14, fallen - 0.08 * streak);
+          diffuseColor.rgb = mix(GLASSY * 1.3, diffuseColor.rgb * (0.8 + 0.28 * streak), white);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.95), smoothstep(0.75, 1.0, fallen) * 0.6); // (lost in spray at the foot)
+          diffuseColor.a *= mix(0.5, 1.0, smoothstep(0.3, 0.62, streak)) * mix(0.12, 1.0, strand) * mix(0.3, 1.0, torn) * sides;
         #endif`);
   };
   return material;
+}
+
+// The spray hanging at the waterfall's foot: soft puffs thrown up and out from where the water
+// lands (`at`: [x, y, z]), drifting up the face and thinning away. (Drawn as points, moved by
+// their shader: nothing to update but the clock.)
+const MIST = { puffs: 56, size: 3.0, opacity: 0.16 };
+export function fallsMist(at = [0, 0.3, 1.6], drop = 9) {
+  const seeds = new Float32Array(MIST.puffs * 4).map(() => Math.random());
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MIST.puffs * 3), 3));
+  geometry.setAttribute('seed', new THREE.BufferAttribute(seeds, 4));
+  geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(...at), drop);
+  const material = new THREE.PointsMaterial({ color: 0xe9efef, size: MIST.size, transparent: true, opacity: MIST.opacity, depthWrite: false });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = fallsClock;
+    shader.uniforms.uAt = { value: new THREE.Vector3(...at) };
+    shader.uniforms.uDrop = { value: drop };
+    shader.uniforms.uSky = waterSky;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        attribute vec4 seed;
+        uniform float uTime;
+        uniform vec3 uAt;
+        uniform float uDrop;
+        varying float vPuff;`)
+      .replace('#include <begin_vertex>', `
+        float life = fract(seed.x + uTime * (0.1 + 0.08 * seed.y));
+        float around = (seed.z - 0.5) * 3.6; // (out in front of the face, and a way round to each side)
+        float out_ = 0.4 + life * (1.0 + 3.5 * seed.w);
+        vec3 transformed = uAt + vec3(sin(around) * out_ * 1.2 + (seed.y - 0.5) * 2.0, life * uDrop * (0.12 + 0.38 * seed.w * seed.z), cos(around) * out_);
+        vPuff = sin(3.14159 * sqrt(life)) * (0.5 + 0.5 * seed.y);`)
+      .replace('gl_PointSize = size;', 'gl_PointSize = size * (0.5 + 1.1 * life);');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform vec3 uSky;
+        varying float vPuff;`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        // (It has no light of its own: bright by day, dim at dusk, all but gone at night.)
+        float daylight = clamp(dot(uSky, vec3(0.75)), 0.06, 1.0);
+        diffuseColor.rgb *= mix(vec3(daylight), clamp(uSky * 2.0, 0.0, 1.0), 0.35);
+        diffuseColor.a *= vPuff * smoothstep(0.5, 0.05, length(gl_PointCoord - 0.5));`);
+  };
+  const mist = new THREE.Points(geometry, material);
+  mist.name = 'waterfall-mist';
+  mist.userData.keep = true; // (stays when the model takes the stand-in's place: see pois.js)
+  mist.renderOrder = 2; // (over the falling water and the pool)
+  return mist;
 }
