@@ -141,11 +141,12 @@ A few birds fly over by day. The north is quiet: you hear the wind (louder up th
 and, now and then by day, a bird of the boreal winter (a junco's "tsip", chickadees, a raven's
 croak); owls and wolves far
 off at night; deer walking, bleating, and snorting as they bolt from you; the river running (a
-lake is still and quiet); a blizzard's howl (muffled once you're indoors); rustling and
-snapping twigs as you push through trees and bushes; a campfire's crackle, and dripping and bats
-down a cave. Toward the coast you hear the sea's roar (muffled from far inland), and down on the
-shore, waves breaking on the shingle and the wind off the open water. (You can't drink the sea,
-or fill the flask from it: it's salt.) Your footsteps sound like what's
+lake is still and quiet); a blizzard's howl (muffled once you're indoors, the roof rattling over
+you); trees creaking and the odd branch coming down in a strong wind; your teeth chattering when
+you're freezing; rustling and snapping twigs as you push through trees and bushes; a campfire's
+crackle, and dripping and bats down a cave. Toward the coast you hear the sea's roar (muffled
+from far inland), and down on the shore, waves breaking on the shingle and the wind off the open
+water. (You can't drink the sea, or fill the flask from it: it's salt.) Your footsteps sound like what's
 underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things you do have a
 sound: chopping and trees crashing down, the bow, arrows landing, eating, drinking, cooking,
 searching, bandaging, lighting a fire, and you'll hear it when you're hurt. Every sound is a real
