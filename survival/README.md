@@ -180,7 +180,8 @@ Once you've searched something, the menu opens with it at the top of the "On the
 showing what's inside: drag a thing onto a slot to take it there, click it to take it all, or
 Take all. Whatever you leave stays in it; E at something you've already searched opens it in the
 menu again straight away.
-Select a bandage and click and hold to bandage yourself up (+30 health); craft more from a hide
+Select a bandage and click and hold to bandage yourself up (+30 health): in first person you wind it round your
+left forearm, the turns building up as you go; craft more from a hide
 (2 bandages each). Eating also takes a moment: click and hold. Keep the lighter (or matches, one used
 each time): you need it to light fires and torches. Save the flare for signalling a rescue (coming later).
 

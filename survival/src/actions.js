@@ -472,7 +472,10 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       } else {
         const done = holdToUse(BANDAGE_TIME);
         prompt = usingNow ? 'Bandaging…' : `Click and hold to use a bandage (+${BANDAGE_HEALING} health)`;
-        if (usingNow) busy = 'bandage';
+        if (usingNow) {
+          busy = 'bandage';
+          busyProgress = progress;
+        }
         if (done) {
           inventory.remove('bandage', 1);
           survival.eat(0, BANDAGE_HEALING);
@@ -572,7 +575,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       prompt = axeTarget ? `Click to swing at the ${axeTarget.kind}` : 'Axe · click to swing it · hold at a tree to chop';
     } else if (!fire && held === 'knife') {
       const knife = inventory.slots[inventory.selected];
-      prompt = `Stone knife ${knife.durability}/${ITEMS.knife.durability} · click to stab`;
+      prompt = `Stone knife ${knife.durability}/${ITEMS.knife.durability} · click to slash`;
     } else if (!fire && bush) {
       const hours = Math.ceil(regrowLeft(bush, now) / 60);
       prompt = `This bush has been picked · berries again in about ${hours} h`;
@@ -617,19 +620,20 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       } else sfx('swing');
     }
 
-    // Stone knife (#75): click or hold to stab whatever's right in front of you. Only stabs
+    // Stone knife (#75): click or hold to slash whatever's right in front of you. Only slashes
     // that land wear it down. Works next to a carcass or bush too.
     if (held === 'knife' && !clickUsed && !sapling && (input.usingTool() || input.startedUsingTool()) && knifeReady === 0 && !player.swimming && !player.airborne) {
       knifeReady = KNIFE_COOLDOWN;
       player.stab();
-      sfx('stab');
       const target = offGround ? null : knifeHitTest(x, z, player.facing, animals.all);
+      // (The wet sound only when it lands; through thin air, a whoosh.)
+      sfx(target ? 'stab' : 'swing', target?.position);
       if (target) {
         const knife = inventory.slots[inventory.selected];
         if (hitAnimal(target, 'knife')) {
           animals.kill(target);
           hud.toast(`You killed a ${target.kind}! Butcher it with your knife (hold E)`);
-        } else hud.toast(`You stab the ${target.kind}`);
+        } else hud.toast(`You slash the ${target.kind}`);
         knife.durability -= 1;
         if (knife.durability <= 0) {
           inventory.slots[inventory.selected] = null;

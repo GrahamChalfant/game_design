@@ -47,7 +47,7 @@ const CLIFF = THREE.MathUtils.degToRad(60);
 const SAFE_FALL = 3; // meters you can drop without getting hurt
 const FALL_DAMAGE = 9; // health lost per meter dropped beyond that
 const KNIFE_GRIP_OFFSET = 0.01; // nudge so the middle of knife.glb's handle (1 cm below its origin) sits in the fist
-const STAB_TIME = 0.32; // seconds a knife jab lasts: a quick thrust, then the arm comes back
+const STAB_TIME = 0.4; // seconds a knife slash lasts: drawn back, cut across, and the arm comes back
 const STAB_THRUST = 0.3;
 export const SIP_TIME = 1.1; // seconds a drink from the flask takes
 export const REACH_TIME = 0.55; // seconds a reach for something takes (picking it up, putting it down)
@@ -123,7 +123,8 @@ export class Player {
     this.knife.visible = false;
     this.object.add(this.knife);
     this.stabTime = 0; // counts down after a stab, to jab the knife forward
-    this.jab = 0; // how far out the arm is in that jab (0–1)
+    this.jab = 0; // how far out the arm is in that slash (0–1)
+    this.slash = 0; // how far through the slash (0–1; 0 when not slashing)
     this.swingTime = 0; // counts down through one axe swing at an animal
     this.busy = null; // what the hands are doing: 'search', 'searchLow', 'eat', 'bandage', 'butcher', 'draw', 'lightFire', 'lightTorch' or null
     this.busyWith = null; // lighting: what with ('lighter', 'matches', or 'fire' for a torch held to one)
@@ -336,8 +337,11 @@ export class Player {
         arm(-1, [-0.2, -0.7, 0.65 + saw * 0.4], [-0.05, -0.75, 0.6 + saw]);
       }
     }
-    // A knife jab: the right arm punches straight out in front.
-    if (this.jab > 0 && !(w > 0.5)) arm(-1, [-0.12, -0.2, 1], [-0.02, -0.05, 1], this.jab);
+    // A knife slash: the right arm out in front, sweeping across from right to left.
+    if (this.jab > 0 && !(w > 0.5)) {
+      const across = Math.max(-1, Math.min(1, ((this.slash - 0.28) / 0.3) * 2 - 1)); // (-1 drawn back, 1 cut through)
+      arm(-1, [-0.12 + across * 0.3, 0.05 - across * 0.25, 0.95], [-0.02 + across * 0.55, 0.15 - across * 0.35, 0.9], this.jab);
+    }
     // Holding a torch: the elbow bent at 90 degrees, the forearm out in front, flame upright.
     if (this.torch.visible && !(w > 0.5 && this.pose !== 'eat')) {
       arm(-1, [-0.12, -1, 0.12], [-0.05, 0.02, 1], 1 - w);
@@ -413,7 +417,7 @@ export class Player {
     return falls;
   }
 
-  // A quick forward jab of the knife (no stab animation in player.glb, so poseArms thrusts the arm).
+  // A quick slash of the knife (no knife animation in player.glb, so poseArms sweeps the arm).
   stab() {
     this.stabTime = STAB_TIME;
   }
@@ -441,6 +445,7 @@ export class Player {
     this.landTime = Math.max(0, this.landTime - dt);
     // How far out the arm is in a jab: shoots out fast, comes back slower (0 → 1 → 0).
     const p = 1 - this.stabTime / STAB_TIME;
+    this.slash = this.stabTime === 0 ? 0 : p;
     this.jab = this.stabTime === 0 ? 0 : p < STAB_THRUST ? 1 - (1 - p / STAB_THRUST) ** 2 : 1 - ((p - STAB_THRUST) / (1 - STAB_THRUST)) ** 2;
     // The blade stays pointing out past the knuckles: thrust out (see poseArms), it points straight ahead.
     this.knife.rotation.x = Math.PI / 2;
