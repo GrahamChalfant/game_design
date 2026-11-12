@@ -28,6 +28,13 @@ const WATER_CHILL_PER_HOUR = 28; // submerged in water
 const NIGHT_CHILL_PER_HOUR = 12; // outdoors at night with no fire or shelter
 const OUTDOOR_WARMING_PER_HOUR = 5; // daytime outdoors drifts toward DAY_TEMPERATURE at this rate
 const DAY_TEMPERATURE = 60; // outdoor warming never goes above this
+// Out in a blizzard (src/weather.js) by day, the most the day warms you is cut by this share
+// (60 → 30), and you cool toward it this many times as fast. A fire or a shelter (or a cave)
+// still keeps you warm. BLIZZARD_NIGHT_CHILL: how much colder a blizzard makes the night, on
+// top of NIGHT_CHILL_PER_HOUR (0: no colder, for now).
+const BLIZZARD_DAY_CUT = 0.5;
+const BLIZZARD_COOLING = 2;
+const BLIZZARD_NIGHT_CHILL = 0;
 const WET_HOURS = 1; // after leaving the water you're Wet this long...
 const WET_WARMING_PER_HOUR = 5; // ...and can only warm this fast
 const SHELTER_WARMING_PER_HOUR = 15;
@@ -53,8 +60,9 @@ const COSY = 80; // healing needs this temperature (a shelter or a fire gets you
 const COSY_HOURS = 1; // ...held for this many in-game hours in a row
 
 // One step of the temperature model. Pure, so it can be simulated outside the game.
-// state: { temperature, wetHours }; env: { submerged, fire, shelter, night, cold (0–1), outfit }.
-export function stepTemperature(state, { submerged, fire, shelter, night, cold = 0, outfit = null }, hours) {
+// state: { temperature, wetHours }; env: { submerged, fire, shelter, night, cold (0–1), outfit,
+// storm (0–1: how much of a blizzard you're out in) }.
+export function stepTemperature(state, { submerged, fire, shelter, night, cold = 0, outfit = null, storm = 0 }, hours) {
   const warmth = OUTFIT_WARMTH[outfit ?? 'shirt'];
   let t = state.temperature;
   let wetHours = state.wetHours;
@@ -65,13 +73,13 @@ export function stepTemperature(state, { submerged, fire, shelter, night, cold =
     let rate, max;
     if (fire) [rate, max] = [FIRE_WARMING_PER_HOUR, FIRE_MAX];
     else if (shelter) [rate, max] = [SHELTER_WARMING_PER_HOUR, SHELTER_MAX];
-    else if (night) [rate, max] = [-NIGHT_CHILL_PER_HOUR * warmth.nightChill, 100];
-    else [rate, max] = [OUTDOOR_WARMING_PER_HOUR, warmth.day];
+    else if (night) [rate, max] = [-NIGHT_CHILL_PER_HOUR * warmth.nightChill * (1 + BLIZZARD_NIGHT_CHILL * storm), 100];
+    else [rate, max] = [OUTDOOR_WARMING_PER_HOUR, warmth.day * (1 - BLIZZARD_DAY_CUT * storm)];
     if (!fire && !shelter) rate -= MOUNTAIN_CHILL_PER_HOUR * cold * warmth.mountainChill;
     if (wetHours > 0) rate = Math.min(rate, WET_WARMING_PER_HOUR);
     if (rate > 0) {
       if (t < max) t = Math.min(max, t + rate * hours); // a source never pushes you past its cap
-      else if (!fire && !shelter) t = Math.max(max, t - OUTDOOR_WARMING_PER_HOUR * hours); // daytime drifts down to the day's warmth
+      else if (!fire && !shelter) t = Math.max(max, t - OUTDOOR_WARMING_PER_HOUR * (1 + (BLIZZARD_COOLING - 1) * storm) * hours); // daytime drifts down to the day's warmth
     } else t += rate * hours;
     wetHours = Math.max(0, wetHours - hours);
   }
@@ -95,7 +103,7 @@ export class Survival {
   }
 
   // `speed` makes time pass faster for testing (see README).
-  update(dt, { drinking, working, fire, shelter, wet, cold, outfit }, speed = 1) {
+  update(dt, { drinking, working, fire, shelter, wet, cold, outfit, storm }, speed = 1) {
     if (!this.alive) return;
     const minutes = dt * this.clockSpeed * speed;
     const hours = minutes / 60;
@@ -105,7 +113,7 @@ export class Survival {
     this.thirst = clamp(this.thirst - THIRST_PER_HOUR * hours);
     if (drinking) this.thirst = clamp(this.thirst + DRINK_PER_SECOND * dt * speed);
 
-    const next = stepTemperature(this, { submerged: wet, fire, shelter, night: isNight(this.hourOfDay), cold, outfit }, hours);
+    const next = stepTemperature(this, { submerged: wet, fire, shelter, night: isNight(this.hourOfDay), cold, outfit, storm }, hours);
     this.temperature = next.temperature;
     this.wetHours = next.wetHours;
     this.cosyHours = this.temperature >= COSY ? this.cosyHours + hours : 0;

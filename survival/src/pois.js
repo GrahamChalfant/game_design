@@ -6,9 +6,10 @@ import { loadModel } from './models.js';
 import { CABIN, CAMP, LEAN_TO, STAND, TRUCK, barrel, cabin, campsite, huntingStand, leanTo, rustedTruck } from './poiModels.js';
 import { ENTRANCE, buildUnderground, caveEntrance, entranceRocks } from './caves.js';
 import {
-  DEN, DOCK as DOCK_SPOT, FARM, LAKE, LAKE_CABIN, OBSERVATORY as OBSERVATORY_SPOT, RAVINE, RAVINE_CROSSING, SHELTER, STAND as STAND_SPOT, ravineAt, trailAt,
+  BURNT_CABIN, DEN, DOCK as DOCK_SPOT, FALLS, FARM, HILLS, HOMESTEAD, HUNTER_CABIN, LAKE, LAKE_CABIN, OBSERVATORY as OBSERVATORY_SPOT, RAVINE, RAVINE_CROSSING,
+  ROADS, ROAD_BRIDGE, SHACK, SHELTER, STAND as STAND_SPOT, TRAILHEAD, ravineAt, trailAt,
 } from './layout.js';
-import { BRIDGE, LANDMARKS, OBSERVATORY, buildLandmark, isLandmark, landmarkFloor, landmarkObstacles, landmarkRoofed } from './landmarks.js';
+import { BRIDGE, CABIN_STYLES, LANDMARKS, fallingWater, fallsClock, OBSERVATORY, ROAD_BRIDGE as ROAD_BRIDGE_SIZE, buildLandmark, isLandmark, landmarkFloor, landmarkObstacles, landmarkRoofed } from './landmarks.js';
 
 // Places to find around the map, so there's something to explore between the woods and
 // meadows: abandoned log cabins, caves in the hillsides, and hunters' stands at the edges of
@@ -65,6 +66,18 @@ const LOOT = {
   truck: [
     ['bandage', [2, 3], 2], ['flare', [1, 1], 1], ['lighter', [1, 1], 1], ['matches', [3, 8], 1], ['map', [1, 1], 0.8], ['torch', [1, 2], 1], ['rope', [1, 2], 1],
   ],
+  // The fisherman's shack: odds and ends for getting by on the shore.
+  shack: [
+    ['rope', [1, 3], 3], ['matches', [2, 6], 2.5], ['bandage', [1, 2], 2], ['knife', [1, 1], 0.8], ['torch', [1, 1], 1.5], ['cookedMeat', [1, 2], 1], ['flask', [1, 1], 0.5],
+  ],
+  // The hunter's cabin: his gear.
+  hunter: [
+    ['arrow', [3, 8], 4], ['trap', [1, 2], 2.5], ['hide', [1, 3], 2], ['cookedMeat', [2, 4], 2.5], ['rope', [1, 2], 1.5],
+    ['bow', [1, 1], 0.8], ['knife', [1, 1], 0.8], ['gut', [1, 2], 1], ['matches', [2, 5], 1],
+  ],
+  // The tin box under the burnt cabin's floor.
+  board: [], // (nothing to take: just something to read)
+  ruin: [['matches', [2, 5], 2], ['lighter', [1, 1], 1], ['bandage', [1, 2], 1.5], ['map', [1, 1], 0.6], ['flask', [1, 1], 0.6]],
   stand: [
     ['arrow', [3, 6], 4], ['cookedMeat', [1, 2], 2], ['rope', [1, 2], 1.5], ['bandage', [1, 2], 1],
     ['bow', [1, 1], 0.5], ['torch', [1, 1], 1], ['matches', [2, 5], 1],
@@ -72,7 +85,15 @@ const LOOT = {
 };
 // How many different things each container holds: [fewest, most]. A stand's ammo box is
 // sometimes empty.
-const ROLLS = { observatory: [2, 4], hut: [2, 3], cupboard: [2, 3], chest: [1, 3], stash: [2, 3], ammo: [0, 2], deepCave: [2, 4], camp: [0, 2], trapper: [2, 3], truck: [1, 3] };
+const ROLLS = { observatory: [2, 4], hut: [2, 3], cupboard: [2, 3], chest: [1, 3], stash: [2, 3], ammo: [0, 2], deepCave: [2, 4], camp: [0, 2], trapper: [2, 3], truck: [1, 3], ruin: [1, 2], small: [1, 2], board: [0, 0] };
+// The cabins that aren't plain log cabins (see CABIN_STYLES in landmarks.js for their models and
+// what stands round them): what's in the cupboard and the chest ([table, rolls] each), and the
+// chance of an axe in the chest.
+const STYLE_LOOT = {
+  shack: { cupboard: ['shack', 'small'], chest: ['shack', 'small'], axe: 0 },
+  homestead: { cupboard: ['cabin', 'cupboard'], chest: ['cabin', 'stash'], axe: 0.6 },
+  hunter: { cupboard: ['hunter', 'cupboard'], chest: ['hunter', 'chest'], axe: 0.3 },
+};
 
 // ---------------------------------------------------------------------------------------
 // Choosing where they go (before trees and rocks, so those keep clear).
@@ -104,15 +125,66 @@ const PLACES = [
   ...FARM.houses.map((h) => ({ kind: 'cabin', ...h })),
   { kind: 'barn', ...FARM.barn },
   { kind: 'truck', x: FARM.barn.x + 0.4, z: FARM.barn.z, heading: FARM.barn.heading, pickup: true },
+  // South of the mountains (see layout.js): the fisherman's shack at the river mouth, the old
+  // road bridge over the river, the homestead, the hunter's cabin under the Bluff, the burnt
+  // cabin, the car at the trailhead and its notice board, the waterfall with a grotto beside
+  // it, and a cave at the foot of the Bluff's cliff.
+  { kind: 'cabin', style: 'shack', ...SHACK },
+  { kind: 'roadbridge', ...ROAD_BRIDGE },
+  { kind: 'cabin', style: 'homestead', ...HOMESTEAD },
+  { kind: 'cabin', style: 'hunter', ...HUNTER_CABIN },
+  { kind: 'ruin', ...BURNT_CABIN },
+  { kind: 'truck', ...TRAILHEAD },
+  { kind: 'board', x: TRAILHEAD.x + 4.5 * Math.cos(TRAILHEAD.heading), z: TRAILHEAD.z - 4.5 * Math.sin(TRAILHEAD.heading), heading: TRAILHEAD.heading },
+  { kind: 'falls', ...FALLS },
+  // (These two face out from the rock, whichever way the ground at their mouths dips.)
+  { kind: 'cave', ...offFalls(10, 5.5), facing: FALLS.heading },
+  { kind: 'cave', ...belowCliff(HILLS[1], 3), facing: HILLS[1].cliff.facing },
 ];
+
+// (x, z) `side` meters across the waterfall's foot and `out` meters out from it.
+function offFalls(side, out) {
+  const [s, c] = [Math.sin(FALLS.heading), Math.cos(FALLS.heading)];
+  return { x: FALLS.x + side * c + out * s, z: FALLS.z - side * s + out * c };
+}
+// Just out from the foot of a hill's cliff.
+function belowCliff(hill, out) {
+  const { foot, facing } = hill.cliff;
+  return { x: hill.x + Math.sin(facing) * (foot + out), z: hill.z + Math.cos(facing) * (foot + out) };
+}
+// Which way the county road runs at (x, z), as atan2(dx, dz) (for the bridge).
+function roadHeading(x, z) {
+  const points = ROADS.county.points;
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 1; i < points.length; i++) {
+    const [a, b] = [points[i - 1], points[i]];
+    const d = Math.hypot((a.x + b.x) / 2 - x, (a.z + b.z) / 2 - z);
+    if (d < bestD) [best, bestD] = [Math.atan2(b.x - a.x, b.z - a.z), d];
+  }
+  return best;
+}
 
 export function placePois(terrain) {
   const heightsAround = (x, z, r) =>
     [[0, 0], [r, r], [r, -r], [-r, r], [-r, -r], [r, 0], [-r, 0], [0, r], [0, -r]].map(([dx, dz]) => terrain.heightAt(x + dx, z + dz));
-  return PLACES.map(({ kind, x, z, heading = 0, pickup }, i) => {
+  return PLACES.map(({ kind, x, z, heading = 0, pickup, style, facing }, i) => {
     let base;
     let rim;
-    if (kind === 'bridge') {
+    let drop;
+    if (kind === 'roadbridge') {
+      // Along the road, its deck level with the banks at either end.
+      heading = roadHeading(x, z);
+      const end = ROAD_BRIDGE_SIZE.length + 0.5;
+      base = Math.max(...[-1, 1].map((side) => terrain.heightAt(x + Math.sin(heading) * side * end, z + Math.cos(heading) * side * end))) + 0.05;
+    } else if (kind === 'falls') {
+      // From the rock step's lip down to the pool's surface.
+      const [s, c] = [Math.sin(heading), Math.cos(heading)];
+      const top = terrain.heightAt(x - s * 3, z - c * 3);
+      const level = terrain.waterLevelAt(x + s * FALLS.pool * 0.75, z + c * FALLS.pool * 0.75);
+      base = Number.isFinite(level) ? level : terrain.heightAt(x + s * 2, z + c * 2);
+      drop = top - base;
+    } else if (kind === 'bridge') {
       // Over the ravine where it actually cuts the trail (it wanders): find where the trail's
       // bed drops away into it on either side, put the bridge midway, and its rope barriers at
       // the rims. Its ends rest on the trail's bed either side.
@@ -139,14 +211,14 @@ export function placePois(terrain) {
     } else if (kind === 'cave') {
       // The mouth faces downhill; the back is dug into the slope.
       const { dx, dz } = gradient(terrain, x, z);
-      heading = Math.atan2(-dx, -dz);
+      heading = facing ?? Math.atan2(-dx, -dz);
       base = terrain.heightAt(x, z);
     } else if (kind === 'stand') {
       base = Math.min(...heightsAround(x, z, 1.1)) - 0.05;
     } else {
       base = terrain.heightAt(x, z);
     }
-    return { kind, x, z, heading, base, seed: 1000 + i * 7919, pickup, rim };
+    return { kind, x, z, heading, base, seed: 1000 + i * 7919, pickup, rim, style, drop };
   });
 }
 
@@ -214,6 +286,8 @@ export function poiObstacles(poi) {
       at(-2.15, -1.55, 0.4), at(-1.4, -1.55, 0.4), at(-0.65, -1.55, 0.4),
       at(2.0, -1.55, 0.42), at(1.3, 0.6, 0.55), at(-2.3, 0.55, 0.45), at(-1.75, 1.55, 0.45),
       at(W + wall + 0.7, D - 0.4, 0.35), // the rain barrel outside
+      // What stands round the shack, the homestead and the hunter's cabin.
+      ...(CABIN_STYLES[poi.style]?.outside ?? []).map(([x, z, radius]) => at(x, z, radius)),
     ];
   }
   if (poi.kind === 'cave') {
@@ -302,7 +376,7 @@ const MODELS = {
 };
 const loading = new Map();
 function useModel(place, model) {
-  const name = MODELS[place.poi.kind];
+  const name = CABIN_STYLES[place.poi.style]?.model ?? MODELS[place.poi.kind];
   if (!name) return;
   if (!loading.has(name)) loading.set(name, loadModel(name));
   loading.get(name).then((glb) => {
@@ -315,7 +389,14 @@ function useModel(place, model) {
       child.castShadow = child.receiveShadow = true;
       // A stand without a canopy.
       if (/roof/.test(child.name) && place.poi.kind === 'stand' && !model.userData.canopy) child.visible = false;
+      // The waterfall's water, moving.
+      if (/^waterfall-(water|foam)/.test(child.name)) {
+        child.material = fallingWater(/foam/.test(child.name));
+        child.castShadow = child.receiveShadow = false;
+      }
     });
+    // (The waterfall's model is made for its usual drop: stretched to fit this one.)
+    if (place.poi.kind === 'falls' && place.poi.drop) copy.scale.y = place.poi.drop / FALLS.drop;
     model.add(copy);
     if (place.poi.kind === 'cabin') model.add(roofBoards());
     place.cutaway.refresh();
@@ -358,10 +439,11 @@ export function buildPois(scene, world) {
     let underground = null;
     if (poi.kind === 'cabin') {
       model = cabin(random);
-      add(model.userData.cupboard, 'the cupboard', -2.3, 0.55, poi.base, ROLLS.cupboard, 'cabin', { standing: true });
-      add(model.userData.chest, 'the old chest', -1.75, 1.55, poi.base, ROLLS.chest, 'cabin');
+      const style = STYLE_LOOT[poi.style] ?? { cupboard: ['cabin', 'cupboard'], chest: ['cabin', 'chest'], axe: AXE_CHANCE };
+      add(model.userData.cupboard, 'the cupboard', -2.3, 0.55, poi.base, ROLLS[style.cupboard[1]], style.cupboard[0], { standing: true });
+      add(model.userData.chest, 'the old chest', -1.75, 1.55, poi.base, ROLLS[style.chest[1]], style.chest[0]);
       // One cabin in four has an axe in its chest: the only way to get one.
-      if (createRandom(poi.seed + 7).next() < AXE_CHANCE) containers.at(-1).loot.push(['axe', 1]);
+      if (createRandom(poi.seed + 7).next() < style.axe) containers.at(-1).loot.push(['axe', 1]);
       const rain = barrel();
       rain.userData.keep = true;
       rain.position.set(CABIN.halfWidth + CABIN.wall + 0.7, groundY(world, poi, 3.45, 1.7), CABIN.halfDepth - 0.4);
@@ -423,6 +505,7 @@ export function buildPois(scene, world) {
     // `cave` is the cave you're down in, if any: only it is drawn then.
     update(dt, camera, feet, position, range = SHOW_DISTANCE, cave = null) {
       let found = null;
+      fallsClock.value += dt;
       for (const place of all) {
         if (place.underground) {
           place.underground.group.visible = place.underground === cave;

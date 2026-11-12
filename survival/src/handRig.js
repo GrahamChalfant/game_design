@@ -21,7 +21,7 @@ export const GRIPS = {
   // Round the bow's grip, as an archer holds it: the riser pressed into the heel of the thumb, the
   // fingers curled loosely round the front of it (not clenched: a tight fist twists the bow), the
   // thumb along the near side, pointing ahead.
-  bow: { index: [0.95, 1.2, 0.7], middle: [1.05, 1.3, 0.75], ring: [1.1, 1.35, 0.8], pinky: [1.2, 1.4, 0.85], thumb: [0.55, 0.35, 0.45, 0.35] },
+  bow: { index: [0.95, 1.2, 0.7], middle: [1.05, 1.3, 0.75], ring: [1.1, 1.35, 0.8], pinky: [1.2, 1.4, 0.85], thumb: [0.4, 0.15, 0.3, 0.25] },
   // Round the lighter: the fingers wrapped round its body, the thumb up on the wheel.
   lighter: { ...all([1.2, 1.5, 0.95]), thumb: [0.35, -0.1, 0.35, 0.3] },
   // A match between the thumb and the tip of the index finger, the others tucked away.
@@ -35,7 +35,7 @@ export const GRIPS = {
   // Cupped to scoop water: the fingers together and only a little bent, the thumb alongside.
   scoop: { ...all([0.2, 0.25, 0.15]), pinky: [0.25, 0.3, 0.2], thumb: [0.15, -0.05, 0.05, 0.05] },
   // Three fingers hooked round the bow string, the little finger and thumb tucked in.
-  string: { index: [0.3, 1.35, 0.6], middle: [0.3, 1.4, 0.65], ring: [0.35, 1.35, 0.6], pinky: [1.2, 1.4, 0.9], thumb: [0.5, 0.6, 0.7, 0.5] },
+  string: { index: [0.3, 1.35, 0.6], middle: [0.3, 1.4, 0.65], ring: [0.35, 1.35, 0.6], pinky: [1.2, 1.4, 0.9], thumb: [1.0, 0.4, 0.8, 0.6] },
   // Rummaging: fingers half-bent, reaching.
   claw: { ...all([0.55, 0.85, 0.55]), thumb: [0.2, 0.2, 0.4, 0.4] },
 };

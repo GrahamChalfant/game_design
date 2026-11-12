@@ -1,11 +1,15 @@
 import * as THREE from 'three';
+
+const { clamp } = THREE.MathUtils;
 import { swappable } from './models.js';
-import { FARM } from './layout.js';
+import { FARM, ROADS, ROAD_BRIDGE } from './layout.js';
 
 // The roads: the old fire road, a dirt track from the lookout tower out to the map's east edge,
 // long abandoned (trees keep off it, but it's ruined in places: fallen trees lie across it, a
-// rusted truck was left on it, and a gate at the tower end hangs open); and the farm's dirt
-// road north off the map.
+// rusted truck was left on it, and a gate at the tower end hangs open); the old county road in
+// off the west edge, past the homestead and over the river to the tower, with a jeep track off
+// it north to the trailhead and a spur off the fire road to the hunter's cabin; a couple of
+// footpaths; and the farm's dirt road north off the map. (See ROADS in layout.js.)
 export const ROAD_WIDTH = 4;
 const STEP = 5; // meters per step when finding the way
 const LOGS_ACROSS = 3;
@@ -13,9 +17,9 @@ const LOGS_ACROSS = 3;
 // half-length, plus half the road, plus a little.
 export const KEEP_CLEAR = { cabin: 6, stand: 4.5, camp: 5, leanto: 5, cave: 5 };
 
-// Works out where the road goes. Returns { paths: [[{x, z}]], trucks: [poi], stops }.
-// The fixed map's roads: the old fire road from the tower out to the map's east edge (where it
-// once came in from), with an old truck left by it, and the farm's dirt road north off the map.
+// Works out where the roads go. Returns { paths: [[{x, z}]], trucks: [poi], stops, signs }:
+// each path may have its own `width` and be a footpath (`foot`); `signs` are where signposts
+// stand (junctions and road ends).
 export function fixedRoads(terrain, lookout, pois) {
   const blocked = pois.map((p) => ({ x: p.x, z: p.z, r: KEEP_CLEAR[p.kind] ?? 4 }));
   const start = { x: lookout.x + 9 * Math.cos(lookout.heading), z: lookout.z - 9 * Math.sin(lookout.heading) };
@@ -27,7 +31,20 @@ export function fixedRoads(terrain, lookout, pois) {
     for (let k = 0; k < steps; k++) farmRoad.push({ x: a.x + ((b.x - a.x) * k) / steps, z: a.z + ((b.z - a.z) * k) / steps });
   }
   farmRoad.push(FARM.road.at(-1));
-  const paths = [fireRoad, smooth(farmRoad)];
+  const laid = (road) => {
+    // (Its corners rounded off, then a point every few meters.)
+    const round = smooth(smooth(road.points));
+    const path = round.flatMap((b, i) => {
+      if (i === 0) return [b];
+      const a = round[i - 1];
+      const steps = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / STEP);
+      return Array.from({ length: steps }, (_, k) => ({ x: a.x + ((b.x - a.x) * (k + 1)) / steps, z: a.z + ((b.z - a.z) * (k + 1)) / steps }));
+    });
+    path.width = road.width;
+    path.foot = Boolean(road.foot);
+    return path;
+  };
+  const paths = [fireRoad, smooth(farmRoad), ...Object.values(ROADS).map(laid)];
   // The truck, half off the fire road partway along.
   const trucks = [];
   if (fireRoad.length > 12) {
@@ -40,7 +57,19 @@ export function fixedRoads(terrain, lookout, pois) {
     const z = a.z + (dx / d) * 1.3;
     trucks.push({ kind: 'truck', x, z, heading: Math.atan2(dx, dz) + 0.2, base: terrain.heightAt(x, z), seed: 424242 });
   }
-  return { paths, trucks, stops: [start, FIRE_ROAD_END] };
+  // Signposts: at the fire road's far end, where the tracks leave the roads, and at the
+  // trailhead.
+  // (Beside the track, `along` meters from its start: from its end if negative.)
+  const beside = (path, along) => {
+    const k = clamp(Math.round((along < 0 ? path.length - 1 + along / 2.5 : along / 2.5)), 1, path.length - 1);
+    const [a, b] = [path[k - 1], path[k]];
+    const d = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    const out = path.width / 2 + 1.2;
+    return { x: b.x - ((b.z - a.z) / d) * out, z: b.z + ((b.x - a.x) / d) * out };
+  };
+  const [jeep, spur] = [paths[2 + Object.keys(ROADS).indexOf('jeep')], paths[2 + Object.keys(ROADS).indexOf('spur')]];
+  const signs = [{ x: FIRE_ROAD_END.x + 2.6, z: FIRE_ROAD_END.z + 1 }, beside(jeep, 9), beside(spur, 9), beside(jeep, -4)];
+  return { paths, trucks, stops: [start, FIRE_ROAD_END], signs };
 }
 const FIRE_ROAD_END = { x: 1010, z: -330 };
 
@@ -91,14 +120,17 @@ function smooth(points) {
   return out;
 }
 
-// Points every `spacing` meters along the roads (for keeping trees off them).
+// Points every `spacing` meters along the roads (for keeping trees off them), each with half
+// its road's width and whether that's a footpath.
 export function alongRoads(paths, spacing) {
   const out = [];
   for (const path of paths) {
+    const half = (path.width ?? ROAD_WIDTH) / 2;
+    const foot = Boolean(path.foot);
     for (let i = 1; i < path.length; i++) {
       const [a, b] = [path[i - 1], path[i]];
       const d = Math.hypot(b.x - a.x, b.z - a.z);
-      for (let t = 0; t < d; t += spacing) out.push({ x: a.x + ((b.x - a.x) * t) / d, z: a.z + ((b.z - a.z) * t) / d });
+      for (let t = 0; t < d; t += spacing) out.push({ x: a.x + ((b.x - a.x) * t) / d, z: a.z + ((b.z - a.z) * t) / d, half, foot });
     }
   }
   return out;
@@ -106,16 +138,18 @@ export function alongRoads(paths, spacing) {
 
 // Lays a few fallen trees across the road (with `addLog` from details.js), and puts up the
 // gate and the old signs.
-export function ruinRoads(scene, random, terrain, { paths, stops }, addLog, obstacles) {
-  for (let i = 0; i < LOGS_ACROSS && paths.length; i++) {
-    const path = random.pick(paths);
+export function ruinRoads(scene, random, terrain, { paths, signs }, addLog, obstacles) {
+  const wide = paths.filter((path) => !path.foot);
+  for (let i = 0; i < LOGS_ACROSS * 2 && wide.length; i++) {
+    const path = random.pick(wide);
     if (path.length < 10) continue;
     const k = Math.floor(random.range(0.2, 0.8) * (path.length - 1));
     const [a, b] = [path[k], path[k + 1]];
+    if (Math.hypot(a.x - ROAD_BRIDGE.x, a.z - ROAD_BRIDGE.z) < 20 || terrain.nearWater(a.x, a.z, 2)) continue; // (not on or by the bridge)
     const along = Math.atan2(b.z - a.z, b.x - a.x);
     // Across the road: a log's heading h lies along (cos h, -sin h).
     const across = along + Math.PI / 2;
-    addLog(a.x, a.z, Math.atan2(-Math.sin(across), Math.cos(across)) + random.range(-0.3, 0.3), ROAD_WIDTH + random.range(1.5, 3), random.range(0.2, 0.3));
+    addLog(a.x, a.z, Math.atan2(-Math.sin(across), Math.cos(across)) + random.range(-0.3, 0.3), (path.width ?? ROAD_WIDTH) + random.range(1.5, 3), random.range(0.2, 0.3));
   }
   if (!paths.length) return;
   // The gate, just down the road from the tower, swung open and rusted that way.
@@ -132,12 +166,11 @@ export function ruinRoads(scene, random, terrain, { paths, stops }, addLog, obst
   for (const side of [-1, 1]) {
     obstacles.add({ x: at.x - Math.sin(along) * side * (ROAD_WIDTH / 2 + 0.3), z: at.z + Math.cos(along) * side * (ROAD_WIDTH / 2 + 0.3), radius: 0.15, height: 1.4 });
   }
-  // Signposts at each cabin's end of the road.
-  for (const stop of stops.slice(1)) {
+  // Signposts at the road ends and where the tracks turn off.
+  for (const stop of signs) {
     const sign = swappable('signpost', signpost(random));
     sign.rotation.z = random.range(-0.1, 0.1); // leaning
-    const x = stop.x + 2.6;
-    const z = stop.z + 1;
+    const { x, z } = stop;
     sign.position.set(x, terrain.heightAt(x, z), z);
     sign.rotation.y = random.range(0, Math.PI * 2);
     scene.add(sign);

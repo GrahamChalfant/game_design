@@ -6,8 +6,11 @@ const { smoothstep, clamp } = THREE.MathUtils;
 // The map, shaped by hand: the same every game. North is −z (up the screen), and the journey
 // runs south to north:
 //
-//   the crash on the south coast → the fire tower on its hill, north-east → the foothills (deer,
-//   wolves, the hunting stand) → the mountains, a wall right across the map with one way over
+//   the crash on the south coast (the fisherman's shack at the river mouth; the county road just
+//   north, west over the river to the homestead and Bald Knob's old lookout, east to the fire
+//   tower on its hill) → the foothills (deer, wolves, the hunting stand, the hunter's cabin under
+//   the Bluff, the burnt cabin; the jeep track north to the trailhead and the waterfall) → the
+//   mountains, a wall right across the map with one way over
 //   (a trail with a ravine to cross and a blizzard shelter) → the observatory near the top →
 //   down to the big lake (the lakeshore cabin and its dock) → across it, the abandoned farm and
 //   the road north, off the edge of the map.
@@ -35,6 +38,60 @@ export const SEA_SWIM = 35; // meters out from the shore you can swim before tur
 // --- The fire tower ------------------------------------------------------------------------
 // On a hill inland, north-east of the crash, looking out over the coast and the foothills.
 export const TOWER = { x: 330, z: -430, heading: 0.6, hill: { top: 22, radius: 30, foot: 200, height: 28 } };
+
+// --- The south, filled in -------------------------------------------------------------------
+// Between the crash and the mountains: two more hills, an old county road with a few homes
+// along it, tracks off it, a second (older) lookout tower, and a waterfall where the river
+// comes off the mountains' foot.
+//
+// The hills: { x, z, radius (its flat top), foot (where it meets the land), height }. The
+// Bluff's south side drops away in a short cliff (`cliff`: how far out from the middle the
+// cliff's foot is on that side, and which way that side faces, as atan2(dx, dz)).
+export const HILLS = [
+  { name: 'Bald Knob', x: -650, z: -620, radius: 38, foot: 235, height: 40 },
+  { name: 'The Bluff', x: 720, z: -1000, radius: 26, foot: 175, height: 30, cliff: { foot: 44, facing: 0.15 } },
+];
+// The west lookout: an older fire tower on top of Bald Knob, looking out over the west.
+export const WEST_TOWER = { x: -650, z: -620, heading: -0.5 };
+// The waterfall: where the river starts, it drops off a rock step at the mountains' foot into
+// a pool. `x, z` is the middle of the cliff's foot; the water falls toward `heading` (as
+// atan2(dx, dz)) from `drop` meters up; the step is `width` meters across, and the pool at its
+// foot `pool` meters across.
+export const FALLS = { x: -226, z: -1228, heading: 0.12, drop: 9, width: 30, pool: 8 };
+// The fisherman's shack at the river mouth, the homestead on the county road, the hunter's
+// cabin under the Bluff, and the burnt-out cabin off in the west foothills.
+export const SHACK = { x: -112, z: 66, heading: 1.25 };
+export const HOMESTEAD = { x: -575, z: -272, heading: 0.1 };
+export const HUNTER_CABIN = { x: 762, z: -782, heading: 0.3 };
+export const BURNT_CABIN = { x: -790, z: -830, heading: 0.7 };
+// Where the jeep track ends, below the mountain trail: a gravel pull-off with a car left in it.
+export const TRAILHEAD = { x: -112, z: -1118, heading: 2.6 };
+// The roads (each a list of points, smoothed in roads.js), and how wide each is:
+//   the county road, in off the west edge, past the homestead, over the river on the old
+//   bridge, along north of the crash and up to the fire tower's gate;
+//   the jeep track north from it to the trailhead; the spur off the fire road to the hunter's
+//   cabin; and footpaths from the crash out to the road and from the homestead up Bald Knob.
+export const ROADS = {
+  county: { width: 4, points: [
+    { x: -1010, z: -175 }, { x: -880, z: -192 }, { x: -760, z: -230 }, { x: -640, z: -250 }, { x: -575, z: -252 },
+    { x: -470, z: -244 }, { x: -340, z: -228 }, { x: -240, z: -240 }, { x: -147, z: -245 }, { x: -105, z: -230 },
+    { x: -60, z: -205 }, { x: 10, z: -195 }, { x: 70, z: -205 }, { x: 125, z: -245 }, { x: 190, z: -310 },
+    { x: 260, z: -385 }, { x: 330, z: -428 },
+  ] },
+  jeep: { width: 2.6, points: [
+    { x: -40, z: -203 }, { x: -46, z: -300 }, { x: -30, z: -420 }, { x: 15, z: -540 }, { x: 52, z: -650 },
+    { x: 62, z: -745 }, { x: 50, z: -830 }, { x: 5, z: -920 }, { x: -50, z: -1010 }, { x: -90, z: -1080 }, { x: -108, z: -1112 },
+  ] },
+  spur: { width: 2.6, points: [
+    { x: 680, z: -386 }, { x: 698, z: -470 }, { x: 694, z: -560 }, { x: 718, z: -640 }, { x: 750, z: -715 }, { x: 760, z: -770 },
+  ] },
+  crashPath: { width: 1.4, foot: true, points: [{ x: -6, z: -20 }, { x: -14, z: -80 }, { x: -28, z: -140 }, { x: -45, z: -200 }] },
+  knobPath: { width: 1.4, foot: true, points: [
+    { x: -548, z: -251 }, { x: -546, z: -300 }, { x: -566, z: -350 }, { x: -588, z: -415 }, { x: -612, z: -490 }, { x: -640, z: -560 }, { x: -646, z: -606 },
+  ] },
+};
+// Where the county road crosses the river: the old timber road bridge.
+export const ROAD_BRIDGE = { x: -147, z: -245 };
 
 // --- The foothills -----------------------------------------------------------------------
 // Rolling mixed forest and meadow rising to the mountains: deer, wolves and their den, and the

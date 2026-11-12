@@ -133,10 +133,10 @@ export class MapView {
       ctx.fillStyle = '#3a2a1a';
       ctx.fillText(text, x, y);
     };
-    // The lookout tower: a little tower shape.
-    {
-      const x = at(lookout.x);
-      const y = atZ(lookout.z);
+    // The lookout towers: a little tower shape each.
+    for (const tower of lookout.all ?? [lookout]) {
+      const x = at(tower.x);
+      const y = atZ(tower.z);
       ctx.fillStyle = '#3a2a1a';
       ctx.beginPath();
       ctx.moveTo(x - 3, y + 4);

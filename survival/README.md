@@ -51,6 +51,7 @@ automatically whenever you save a file.
 | C | Crouch: move slowly so animals don't notice you as soon. Stays on until you press C again |
 | 1–6, or click a slot | Pick an item from the hotbar |
 | Left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
+| Right mouse button | Put away the preview of a campfire, shelter or trap you were about to build |
 | Space | Jump, including onto rocks and stumps that are low enough |
 | E (hold, at the water's edge or in the lake) | Drink |
 | E (next to a campfire) | Add a log to the fire |
@@ -140,11 +141,14 @@ A few birds fly over by day. The north is quiet: you hear the wind (louder up th
 and, now and then by day, a bird of the boreal winter (a junco's "tsip", chickadees, a raven's
 croak); owls and wolves far
 off at night; deer walking, bleating, and snorting as they bolt from you; water nearby, a
-campfire's crackle, and dripping and bats down a cave. Your footsteps sound like what's
+campfire's crackle, and dripping and bats down a cave. Toward the coast you hear the sea's roar
+(muffled from far inland), and down on the shore, waves breaking on the shingle and the wind off
+the open water. (You can't drink the sea, or fill the flask from it: it's salt.) Your footsteps sound like what's
 underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things you do have a
 sound: chopping and trees crashing down, the bow, arrows landing, eating, drinking, cooking,
-searching, bandaging, lighting a fire, and you'll hear it when you're hurt. Every sound is a real
-recording (from Freesound: see `public/sounds/README.md` and its credits), and `listen.html`
+searching, bandaging, lighting a fire, and you'll hear it when you're hurt. Every sound but the
+sea's is a real recording (from Freesound: see `public/sounds/README.md` and its credits; the
+sea's are made by `audio/make_sea.py`), and `listen.html`
 plays each on its own. Press N to turn the sound off and on.
 
 What's in each place to search is rolled each game. All the numbers are at the top of
@@ -196,6 +200,14 @@ you're about to run out; the thermometer goes from a cool blue when you're freez
 at its hottest. You'll say so when you get hungry or thirsty. Temperature falls at night and in the water, and rises near a burning
 fire. If it reaches zero, you start losing health.
 
+The weather changes every few hours: clear blue skies, a few clouds with a little snow, overcast
+with snow falling, and now and then (every three or four days, never on the first) a blizzard. A
+blizzard always builds out of overcast weather, and you get an hour's warning: the wind rises,
+the snow thickens and the light goes. In a blizzard you can barely see 20 m, the wind howls, and
+out in the open by day you get half as warm as usual and cool down twice as fast, so get to a
+shelter, a cave or a fire. The icon by the clock shows the weather. The numbers are at the top of
+`src/weather.js` and (for the cold) `src/survival.js`.
+
 Up the mountains, spruce grow on the lower slopes, then scree and bare rock, then snow. The air
 gets colder the higher you climb: above the snowline (the upper part of the trail, the saddle and
 the observatory) you lose warmth even in the daytime, and you'll freeze in under a minute unless
@@ -237,8 +249,16 @@ When you first pick up everything a recipe needs, a "New recipe" card pops up at
 of the screen. In the crafting list, each ingredient shows how many you have out of how many
 you need (like 2/3 sticks): red until you have enough, then green.
 
-To make a campfire, press Tab and craft one (6 sticks), then select it and click to
-place it on open ground. To light it, select the lighter or the matches, stand next to it, and click
+Campfires, shelters and traps are put down the same way. Select one and click: nothing is
+built yet, but a white see-through outline of it appears on the ground where you're aiming,
+and follows your aim (between a step or so ahead and a few meters off). Where it can't go
+(water, or something in the way) the outline turns red. Then click and hold to build it there:
+the bar fills as you work (2 s for a campfire, 4 s for a shelter, 1.5 s for a trap), and it's
+built when the bar is full. Let go early and the outline stays, to start again. Right-click,
+or select something else, to put the outline away.
+
+To make a campfire, press Tab and craft one (6 sticks), then select it and build it on open
+ground (see above). To light it, select the lighter or the matches, stand next to it, and click
 and hold: you strike a match on the box (or flick the lighter), shelter the flame and put it to the
 kindling. (With anything else in your hand you can't light it.)
 A fire burns for 6 in-game hours; stand next to it and press E to add a log (2 more hours each,
@@ -253,8 +273,8 @@ crouch: animals notice you much later.
 Rabbits (a few about you at any time, mostly out in the open: snowshoe hares, a bit bigger than a
 cottontail) and deer flatten the grass where they sit, as you do where you stand, so you can make
 them out instead of losing them in it.
-To catch rabbits, press Tab and craft a trap (3 sticks and 1 rope), then select it and click to
-set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
+To catch rabbits, press Tab and craft a trap (3 sticks and 1 rope), then select it and build it
+where you want it (see above). Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
 close while you're nearby. When one is caught, press E at the trap for 2 raw meat, a hide and some intestines. This breaks the trap, so you'll
 need to craft another.
 Hides and intestines can be crafted into rope (intestines give 1 rope, a hide gives 2), and
@@ -273,16 +293,17 @@ clears, a campfire) but stops in a tree trunk. The further you draw, the faster 
 further it holds true (10 m on a light draw, 55 m drawn all the way; aim further and it drops
 short). In first person you see the whole shot: you carry the bow low at your side; drawing, it comes up
 a little while your right hand brings an arrow up and nocks it (the shaft lying on top of your bow
-hand, on the right of the bow), then up to aim, canted over to the left, as the string comes back under your eye (the
-bow arm starts to shake if you hold it there long); let go and the string snaps forward and
-quivers, the bow kicks, and your hand flies back past your cheek. Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
+hand, on the right of the bow), then up to aim, canted over to the left, as the string comes back
+to the corner of your mouth, three fingers hooked round it as an archer's are, the hand anchoring
+under your jaw (the bow arm starts to shake if you hold it there long); let go and the string
+snaps forward and quivers, the bow kicks, and your hand slides back along your jaw. Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
 follow one in flight, and a running animal can get away. One hit kills a deer or
 a rabbit, which stumbles on and falls over, with the arrow stuck in it; select your knife and
 hold E next to it to butcher it (you can't without a knife; a deer takes 4 s and gives 6 raw meat,
 2 hides and 2 intestines). The bow
 breaks after 30 shots. An arrow that misses lands in the ground, where you can pick it up again. All the numbers are in `src/hunting.js`.
-Craft a shelter (20 sticks, 6 rope, 4 hides), select it and click to build it a few steps
-ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
+Craft a shelter (20 sticks, 6 rope, 4 hides), select it and build it a few steps
+ahead (see above). Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
 Nights are dark away from a fire. Craft a torch (2 sticks), select it, and click and hold to light it:
@@ -312,6 +333,9 @@ computer, or to compare, add `?classic` to the address to turn it off.
 To test faster, add `?speed=20` to the address (for example http://localhost:8000/?speed=20).
 Time then passes 20 times faster.
 
+To see one kind of weather all the time, add `?weather=clear`, `?weather=fewClouds`,
+`?weather=overcast` or `?weather=blizzard` to the address.
+
 ## Project layout
 
 ```
@@ -327,17 +351,20 @@ src/terrain.js        The land: the sea, the hills, the mountains and their trai
 src/painterly.js      The painted look: a filter that turns the picture into soft brush strokes
 src/water.js          The lakes, the flowing river and creeks, and ripples around the player
 src/grass.js          Swaying grass tufts
-src/snow.js           Light snowfall
+src/snow.js           Falling snow: none, a light flurry, or a blizzard driven on the wind
+src/weather.js        The weather: clear, a few clouds, overcast or a blizzard, changing every few hours
 src/player.js         Player movement, swimming and collisions
 src/trees.js          Choppable trees: chopping progress, falling and stumps
 src/seeThrough.js     Makes trees see-through where they'd hide the player
 src/campfires.js      Building campfires, fuel, flames and firelight
+src/placement.js      The see-through preview of a campfire, shelter or trap before you build it
 src/shelters.js       Shelters: building them, warmth inside, and where you can sleep
 src/animals.js        Rabbits and deer: wandering, grazing and running from the player
 src/traps.js          Snare traps that catch rabbits
 src/hunting.js        Bow hunting numbers and rules (stones, one-shot kills, flee distances, yield)
 src/arrows.js         Arrows in flight
 sim/hunting-sim.mjs   Node check of the hunting rules: node sim/hunting-sim.mjs
+audio/make_sea.py     Makes the sea's sounds (waves, roar, sea wind) into public/sounds/: python audio/make_sea.py
 src/pickups.js        Items lying on the ground
 src/wreck.js          The crashed plane at the start, and where the starting items lie
 src/lookout.js        The fire lookout tower: where it stands, and its supply crate
