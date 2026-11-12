@@ -216,6 +216,16 @@ export const PADS = [
   { x: -270, z: -2545, radius: 9 },
   { x: 230, z: -2565, radius: 9 },
   { x: 150, z: -2680, radius: 9 },
+  // South of the mountains: the shack, the homestead (with its shed and well), the hunter's
+  // cabin (and smokehouse), the burnt cabin and the trailhead's pull-off.
+  { ...SHACK, radius: 6.5 },
+  { x: HOMESTEAD.x + 0.5, z: HOMESTEAD.z + 0.5, radius: 9.5 },
+  { x: HUNTER_CABIN.x - 1, z: HUNTER_CABIN.z, radius: 8 },
+  { ...BURNT_CABIN, radius: 6 },
+  { x: TRAILHEAD.x - 1.5, z: TRAILHEAD.z - 1, radius: 7 },
+  // (And two older places on sloping ground: the lakeshore cabin and the hunting stand.)
+  { x: LAKE_CABIN.x, z: LAKE.south(LAKE_CABIN.x) + 30, radius: 6.5 },
+  { x: STAND.x, z: STAND.z, radius: 3 },
 ];
 
 // Where along the shore something by the lake stands: `back` meters inland from the south shore.

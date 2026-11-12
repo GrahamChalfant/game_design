@@ -50,6 +50,13 @@ const RELIEF = [0.16, 0.05];
 // The fire road's wheel ruts: how far out from the middle, how wide, how deep; and how much
 // the middle stands up.
 const RUTS = { at: 0.8, width: 0.45, depth: 0.1, crown: 0.04 };
+// The roads' beds (see setRoads): how far either side (meters along) the land is averaged to lay
+// the bed, the steepest it climbs (meters up per meter along: roads, footpaths), how far out
+// from a road's edge the bank blends back into the land (roads, footpaths), and within how many
+// meters of the river or a lake the road just follows the ground. Where a track joins a road,
+// it eases from that road's bed into its own over `join` meters. It's never cut deeper than
+// `cut` into the land, nor built up more than `fill` (a steeper climb, rather than a trench).
+const ROAD_BED = { smooth: 14, grade: 0.12, footGrade: 0.35, shoulder: 3.2, footShoulder: 1.6, water: 6, join: 14, cut: 1.6, fill: 1.0 };
 // Snow: lowland patches start where their noise passes `from`, and pile up to `depth`; the
 // mountain snowfields pile up deeper.
 const SNOW_PATCH = { from: 0.86, depth: 0.22 };
@@ -433,17 +440,24 @@ export function createTerrain(noise, bounds) {
 
   const heightAt = (x, z) => {
     let h = landAt(x, z);
-    const c = creeks.nearest(x, z);
-    if (c) h = Math.min(h, creeks.carve(c));
-    // The old fire road: smoothed flat (no hummocks), with two wheel ruts pressed into it and
-    // the middle a little proud of them, blending into the land at its edges.
+    // The roads: each runs on a level bed (see setRoads), cut into the hillside where the ground
+    // rises across it and built up where it falls away, so a road along a slope is flat from
+    // side to side, with a bank above it and below. Two wheel ruts are pressed into the bed with
+    // the middle a little proud of them. (By the river the road just follows the ground, smoothed:
+    // the bridge carries it over.)
     const road = roadCells.size ? roadAt(x, z) : null;
     if (road) {
       const across = Math.abs(road.offset);
       const on = 1 - smoothstep(across, road.half - 0.4, road.half + 0.6);
       const rut = road.foot ? 0 : 1 - smoothstep(Math.abs(across - RUTS.at), RUTS.width * 0.3, RUTS.width);
-      h += on * (-relief(x, z) - rut * RUTS.depth + (1 - smoothstep(across, 0, 0.55)) * RUTS.crown);
+      const marks = -rut * RUTS.depth + (1 - smoothstep(across, 0, 0.55)) * RUTS.crown;
+      const smoothed = h + on * (-relief(x, z) + marks);
+      const cut = 1 - smoothstep(across, road.half + 0.2, road.half + road.shoulder);
+      const bedded = h + (road.bed - h) * cut + on * marks;
+      h = smoothed + (bedded - smoothed) * road.level;
     }
+    const c = creeks.nearest(x, z);
+    if (c) h = Math.min(h, creeks.carve(c));
     // Snow lies on top of the ground (on dry land: not in a creek, a lake or the river).
     const snow = snowAt(x, z);
     if (snow.depth <= 0 || (c && c.distance < c.halfWidth + 0.5) || lakeOrRiverLevel(x, z) > h - 0.05) return h;
@@ -560,10 +574,13 @@ export function createTerrain(noise, bounds) {
       if (!best || distance < Math.abs(best.offset)) {
         // Which side of the middle (for the ruts).
         const side = Math.sign(dx * (z - az) - dz * (x - ax)) || 1;
-        best = { offset: distance * side, half: seg.half, foot: seg.foot };
+        best = {
+          offset: distance * side, half: seg.half, foot: seg.foot, shoulder: seg.shoulder,
+          bed: seg.ya + (seg.yb - seg.ya) * t, level: seg.wa + (seg.wb - seg.wa) * t,
+        };
       }
     }
-    return best && Math.abs(best.offset) < best.half + 1 ? best : null;
+    return best && Math.abs(best.offset) < best.half + best.shoulder ? best : null;
   };
 
   const color = new THREE.Color();
@@ -631,7 +648,7 @@ export function createTerrain(noise, bounds) {
       color.lerp(tint, scar.dirt * (1 - stone));
       // (On rock: pale scrapes along the skid, the stone's weathered surface ground off.)
       color.lerp(tint.copy(STONE).multiplyScalar(1.12), scar.dirt * stone * 0.45 * smoothstep(scar.streak, -0.3, 0.3));
-      if (scar.dirt * (1 - stone) > 0.4) kind = 'dirt';
+      if (scar.dirt * (1 - stone) > 0.4 && kind !== 'snow') kind = 'dirt';
     }
     // The old fire road (see roads.js): packed dirt with two wheel ruts and grass coming back
     // up the middle, its edges blending into the land.
@@ -647,7 +664,7 @@ export function createTerrain(noise, bounds) {
         tint.lerp(ROAD_GRASS, (road.foot ? 0 : 0.5) * (1 - smoothstep(across, 0.15, 0.55)));
         tint.lerp(OCHRE, clamp(noise(x * 0.5, z * 0.5) * 0.4, 0, 0.3));
         color.lerp(tint, edge);
-        if (edge > 0.5) kind = 'road';
+        if (edge > 0.5 && kind !== 'snow') kind = 'road'; // (snow lying on the road is still snow underfoot)
       }
     }
     // The trail over the mountains: a worn path of packed earth and gravel, stones poking
@@ -790,14 +807,44 @@ export function createTerrain(noise, bounds) {
       for (const path of paths) {
         const half = (path.width ?? width) / 2;
         const foot = Boolean(path.foot);
+        const shoulder = foot ? ROAD_BED.footShoulder : ROAD_BED.shoulder;
+        // The bed along its middle: the lie of the land, smoothed over a stretch either side and
+        // kept to a steady grade. Near water it gives way to the ground (`level` 0).
+        const along = [0];
+        for (let i = 1; i < path.length; i++) along.push(along[i - 1] + Math.hypot(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z));
+        const ground = path.map((p) => landAt(p.x, p.z));
+        const bed = path.map((_, i) => {
+          let [sum, count] = [0, 0];
+          for (let k = i; k >= 0 && along[i] - along[k] <= ROAD_BED.smooth; k--) [sum, count] = [sum + ground[k], count + 1];
+          for (let k = i + 1; k < path.length && along[k] - along[i] <= ROAD_BED.smooth; k++) [sum, count] = [sum + ground[k], count + 1];
+          return sum / count;
+        });
+        // Where it joins a road already laid (a track turning off, a footpath meeting the road),
+        // it meets that road's bed, easing into its own over the first stretch.
+        for (const end of [0, path.length - 1]) {
+          const joined = roadAt(path[end].x, path[end].z);
+          if (!joined || Math.abs(joined.offset) > joined.half) continue;
+          for (let i = 0; i < path.length; i++) {
+            const from = Math.abs(along[i] - along[end]);
+            if (from > ROAD_BED.join) continue;
+            bed[i] = joined.bed + (bed[i] - joined.bed) * smoothstep(from, 0, ROAD_BED.join);
+          }
+        }
+        const grade = foot ? ROAD_BED.footGrade : ROAD_BED.grade;
+        for (let pass = 0; pass < 3; pass++) {
+          for (let i = 1; i < bed.length; i++) bed[i] = clamp(bed[i], bed[i - 1] - grade * (along[i] - along[i - 1]), bed[i - 1] + grade * (along[i] - along[i - 1]));
+          for (let i = bed.length - 2; i >= 0; i--) bed[i] = clamp(bed[i], bed[i + 1] - grade * (along[i + 1] - along[i]), bed[i + 1] + grade * (along[i + 1] - along[i]));
+        }
+        for (let i = 0; i < bed.length; i++) bed[i] = clamp(bed[i], ground[i] - ROAD_BED.cut, ground[i] + ROAD_BED.fill);
+        const level = path.map((p) => (nearWater(p.x, p.z, ROAD_BED.water) && !creekOnly(p.x, p.z) ? 0 : nearWater(p.x, p.z, ROAD_BED.water * 2) && !creekOnly(p.x, p.z) ? 0.5 : 1));
         for (let i = 1; i < path.length; i++) {
           const [a, b] = [path[i - 1], path[i]];
-          const pad = half + 1;
+          const pad = half + shoulder;
           for (let cx = Math.floor((Math.min(a.x, b.x) - pad) / ROAD_CELL); cx <= Math.floor((Math.max(a.x, b.x) + pad) / ROAD_CELL); cx++) {
             for (let cz = Math.floor((Math.min(a.z, b.z) - pad) / ROAD_CELL); cz <= Math.floor((Math.max(a.z, b.z) + pad) / ROAD_CELL); cz++) {
               const key = `${cx},${cz}`;
               if (!roadCells.has(key)) roadCells.set(key, []);
-              roadCells.get(key).push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, half, foot });
+              roadCells.get(key).push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, half, foot, shoulder, ya: bed[i - 1], yb: bed[i], wa: level[i - 1], wb: level[i] });
             }
           }
         }
