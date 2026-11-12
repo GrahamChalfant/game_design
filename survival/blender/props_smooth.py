@@ -1,8 +1,9 @@
 # Smooth-shaded remakes of the small props that were still faceted low poly: the soil clods
 # thrown up along the crash, the throwing stone, a sprig of berries, the plane's landing wheel,
 # the cave's stalagmite, the fallen log and the backpack (also worn: survivor.py puts the same
-# mesh on the player's back). Colours blend across each surface (smoothkit.py) instead of
-# changing face by face. Each keeps the size, origin and facing its old version had.
+# mesh on the player's back); and the snapped trunks and root plates along the plane's way
+# in. Colours blend across each surface (smoothkit.py) instead of changing face by face.
+# Each keeps the size, origin and facing its old version had.
 # Run in an open Blender (Blender MCP or the Text Editor); it doesn't reset the scene.
 import math, os, random, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -220,6 +221,99 @@ def fallen_log():
     return m.build('fallen-log', [shared('wood', 0.9)])
 
 
+# ---- the plane's way in: snapped trunks and torn-up roots ----
+def trunk_snapped():
+    """A spruce trunk the plane snapped off, base at the origin: 0.3 m in radius, the bark torn
+    up into a few ragged points from 2.2 m, and the pale wood inside splintered into spears up
+    to about 2.9 m. The game stretches each copy to the height it broke at."""
+    random.seed(71)
+    m = Mesh()
+    sides, BREAK = 28, 2.2
+    # How far above BREAK the bark reaches at each angle round the trunk: a few torn points,
+    # the tallest on the side the top fell away from.
+    peaks = ((0.0, 0.55), (1.9, 0.28), (3.5, 0.4), (4.9, 0.16))
+    def torn(a):
+        h = 0.04
+        for pa, ph in peaks:
+            d = abs((a - pa + math.pi) % math.tau - math.pi)
+            h = max(h, ph * max(0.0, 1 - d / 0.6) ** 1.5)
+        return h + 0.03 * fbm(Vector((math.cos(a) * 3, 0, math.sin(a) * 3)), 7)
+    def furrow(a, y):
+        return 0.04 * abs(math.sin(a * 8 + fbm(Vector((y * 2, a, 0)), 4) * 2.5))
+    def radius(a, y):
+        flare = max(0.0, 1 - y / 0.45) ** 2 * (0.1 + 0.08 * max(0.0, math.cos(a * 5)))  # (root flares)
+        return (0.3 * (1 - 0.06 * y / BREAK) + flare) * (1 - furrow(a, y))
+    ys = [0.0, 0.05, 0.13, 0.26, 0.45, 0.8, 1.2, 1.6, 1.95]
+    angles = [math.tau * k / sides for k in range(sides)]
+    rows = [[Vector((math.cos(a) * radius(a, y), y, math.sin(a) * radius(a, y))) for a in angles] for y in ys]
+    rows.append([Vector((math.cos(a) * radius(a, BREAK) * 0.98, BREAK + torn(a), math.sin(a) * radius(a, BREAK) * 0.98)) for a in angles])
+    def bark(i, k, p):
+        c = mix(tone('bark_dark'), tone('bark'), 0.3 + 0.7 * furrow(angles[k], p.y) / 0.04)
+        c = mix(c, tone('bark_grey'), max(0.0, fbm(p * 3, 5)) * 1.3)
+        return mix(c, tone('moss'), max(0.0, 0.5 - p.y) * 1.2 + fbm(p * 6, 9) * 0.4 - 0.2)  # (moss at the foot)
+    m.grid(rows, bark, outward=lambda i, k: Vector((0, rows[i][k].y, 0)))
+    # The torn edge of the bark, then the wood inside it: pale fresh wood, splintered.
+    def wood(p):
+        d = math.hypot(p.x, p.z) / 0.3
+        c = mix(tone('heart'), tone('sapwood'), d * 1.4 - 0.2)
+        return mix(c, tone('cut'), max(0.0, fbm(Vector((p.x * 30, p.y, p.z * 30)), 3)) * 1.2)  # (streaks along the grain)
+    rim = [Vector((p.x * 0.88, p.y - 0.02, p.z * 0.88)) for p in rows[-1]]
+    m.grid([rows[-1], rim], lambda i, k, p: tone('bark_dark') if i == 0 else wood(p), smooth=False, outward=lambda i, k: Vector((0, BREAK - 1, 0)))
+    centre = Vector((0.02, BREAK + 0.12, -0.01))
+    inner = [rim]
+    for f in (0.66, 0.33):
+        ring = []
+        for k, a in enumerate(angles):
+            spike = 0.16 * abs(math.sin(a * 7 + f * 9)) * random.uniform(0.4, 1.3)  # (fibres torn to different lengths)
+            p = centre.lerp(rim[k], f)
+            ring.append(Vector((p.x, BREAK + torn(a) * (0.35 + 0.5 * f) + spike, p.z)))
+        inner.append(ring)
+    m.grid(inner, lambda i, k, p: wood(p), smooth=False, outward=lambda i, k: Vector((0, BREAK - 1, 0)))
+    m.cap(inner[-1], wood, Vector((0, 1, 0)))
+    # Long splinters standing up out of the break, leaning out a little.
+    for a, r, h in ((0.15, 0.2, 0.75), (-0.35, 0.12, 0.5), (0.6, 0.06, 0.42), (3.4, 0.2, 0.45), (1.9, 0.16, 0.32), (2.6, 0.05, 0.25)):
+        base = Vector((math.cos(a) * r, BREAK + torn(a) * 0.5, math.sin(a) * r))
+        tip = base + Vector((math.cos(a) * 0.06, h, math.sin(a) * 0.06))
+        tube(m, base, tip, [(0.05, 0.025), (0.035, 0.018), (0.004, 0.004)], lambda p, n: wood(p), sides=4, turn=a)
+    return m.build('trunk-snapped', [shared('wood', 0.9)])
+
+
+def root_plate():
+    """The plate of roots and soil a spruce tears out of the ground as it goes over, stood up on
+    edge: about 2 m across and 0.45 m thick, centred 0.8 m up on the origin, its old surface
+    (moss and turf) facing +x, where the trunk lies, and the earth and roots it was in facing
+    -x, with the loose soil it tore up heaped behind it. Its bottom sinks a little into the
+    ground. The game sizes it to its tree."""
+    random.seed(83)
+    m = Mesh()
+    def plate(p, d):
+        earth = mix(tone('root'), tone('soil'), 0.45 + fbm(p * 5, 3))  # (fresh, dry-ish earth: brown, not black)
+        earth = mix(earth, tone('ochre', 0, 0.8), max(0.0, fbm(p * 7, 6)) * 0.7)  # (sandy streaks)
+        turf = mix(tone('moss'), tone('turf_dry'), 0.5 + fbm(p * 4, 12))
+        return mix(earth, turf, d.x * 2.5 - 0.6)
+    m.blob((0, 0.8, 0), (0.22, 0.88, 1.0), plate, detail=3, lumps=0.22, seed=4)
+    # Roots torn out with it, each crooked and drooping as it thins: round the rim, and out of
+    # the earthy side.
+    root = lambda p, n: mix(tone('root'), tone('bark_dark'), 0.2 + fbm(p * 12) * 0.5)
+    for i in range(26):
+        a = math.tau * i / 26 + random.uniform(-0.12, 0.12)
+        out = Vector((0, math.sin(a), math.cos(a)))
+        rim = i % 2 == 0
+        base = Vector((-0.06, 0.8, 0)) + out * (0.82 if rim else random.uniform(0.2, 0.6))
+        if not rim:
+            base.x = -0.17
+        thick = random.uniform(0.02, 0.045)
+        point = base
+        for seg in range(3):
+            step = out * random.uniform(0.12, 0.22) + Vector((-random.uniform(0.02, 0.1), -0.06 * seg - random.uniform(0, 0.05), random.uniform(-0.06, 0.06)))
+            nxt = point + step
+            tube(m, point, nxt, [thick * (1 - seg / 3), thick * (1 - (seg + 1) / 3) + 0.004], root, sides=5)
+            point = nxt
+    # The churned-up soil and the hollow the roots came out of, behind it.
+    m.blob((-0.55, -0.02, 0), (0.55, 0.14, 0.95), lambda p, d: mix(tone('soil_dark'), tone('soil_wet'), 0.5 + fbm(p * 6, 21)), detail=2, lumps=0.3, seed=9, flatten_below=-0.02)
+    return m.build('root-plate', [shared('wood', 0.9)])
+
+
 # ---- debris ----
 def debris():
     """Torn sheet metal off the plane, about 0.9 x 0.6 m: three bent panels with ragged edges,
@@ -330,7 +424,8 @@ def backpack():
 
 
 for name, make in (('clod', clod), ('stone', stone), ('berry', berry), ('landing-wheel', landing_wheel),
-                   ('stalagmite', stalagmite), ('fallen-log', fallen_log), ('backpack', backpack), ('debris', debris)):
+                   ('stalagmite', stalagmite), ('fallen-log', fallen_log), ('backpack', backpack), ('debris', debris),
+                   ('trunk-snapped', trunk_snapped), ('root-plate', root_plate)):
     if NAMES and name not in NAMES:
         continue
     export([make()], f'{name}.glb')

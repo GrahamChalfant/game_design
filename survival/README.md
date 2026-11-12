@@ -295,9 +295,10 @@ clears, a campfire) but stops in a tree trunk. The further you draw, the faster 
 further it holds true (10 m on a light draw, 55 m drawn all the way; aim further and it drops
 short). In first person you see the whole shot: you carry the bow low at your side; drawing, it comes up
 a little while your right hand brings an arrow up and nocks it (the shaft lying on top of your bow
-hand, on the right of the bow), then up to aim, canted over to the left, as the string comes back under your eye (the
-bow arm starts to shake if you hold it there long); let go and the string snaps forward and
-quivers, the bow kicks, and your hand flies back past your cheek. Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
+hand, on the right of the bow), then up to aim, canted over to the left, as the string comes back
+to the corner of your mouth, three fingers hooked round it as an archer's are, the hand anchoring
+under your jaw (the bow arm starts to shake if you hold it there long); let go and the string
+snaps forward and quivers, the bow kicks, and your hand slides back along your jaw. Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
 follow one in flight, and a running animal can get away. One hit kills a deer or
 a rabbit, which stumbles on and falls over, with the arrow stuck in it; select your knife and
 hold E next to it to butcher it (you can't without a knife; a deer takes 4 s and gives 6 raw meat,

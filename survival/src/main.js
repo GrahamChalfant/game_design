@@ -24,7 +24,7 @@ import { Snowfall } from './snow.js';
 import { Weather } from './weather.js';
 import { Traps } from './traps.js';
 import { buildWreck, START_ITEMS } from './wreck.js';
-import { buildLookout } from './lookout.js';
+import { buildLookouts } from './lookout.js';
 import { buildPois } from './pois.js';
 import { AmbientLife } from './ambientLife.js';
 import { Sound } from './sounds.js';
@@ -36,7 +36,7 @@ import { HandView } from './handView.js';
 import { CRASH } from './crashTrail.js';
 import { Survival } from './survival.js';
 import { buildWorld, BOUNDS } from './world.js';
-import { MAP_SEED } from './layout.js';
+import { FALLS, MAP_SEED } from './layout.js';
 
 // The map is the same every game (see layout.js); so are the bushes and the animals' start.
 const SEED = MAP_SEED;
@@ -84,7 +84,7 @@ scene.add(sun, sun.target);
 const input = new Input(renderer.domElement);
 const world = buildWorld(scene, SEED);
 const wreck = buildWreck(scene, world);
-const lookout = buildLookout(scene, world);
+const lookout = buildLookouts(scene, world); // (both fire towers: see lookout.js)
 const mapView = new MapView(world);
 // A rough view of the whole map, for the lookout's binoculars (built a little each frame).
 const farView = new FarView(scene, world);
@@ -180,7 +180,9 @@ function updateSound(dt, paused, busy = {}) {
     breeze: weather.now.wind,
     storm: gale(),
     sheltered: Boolean(busy.shelter),
-    river: player.cave ? 0 : terrain.waterSounds(x, z).river,
+    // (Running water: the river and creeks, and the waterfall, which carries further: you hear
+    // it before you see it.)
+    river: player.cave ? 0 : Math.max(terrain.waterSounds(x, z).river, 1 - THREE.MathUtils.smoothstep(Math.hypot(x - FALLS.x, z - FALLS.z), 15, 80)),
     brushing: !paused && brushing(dt),
     freezing: survival.alive && survival.isFreezing,
     fire: player.cave ? 0 : fire,
@@ -583,6 +585,10 @@ const FIRST_SIGHT = {
   camp: "Someone camped here… a long time ago, by the look of it.",
   leanto: "A trapper's lean-to. They'd have known how to live out here.",
   truck: "An old forest service truck. Rusted solid, but maybe the cab's worth a look.",
+  roadbridge: "An old road bridge. It sags in the middle, but it'll hold me.",
+  ruin: "This cabin burned down… years ago. Only the chimney's still standing.",
+  board: "A trailhead. The trail over the mountains must start here.",
+  falls: "A waterfall! Fresh water… and is that a gap in the rocks beside it?",
 };
 const saidAbout = new Set();
 const SPOTTING_SHOW = 900; // through the binoculars, places this far away are drawn
