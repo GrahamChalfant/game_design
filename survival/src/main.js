@@ -148,6 +148,17 @@ const pois = buildPois(scene, world);
 // Birds about the place, and the sounds of it all.
 const ambientLife = new AmbientLife(scene, world);
 const sound = new Sound();
+// Pushing through a tree's boughs or a bush (walking, not standing still): see brushing in
+// sounds.js.
+const brushedAt = { x: 0, z: 0 };
+function brushing(dt) {
+  const { x, z } = player.position;
+  const moving = Math.hypot(x - brushedAt.x, z - brushedAt.z) / Math.max(dt, 1e-3) > 0.8;
+  brushedAt.x = x;
+  brushedAt.z = z;
+  if (!moving || player.cave || player.swimming) return false;
+  return Boolean(world.trees.findTarget(x, z, 0.7) || bushes.near(x, z, 0.9));
+}
 // What the sounds need to know about where you are.
 const hearing = new THREE.Vector3(); // (the camera's right, for which ear sounds come to)
 function updateSound(dt, paused, busy = {}) {
@@ -166,8 +177,11 @@ function updateSound(dt, paused, busy = {}) {
     night: isNight(survival.hourOfDay),
     underground,
     cold: player.cave ? 0 : terrain.coldAt(x, z),
-    storm: player.cave ? 0 : gale(),
-    water: player.cave ? 0 : terrain.nearWater(x, z, 3) ? 1 : terrain.nearWater(x, z, 12) ? 0.45 : 0,
+    breeze: weather.now.wind,
+    storm: gale(),
+    sheltered: Boolean(busy.shelter),
+    river: player.cave ? 0 : terrain.waterSounds(x, z).river,
+    brushing: !paused && brushing(dt),
     fire: player.cave ? 0 : fire,
     woods: Math.min(1, Math.max(0, terrain.forest(x, z) + 0.3)),
     listener: { x, z, right: { x: hearing.x / across, z: hearing.z / across } },
@@ -894,4 +908,5 @@ renderer.setAnimationLoop(() => {
   input.endFrame();
   draw();
 });
+
 
