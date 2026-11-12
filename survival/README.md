@@ -51,6 +51,7 @@ automatically whenever you save a file.
 | C | Crouch: move slowly so animals don't notice you as soon. Stays on until you press C again |
 | 1–6, or click a slot | Pick an item from the hotbar |
 | Left mouse button (hold) | Use the item in your hand (e.g. chop a tree with the axe) |
+| Right mouse button | Put away the preview of a campfire, shelter or trap you were about to build |
 | Space | Jump, including onto rocks and stumps that are low enough |
 | E (hold, at the water's edge or in the lake) | Drink |
 | E (next to a campfire) | Add a log to the fire |
@@ -237,8 +238,16 @@ When you first pick up everything a recipe needs, a "New recipe" card pops up at
 of the screen. In the crafting list, each ingredient shows how many you have out of how many
 you need (like 2/3 sticks): red until you have enough, then green.
 
-To make a campfire, press Tab and craft one (6 sticks), then select it and click to
-place it on open ground. To light it, select the lighter or the matches, stand next to it, and click
+Campfires, shelters and traps are put down the same way. Select one and click: nothing is
+built yet, but a white see-through outline of it appears on the ground where you're aiming,
+and follows your aim (between a step or so ahead and a few meters off). Where it can't go
+(water, or something in the way) the outline turns red. Then click and hold to build it there:
+the bar fills as you work (2 s for a campfire, 4 s for a shelter, 1.5 s for a trap), and it's
+built when the bar is full. Let go early and the outline stays, to start again. Right-click,
+or select something else, to put the outline away.
+
+To make a campfire, press Tab and craft one (6 sticks), then select it and build it on open
+ground (see above). To light it, select the lighter or the matches, stand next to it, and click
 and hold: you strike a match on the box (or flick the lighter), shelter the flame and put it to the
 kindling. (With anything else in your hand you can't light it.)
 A fire burns for 6 in-game hours; stand next to it and press E to add a log (2 more hours each,
@@ -253,8 +262,8 @@ crouch: animals notice you much later.
 Rabbits (a few about you at any time, mostly out in the open: snowshoe hares, a bit bigger than a
 cottontail) and deer flatten the grass where they sit, as you do where you stand, so you can make
 them out instead of losing them in it.
-To catch rabbits, press Tab and craft a trap (3 sticks and 1 rope), then select it and click to
-set it. Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
+To catch rabbits, press Tab and craft a trap (3 sticks and 1 rope), then select it and build it
+where you want it (see above). Rabbits within about 18 m are drawn to it. Leave the area, since they won't come
 close while you're nearby. When one is caught, press E at the trap for 2 raw meat, a hide and some intestines. This breaks the trap, so you'll
 need to craft another.
 Hides and intestines can be crafted into rope (intestines give 1 rope, a hide gives 2), and
@@ -281,8 +290,8 @@ a rabbit, which stumbles on and falls over, with the arrow stuck in it; select y
 hold E next to it to butcher it (you can't without a knife; a deer takes 4 s and gives 6 raw meat,
 2 hides and 2 intestines). The bow
 breaks after 30 shots. An arrow that misses lands in the ground, where you can pick it up again. All the numbers are in `src/hunting.js`.
-Craft a shelter (20 sticks, 6 rope, 4 hides), select it and click to build it a few steps
-ahead. Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
+Craft a shelter (20 sticks, 6 rope, 4 hides), select it and build it a few steps
+ahead (see above). Its open front always faces the camera, so you can see inside it. Under its roof you warm up (and, once you've been warm for an hour, slowly heal), like standing at a
 fire. At night, press E inside it to sleep until 06:00: time passes, but none of your
 stats change (campfires keep burning, so they may be out when you wake).
 Nights are dark away from a fire. Craft a torch (2 sticks), select it, and click and hold to light it:
@@ -332,6 +341,7 @@ src/player.js         Player movement, swimming and collisions
 src/trees.js          Choppable trees: chopping progress, falling and stumps
 src/seeThrough.js     Makes trees see-through where they'd hide the player
 src/campfires.js      Building campfires, fuel, flames and firelight
+src/placement.js      The see-through preview of a campfire, shelter or trap before you build it
 src/shelters.js       Shelters: building them, warmth inside, and where you can sleep
 src/animals.js        Rabbits and deer: wandering, grazing and running from the player
 src/traps.js          Snare traps that catch rabbits

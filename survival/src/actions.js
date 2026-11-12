@@ -4,6 +4,7 @@ import { HOTBAR_SIZE, ITEMS } from './inventory.js';
 import { ANIMAL_DROPS, AXE_COOLDOWN, BOW_COOLDOWN, BOW_DRAW_TIME, BOW_MIN_DRAW, BUTCHER_TIME, KNIFE_COOLDOWN, arrowFlight, hitAnimal, knifeHitTest } from './hunting.js';
 import { BERRY_HUNGER, hasBerries, regrowLeft } from './foraging.js';
 import { CUT_TIME } from './trees.js';
+import { PLACEABLES } from './placement.js';
 
 const SEARCH_TIME = 1.5; // seconds of holding E to search a suitcase
 const EAT_TIME = 1.2; // seconds of holding the mouse button to eat something
@@ -29,7 +30,7 @@ const FOOD = {
 
 // Works out what the player is doing each frame (drinking, chopping, building,
 // trapping, cooking, eating) and what to tell them.
-export function createActions({ sfx = () => {}, input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, onOpenContainer, aimPoint, launchPoint, lookRay }) {
+export function createActions({ sfx = () => {}, input, inventory, player, world, wreck, lookout, pois, campfires, shelters, traps, pickups, bushes, animals, arrows, survival, hud, onSleep, onBinoculars, onDressed, onOpenContainer, aimPoint, launchPoint, lookRay, groundAim, placementGhost }) {
   let searching = 0;
   let using = 0; // seconds spent eating or bandaging so far
   let usingItem = null;
@@ -44,6 +45,52 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
   let knifeReady = 0; // seconds until the knife can stab again
   let axeReady = 0; // seconds until the axe can swing again
   let drinkingBefore = false; // drinking at the water last frame
+  // Putting something down (a campfire, shelter or trap): the first click shows its ghost where
+  // it'll go; then you hold the mouse button to build it there.
+  let previewing = null; // the item whose ghost is showing
+  let buildArmed = false; // let go since the click that showed it (so that click doesn't build it too)
+  let building = 0; // seconds spent building it so far
+
+  // Where a placeable goes: where you aim on the ground, kept between its nearest and furthest
+  // (looking at the sky, as far ahead as it goes), on the ground there.
+  const placeSpot = (item) => {
+    const { x, z } = player.position;
+    const { near, far } = PLACEABLES[item];
+    const aim = groundAim();
+    let dx = aim ? aim.x - x : 0;
+    let dz = aim ? aim.z - z : 0;
+    let away = Math.hypot(dx, dz);
+    if (!aim) {
+      // Looking up: straight on, the way you look.
+      const { direction } = lookRay();
+      [dx, dz, away] = [direction.x, direction.z, far * Math.hypot(direction.x, direction.z)];
+    }
+    if (Math.hypot(dx, dz) < 0.01) [dx, dz] = [Math.sin(player.facing), Math.cos(player.facing)];
+    const along = Math.min(far, Math.max(near, away)) / Math.hypot(dx, dz);
+    const spot = { x: x + dx * along, z: z + dz * along };
+    spot.y = world.terrain.heightAt(spot.x, spot.z);
+    return spot;
+  };
+  const canPlace = (item, spot) =>
+    item === 'campfire' ? campfires.canBuildAt(spot.x, spot.z) : item === 'shelter' ? shelters.canBuildAt(spot.x, spot.z) : traps.canPlaceAt(spot.x, spot.z);
+  const NO_ROOM = { campfire: 'No room for a campfire here', shelter: 'Not enough open ground for a shelter here', trap: 'No room for a trap here' };
+  // Builds it (the hold's done), facing `heading`.
+  const putDown = (item, spot, heading) => {
+    inventory.remove(item, 1);
+    player.reach();
+    if (item === 'campfire') {
+      campfires.build(spot.x, spot.z);
+      sfx('add-wood', spot);
+    } else if (item === 'shelter') {
+      shelters.build(spot.x, spot.z);
+      sfx('add-wood', spot);
+      hud.toast('Shelter built. Sleep in it at night (E)');
+    } else {
+      traps.place(spot.x, spot.z, heading);
+      sfx('trap-set', spot);
+      hud.toast('Trap set. Rabbits nearby will be drawn to it.');
+    }
+  };
 
   // Adds items to the inventory. Anything that doesn't fit is dropped on the ground at
   // (dropX, dropZ), or at the player's feet.
@@ -89,12 +136,21 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
   };
 
   return function update(dt) {
-    if (!survival.alive) return { prompt: null };
+    if (!survival.alive) {
+      placementGhost.hide();
+      return { prompt: null };
+    }
     for (let i = 0; i < HOTBAR_SIZE; i++) {
       if (input.wasPressed(`Digit${i + 1}`)) inventory.select(i);
     }
 
     const held = inventory.selectedItem;
+    // Switching to something else takes the ghost away.
+    if (previewing !== held) {
+      previewing = null;
+      building = 0;
+    }
+    let ghostShown = false;
     const { x, z } = player.position;
     const pressedE = input.wasPressed('KeyE');
     // Up the lookout tower, the ground (and everything on it) is out of reach.
@@ -426,45 +482,51 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
         prompt = cuttingSticks ? 'Cutting sticks…' : 'Young tree · click and hold to cut sticks';
         progress = cuttingSticks ? sapling.cutting / CUT_TIME : null;
       }
-    } else if (offGround && (held === 'campfire' || held === 'shelter' || held === 'trap')) {
+    } else if (offGround && PLACEABLES[held]) {
       prompt = player.cave ? "You can't put that down in here" : "You can't put that down up here";
     } else if (player.cave && held === 'bow') {
       prompt = 'No room to shoot down here';
-    } else if (!fire && held === 'campfire') {
-      // A crafted campfire: place it on open ground in front of you.
-      const spot = player.ahead(1.6);
-      if (!campfires.canBuildAt(spot.x, spot.z)) {
-        prompt = 'No room for a campfire here';
-      } else if (input.startedUsingTool()) {
-        inventory.remove('campfire', 1);
-        player.reach();
-        campfires.build(spot.x, spot.z);
-      } else {
-        prompt = 'Click to place the campfire';
+    } else if (!fire && PLACEABLES[held]) {
+      // A crafted campfire, shelter or trap: click to see its ghost on the ground where you aim
+      // (red where it can't go), then hold the mouse button to build it there. Right-click, or
+      // switching to something else, puts it away again.
+      const name = ITEMS[held].name.toLowerCase();
+      if (previewing && input.wasPressed('MouseRight')) {
+        previewing = null;
+        building = 0;
+      } else if (!previewing && input.startedUsingTool()) {
+        previewing = held;
+        buildArmed = false;
+        building = 0;
       }
-    } else if (!fire && held === 'shelter') {
-      // A crafted shelter: place it a few steps ahead (its open front always faces the camera).
-      const spot = player.ahead(2.8);
-      if (!shelters.canBuildAt(spot.x, spot.z)) {
-        prompt = 'Not enough open ground for a shelter here';
-      } else if (input.startedUsingTool()) {
-        inventory.remove('shelter', 1);
-        shelters.build(spot.x, spot.z);
+      if (!previewing) {
+        prompt = `Click to choose where to put the ${name}`;
       } else {
-        prompt = 'Click to build the shelter';
-      }
-    } else if (!fire && held === 'trap') {
-      const spot = player.ahead(1.2);
-      if (!traps.canPlaceAt(spot.x, spot.z)) {
-        prompt = 'No room for a trap here';
-      } else if (input.startedUsingTool()) {
-        inventory.remove('trap', 1);
-        player.reach();
-        traps.place(spot.x, spot.z, player.facing);
-        sfx('trap-set', spot);
-        hud.toast('Trap set. Rabbits nearby will be drawn to it.');
-      } else {
-        prompt = 'Click to set the trap';
+        const spot = placeSpot(held);
+        const ok = canPlace(held, spot);
+        // (The shelter's open front always faces the camera, south; a trap faces away from you.)
+        const heading = held === 'trap' ? Math.atan2(spot.x - x, spot.z - z) : 0;
+        if (!input.usingTool()) buildArmed = true;
+        const holding = buildArmed && ok && input.usingTool();
+        building = holding ? building + dt : 0;
+        const { buildTime } = PLACEABLES[held];
+        if (holding) {
+          progress = building / buildTime;
+          clickUsed = true;
+          busy = held === 'shelter' ? 'search' : 'searchLow'; // (down on your knees to build a fire or set a trap)
+        }
+        if (building >= buildTime) {
+          putDown(held, spot, heading);
+          previewing = null;
+          building = 0;
+          progress = null;
+        } else {
+          placementGhost.show(held, spot, heading, ok, holding ? progress : 0);
+          ghostShown = true;
+          if (!ok) prompt = `${NO_ROOM[held]} · aim somewhere else · right-click to cancel`;
+          else if (holding) prompt = `Building the ${name}…`;
+          else prompt = `Hold the mouse button to build the ${name} here · right-click to cancel`;
+        }
       }
     } else if (!fire && held === 'bandage') {
       if (survival.health >= 100) {
@@ -638,6 +700,7 @@ export function createActions({ sfx = () => {}, input, inventory, player, world,
       }
     }
 
+    if (!ghostShown) placementGhost.hide();
     if (!searchingNow) searching = 0;
     if (!usingNow) using = 0;
     if (!drawingNow) drawing = 0;
