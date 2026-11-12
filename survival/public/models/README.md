@@ -23,6 +23,8 @@ Triangle counts are for the current exports; sources are in `survival/blender/`.
 | `debris.glb` | Torn sheet metal off the plane: three bent panels, painted and scraped outside, bare inside | 2,536 | blender/props_smooth.py |
 | `landing-wheel.glb` | The plane's torn-off wheel: tyre, hub, bent leg, lying on its side | 4,112 | blender/props_smooth.py |
 | `fallen-log.glb` | Fallen log, 1 m unit (stretched per copy): furrowed bark, moss, broken ends | 2,280 | blender/props_smooth.py |
+| `trunk-snapped.glb` | A spruce trunk the plane snapped off on its way in: 0.3 m radius, bark torn into ragged points from 2.2 m up, pale splintered wood and spears to ~2.9 m; origin at the base, tallest splinters toward +x (the game stretches its height; see src/flightPath.js) | 844 | blender/props_smooth.py |
+| `root-plate.glb` | The roots and soil an uprooted spruce tears up, stood on edge: ~2 m across, centred 0.8 m up, turf side toward +x (where the trunk lies), earth and crooked roots toward -x, churned soil heaped behind | 3,160 | blender/props_smooth.py |
 | `stalagmite.glb` | Cave stalagmite ~1 m, wet limestone with growth rings | 1,596 | blender/props_smooth.py |
 | `backpack.glb` | Canvas rucksack, smooth (lid, front and side pockets, webbing, padded shoulder straps, rust bedroll on top), upright, origin base centre; straps toward +Z, pocket toward -Z (glTF). Same mesh as the worn `player-pack` | 2,928 | blender/props_smooth.py |
 | `campfire.glb` | Ring of 15 nearly-touching stones built from `rock-small`/`rock` (mossy vertex paint), log teepee, embers, crossed-blade flame, ~0.95 m across | 1,594 | blender/remake.py |

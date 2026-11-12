@@ -141,11 +141,14 @@ A few birds fly over by day. The north is quiet: you hear the wind (louder up th
 and, now and then by day, a bird of the boreal winter (a junco's "tsip", chickadees, a raven's
 croak); owls and wolves far
 off at night; deer walking, bleating, and snorting as they bolt from you; water nearby, a
-campfire's crackle, and dripping and bats down a cave. Your footsteps sound like what's
+campfire's crackle, and dripping and bats down a cave. Toward the coast you hear the sea's roar
+(muffled from far inland), and down on the shore, waves breaking on the shingle and the wind off
+the open water. (You can't drink the sea, or fill the flask from it: it's salt.) Your footsteps sound like what's
 underfoot (grass, dirt, gravel, rock, snow, wooden floors, water), and most things you do have a
 sound: chopping and trees crashing down, the bow, arrows landing, eating, drinking, cooking,
-searching, bandaging, lighting a fire, and you'll hear it when you're hurt. Every sound is a real
-recording (from Freesound: see `public/sounds/README.md` and its credits), and `listen.html`
+searching, bandaging, lighting a fire, and you'll hear it when you're hurt. Every sound but the
+sea's is a real recording (from Freesound: see `public/sounds/README.md` and its credits; the
+sea's are made by `audio/make_sea.py`), and `listen.html`
 plays each on its own. Press N to turn the sound off and on.
 
 What's in each place to search is rolled each game. All the numbers are at the top of
@@ -290,9 +293,10 @@ clears, a campfire) but stops in a tree trunk. The further you draw, the faster 
 further it holds true (10 m on a light draw, 55 m drawn all the way; aim further and it drops
 short). In first person you see the whole shot: you carry the bow low at your side; drawing, it comes up
 a little while your right hand brings an arrow up and nocks it (the shaft lying on top of your bow
-hand, on the right of the bow), then up to aim, canted over to the left, as the string comes back under your eye (the
-bow arm starts to shake if you hold it there long); let go and the string snaps forward and
-quivers, the bow kicks, and your hand flies back past your cheek. Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
+hand, on the right of the bow), then up to aim, canted over to the left, as the string comes back
+to the corner of your mouth, three fingers hooked round it as an archer's are, the hand anchoring
+under your jaw (the bow arm starts to shake if you hold it there long); let go and the string
+snaps forward and quivers, the bow kicks, and your hand slides back along your jaw. Arrows are drawn a bit bigger than life, with a faint streak behind them, so you can
 follow one in flight, and a running animal can get away. One hit kills a deer or
 a rabbit, which stumbles on and falls over, with the arrow stuck in it; select your knife and
 hold E next to it to butcher it (you can't without a knife; a deer takes 4 s and gives 6 raw meat,
@@ -360,6 +364,7 @@ src/traps.js          Snare traps that catch rabbits
 src/hunting.js        Bow hunting numbers and rules (stones, one-shot kills, flee distances, yield)
 src/arrows.js         Arrows in flight
 sim/hunting-sim.mjs   Node check of the hunting rules: node sim/hunting-sim.mjs
+audio/make_sea.py     Makes the sea's sounds (waves, roar, sea wind) into public/sounds/: python audio/make_sea.py
 src/pickups.js        Items lying on the ground
 src/wreck.js          The crashed plane at the start, and where the starting items lie
 src/lookout.js        The fire lookout tower: where it stands, and its supply crate

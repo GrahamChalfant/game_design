@@ -1,12 +1,14 @@
 // The sounds of the place, the far north (the Yukon, the Northwest Territories) as the cold
 // sets in. Mostly a great quiet: the wind, and now and then a bird of the boreal winter (a
 // junco, a chickadee, a raven). By night, owls, and wolves far off. Deer moving about
-// nearby; water lapping, a campfire crackling, and dripping and bats down a cave.
+// nearby; water lapping, a campfire crackling, and dripping and bats down a cave. Down by the
+// sea, its roar, waves breaking on the shingle, and the wind off the open water.
 //
 // Every sound is a recording in public/sounds/ named after it (see SOUNDS below), e.g.
 // public/sounds/raven.mp3; most have a few takes (raven-2.mp3, raven-3.mp3, ...), and each time
 // one is picked at random. They're field recordings and sound effects from Freesound, public
-// domain or free to use with credit: public/sounds/CREDITS.md lists them. A sound with no
+// domain or free to use with credit: public/sounds/CREDITS.md lists them. (The sea's are made
+// by audio/make_sea.py instead: there's no recording in them.) A sound with no
 // recording is simply not heard. Open listen.html (with the game's server running) to hear
 // each one on its own.
 //
@@ -17,6 +19,9 @@ export const SOUNDS = {
   water: 'loop', // by a lake or the river
   fire: 'loop', // by a burning campfire (crackle and all)
   sizzle: 'loop', // meat cooking on a fire
+  sea: 'loop', // the sea's roar, heard from well inland (muffled the further you are)
+  'sea-wind': 'loop', // the wind off the open sea, down by the shore
+  wave: 'once', // a wave breaking on the beach, from the shore near you
   // By day, now and then, a bird somewhere around you.
   junco: 'once', chickadee: 'once', raven: 'once',
   owl: 'once', // at night, now and then
@@ -46,7 +51,13 @@ const LEVEL = {
   'step-rock': 0.65, 'deer-step': 0.7, // (sharp sounds: they measure quieter than they are)
   chew: 1.6, gulp: 1.5, rummage: 0.8, bandage: 0.8, cloth: 0.8, pickup: 0.8,
   hurt: 0.8, 'bow-draw': 1.0,
+  wave: 0.9,
 };
+// Sounds that carry further than most: heard this many times as far (a breaking wave, from
+// a long way inland).
+const CARRY = { wave: 5 };
+// How far inland the sea can be heard, in meters.
+const SEA_HEARD = 250;
 const FORMATS = ['mp3', 'ogg', 'wav'];
 // Vite serves public/ at the site root; a plain web server serves it at /public/.
 const SOUND_FOLDERS = ['sounds/', 'public/sounds/'];
@@ -59,7 +70,7 @@ export class Sound {
     this.files = {}; // name → [AudioBuffer, ...]: its takes
     this.folder = null; // where the recordings turned out to be served from
     this.loops = {};
-    this.timers = { birds: 6, owl: 8, wolf: 40, drip: 1, bat: 5, busy: 0 };
+    this.timers = { birds: 6, owl: 8, wolf: 40, wave: 1, drip: 1, bat: 5, busy: 0 };
     this.deer = new WeakMap(); // deer → seconds until its next footstep (or bleat)
     this.muted = readMuted();
     this.time = 0;
@@ -130,17 +141,21 @@ export class Sound {
     return null;
   }
 
-  // A loop plays all the time, silent until update() turns it up.
+  // A loop plays all the time, silent until update() turns it up. (Its filter lets everything
+  // through, unless update() muffles it: the sea, heard from far off.)
   startLoop(name) {
     const source = this.ctx.createBufferSource();
     source.buffer = this.files[name][0];
     source.loop = true;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 20000;
     const gain = this.ctx.createGain();
     gain.gain.value = 0;
-    source.connect(gain).connect(this.master);
+    source.connect(filter).connect(gain).connect(this.master);
     // (From somewhere different in each, so they don't all start together.)
     source.start(0, Math.random() * source.buffer.duration);
-    this.loops[name] = { source, gain };
+    this.loops[name] = { source, filter, gain };
   }
 
   toggleMute() {
@@ -156,8 +171,8 @@ export class Sound {
 
   // Call every frame. `env`: { paused, night, underground, cold (0–1), water (0–1: how close
   // the water is), fire (0–1), woods (0–1), listener: { x, z } (the player), animals (all of
-  // them, for the deer), and what the player's busy with: cooking, eating, drinking,
-  // searching, bandaging }.
+  // them, for the deer), shoreAt (x → the z of the sea's edge, south of you), and what the
+  // player's busy with: cooking, eating, drinking, searching, bandaging }.
   update(dt, env) {
     if (!this.ctx) return;
     if (env.listener) this.listener = env.listener;
@@ -173,6 +188,13 @@ export class Sound {
     set('water', outside * 0.27 * env.water, 0.3);
     set('fire', outside * 0.35 * env.fire, 0.2);
     set('sizzle', 0.6 * (env.cooking || 0)); // (a quiet recording)
+    // The sea: its roar, louder and clearer the nearer the shore (from further off, only its
+    // low rumble carries), and down on the open shore, the wind off the water.
+    const fromSea = env.shoreAt ? Math.max(0, env.shoreAt(this.listener.x) - this.listener.z) : Infinity;
+    const sea = Math.max(0, 1 - fromSea / SEA_HEARD);
+    set('sea', outside * 0.4 * sea ** 1.5, 0.5);
+    this.loops.sea?.filter.frequency.setTargetAtTime(250 + 8000 * sea ** 3, now, 0.5);
+    set('sea-wind', outside * 0.3 * Math.max(0, 1 - fromSea / 80) * (1 - 0.7 * env.woods) * gust, 0.5);
     this.echoOut.gain.setTargetAtTime(env.underground ? 0.35 : 0, now, 0.3);
     if (env.paused) return;
 
@@ -192,6 +214,12 @@ export class Sound {
     if (!env.underground && env.night && this.timers.wolf <= 0) {
       this.timers.wolf = rand(60, 150);
       this.play('wolf', this.around(42, 48));
+    }
+    // Waves breaking on the beach, every several seconds, somewhere along the shore near you.
+    if (!env.underground && sea > 0 && this.timers.wave <= 0) {
+      this.timers.wave = rand(5, 10);
+      const x = this.listener.x + rand(-30, 30);
+      this.play('wave', { x, z: env.shoreAt(x) });
     }
     // Deer nearby: their hooves as they walk or bolt, and a bleat now and then while they graze.
     // (The snort as one spots you is played by main.js.)
@@ -244,13 +272,14 @@ export class Sound {
     if (at) {
       const dx = at.x - this.listener.x;
       const dz = at.z - this.listener.z;
-      const distance = Math.hypot(dx, dz);
+      const away = Math.hypot(dx, dz);
+      const distance = away / (CARRY[name] ?? 1); // (how far it sounds)
       if (distance > 50) return;
       // Panned toward the side it's on, as you face (seen from the camera), but never all the
       // way into one ear, and less so close by (right beside you, you hear it with both).
       const { right } = this.listener;
-      const side = distance > 0.01 ? (dx * right.x + dz * right.z) / distance : 0;
-      pan = 0.7 * side * Math.min(1, distance / 3);
+      const side = away > 0.01 ? (dx * right.x + dz * right.z) / away : 0;
+      pan = 0.7 * side * Math.min(1, away / 3);
       gain *= 1 / (1 + distance / 9);
     }
     const source = this.ctx.createBufferSource();

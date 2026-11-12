@@ -21,6 +21,7 @@ export class Bushes {
     const isFree = (x, z) =>
       x > world.bounds.minX + 2 && x < world.bounds.maxX - 2 && z > world.bounds.minZ + 2 && z < world.bounds.maxZ - 2 &&
       world.terrain.waterDepth(x, z) === 0 &&
+      !world.terrain.crashTrail.near(x, z, 1.5) && // (nothing grows where the plane skidded)
       world.obstacles.isClear(x, z, 0.8);
     const regional = { bounds: world.bounds, berriesAt: (x, z) => REGIONS[world.regionAt(x, z)]?.berries ?? 1 };
     const transforms = [];
