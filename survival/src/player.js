@@ -580,7 +580,10 @@ export class Player {
   waterInReach(world) {
     if (this.cave) return null;
     const { terrain } = world;
-    const spots = [this.position, this.ahead(1.2)].filter(({ x, z }) => terrain.waterDepth(x, z) > 0.02);
+    // (A bucket down the homestead's well.)
+    const ahead = this.ahead(1.2);
+    if ((world.wells ?? []).some((well) => Math.hypot(well.x - ahead.x, well.z - ahead.z) < 1.2)) return 'fresh';
+    const spots = [this.position, ahead].filter(({ x, z }) => terrain.waterDepth(x, z) > 0.02);
     if (!spots.length) return null;
     return spots.some(({ x, z }) => !terrain.isSea(x, z)) ? 'fresh' : 'salt';
   }

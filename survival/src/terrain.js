@@ -3,7 +3,7 @@ import { CRASH, createCrashTrail } from './crashTrail.js';
 import { createWater } from './water.js';
 import { createRandom } from './random.js';
 import {
-  LAKE, MAP_SEED, PADS, RANGE, RAVINE, RAVINE_CROSSING, SADDLE, SEA_LEVEL, SEA_SWIM, TOWER, TRAIL, TRAIL_LENGTH,
+  FALLS, HILLS, LAKE, MAP_SEED, PADS, RANGE, RAVINE, RAVINE_CROSSING, SADDLE, SEA_LEVEL, SEA_SWIM, TOWER, TRAIL, TRAIL_LENGTH,
   coastZ, inBounds, nearestOnTrail, ravineAt, trailAt,
 } from './layout.js';
 import { CHUNK_SIZE, DRAW_CHUNKS, chunksAround } from './stream.js';
@@ -75,10 +75,13 @@ const PONDS = [
   { x: 120, z: -760, radius: 13, depth: 2.6 },
   { x: -520, z: -1020, radius: 18, depth: 2.8 },
   { x: 560, z: -880, radius: 14, depth: 2.6 },
+  // The pool at the foot of the waterfall, where the river starts (see FALLS).
+  { x: FALLS.x + Math.sin(FALLS.heading) * (FALLS.pool * 0.75), z: FALLS.z + Math.cos(FALLS.heading) * (FALLS.pool * 0.75), radius: FALLS.pool * 0.75, depth: 2.2 },
 ];
 // The river's course, from the mountains' foot down to the sea (it meanders between these).
 const RIVER = [
-  { x: -230, z: -1235 }, { x: -170, z: -1080 }, { x: -230, z: -900 }, { x: -160, z: -720 },
+  { x: FALLS.x + Math.sin(FALLS.heading) * FALLS.pool * 1.6, z: FALLS.z + Math.cos(FALLS.heading) * FALLS.pool * 1.6 }, // (out of the waterfall's pool)
+  { x: -170, z: -1080 }, { x: -230, z: -900 }, { x: -160, z: -720 },
   { x: -210, z: -520 }, { x: -140, z: -330 }, { x: -175, z: -150 }, { x: -130, z: 20 }, { x: -150, z: 200 },
 ];
 // Little creeks: clear, shallow and stony, running down off the hills into the river and the
@@ -135,13 +138,61 @@ export function createTerrain(noise, bounds) {
     const d = Math.hypot(x - TOWER.x, z - TOWER.z);
     return hill.height * (1 - smoothstep(d, hill.radius, hill.foot)) ** 1.6;
   };
+  // The other hills (see HILLS): round, a little lumpy, flat-topped; the Bluff with a cliff
+  // down its south side.
+  const hillShape = (hill, x, z) => {
+    const dx = x - hill.x;
+    const dz = z - hill.z;
+    if (Math.abs(dx) > hill.foot * 1.2 || Math.abs(dz) > hill.foot * 1.2) return null;
+    const d = Math.hypot(dx, dz) * (1 + 0.12 * noise(x * 0.012 + hill.x, z * 0.012 + 40));
+    // How much (x, z) is out on the cliff's side (0 elsewhere).
+    const toward = hill.cliff && d > 0 ? smoothstep((dx * Math.sin(hill.cliff.facing) + dz * Math.cos(hill.cliff.facing)) / d, 0.25, 0.8) : 0;
+    return { d, toward, foot: hill.foot + (hill.cliff ? (hill.cliff.foot - hill.foot) * toward : 0) };
+  };
+  const hillHeight = (x, z) => {
+    let h = 0;
+    for (const hill of HILLS) {
+      const shape = hillShape(hill, x, z);
+      if (shape) h += hill.height * (1 - smoothstep(shape.d, hill.radius, shape.foot)) ** (1.6 - 0.9 * shape.toward);
+    }
+    return h;
+  };
+  // Bare rock (0–1): the cliff faces and the hills' open tops.
+  const outcropAt = (x, z) => {
+    let rock = 0;
+    for (const hill of HILLS) {
+      const shape = hillShape(hill, x, z);
+      if (!shape) continue;
+      rock = Math.max(rock, 0.55 * (1 - smoothstep(shape.d, hill.radius * 0.7, hill.radius * 1.3)));
+      if (shape.toward > 0) rock = Math.max(rock, shape.toward * smoothstep(shape.d, hill.radius - 4, hill.radius + 2) * (1 - smoothstep(shape.d, shape.foot - 2, shape.foot + 4)));
+    }
+    return Math.max(rock, fallsAt(x, z).face);
+  };
+  // The waterfall's rock step (see FALLS): a shelf of rock behind a cliff that bows back at its
+  // ends, ramping down to the land either side. Returns { shelf, face }: how much (x, z) is up on
+  // the shelf (0–1), and how much on the cliff's face. Reuses one object.
+  const falls = { shelf: 0, face: 0 };
+  const fallsAt = (x, z) => {
+    falls.shelf = 0;
+    falls.face = 0;
+    const dx = x - FALLS.x;
+    const dz = z - FALLS.z;
+    if (Math.abs(dx) > 140 || Math.abs(dz) > 140) return falls;
+    const [s, c] = [Math.sin(FALLS.heading), Math.cos(FALLS.heading)];
+    const side = dx * c - dz * s;
+    const behind = -(dx * s + dz * c) + 0.012 * side * side;
+    const across = 1 - smoothstep(Math.abs(side), FALLS.width / 2, FALLS.width / 2 + 24);
+    falls.shelf = smoothstep(behind, -1.2, 1.6) * across * (1 - smoothstep(behind, 70, 110));
+    falls.face = (1 - smoothstep(Math.abs(behind - 0.2), 1.4, 3)) * (1 - smoothstep(Math.abs(side), FALLS.width / 2, FALLS.width / 2 + 8));
+    return falls;
+  };
   const southLand = (x, z) => {
     const shore = coastZ(x);
     const inland = shore - z; // meters in from the shoreline
     if (inland < 0) return Math.max(SEA_BED, COAST.shore + inland * COAST.shelf);
     const t = clamp(inland / (shore - RANGE.southFoot(x)), 0, 1);
     const amp = (COAST.hills + (FOOTHILLS_HILLS - COAST.hills) * smoothstep(t, 0.3, 0.8)) * smoothstep(inland, 0, 70);
-    const h = COAST.shore + COAST.rise * t ** 1.3 + (hills(x, z) / 4) * amp + tower(x, z);
+    const h = COAST.shore + COAST.rise * t ** 1.3 + (hills(x, z) / 4) * amp + tower(x, z) + hillHeight(x, z);
     // (Never down below the sea behind the shore, or the hollows there flood.)
     return Math.max(h, COAST.shore * 0.5 + Math.min(inland, 60) * 0.03);
   };
@@ -204,7 +255,13 @@ export function createTerrain(noise, bounds) {
     if (t >= 1) return northLand(x, z);
     return southLand(x, z) * (1 - t) + northLand(x, z) * t;
   };
-  const wildHeight = (x, z) => underHeight(x, z) + mountainHeight(x, z) + relief(x, z);
+  const rawHeight = (x, z) => underHeight(x, z) + mountainHeight(x, z) + relief(x, z);
+  const fallsTop = rawHeight(FALLS.x, FALLS.z) + FALLS.drop;
+  const wildHeight = (x, z) => {
+    const h = rawHeight(x, z);
+    const { shelf } = fallsAt(x, z);
+    return shelf > 0 && fallsTop > h ? h + (fallsTop - h) * shelf : h;
+  };
 
   // The trail over the mountains: graded evenly from where it leaves the foothills up to the
   // saddle, and down again to the lakeshore. Its bed is cut into the mountainside (and built up
@@ -358,7 +415,7 @@ export function createTerrain(noise, bounds) {
     const scarHeight = crashTrail.at(x, z).height;
     const h = withLakes(baseHeight(x, z), x, z, lakes) + (scarHeight ? scarHeight * (1 - stoneAt(x, z)) : 0);
     const r = river.nearest(x, z);
-    return r ? Math.min(h, river.carve(r)) : h;
+    return r && fallsAt(x, z).shelf < 0.2 ? Math.min(h, river.carve(r)) : h;
   };
   const lakeOrRiverLevel = (x, z) => {
     const near = nearestLake(x, z);
@@ -384,7 +441,7 @@ export function createTerrain(noise, bounds) {
     if (road) {
       const across = Math.abs(road.offset);
       const on = 1 - smoothstep(across, road.half - 0.4, road.half + 0.6);
-      const rut = 1 - smoothstep(Math.abs(across - RUTS.at), RUTS.width * 0.3, RUTS.width);
+      const rut = road.foot ? 0 : 1 - smoothstep(Math.abs(across - RUTS.at), RUTS.width * 0.3, RUTS.width);
       h += on * (-relief(x, z) - rut * RUTS.depth + (1 - smoothstep(across, 0, 0.55)) * RUTS.crown);
     }
     // Snow lies on top of the ground (on dry land: not in a creek, a lake or the river).
@@ -464,7 +521,7 @@ export function createTerrain(noise, bounds) {
   // How "foresty" an area is (roughly -1..1). Large woods and open meadows, a few hundred
   // meters across, with trees growing in clumps inside the woods.
   const forest = (x, z) => {
-    let f = noise(x * 0.006 + 700, z * 0.006) * 1.3 + noise(x * 0.04 + 50, z * 0.04) * 0.6 - mountainAt(x, z) * 4;
+    let f = noise(x * 0.006 + 700, z * 0.006) * 1.3 + noise(x * 0.04 + 50, z * 0.04) * 0.6 - mountainAt(x, z) * 4 - outcropAt(x, z) * 2.5;
     // The farm's fields, cleared long ago (a few trees still in hedgerows and windbreaks).
     if (z < LAKE.north(x)) f -= 1.1 * smoothstep(LAKE.north(x) - z, 30, 140) - 0.5 * Math.max(0, noise(x * 0.03 + 1500, z * 0.03));
     // Coastal forest grows thick inland, but the sea wind keeps the last stretch before the
@@ -476,13 +533,13 @@ export function createTerrain(noise, bounds) {
   const coldAt = (x, z) => smoothstep(highUp(x, z), MOUNTAINS.coldFrom, MOUNTAINS.coldFull);
 
   // Roads, added with setRoads once the map knows where they go: segments sorted into cells.
-  let roadHalf = 0;
   const roadAt = (x, z) => {
     if (!roadCells.size) return null;
     const list = roadCells.get(`${Math.floor(x / ROAD_CELL)},${Math.floor(z / ROAD_CELL)}`);
     if (!list) return null;
     let best = null;
-    for (const { ax, az, bx, bz } of list) {
+    for (const seg of list) {
+      const { ax, az, bx, bz } = seg;
       const dx = bx - ax;
       const dz = bz - az;
       const len2 = dx * dx + dz * dz;
@@ -493,10 +550,10 @@ export function createTerrain(noise, bounds) {
       if (!best || distance < Math.abs(best.offset)) {
         // Which side of the middle (for the ruts).
         const side = Math.sign(dx * (z - az) - dz * (x - ax)) || 1;
-        best = { offset: distance * side, half: roadHalf };
+        best = { offset: distance * side, half: seg.half, foot: seg.foot };
       }
     }
-    return best && Math.abs(best.offset) < roadHalf + 1 ? best : null;
+    return best && Math.abs(best.offset) < best.half + 1 ? best : null;
   };
 
   const color = new THREE.Color();
@@ -526,6 +583,14 @@ export function createTerrain(noise, bounds) {
       tint.copy(STONE).lerp(OCHRE, clamp(noise(x * 0.8, z * 0.8) * 0.3 + 0.1, 0, 0.25));
       color.lerp(tint, Math.min(1, (rock - 0.38) / 0.05) * (0.5 + 0.5 * smoothstep(rock, 0.5, 0.68)));
       kind = rock > 0.58 ? 'rock' : 'stony';
+    }
+    // The cliffs and the hilltops' bare rock.
+    const outcrop = outcropAt(x, z);
+    if (outcrop > 0.05) {
+      tint.copy(STONE).lerp(OCHRE, clamp(noise(x * 0.7 + 30, z * 0.7) * 0.3 + 0.1, 0, 0.25)).multiplyScalar(0.92);
+      color.lerp(tint, Math.min(1, outcrop * 1.3));
+      if (outcrop > 0.5) kind = 'rock';
+      else if (outcrop > 0.25 && kind === 'grass') kind = 'stony';
     }
     // A little lingering snow, in the odd patch (see snowAt).
     const lowSnow = noise(x * 0.06 + 400, z * 0.06) + noise(x * 0.4 + 500, z * 0.4) * 0.22;
@@ -568,8 +633,8 @@ export function createTerrain(noise, bounds) {
         // (Blended in and out, not hard bands: they're about as wide as the ground's squares,
         // and hard edges come out as a zigzag checkerboard of triangles.)
         tint.copy(ROAD);
-        tint.lerp(RUT, 0.7 * (1 - smoothstep(Math.abs(across - 0.8), 0.1, 0.5)));
-        tint.lerp(ROAD_GRASS, 0.5 * (1 - smoothstep(across, 0.15, 0.55)));
+        tint.lerp(RUT, (road.foot ? 0.25 : 0.7) * (1 - smoothstep(Math.abs(across - 0.8), 0.1, 0.5)));
+        tint.lerp(ROAD_GRASS, (road.foot ? 0 : 0.5) * (1 - smoothstep(across, 0.15, 0.55)));
         tint.lerp(OCHRE, clamp(noise(x * 0.5, z * 0.5) * 0.4, 0, 0.3));
         color.lerp(tint, edge);
         if (edge > 0.5) kind = 'road';
@@ -659,19 +724,21 @@ export function createTerrain(noise, bounds) {
     creeks: creeks.list, // each { points: [{ x, z, level, halfWidth }] }, from its spring down
     creekOnly,
     roadAt,
-    // Lays roads (each a list of { x, z } points) `width` meters wide into the ground. Call
-    // before the ground is drawn.
+    // Lays roads (each a list of { x, z } points) into the ground: `width` meters wide, or the
+    // path's own `width` if it has one (a footpath, `foot`, has no wheel ruts). Call before the
+    // ground is drawn.
     setRoads(paths, width) {
-      roadHalf = width / 2;
       for (const path of paths) {
+        const half = (path.width ?? width) / 2;
+        const foot = Boolean(path.foot);
         for (let i = 1; i < path.length; i++) {
           const [a, b] = [path[i - 1], path[i]];
-          const pad = roadHalf + 1;
+          const pad = half + 1;
           for (let cx = Math.floor((Math.min(a.x, b.x) - pad) / ROAD_CELL); cx <= Math.floor((Math.max(a.x, b.x) + pad) / ROAD_CELL); cx++) {
             for (let cz = Math.floor((Math.min(a.z, b.z) - pad) / ROAD_CELL); cz <= Math.floor((Math.max(a.z, b.z) + pad) / ROAD_CELL); cz++) {
               const key = `${cx},${cz}`;
               if (!roadCells.has(key)) roadCells.set(key, []);
-              roadCells.get(key).push({ ax: a.x, az: a.z, bx: b.x, bz: b.z });
+              roadCells.get(key).push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, half, foot });
             }
           }
         }
