@@ -699,8 +699,56 @@ export function createTerrain(noise, bounds) {
     return { color, kind };
   };
 
+  // Just the kind of ground at (x, z), as groundAt gives it, without working out its colour: the
+  // same tests in the same order (keep the two in step), a good deal quicker. For placing things
+  // over the whole map (a tree needs soil), where only the kind matters.
+  const groundKind = (x, z) => {
+    let kind = 'grass';
+    const rock = rockAt(x, z);
+    if (rock > 0.38) kind = rock > 0.58 ? 'rock' : 'stony';
+    const outcrop = outcropAt(x, z);
+    if (outcrop > 0.5) kind = 'rock';
+    else if (outcrop > 0.25 && kind === 'grass') kind = 'stony';
+    const lowSnow = noise(x * 0.06 + 400, z * 0.06) + noise(x * 0.4 + 500, z * 0.4) * 0.22;
+    if (lowSnow > SNOW_PATCH.from) kind = 'snow';
+    const up = mountainAt(x, z);
+    if (up > 0) {
+      const scree = smoothstep(up + noise(x * 0.1 + 1200, z * 0.1) * 0.12, MOUNTAINS.screeFrom, MOUNTAINS.screeFull);
+      if (scree > 0.5) kind = 'rock';
+      const snowy = highUp(x, z) + noise(x * 0.05 + 1300, z * 0.05) * 0.1 + noise(x * 0.3 + 1400, z * 0.3) * 0.04;
+      if (snowy > MOUNTAINS.snowline) kind = 'snow';
+    }
+    const scar = crashTrail.at(x, z);
+    if (scar.dirt > 0 && scar.dirt * (1 - stoneAt(x, z)) > 0.4) kind = 'dirt';
+    const road = roadAt(x, z);
+    if (road && 1 - smoothstep(Math.abs(road.offset), road.half - 0.6, road.half + 0.5) > 0.5) kind = 'road';
+    const onTrail = nearestOnTrail(x, z);
+    if (onTrail.distance < TRAIL.halfWidth + 0.6) {
+      const edge = (1 - smoothstep(onTrail.distance, TRAIL.halfWidth - 0.6, TRAIL.halfWidth + 0.4)) * 0.85;
+      if (edge > 0.5 && kind !== 'snow') kind = 'road';
+    }
+    const creek = creeks.nearest(x, z);
+    if (creek && 1 - smoothstep(creek.distance, creek.halfWidth, creek.halfWidth + 0.9) > 0.4) kind = creek.distance < creek.halfWidth ? 'water' : 'shore';
+    const open = openWaterLevel(x, z);
+    if (open > -Infinity) {
+      const h = heightAt(x, z);
+      const sea = open === SEA_LEVEL && z > coastZ(x) - 40;
+      const beach = 1 - smoothstep(h, open + (sea ? 0.6 : 0.2), open + (sea ? 2.4 : 0.9));
+      if (beach > 0.4) kind = h < open && waterDepth(x, z) > 0 ? 'water' : sea ? 'gravel' : 'shore';
+    }
+    const near = nearestLake(x, z);
+    const byLake = near && near.distance < 1.6;
+    if (byLake || river.nearest(x, z)) {
+      const h = heightAt(x, z);
+      const level = Math.max(byLake ? near.lake.level : -Infinity, river.nearest(x, z)?.level ?? -Infinity);
+      if (1 - smoothstep(h, level, level + 0.45) > 0.4) kind = h < level && waterDepth(x, z) > 0 ? 'water' : 'shore';
+    }
+    return kind;
+  };
+
   const terrain = {
     heightAt,
+    groundKind,
     snowAt,
     slopeAt,
     canClimb,

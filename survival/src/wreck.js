@@ -137,7 +137,7 @@ export function buildWreck(scene, world) {
     const back = (i / CLODS) * 36;
     const side = (i % 2 ? 1 : -1) * (2 + Math.abs(Math.sin(i * 12.9)) * 1.8);
     const { x, z } = trailPoint(back, side);
-    if (['rock', 'stony'].includes(world.terrain.groundAt(x, z).kind)) continue; // (no soil to throw up off rock)
+    if (['rock', 'stony'].includes(world.terrain.groundKind(x, z))) continue; // (no soil to throw up off rock)
     const size = 0.5 + Math.abs(Math.sin(i * 7.3)) * 1.2;
     clods.push(new THREE.Matrix4().compose(
       new THREE.Vector3(x, world.terrain.heightAt(x, z), z),
