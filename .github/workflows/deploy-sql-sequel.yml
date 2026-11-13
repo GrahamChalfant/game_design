@@ -1,0 +1,39 @@
+# Publishes the daily SQL game (the daily-sql-challenge folder only) to GitHub Pages.
+# Runs whenever that folder changes on main, or by hand from the Actions tab.
+name: Deploy SQL The Sequel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'daily-sql-challenge/**'
+      - '.github/workflows/deploy-sql-sequel.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deploy at a time; a newer push replaces one still in progress.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      # Refuse to publish a broken question bank.
+      - name: Check every question against SQLite
+        run: python3 daily-sql-challenge/tools/validate.py
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: daily-sql-challenge
+      - id: deployment
+        uses: actions/deploy-pages@v4

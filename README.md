@@ -7,6 +7,7 @@ including its own README explaining how to run and change it.
 | --- | --- |
 | [`survival/`](survival/) | **Northern Survival**: a top-down 3D survival game (Three.js). Chop wood, build fires, trap and cook food, and see how long you can last through the days and nights. |
 | [`sql-daily/`](sql-daily/) | **SQL: The Sequel**: a daily SQL puzzle game. Three timed, movie-themed SQL questions a day. |
+| [`daily-sql-challenge/`](daily-sql-challenge/) | **SQL: The Sequel (Daily SQL Challenge)**: a daily SQL game in a pixel movie theater. One film a day, three timed questions, and faster answers earn more box office. |
 
 ## Playing a game
 

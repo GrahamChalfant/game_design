@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SQL: The Sequel · the daily SQL challenge</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Spotlights that sweep up from the bottom of the window when the film is a hit -->
+  <div id="spots" aria-hidden="true">
+    <i class="spot s1"></i><i class="spot s2"></i><i class="spot s3"></i><i class="spot s4"></i>
+  </div>
+
+  <div id="theater">
+
+    <header class="marquee">
+      <div class="bulbs"></div>
+      <h1>SQL: THE SEQUEL</h1>
+      <p class="sub">THE DAILY SQL CHALLENGE</p>
+      <div class="bulbs"></div>
+    </header>
+
+    <div class="hud">
+      <span id="hud-day">SCREENING #-</span>
+      <span class="hud-gross">BOX OFFICE <b id="hud-gross">$0</b></span>
+      <button id="mute" class="chip" type="button" aria-label="Toggle sound">SOUND ON</button>
+    </div>
+
+    <div class="gauge" aria-hidden="true">
+      <div class="gauge-track"><div id="gauge-fill"></div><div id="gauge-ticks"></div></div>
+      <p id="gauge-note">a few early arrivals. the popcorn is still warm.</p>
+    </div>
+
+    <main id="stage" class="stage">
+      <div class="screen">
+        <!-- Film leader countdown -->
+        <section id="view-leader" class="view" hidden>
+          <div class="leader">
+            <div class="leader-ring"><div class="leader-hand"></div><span id="leader-num">3</span></div>
+          </div>
+        </section>
+
+        <!-- A question -->
+        <section id="view-question" class="view" hidden>
+          <div class="q-head">
+            <div class="q-act"><b id="q-act-num">ACT I</b><span id="q-act-name">PREMIERE NIGHT</span></div>
+            <div class="q-timer">
+              <div class="timer-track"><div id="timer-fill"></div></div>
+              <div class="timer-read"><span id="timer-secs">45s</span><span>ON THE TABLE <b id="timer-money">$100M</b></span></div>
+            </div>
+          </div>
+          <div class="q-body">
+            <div class="q-left">
+              <p id="q-prompt" class="prompt"></p>
+              <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"
+                        placeholder="SELECT ..." aria-label="Your SQL query"></textarea>
+              <div class="q-actions">
+                <button id="run" class="btn" type="button">▶ RUN <small>CTRL+ENTER</small></button>
+                <button id="skip" class="chip dark" type="button">WALK OUT ($0)</button>
+              </div>
+              <div id="feedback" class="feedback" hidden></div>
+              <div id="result" class="grid-wrap" hidden></div>
+            </div>
+            <div class="q-right">
+              <h3>THE TABLES</h3>
+              <div id="tables"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- After a question -->
+        <section id="view-wrap" class="view" hidden>
+          <p id="wrap-kicker" class="kicker"></p>
+          <h2 id="wrap-money" class="big-money"></h2>
+          <p id="wrap-detail" class="detail"></p>
+          <div class="reel">
+            <h3>ONE WAY TO WRITE IT</h3>
+            <pre id="wrap-solution"></pre>
+            <p id="wrap-lesson" class="lesson"></p>
+          </div>
+          <button id="next" class="btn" type="button"></button>
+        </section>
+
+        <!-- End of the day's show -->
+        <section id="view-finale" class="view" hidden>
+          <p class="kicker">THE END</p>
+          <p id="fin-film" class="detail"></p>
+          <h2 id="fin-total" class="big-money"></h2>
+          <p id="fin-tier" class="tier"></p>
+          <p id="fin-tier-line" class="detail"></p>
+          <table class="credits"><tbody id="fin-rows"></tbody></table>
+          <div class="fin-actions">
+            <button id="share" class="btn" type="button">COPY RESULTS</button>
+          </div>
+          <p id="fin-next" class="detail"></p>
+          <p id="fin-streak" class="detail"></p>
+        </section>
+      </div>
+
+      <div class="curtain left"></div>
+      <div class="curtain right"></div>
+      <div class="valance"></div>
+
+      <!-- Sits in front of the closed curtains: lobby, act cards, intermission -->
+      <div id="front" class="front" hidden></div>
+    </main>
+
+    <footer id="seats" class="seats" aria-hidden="true"></footer>
+  </div>
+
+  <script src="vendor/sql-wasm.js"></script>
+  <script type="module" src="js/game.js"></script>
+</body>
+</html>
