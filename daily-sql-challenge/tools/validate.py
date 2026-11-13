@@ -4,6 +4,10 @@
 #   - the solution runs and returns rows
 #   - Act I's broken starter query does NOT already pass
 #   - questions marked "ordered" have no ties that would make the order ambiguous
+#   - each act is the right kind of question (see QUESTIONS.md):
+#       Act I and Act II use one table and no join or window function;
+#       Act III uses exactly one of a join or a window function
+#   - tables are small enough to read quickly, and every film id is unique
 # Run it after adding or editing a film.
 import json
 import os
@@ -43,17 +47,55 @@ def same(a, b, ordered):
     return a == b if ordered else sorted(a) == sorted(b)
 
 
+MAX_TABLES = 2
+MAX_ROWS = 12
+MAX_COLUMNS = 5
+MAX_PROMPT = 230
+
+
+def shape(sql):
+    # Which features a query uses, judged from its text.
+    flat = ' ' + ' '.join(sql.lower().split()) + ' '
+    return {'join': ' join ' in flat, 'window': ' over (' in flat or ' over(' in flat}
+
+
+def category_problems(i, act):
+    s = shape(act['solution'])
+    if i in (1, 2) and (s['join'] or s['window']):
+        return ['Act I and Act II must not need a join or a window function']
+    if i == 3 and s['join'] == s['window']:
+        return ['Act III must use exactly one of: a join, a window function']
+    return []
+
+
 def main():
     with open(BANK, encoding='utf-8') as f:
         films = json.load(f)
     problems = 0
+    ids = [f['id'] for f in films]
+    for dup in sorted({i for i in ids if ids.count(i) > 1}):
+        print(f'FAIL {dup}: film id used more than once')
+        problems += 1
     for film in films:
+        if len(film['tables']) > MAX_TABLES:
+            print(f'FAIL {film["id"]}: more than {MAX_TABLES} tables')
+            problems += 1
+        for t in film['tables']:
+            if len(t['rows']) > MAX_ROWS or len(t['columns']) > MAX_COLUMNS:
+                print(f'FAIL {film["id"]}: table {t["name"]} is bigger than {MAX_ROWS} rows x {MAX_COLUMNS} columns')
+                problems += 1
         db = build(film)
         if len(film['acts']) != 3:
             print(f'FAIL {film["id"]}: needs exactly 3 acts')
             problems += 1
         for i, act in enumerate(film['acts'], 1):
             tag = f'{film["id"]} act {i}'
+            for msg in category_problems(i, act):
+                print(f'FAIL {tag}: {msg}')
+                problems += 1
+            if len(act['prompt']) > MAX_PROMPT:
+                print(f'FAIL {tag}: prompt is longer than {MAX_PROMPT} characters')
+                problems += 1
             try:
                 want = rows_of(db, act['solution'])
             except sqlite3.Error as e:
