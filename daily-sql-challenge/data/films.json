@@ -1,0 +1,518 @@
+[
+  {
+    "id": "matrix",
+    "title": "The Matrix",
+    "blurb": "Free your mind. Then GROUP BY it.",
+    "tables": [
+      {
+        "name": "crew",
+        "columns": [["name", "TEXT"], ["ship", "TEXT"], ["role", "TEXT"], ["bullets_dodged", "INTEGER"]],
+        "rows": [
+          ["Neo", "Nebuchadnezzar", "The One", 412],
+          ["Trinity", "Nebuchadnezzar", "First Mate", 187],
+          ["Morpheus", "Nebuchadnezzar", "Captain", 96],
+          ["Tank", "Nebuchadnezzar", "Operator", 0],
+          ["Cypher", "Nebuchadnezzar", "Traitor", 3],
+          ["Niobe", "Logos", "Captain", 143],
+          ["Ghost", "Logos", "Gunner", 121],
+          ["Sparks", "Logos", "Operator", 2],
+          ["Roland", "Mjolnir", "Captain", 58],
+          ["Maggie", "Mjolnir", "Medic", 7]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should count the crew on each ship, but it only returns one row. Fix it.",
+        "starter": "SELECT ship, COUNT(*) AS crew_count\nFROM crew;",
+        "solution": "SELECT ship, COUNT(*) AS crew_count\nFROM crew\nGROUP BY ship;",
+        "ordered": false,
+        "lesson": "An aggregate next to a plain column needs GROUP BY on that column."
+      },
+      {
+        "prompt": "Show the 3 best bullet-dodgers: name and bullets_dodged, most dodged first.",
+        "solution": "SELECT name, bullets_dodged\nFROM crew\nORDER BY bullets_dodged DESC\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "ORDER BY ... DESC puts the biggest first; LIMIT keeps the top few."
+      },
+      {
+        "prompt": "For every crew member show name, ship, and their rank on their own ship by bullets_dodged (1 = most dodged).",
+        "solution": "SELECT name, ship,\n       RANK() OVER (PARTITION BY ship ORDER BY bullets_dodged DESC) AS ship_rank\nFROM crew;",
+        "ordered": false,
+        "lesson": "PARTITION BY restarts the ranking for each ship."
+      }
+    ]
+  },
+  {
+    "id": "lotr",
+    "title": "The Lord of the Rings",
+    "blurb": "One query to rule them all.",
+    "tables": [
+      {
+        "name": "fellowship",
+        "columns": [["name", "TEXT"], ["race", "TEXT"], ["weapon", "TEXT"], ["age", "INTEGER"]],
+        "rows": [
+          ["Frodo", "Hobbit", "Sting", 50],
+          ["Sam", "Hobbit", "Frying Pan", 38],
+          ["Merry", "Hobbit", "Dagger", 36],
+          ["Pippin", "Hobbit", "Dagger", 28],
+          ["Aragorn", "Man", "Sword", 87],
+          ["Boromir", "Man", "Shield", 41],
+          ["Legolas", "Elf", "Bow", 2931],
+          ["Gimli", "Dwarf", "Axe", 139],
+          ["Gandalf", "Wizard", "Staff", 2019]
+        ]
+      },
+      {
+        "name": "kills",
+        "columns": [["name", "TEXT"], ["battle", "TEXT"], ["orcs_slain", "INTEGER"]],
+        "rows": [
+          ["Boromir", "Amon Hen", 20],
+          ["Legolas", "Helms Deep", 41],
+          ["Gimli", "Helms Deep", 42],
+          ["Aragorn", "Helms Deep", 35],
+          ["Legolas", "Pelennor", 28],
+          ["Gimli", "Pelennor", 25],
+          ["Aragorn", "Pelennor", 44],
+          ["Gandalf", "Pelennor", 19],
+          ["Merry", "Pelennor", 3],
+          ["Pippin", "Pelennor", 2]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list each race with more than one member in the fellowship, but it crashes. Fix it.",
+        "starter": "SELECT race, COUNT(*) AS members\nFROM fellowship\nWHERE COUNT(*) > 1\nGROUP BY race;",
+        "solution": "SELECT race, COUNT(*) AS members\nFROM fellowship\nGROUP BY race\nHAVING COUNT(*) > 1;",
+        "ordered": false,
+        "lesson": "WHERE filters rows before grouping; HAVING filters the groups afterwards."
+      },
+      {
+        "prompt": "Show the average age of each race in the fellowship table: race and average age, oldest average first.",
+        "solution": "SELECT race, AVG(age) AS avg_age\nFROM fellowship\nGROUP BY race\nORDER BY avg_age DESC;",
+        "ordered": true,
+        "lesson": "GROUP BY makes one row per race; AVG works inside each group."
+      },
+      {
+        "prompt": "Total orcs slain by each race: race and total orcs_slain, biggest total first. (The kills table has no race column.)",
+        "solution": "SELECT f.race, SUM(k.orcs_slain) AS total\nFROM fellowship f\nJOIN kills k ON k.name = f.name\nGROUP BY f.race\nORDER BY total DESC;",
+        "ordered": true,
+        "lesson": "JOIN on the shared name column, then group by the column you borrowed."
+      }
+    ]
+  },
+  {
+    "id": "hobbit",
+    "title": "The Hobbit",
+    "blurb": "An unexpected query.",
+    "tables": [
+      {
+        "name": "hoard",
+        "columns": [["item", "TEXT"], ["kind", "TEXT"], ["gold_value", "INTEGER"], ["claimed_by", "TEXT"]],
+        "rows": [
+          ["Arkenstone", "gem", 50000, "Thorin"],
+          ["Mithril Shirt", "armor", 30000, "Bilbo"],
+          ["White Gems", "gem", 15000, "Thranduil"],
+          ["Necklace of Girion", "gem", 12000, "Bard"],
+          ["Orcrist", "weapon", 8000, "Thorin"],
+          ["Emerald Circlet", "gem", 7000, null],
+          ["Golden Harp", "instrument", 4000, null],
+          ["War Axe", "weapon", 2500, null],
+          ["Golden Cup", "goblet", 900, "Bilbo"],
+          ["Silver Flute", "instrument", 600, null]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the items nobody has claimed yet, but it returns nothing. Fix it.",
+        "starter": "SELECT item\nFROM hoard\nWHERE claimed_by = NULL;",
+        "solution": "SELECT item\nFROM hoard\nWHERE claimed_by IS NULL;",
+        "ordered": false,
+        "lesson": "Nothing ever equals NULL. Test for it with IS NULL."
+      },
+      {
+        "prompt": "Show the 3 richest kinds of treasure: kind and total gold_value, richest first.",
+        "solution": "SELECT kind, SUM(gold_value) AS total\nFROM hoard\nGROUP BY kind\nORDER BY total DESC\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "Group, sum, sort by the sum, then LIMIT."
+      },
+      {
+        "prompt": "List every item with its gold_value, most valuable first, plus a running total of gold_value down the list.",
+        "solution": "SELECT item, gold_value,\n       SUM(gold_value) OVER (ORDER BY gold_value DESC) AS running_total\nFROM hoard\nORDER BY gold_value DESC;",
+        "ordered": true,
+        "lesson": "SUM(...) OVER (ORDER BY ...) adds up everything so far in that order."
+      }
+    ]
+  },
+  {
+    "id": "dozen",
+    "title": "Cheaper by the Dozen",
+    "blurb": "Twelve kids. One table. Okay, two.",
+    "tables": [
+      {
+        "name": "kids",
+        "columns": [["name", "TEXT"], ["age", "INTEGER"], ["hobby", "TEXT"], ["allowance", "INTEGER"]],
+        "rows": [
+          ["Nora", 22, "writing", 0],
+          ["Charlie", 17, "football", 20],
+          ["Lorraine", 16, "fashion", 20],
+          ["Henry", 15, "clarinet", 15],
+          ["Sarah", 13, "pranks", 12],
+          ["Jake", 12, "skateboarding", 12],
+          ["Mark", 11, "frogs", 10],
+          ["Jessica", 10, "chess", 8],
+          ["Kim", 10, "chess", 8],
+          ["Mike", 8, "hockey", 6],
+          ["Kyle", 6, "pranks", 5],
+          ["Nigel", 6, "pranks", 5]
+        ]
+      },
+      {
+        "name": "chore_log",
+        "columns": [["name", "TEXT"], ["chore", "TEXT"], ["minutes", "INTEGER"]],
+        "rows": [
+          ["Mark", "dishes", 30],
+          ["Mark", "laundry", 45],
+          ["Kim", "dishes", 25],
+          ["Jessica", "vacuum", 40],
+          ["Henry", "lawn", 60],
+          ["Jake", "trash", 10],
+          ["Nigel", "dishes", 15],
+          ["Charlie", "lawn", 50],
+          ["Sarah", "laundry", 20],
+          ["Kim", "vacuum", 35],
+          ["Henry", "trash", 10],
+          ["Lorraine", "laundry", 30]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should show the name and age of every kid under 13, but it only returns one column. Fix it.",
+        "starter": "SELECT name age\nFROM kids\nWHERE age < 13;",
+        "solution": "SELECT name, age\nFROM kids\nWHERE age < 13;",
+        "ordered": false,
+        "lesson": "Without the comma, SQL reads \"name age\" as the name column renamed to age."
+      },
+      {
+        "prompt": "Which hobbies are shared by 2 or more kids? Show hobby and number of kids, most popular first.",
+        "solution": "SELECT hobby, COUNT(*) AS kids\nFROM kids\nGROUP BY hobby\nHAVING COUNT(*) >= 2\nORDER BY kids DESC;",
+        "ordered": true,
+        "lesson": "HAVING keeps only the groups that pass the test."
+      },
+      {
+        "prompt": "Which kids have never logged a chore? Show just their name.",
+        "solution": "SELECT k.name\nFROM kids k\nLEFT JOIN chore_log c ON c.name = k.name\nWHERE c.name IS NULL;",
+        "ordered": false,
+        "lesson": "A LEFT JOIN keeps kids with no match; their chore columns come back NULL."
+      }
+    ]
+  },
+  {
+    "id": "jurassic",
+    "title": "Jurassic Park",
+    "blurb": "Life, uh, finds a WHERE clause.",
+    "tables": [
+      {
+        "name": "dinosaurs",
+        "columns": [["species", "TEXT"], ["diet", "TEXT"], ["length_m", "INTEGER"], ["headcount", "INTEGER"], ["escaped", "INTEGER"]],
+        "rows": [
+          ["Tyrannosaurus", "carnivore", 12, 1, 1],
+          ["Velociraptor", "carnivore", 2, 3, 1],
+          ["Dilophosaurus", "carnivore", 3, 5, 1],
+          ["Brachiosaurus", "herbivore", 26, 8, 0],
+          ["Triceratops", "herbivore", 9, 6, 0],
+          ["Parasaurolophus", "herbivore", 10, 12, 0],
+          ["Stegosaurus", "herbivore", 8, 7, 0],
+          ["Gallimimus", "omnivore", 6, 40, 1]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should show the species and headcount of every carnivore, but it crashes. Fix it.",
+        "starter": "SELECT species, headcount\nFROM dinosaurs\nWHERE diet = carnivore;",
+        "solution": "SELECT species, headcount\nFROM dinosaurs\nWHERE diet = 'carnivore';",
+        "ordered": false,
+        "lesson": "Text values need single quotes. Without them SQL goes looking for a column called carnivore."
+      },
+      {
+        "prompt": "How many animals are there of each diet? Show diet and total headcount, most animals first.",
+        "solution": "SELECT diet, SUM(headcount) AS total\nFROM dinosaurs\nGROUP BY diet\nORDER BY total DESC;",
+        "ordered": true,
+        "lesson": "SUM adds up the headcount column; COUNT would only count the rows."
+      },
+      {
+        "prompt": "For every species show species, length_m, and the length of the longest dinosaur that shares its diet.",
+        "solution": "SELECT species, length_m,\n       MAX(length_m) OVER (PARTITION BY diet) AS longest_in_diet\nFROM dinosaurs;",
+        "ordered": false,
+        "lesson": "A window function keeps every row and adds the group's value alongside it."
+      }
+    ]
+  },
+  {
+    "id": "titanic",
+    "title": "Titanic",
+    "blurb": "Near, far, WHERE-ever you are.",
+    "tables": [
+      {
+        "name": "passengers",
+        "columns": [["name", "TEXT"], ["class", "INTEGER"], ["age", "INTEGER"], ["survived", "INTEGER"]],
+        "rows": [
+          ["Rose", 1, 17, 1],
+          ["Cal", 1, 30, 1],
+          ["Ruth", 1, 45, 1],
+          ["Molly", 1, 44, 1],
+          ["Lovejoy", 1, 55, 0],
+          ["Andrews", 1, 39, 0],
+          ["Nora", 2, 29, 1],
+          ["Edmund", 2, 52, 0],
+          ["Jack", 3, 20, 0],
+          ["Fabrizio", 3, 21, 0],
+          ["Tommy", 3, 24, 0],
+          ["Helga", 3, 18, 0]
+        ]
+      },
+      {
+        "name": "decks",
+        "columns": [["class", "INTEGER"], ["deck", "TEXT"], ["ticket_price", "INTEGER"]],
+        "rows": [
+          [1, "A Deck", 150],
+          [2, "D Deck", 60],
+          [3, "G Deck", 8]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the name and age of every survivor (survived = 1), youngest first, but it crashes. Fix it.",
+        "starter": "SELECT name, age\nFROM passengers\nORDER BY age\nWHERE survived = 1;",
+        "solution": "SELECT name, age\nFROM passengers\nWHERE survived = 1\nORDER BY age;",
+        "ordered": true,
+        "lesson": "Clauses have a fixed order: WHERE comes before ORDER BY."
+      },
+      {
+        "prompt": "For each class show class, number of passengers, and number of survivors.",
+        "solution": "SELECT class, COUNT(*) AS passengers, SUM(survived) AS survivors\nFROM passengers\nGROUP BY class;",
+        "ordered": false,
+        "lesson": "Summing a 0/1 column counts the 1s."
+      },
+      {
+        "prompt": "For everyone who did not survive, show their name and the name of their deck, alphabetical by name.",
+        "solution": "SELECT p.name, d.deck\nFROM passengers p\nJOIN decks d ON d.class = p.class\nWHERE p.survived = 0\nORDER BY p.name;",
+        "ordered": true,
+        "lesson": "The class number links each passenger to a deck."
+      }
+    ]
+  },
+  {
+    "id": "homealone",
+    "title": "Home Alone",
+    "blurb": "KEVIN! You forgot the ORDER BY!",
+    "tables": [
+      {
+        "name": "traps",
+        "columns": [["step", "INTEGER"], ["trap", "TEXT"], ["location", "TEXT"], ["victim", "TEXT"], ["pain", "INTEGER"]],
+        "rows": [
+          [1, "BB Gun", "Back Door", "Harry", 4],
+          [2, "Icy Steps", "Basement", "Marv", 5],
+          [3, "Hot Doorknob", "Front Door", "Harry", 8],
+          [4, "Swinging Iron", "Basement", "Marv", 7],
+          [5, "Blowtorch", "Back Door", "Harry", 10],
+          [6, "Nail on Stairs", "Basement", "Marv", 9],
+          [7, "Glue and Feathers", "Dining Room", "Harry", 2],
+          [8, "Christmas Ornaments", "Living Room", "Marv", 6],
+          [9, "Toy Cars", "Hallway", "Harry", 5],
+          [10, "Tarantula", "Hallway", "Marv", 3]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should return the single most painful trap, but it returns the least painful one. Fix it.",
+        "starter": "SELECT trap, pain\nFROM traps\nORDER BY pain\nLIMIT 1;",
+        "solution": "SELECT trap, pain\nFROM traps\nORDER BY pain DESC\nLIMIT 1;",
+        "ordered": true,
+        "lesson": "ORDER BY sorts smallest first unless you add DESC."
+      },
+      {
+        "prompt": "For each burglar show victim, number of traps they hit, and their total pain.",
+        "solution": "SELECT victim, COUNT(*) AS traps_hit, SUM(pain) AS total_pain\nFROM traps\nGROUP BY victim;",
+        "ordered": false,
+        "lesson": "One GROUP BY can feed several aggregates at once."
+      },
+      {
+        "prompt": "For every trap show step, victim, pain, and that victim's running total of pain so far (in step order).",
+        "solution": "SELECT step, victim, pain,\n       SUM(pain) OVER (PARTITION BY victim ORDER BY step) AS running_pain\nFROM traps;",
+        "ordered": false,
+        "lesson": "PARTITION BY keeps a separate running total for each burglar."
+      }
+    ]
+  },
+  {
+    "id": "jaws",
+    "title": "Jaws",
+    "blurb": "You're gonna need a bigger query.",
+    "tables": [
+      {
+        "name": "sightings",
+        "columns": [["id", "INTEGER"], ["day", "INTEGER"], ["beach", "TEXT"], ["reported_by", "TEXT"], ["length_ft", "INTEGER"]],
+        "rows": [
+          [1, 1, "South Beach", "Cassidy", 15],
+          [2, 3, "Village Beach", "Brody", 18],
+          [3, 3, "Village Beach", "Kintner", 20],
+          [4, 5, "The Pond", "Brody", 22],
+          [5, 6, "Open Water", "Hooper", 20],
+          [6, 6, "Open Water", "Quint", 25],
+          [7, 7, "Open Water", "Brody", 25],
+          [8, 7, "Open Water", "Hooper", 24]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should count how many different beaches have had a sighting, but it counts every sighting. Fix it.",
+        "starter": "SELECT COUNT(beach) AS beaches\nFROM sightings;",
+        "solution": "SELECT COUNT(DISTINCT beach) AS beaches\nFROM sightings;",
+        "ordered": false,
+        "lesson": "COUNT(DISTINCT x) counts each different value once."
+      },
+      {
+        "prompt": "Show the average reported length_ft at each beach: beach and average, biggest average first.",
+        "solution": "SELECT beach, AVG(length_ft) AS avg_length\nFROM sightings\nGROUP BY beach\nORDER BY avg_length DESC;",
+        "ordered": true,
+        "lesson": "You can ORDER BY the alias of an aggregate."
+      },
+      {
+        "prompt": "For every sighting show id, length_ft, and the length_ft from the sighting before it (by id). The first sighting has nothing before it, so leave that NULL.",
+        "solution": "SELECT id, length_ft,\n       LAG(length_ft) OVER (ORDER BY id) AS previous_length\nFROM sightings;",
+        "ordered": false,
+        "lesson": "LAG looks one row back in the window's order."
+      }
+    ]
+  },
+  {
+    "id": "bttf",
+    "title": "Back to the Future",
+    "blurb": "Where we're going, we don't need rowids.",
+    "tables": [
+      {
+        "name": "citizens",
+        "columns": [["name", "TEXT"], ["born", "INTEGER"], ["job", "TEXT"]],
+        "rows": [
+          ["Marty McFly", 1968, "student"],
+          ["George McFly", 1938, "author"],
+          ["Lorraine McFly", 1938, "homemaker"],
+          ["Dave McFly", 1963, "office worker"],
+          ["Linda McFly", 1966, "clerk"],
+          ["Emmett Brown", 1920, "inventor"],
+          ["Biff Tannen", 1937, "car detailer"],
+          ["Jennifer Parker", 1968, "student"],
+          ["Goldie Wilson", 1935, "mayor"],
+          ["Gerald Strickland", 1928, "principal"]
+        ]
+      },
+      {
+        "name": "trips",
+        "columns": [["trip_id", "INTEGER"], ["traveler", "TEXT"], ["from_year", "INTEGER"], ["to_year", "INTEGER"]],
+        "rows": [
+          [1, "Marty McFly", 1985, 1955],
+          [2, "Marty McFly", 1955, 1985],
+          [3, "Emmett Brown", 1985, 2015],
+          [4, "Emmett Brown", 2015, 1985],
+          [5, "Marty McFly", 1985, 2015],
+          [6, "Jennifer Parker", 1985, 2015],
+          [7, "Biff Tannen", 2015, 1955],
+          [8, "Biff Tannen", 1955, 2015],
+          [9, "Emmett Brown", 1955, 1885],
+          [10, "Marty McFly", 1955, 1885],
+          [11, "Marty McFly", 1885, 1985]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the name and birth year of everyone in the McFly family, but it returns nothing. Fix it.",
+        "starter": "SELECT name, born\nFROM citizens\nWHERE name LIKE 'McFly';",
+        "solution": "SELECT name, born\nFROM citizens\nWHERE name LIKE '%McFly';",
+        "ordered": false,
+        "lesson": "LIKE without a % wildcard only matches the exact text."
+      },
+      {
+        "prompt": "Show the 3 oldest citizens: name and their age in 1985, oldest first.",
+        "solution": "SELECT name, 1985 - born AS age_in_1985\nFROM citizens\nORDER BY born\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "You can do arithmetic right in the SELECT list."
+      },
+      {
+        "prompt": "For each citizen who has time-traveled show name, job, and number of trips, most trips first.",
+        "solution": "SELECT c.name, c.job, COUNT(*) AS trip_count\nFROM citizens c\nJOIN trips t ON t.traveler = c.name\nGROUP BY c.name, c.job\nORDER BY trip_count DESC;",
+        "ordered": true,
+        "lesson": "An inner JOIN drops citizens with no trips, which is what we want here."
+      }
+    ]
+  },
+  {
+    "id": "oceans",
+    "title": "Ocean's Eleven",
+    "blurb": "Eleven rows. One vault.",
+    "tables": [
+      {
+        "name": "crew",
+        "columns": [["name", "TEXT"], ["specialty", "TEXT"], ["cut_pct", "REAL"]],
+        "rows": [
+          ["Danny", "mastermind", 15],
+          ["Rusty", "fixer", 13],
+          ["Reuben", "financier", 12],
+          ["Saul", "con man", 10],
+          ["Linus", "pickpocket", 9],
+          ["Basher", "explosives", 8],
+          ["Livingston", "hacker", 8],
+          ["Frank", "inside man", 7],
+          ["Yen", "acrobat", 7],
+          ["Virgil", "driver", 5.5],
+          ["Turk", "driver", 5.5]
+        ]
+      },
+      {
+        "name": "gear",
+        "columns": [["item", "TEXT"], ["owner", "TEXT"], ["cost_thousands", "INTEGER"]],
+        "rows": [
+          ["Vault Replica", "Reuben", 2500],
+          ["EMP Device", "Basher", 800],
+          ["Surveillance Van", "Livingston", 120],
+          ["Explosives", "Basher", 90],
+          ["Fake Jewels", "Saul", 60],
+          ["Getaway Van", "Virgil", 45],
+          ["SWAT Uniforms", "Rusty", 30],
+          ["Laptops", "Livingston", 25],
+          ["Cash Cart", "Yen", 12],
+          ["RC Truck", "Turk", 5]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the name and specialty of every driver and every hacker, but it returns nothing. Fix it.",
+        "starter": "SELECT name, specialty\nFROM crew\nWHERE specialty = 'driver' AND specialty = 'hacker';",
+        "solution": "SELECT name, specialty\nFROM crew\nWHERE specialty = 'driver' OR specialty = 'hacker';",
+        "ordered": false,
+        "lesson": "No single row can be both. Use OR (or IN) to accept either value."
+      },
+      {
+        "prompt": "The haul is $160 million and each member gets cut_pct percent of it. Show name and payout in millions for the 3 biggest payouts, biggest first.",
+        "solution": "SELECT name, 160 * cut_pct / 100 AS payout_millions\nFROM crew\nORDER BY payout_millions DESC\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "Compute the payout in SELECT, then sort by it."
+      },
+      {
+        "prompt": "For every piece of gear costing more than 50 (thousand) show item, its owner's specialty, and cost_thousands, priciest first.",
+        "solution": "SELECT g.item, c.specialty, g.cost_thousands\nFROM gear g\nJOIN crew c ON c.name = g.owner\nWHERE g.cost_thousands > 50\nORDER BY g.cost_thousands DESC;",
+        "ordered": true,
+        "lesson": "Join gear.owner to crew.name to borrow the specialty."
+      }
+    ]
+  }
+]
