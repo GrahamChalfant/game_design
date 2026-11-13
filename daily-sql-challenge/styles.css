@@ -73,8 +73,8 @@ body {
 
 /* ---- HUD and box office gauge ---- */
 .hud {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* equal side columns keep the total dead centre */
   align-items: center;
   gap: 10px;
   margin-top: 14px;
@@ -82,9 +82,34 @@ body {
   letter-spacing: 0.14em;
   color: #cbb89a;
 }
-.hud-gross b { color: var(--bulb); font-size: 16px; letter-spacing: 0.06em; }
+.hud-gross { display: flex; flex-direction: column; align-items: center; line-height: 1.15; font-size: 11px; }
+.hud-gross b {
+  display: block;
+  color: #6fdc8c;
+  font-size: 34px;
+  letter-spacing: 0.04em;
+  text-shadow: 3px 3px 0 #0b3a1c;
+  transition: transform 0.35s ease-out, color 0.35s;
+}
+.hud-gross b.swell { transform: scale(1.55); color: #eaffef; }
+.hud #mute { justify-self: end; min-width: 98px; text-align: center; }
 
 .gauge { margin: 6px 0 10px; }
+.gauge-track::before { /* a $ at the head of the bar */
+  content: "$";
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  bottom: -3px;
+  width: 18px;
+  display: grid;
+  place-items: center;
+  background: var(--gold-dk);
+  color: var(--night);
+  font-weight: bold;
+  font-size: 13px;
+  z-index: 1;
+}
 .gauge-track {
   position: relative;
   height: 14px;
@@ -94,7 +119,7 @@ body {
 #gauge-fill {
   height: 100%;
   width: 0;
-  background: repeating-linear-gradient(90deg, var(--gold) 0 8px, #f3cd6a 8px 10px);
+  background: repeating-linear-gradient(90deg, #2f8f4e 0 12px, #6fdc8c 12px 14px);
   transition: width 1.2s steps(12);
 }
 #gauge-ticks i {
@@ -105,11 +130,21 @@ body {
   margin-left: -3px;
   background: var(--gold-dk);
 }
+#gauge-ticks span {
+  position: absolute;
+  top: 19px;
+  right: 0;
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: #9a8774;
+  white-space: nowrap;
+}
 #gauge-note {
-  margin: 4px 0 0;
+  margin: 20px 0 0;
   font-size: 11px;
   letter-spacing: 0.1em;
-  color: #9a8774;
+  color: #cbb89a;
   text-align: right;
 }
 
@@ -192,6 +227,17 @@ body {
   padding: 20px 22px 22px;
   text-align: center;
 }
+.front.wide { width: min(940px, 94%); }
+.study { margin-top: 16px; padding-top: 14px; border-top: 3px dashed var(--gold-dk); }
+.study .fine { margin: 6px 0 10px; }
+.study-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 12px;
+  text-align: left;
+}
+.study-tables .tbl { margin: 0; min-width: 0; }
+.front .grid-wrap { color: var(--ink); max-height: 300px; }
 .kicker {
   margin: 0;
   font-size: 12px;
@@ -298,7 +344,9 @@ body {
   inset: 0;
   border-radius: 50%;
   background: conic-gradient(rgba(216, 208, 189, 0.38) 0 25%, transparent 0);
-  animation: sweep 1s steps(12) infinite;
+}
+.leader-hand.sweeping {
+  animation: sweep 1s steps(12) forwards;
 }
 @keyframes sweep { to { transform: rotate(360deg); } }
 #leader-num {
@@ -353,7 +401,7 @@ body {
 #editor {
   display: block;
   width: 100%;
-  min-height: 150px;
+  min-height: 172px;
   resize: vertical;
   font: 15px/1.5 var(--mono);
   color: #f6eeda;
@@ -420,7 +468,7 @@ body {
 .big-money.flop { color: var(--red); }
 .detail { margin: 4px 0; font-size: 13px; letter-spacing: 0.08em; }
 .reel {
-  max-width: 620px;
+  max-width: 760px;
   margin: 18px auto;
   text-align: left;
 }
@@ -459,10 +507,93 @@ body {
 .fin-actions { margin: 6px 0 14px; }
 
 /* ---- Seats ---- */
+/* Two rows of seat backs seen from behind, pinned to the bottom of the window. A seat that is
+   "taken" has a head showing above it, lit a little by the screen. */
 .seats {
-  height: 44px;
-  margin-top: 10px;
-  background: radial-gradient(circle at 50% 100%, #2a1722 0 26px, transparent 27px) 50% 0 / 66px 44px repeat-x;
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  height: 64px;
+  margin-top: 12px;
+  pointer-events: none;
+}
+.seats .row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+}
+.seats .row.far { bottom: 20px; padding: 0 3.5%; }
+.seats .row.near { bottom: 0; }
+.seat {
+  position: relative;
+  width: 5.4%;
+  max-width: 58px;
+  height: 22px;
+  background: #2f1a27;
+  border-top: 3px solid #4a2c3d;
+  border-radius: 8px 8px 0 0;
+}
+.row.near .seat { height: 28px; background: #3a2030; border-top-color: #5a3549; }
+.seat i { /* the person: head and shoulders, hidden behind the seat until it is taken */
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  bottom: 60%;
+  width: 62%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #6b4a3a;
+  box-shadow: inset 0 3px 0 rgba(255, 240, 205, 0.55), 0 9px 0 4px #241320;
+  transform: translate(-50%, 130%);
+  opacity: 0;
+  transition: transform 0.5s steps(5), opacity 0.1s;
+}
+.seat.tone1 i { background: #4a3345; }
+.seat.tone2 i { background: #8a6248; }
+.seat.taken i { transform: translate(-50%, 0); opacity: 1; }
+/* Someone checking their phone: no phone to see, just its light on their face and shoulders. */
+.seat i { transition: transform 0.5s steps(5), opacity 0.1s, background-color 0.4s, box-shadow 0.4s; }
+.seat.phone i {
+  background: #9fb4c8;
+  box-shadow: inset 0 3px 0 rgba(255, 240, 205, 0.55), 0 9px 0 4px #33465a, 0 0 9px 2px rgba(150, 205, 255, 0.3);
+}
+.seats.full .seat i { animation: cheer 0.6s steps(2) infinite; }
+.seats.full .seat.tone1 i { animation-delay: 0.3s; }
+@keyframes cheer { 50% { bottom: 78%; } }
+
+/* ---- Spotlights ---- */
+#spots {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s;
+}
+#spots.on { opacity: 1; }
+.spot { /* a beam: narrow at the lamp on the floor, wide and faint at the top */
+  position: absolute;
+  bottom: -30px;
+  width: 30vmin;
+  height: 135vh;
+  transform-origin: 50% 100%;
+  clip-path: polygon(45% 100%, 55% 100%, 100% 0, 0 0);
+  background: linear-gradient(to top, rgba(255, 244, 200, 0.42), rgba(255, 244, 200, 0.06) 65%, transparent);
+  mix-blend-mode: screen;
+  animation: swing 4.2s ease-in-out infinite alternate;
+}
+.spot.s1 { left: -8vmin; --from: 6deg; --to: 46deg; }
+.spot.s2 { right: -8vmin; --from: -6deg; --to: -46deg; animation-duration: 5.1s; }
+.spot.s3 { left: 22%; --from: -24deg; --to: 28deg; animation-duration: 6.3s; display: none; }
+.spot.s4 { right: 22%; --from: 24deg; --to: -28deg; animation-duration: 5.6s; display: none; }
+#spots.big .spot { display: block; }
+@keyframes swing {
+  from { transform: rotate(var(--from)); }
+  to { transform: rotate(var(--to)); }
 }
 
 /* ---- Small screens ---- */
@@ -475,9 +606,14 @@ body {
   .view { padding: 12px; }
   #leader-num { font-size: 110px; }
   .leader-ring { width: 200px; height: 200px; }
+  .seats { position: static; }
+  .hud-gross b { font-size: 26px; }
+  .hud #mute { min-width: 0; }
+  #gauge-ticks i:nth-child(even) span { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bulbs, .leader, .leader-hand, .tier.top { animation: none; }
+  .bulbs, .leader, .leader-hand, .tier.top, .seats.full .seat i { animation: none; }
+  .spot { animation: none; transform: rotate(calc((var(--from) + var(--to)) / 2)); }
   .curtain, #gauge-fill { transition: none; }
 }
