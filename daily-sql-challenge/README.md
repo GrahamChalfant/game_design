@@ -24,6 +24,11 @@ A perfect day is $1 billion. The final total earns a verdict in box-office langu
 
 ## Playing
 
+Online: https://grahamchalfant.github.io/game_design/ (published automatically from `main` by
+`.github/workflows/deploy-sql-sequel.yml`).
+
+On your own machine:
+
 ```bash
 python serve.py 8020
 ```
