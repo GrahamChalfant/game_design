@@ -70,6 +70,8 @@ of time or walking out pays $0.
 | `sounds/` | The crowd recordings (public domain, from Freesound; sources in `sounds/README.md`) |
 | `js/engine.js` | Builds the film's tables in an in-browser SQLite database and checks answers |
 | `data/films.json` | The question bank: one entry per film, each with its tables and three acts |
+| `data/schedule.json` | Which film plays on which date |
+| `tools/schedule.py` | Puts newly added films on the schedule |
 | `tools/validate.py` | Checks every question in the bank against real SQLite |
 | `vendor/` | sql.js (SQLite compiled for the browser) |
 
@@ -86,6 +88,20 @@ Each act needs a `prompt`, a `solution`, `ordered` (does row order matter?) and 
 python tools/validate.py
 ```
 
-Films are shown in the order they appear in the file, one per day, and the list repeats when it
-runs out. There are 20 films today, so the cycle is 20 days. Screening #1 is 13 November 2026
-(`EPOCH` in `js/game.js`).
+Then give the new film a date:
+
+```bash
+python tools/schedule.py
+```
+
+## Which film plays on which day
+
+`data/schedule.json` maps each calendar date to a film id. `tools/schedule.py` adds any film that
+is not on the schedule yet to the next free day after the last one, and never moves a film that
+already has a date. To rerun or swap a film, edit the dates in that file by hand; the checker
+refuses a rerun within 60 days and any gap between dates.
+
+If a day has nothing scheduled (the schedule has run out), the game falls back to cycling through
+the whole bank in order, so there is always something to play. `tools/validate.py` prints how
+many days of scheduled films are left. Screening #1 is 13 November 2026 (`EPOCH` in `js/game.js`,
+`FIRST_DAY` in `tools/schedule.py`).
