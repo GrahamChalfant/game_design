@@ -26,7 +26,9 @@ What a film in `data/films.json` has to look like. `tools/validate.py` enforces 
   COUNT without DISTINCT, LIKE without `%`, AND where OR is needed, wrong aggregate (AVG for SUM),
   IN without parentheses, missing DISTINCT, `=` where `!=` is needed, BETWEEN backwards,
   misspelled keyword, missing LIMIT, ORDER BY on the wrong column, GROUP BY on the wrong column,
-  listing rows where a COUNT is wanted.
+  listing rows where a COUNT is wanted, `!= NULL`, MIN for MAX, `>` where `>=` is needed, `%` on
+  the wrong side of a LIKE, LIMIT without ORDER BY, SUM for COUNT, whole-number division,
+  misspelled column name, AND/OR without parentheses.
 
 ## Act II: Opening Weekend (90 seconds)
 
@@ -45,8 +47,8 @@ never both. **(checked)**
 
 - Join questions: an inner join, usually with a filter, a sort, or a GROUP BY on the borrowed
   column. A LEFT JOIN to find rows with no match is allowed.
-- Window questions: one function with one OVER clause. Used so far: RANK, SUM/MAX/MIN/AVG over a
-  partition, a running SUM, LAG, and an empty `OVER ()`.
+- Window questions: one function with one OVER clause. Used so far: RANK, ROW_NUMBER, SUM/MAX/MIN/AVG
+  over a partition, a running SUM, LAG, LEAD, and an empty `OVER ()`.
 - No subqueries or CTEs are required (players may use them; answers are judged by result).
 
 ## Every question
