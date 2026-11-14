@@ -75,6 +75,9 @@ of time or walking out pays $0.
 
 ## Adding a film
 
+The rules for what makes a good film and a good question for each act are in
+[QUESTIONS.md](QUESTIONS.md).
+
 Add an entry to `data/films.json` with `id`, `title`, `blurb`, `tables` and exactly three `acts`.
 Each act needs a `prompt`, a `solution`, `ordered` (does row order matter?) and a one-line
 `lesson`. Act I also needs a broken `starter` query. Then run:
@@ -84,5 +87,5 @@ python tools/validate.py
 ```
 
 Films are shown in the order they appear in the file, one per day, and the list repeats when it
-runs out. There are 10 films today, so the cycle is 10 days. Screening #1 is 13 November 2026
+runs out. There are 20 films today, so the cycle is 20 days. Screening #1 is 13 November 2026
 (`EPOCH` in `js/game.js`).

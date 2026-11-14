@@ -441,6 +441,7 @@ function runPlayerQuery() {
     fb.className = 'feedback bad';
     fb.textContent = `SQL ERROR · ${got.error}`;
     res.hidden = true;
+    fb.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     return;
   }
   res.innerHTML = tableHtml(got.columns, got.rows);
@@ -451,6 +452,8 @@ function runPlayerQuery() {
   } else {
     fb.className = 'feedback bad';
     fb.textContent = `NOT QUITE · ${WHY[verdict.why](got, want)}`;
+    // Bring the player's output into view; on a short window it sits behind the audience.
+    res.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 }
 

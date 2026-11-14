@@ -514,5 +514,508 @@
         "lesson": "Join gear.owner to crew.name to borrow the specialty."
       }
     ]
+  },
+  {
+    "id": "starwars",
+    "title": "Star Wars",
+    "blurb": "A long time ago, in a table far, far away.",
+    "tables": [
+      {
+        "name": "pilots",
+        "columns": [["callsign", "TEXT"], ["name", "TEXT"], ["squadron", "TEXT"], ["kills", "INTEGER"], ["survived", "INTEGER"]],
+        "rows": [
+          ["Red Leader", "Garven", "Red", 2, 0],
+          ["Red Two", "Wedge", "Red", 3, 1],
+          ["Red Three", "Biggs", "Red", 2, 0],
+          ["Red Five", "Luke", "Red", 5, 1],
+          ["Red Six", "Porkins", "Red", 1, 0],
+          ["Gold Leader", "Dutch", "Gold", 1, 0],
+          ["Gold Two", "Tiree", "Gold", 0, 0],
+          ["Gold Five", "Davish", "Gold", 1, 0],
+          ["Falcon", "Han", "Smuggler", 4, 1]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should show the total kills for each squadron, but the numbers are far too small. Fix it.",
+        "starter": "SELECT\n  squadron,\n  AVG(kills) AS total_kills\nFROM pilots\nGROUP BY squadron;",
+        "solution": "SELECT\n  squadron,\n  SUM(kills) AS total_kills\nFROM pilots\nGROUP BY squadron;",
+        "ordered": false,
+        "lesson": "AVG gives the typical value; SUM adds them all up."
+      },
+      {
+        "prompt": "Show the name and kills of every pilot who survived (survived = 1), most kills first.",
+        "solution": "SELECT\n  name,\n  kills\nFROM pilots\nWHERE survived = 1\nORDER BY kills DESC;",
+        "ordered": true,
+        "lesson": "Filter with WHERE first, then sort what is left."
+      },
+      {
+        "prompt": "For every pilot show name, squadron, kills, and the total kills of their whole squadron.",
+        "solution": "SELECT\n  name,\n  squadron,\n  kills,\n  SUM(kills) OVER (PARTITION BY squadron) AS squadron_kills\nFROM pilots;",
+        "ordered": false,
+        "lesson": "SUM(...) OVER (PARTITION BY ...) puts the group total on every row."
+      }
+    ]
+  },
+  {
+    "id": "potter",
+    "title": "Harry Potter",
+    "blurb": "The query that lived.",
+    "tables": [
+      {
+        "name": "students",
+        "columns": [["name", "TEXT"], ["house", "TEXT"], ["points", "INTEGER"]],
+        "rows": [
+          ["Harry", "Gryffindor", 60],
+          ["Hermione", "Gryffindor", 50],
+          ["Ron", "Gryffindor", 45],
+          ["Neville", "Gryffindor", 10],
+          ["Draco", "Slytherin", 55],
+          ["Crabbe", "Slytherin", 5],
+          ["Goyle", "Slytherin", 8],
+          ["Cedric", "Hufflepuff", 70],
+          ["Hannah", "Hufflepuff", 25],
+          ["Luna", "Ravenclaw", 35],
+          ["Cho", "Ravenclaw", 48],
+          ["Padma", "Ravenclaw", 30]
+        ]
+      },
+      {
+        "name": "houses",
+        "columns": [["house", "TEXT"], ["head_of_house", "TEXT"], ["mascot", "TEXT"]],
+        "rows": [
+          ["Gryffindor", "McGonagall", "lion"],
+          ["Slytherin", "Snape", "serpent"],
+          ["Hufflepuff", "Sprout", "badger"],
+          ["Ravenclaw", "Flitwick", "eagle"]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the name and house of every student in Gryffindor or Ravenclaw, but it crashes. Fix it.",
+        "starter": "SELECT\n  name,\n  house\nFROM students\nWHERE house IN 'Gryffindor', 'Ravenclaw';",
+        "solution": "SELECT\n  name,\n  house\nFROM students\nWHERE house IN ('Gryffindor', 'Ravenclaw');",
+        "ordered": false,
+        "lesson": "The list after IN has to be wrapped in parentheses."
+      },
+      {
+        "prompt": "Show each house and its total points, highest total first.",
+        "solution": "SELECT\n  house,\n  SUM(points) AS total_points\nFROM students\nGROUP BY house\nORDER BY total_points DESC;",
+        "ordered": true,
+        "lesson": "Group by house, sum the points, sort by the sum."
+      },
+      {
+        "prompt": "For each head of house show head_of_house and the total points their students earned, highest first.",
+        "solution": "SELECT\n  h.head_of_house,\n  SUM(s.points) AS total_points\nFROM students s\nJOIN houses h ON h.house = s.house\nGROUP BY h.head_of_house\nORDER BY total_points DESC;",
+        "ordered": true,
+        "lesson": "Join on the house name, then group by the column you borrowed."
+      }
+    ]
+  },
+  {
+    "id": "toystory",
+    "title": "Toy Story",
+    "blurb": "To infinity and GROUP BY-ond.",
+    "tables": [
+      {
+        "name": "toys",
+        "columns": [["name", "TEXT"], ["kind", "TEXT"], ["owner", "TEXT"], ["year_made", "INTEGER"]],
+        "rows": [
+          ["Woody", "cowboy doll", "Andy", 1957],
+          ["Buzz", "space ranger", "Andy", 1995],
+          ["Rex", "dinosaur", "Andy", 1993],
+          ["Hamm", "piggy bank", "Andy", 1990],
+          ["Slinky", "dog", "Andy", 1955],
+          ["Mr Potato Head", "potato", "Andy", 1952],
+          ["Sarge", "soldier", "Andy", 1960],
+          ["RC", "race car", "Andy", 1994],
+          ["Bo Peep", "figurine", "Molly", 1970],
+          ["Babyface", "mutant", "Sid", 1991],
+          ["Legs", "mutant", "Sid", 1992],
+          ["Combat Carl", "soldier", "Sid", 1988]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list each owner once, but it repeats them. Fix it.",
+        "starter": "SELECT\n  owner\nFROM toys;",
+        "solution": "SELECT DISTINCT\n  owner\nFROM toys;",
+        "ordered": false,
+        "lesson": "DISTINCT removes repeated rows from the result."
+      },
+      {
+        "prompt": "Show the 3 oldest toys: name and year_made, oldest first.",
+        "solution": "SELECT\n  name,\n  year_made\nFROM toys\nORDER BY year_made\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "ORDER BY sorts smallest first by default, which here means oldest."
+      },
+      {
+        "prompt": "For every toy show name, owner, year_made, and the year_made of the oldest toy that has the same owner.",
+        "solution": "SELECT\n  name,\n  owner,\n  year_made,\n  MIN(year_made) OVER (PARTITION BY owner) AS oldest_for_owner\nFROM toys;",
+        "ordered": false,
+        "lesson": "MIN(...) OVER (PARTITION BY ...) finds the smallest value within each owner's toys."
+      }
+    ]
+  },
+  {
+    "id": "nemo",
+    "title": "Finding Nemo",
+    "blurb": "Just keep querying.",
+    "tables": [
+      {
+        "name": "fish",
+        "columns": [["name", "TEXT"], ["species", "TEXT"], ["home", "TEXT"]],
+        "rows": [
+          ["Marlin", "clownfish", "Reef"],
+          ["Dory", "blue tang", "Reef"],
+          ["Mr Ray", "ray", "Reef"],
+          ["Nemo", "clownfish", "Tank"],
+          ["Gill", "moorish idol", "Tank"],
+          ["Bloat", "pufferfish", "Tank"],
+          ["Peach", "starfish", "Tank"],
+          ["Bruce", "great white", "Shipwreck"],
+          ["Anchor", "hammerhead", "Shipwreck"],
+          ["Chum", "mako", "Shipwreck"],
+          ["Crush", "sea turtle", "Current"],
+          ["Squirt", "sea turtle", "Current"]
+        ]
+      },
+      {
+        "name": "places",
+        "columns": [["place", "TEXT"], ["depth_m", "INTEGER"], ["distance_km", "INTEGER"]],
+        "rows": [
+          ["Reef", 10, 0],
+          ["Shipwreck", 40, 300],
+          ["Trench", 800, 500],
+          ["Current", 60, 900],
+          ["Tank", 1, 2000]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the name and species of everyone who is NOT a clownfish, but it lists only the clownfish. Fix it.",
+        "starter": "SELECT\n  name,\n  species\nFROM fish\nWHERE species = 'clownfish';",
+        "solution": "SELECT\n  name,\n  species\nFROM fish\nWHERE species != 'clownfish';",
+        "ordered": false,
+        "lesson": "= keeps the matches; != (or <>) keeps everything else."
+      },
+      {
+        "prompt": "For each home show home and the number of fish living there.",
+        "solution": "SELECT\n  home,\n  COUNT(*) AS fish_count\nFROM fish\nGROUP BY home;",
+        "ordered": false,
+        "lesson": "COUNT(*) with GROUP BY counts the rows in each group."
+      },
+      {
+        "prompt": "For each place that has fish show place, distance_km, and the number of fish living there, farthest place first.",
+        "solution": "SELECT\n  p.place,\n  p.distance_km,\n  COUNT(*) AS fish_count\nFROM places p\nJOIN fish f ON f.home = p.place\nGROUP BY p.place, p.distance_km\nORDER BY p.distance_km DESC;",
+        "ordered": true,
+        "lesson": "An inner JOIN leaves out the Trench, because no fish matches it."
+      }
+    ]
+  },
+  {
+    "id": "lionking",
+    "title": "The Lion King",
+    "blurb": "Hakuna ma-data.",
+    "tables": [
+      {
+        "name": "animals",
+        "columns": [["name", "TEXT"], ["species", "TEXT"], ["home", "TEXT"], ["weight_kg", "INTEGER"]],
+        "rows": [
+          ["Mufasa", "lion", "Pride Rock", 190],
+          ["Simba", "lion", "Pride Rock", 180],
+          ["Scar", "lion", "Pride Rock", 150],
+          ["Sarabi", "lion", "Pride Rock", 130],
+          ["Nala", "lion", "Pride Rock", 125],
+          ["Zazu", "hornbill", "Pride Rock", 2],
+          ["Shenzi", "hyena", "Elephant Graveyard", 60],
+          ["Banzai", "hyena", "Elephant Graveyard", 58],
+          ["Ed", "hyena", "Elephant Graveyard", 56],
+          ["Pumbaa", "warthog", "Jungle", 90],
+          ["Timon", "meerkat", "Jungle", 1],
+          ["Rafiki", "mandrill", "Baobab Tree", 30]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the name and weight_kg of animals weighing between 50 and 100 kg, but it returns nothing. Fix it.",
+        "starter": "SELECT\n  name,\n  weight_kg\nFROM animals\nWHERE weight_kg BETWEEN 100 AND 50;",
+        "solution": "SELECT\n  name,\n  weight_kg\nFROM animals\nWHERE weight_kg BETWEEN 50 AND 100;",
+        "ordered": false,
+        "lesson": "BETWEEN needs the smaller number first."
+      },
+      {
+        "prompt": "For species with more than one animal, show species and average weight_kg, heaviest average first.",
+        "solution": "SELECT\n  species,\n  AVG(weight_kg) AS avg_weight\nFROM animals\nGROUP BY species\nHAVING COUNT(*) > 1\nORDER BY avg_weight DESC;",
+        "ordered": true,
+        "lesson": "HAVING filters groups after they are formed."
+      },
+      {
+        "prompt": "For every animal show name, weight_kg, and its rank among all animals by weight (1 = heaviest).",
+        "solution": "SELECT\n  name,\n  weight_kg,\n  RANK() OVER (ORDER BY weight_kg DESC) AS weight_rank\nFROM animals;",
+        "ordered": false,
+        "lesson": "With no PARTITION BY, the ranking runs across the whole table."
+      }
+    ]
+  },
+  {
+    "id": "ghostbusters",
+    "title": "Ghostbusters",
+    "blurb": "Who you gonna query?",
+    "tables": [
+      {
+        "name": "ghosts",
+        "columns": [["name", "TEXT"], ["class", "INTEGER"], ["danger", "INTEGER"]],
+        "rows": [
+          ["Taxi Driver Ghost", 3, 2],
+          ["Library Ghost", 4, 6],
+          ["Slimer", 5, 3],
+          ["Zuul", 6, 8],
+          ["Vinz Clortho", 6, 7],
+          ["Stay Puft", 7, 10]
+        ]
+      },
+      {
+        "name": "calls",
+        "columns": [["call_id", "INTEGER"], ["location", "TEXT"], ["ghost", "TEXT"], ["fee", "INTEGER"]],
+        "rows": [
+          [1, "Public Library", "Library Ghost", 0],
+          [2, "Sedgewick Hotel", "Slimer", 5000],
+          [3, "Chinatown", "Taxi Driver Ghost", 1500],
+          [4, "Sedgewick Hotel", "Slimer", 4000],
+          [5, "Central Park West", "Zuul", 0],
+          [6, "Central Park West", "Vinz Clortho", 0],
+          [7, "Columbus Circle", "Stay Puft", 0],
+          [8, "Night Club", "Slimer", 2500]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the name and class of every ghost of class 6 or higher, but it crashes. Fix it.",
+        "starter": "SELECT\n  name,\n  class\nFORM ghosts\nWHERE class >= 6;",
+        "solution": "SELECT\n  name,\n  class\nFROM ghosts\nWHERE class >= 6;",
+        "ordered": false,
+        "lesson": "Keywords have to be spelled exactly: FROM, not FORM."
+      },
+      {
+        "prompt": "Using the calls table, show each location that paid a fee and the total fee it paid, biggest total first.",
+        "solution": "SELECT\n  location,\n  SUM(fee) AS total_fee\nFROM calls\nWHERE fee > 0\nGROUP BY location\nORDER BY total_fee DESC;",
+        "ordered": true,
+        "lesson": "WHERE drops the unpaid calls before the groups are added up."
+      },
+      {
+        "prompt": "For every call about a ghost of class 6 or higher show call_id, location, and the ghost's class, in call_id order.",
+        "solution": "SELECT\n  c.call_id,\n  c.location,\n  g.class\nFROM calls c\nJOIN ghosts g ON g.name = c.ghost\nWHERE g.class >= 6\nORDER BY c.call_id;",
+        "ordered": true,
+        "lesson": "Join calls.ghost to ghosts.name, then filter on the borrowed class."
+      }
+    ]
+  },
+  {
+    "id": "shrek",
+    "title": "Shrek",
+    "blurb": "Queries are like onions. They have layers.",
+    "tables": [
+      {
+        "name": "swamp_guests",
+        "columns": [["name", "TEXT"], ["kind", "TEXT"], ["nights", "INTEGER"], ["noise_level", "INTEGER"]],
+        "rows": [
+          ["Donkey", "donkey", 30, 10],
+          ["Dragon", "dragon", 1, 9],
+          ["Pig 3", "pig", 4, 4],
+          ["Blind Mouse 2", "mouse", 3, 7],
+          ["Blind Mouse 1", "mouse", 3, 6],
+          ["Blind Mouse 3", "mouse", 3, 5],
+          ["Gingy", "gingerbread man", 2, 5],
+          ["Pinocchio", "puppet", 3, 4],
+          ["Pig 2", "pig", 4, 4],
+          ["Pig 1", "pig", 4, 3],
+          ["Big Bad Wolf", "wolf", 3, 2],
+          ["Puss in Boots", "cat", 12, 1]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should show only the 3 noisiest guests, but it shows everyone. Fix it.",
+        "starter": "SELECT\n  name,\n  noise_level\nFROM swamp_guests\nORDER BY noise_level DESC;",
+        "solution": "SELECT\n  name,\n  noise_level\nFROM swamp_guests\nORDER BY noise_level DESC\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "LIMIT cuts the result off after that many rows."
+      },
+      {
+        "prompt": "Show the 3 noisiest kinds of guest: kind and average noise_level, noisiest first.",
+        "solution": "SELECT\n  kind,\n  AVG(noise_level) AS avg_noise\nFROM swamp_guests\nGROUP BY kind\nORDER BY avg_noise DESC\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "Group, average, sort by the average, then LIMIT."
+      },
+      {
+        "prompt": "For every guest show name, noise_level, and the average noise_level of all guests (the same number on every row).",
+        "solution": "SELECT\n  name,\n  noise_level,\n  AVG(noise_level) OVER () AS avg_noise\nFROM swamp_guests;",
+        "ordered": false,
+        "lesson": "An empty OVER () treats the whole table as one window."
+      }
+    ]
+  },
+  {
+    "id": "raiders",
+    "title": "Raiders of the Lost Ark",
+    "blurb": "It belongs in a database!",
+    "tables": [
+      {
+        "name": "artifacts",
+        "columns": [["artifact", "TEXT"], ["site", "TEXT"], ["value_thousands", "INTEGER"]],
+        "rows": [
+          ["Ark of the Covenant", "Well of Souls", 9000],
+          ["Golden Idol", "Temple of the Idol", 500],
+          ["Staff Headpiece", "Ravenwood Bar", 250],
+          ["Canopic Jars", "Well of Souls", 120],
+          ["Stone Tablet", "Tanis Map Room", 75],
+          ["Staff of Ra", "Tanis Map Room", 40],
+          ["Idol Shard", "Temple of the Idol", 15]
+        ]
+      },
+      {
+        "name": "sites",
+        "columns": [["site", "TEXT"], ["country", "TEXT"], ["traps", "INTEGER"]],
+        "rows": [
+          ["Temple of the Idol", "Peru", 6],
+          ["Well of Souls", "Egypt", 3],
+          ["Tanis Map Room", "Egypt", 1],
+          ["Ravenwood Bar", "Nepal", 0],
+          ["Secret Island", "Greece", 2]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list artifacts from most valuable to least, but it sorts them by name instead. Fix it.",
+        "starter": "SELECT\n  artifact,\n  value_thousands\nFROM artifacts\nORDER BY artifact DESC;",
+        "solution": "SELECT\n  artifact,\n  value_thousands\nFROM artifacts\nORDER BY value_thousands DESC;",
+        "ordered": true,
+        "lesson": "ORDER BY sorts by whichever column you name, so name the right one."
+      },
+      {
+        "prompt": "Using the sites table, show each country and its total number of traps, most traps first.",
+        "solution": "SELECT\n  country,\n  SUM(traps) AS total_traps\nFROM sites\nGROUP BY country\nORDER BY total_traps DESC;",
+        "ordered": true,
+        "lesson": "Two sites share a country, so their traps are added together."
+      },
+      {
+        "prompt": "Show each country and the total value_thousands of the artifacts found there, richest first.",
+        "solution": "SELECT\n  s.country,\n  SUM(a.value_thousands) AS total_value\nFROM artifacts a\nJOIN sites s ON s.site = a.site\nGROUP BY s.country\nORDER BY total_value DESC;",
+        "ordered": true,
+        "lesson": "The site name links each artifact to a country."
+      }
+    ]
+  },
+  {
+    "id": "monsters",
+    "title": "Monsters, Inc.",
+    "blurb": "We scare because we query.",
+    "tables": [
+      {
+        "name": "scarers",
+        "columns": [["name", "TEXT"], ["floor", "TEXT"], ["screams", "INTEGER"]],
+        "rows": [
+          ["Sulley", "F", 982],
+          ["Randall", "F", 975],
+          ["George", "F", 420],
+          ["Claws", "F", 388],
+          ["Fungus", "F", 12],
+          ["Ricky", "E", 601],
+          ["Lanky", "E", 510],
+          ["Spike", "E", 455],
+          ["Waxford", "G", 640],
+          ["Noodles", "G", 577]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should show one row per floor with its total screams, but it returns a row for every scarer. Fix it.",
+        "starter": "SELECT\n  floor,\n  SUM(screams) AS total_screams\nFROM scarers\nGROUP BY name;",
+        "solution": "SELECT\n  floor,\n  SUM(screams) AS total_screams\nFROM scarers\nGROUP BY floor;",
+        "ordered": false,
+        "lesson": "Group by the thing you want one row for."
+      },
+      {
+        "prompt": "Show the name and screams of scarers on floor E or G with more than 500 screams, most screams first.",
+        "solution": "SELECT\n  name,\n  screams\nFROM scarers\nWHERE floor IN ('E', 'G')\n  AND screams > 500\nORDER BY screams DESC;",
+        "ordered": true,
+        "lesson": "AND combines two conditions; IN checks a column against a list."
+      },
+      {
+        "prompt": "Rank the scarers by screams, most first. For every scarer show name, screams, and the screams of the scarer ranked just above them (NULL for the leader).",
+        "solution": "SELECT\n  name,\n  screams,\n  LAG(screams) OVER (ORDER BY screams DESC) AS next_above\nFROM scarers;",
+        "ordered": false,
+        "lesson": "LAG reads the previous row in the window's order."
+      }
+    ]
+  },
+  {
+    "id": "topgun",
+    "title": "Top Gun",
+    "blurb": "I feel the need. The need for speedy queries.",
+    "tables": [
+      {
+        "name": "aviators",
+        "columns": [["callsign", "TEXT"], ["role", "TEXT"], ["years_flying", "INTEGER"]],
+        "rows": [
+          ["Maverick", "pilot", 5],
+          ["Iceman", "pilot", 7],
+          ["Hollywood", "pilot", 8],
+          ["Cougar", "pilot", 9],
+          ["Goose", "RIO", 6],
+          ["Slider", "RIO", 4],
+          ["Wolfman", "RIO", 3],
+          ["Merlin", "RIO", 10],
+          ["Viper", "instructor", 25],
+          ["Jester", "instructor", 18]
+        ]
+      },
+      {
+        "name": "hops",
+        "columns": [["hop", "INTEGER"], ["winner", "TEXT"], ["points", "INTEGER"]],
+        "rows": [
+          [1, "Iceman", 10],
+          [2, "Maverick", 12],
+          [3, "Jester", 8],
+          [4, "Iceman", 11],
+          [5, "Maverick", 9],
+          [6, "Hollywood", 7],
+          [7, "Viper", 15],
+          [8, "Iceman", 6],
+          [9, "Maverick", 4]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should return a single number, how many pilots there are, but it lists them instead. Fix it.",
+        "starter": "SELECT\n  callsign\nFROM aviators\nWHERE role = 'pilot';",
+        "solution": "SELECT\n  COUNT(*) AS pilot_count\nFROM aviators\nWHERE role = 'pilot';",
+        "ordered": false,
+        "lesson": "COUNT(*) collapses the matching rows into one number."
+      },
+      {
+        "prompt": "Using the hops table, show the 3 highest-scoring winners: winner and total points, highest first.",
+        "solution": "SELECT\n  winner,\n  SUM(points) AS total_points\nFROM hops\nGROUP BY winner\nORDER BY total_points DESC\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "Add up each winner's hops, sort, and keep the top 3."
+      },
+      {
+        "prompt": "Show each role and the total hop points won by aviators in that role, highest first.",
+        "solution": "SELECT\n  a.role,\n  SUM(h.points) AS total_points\nFROM hops h\nJOIN aviators a ON a.callsign = h.winner\nGROUP BY a.role\nORDER BY total_points DESC;",
+        "ordered": true,
+        "lesson": "Join the winner's callsign to find their role, then group by role."
+      }
+    ]
   }
 ]
