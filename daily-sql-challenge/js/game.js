@@ -69,6 +69,19 @@ function payout(actIndex, elapsed) {
   return Math.round(max * (FLOOR + (1 - FLOOR) * frac) * 10) / 10;
 }
 
+// The calendar date of a screening, as YYYY-MM-DD: the key used in data/schedule.json.
+function dateOfScreening(n) {
+  return new Date(Date.UTC(EPOCH[0], EPOCH[1], EPOCH[2] + n - 1)).toISOString().slice(0, 10);
+}
+
+// Which film plays at screening n. The schedule says which film belongs to each date. A date
+// with nothing scheduled (the schedule ran out) falls back to cycling through the whole bank,
+// so the game never has an empty day.
+function filmFor(n, films, schedule) {
+  const booked = films.find((f) => f.id === schedule[dateOfScreening(n)]);
+  return booked || films[(((n - 1) % films.length) + films.length) % films.length];
+}
+
 function todayNumber() {
   const n = new Date();
   return Math.round((Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()) - Date.UTC(...EPOCH)) / 864e5) + 1;
@@ -630,14 +643,16 @@ async function boot() {
   buildSeats();
   front('<p class="kicker">THREADING THE PROJECTOR...</p>');
   let films;
+  let schedule = {};
   try {
     [films] = await Promise.all([fetch('data/films.json').then((r) => r.json()), initEngine()]);
+    schedule = await fetch('data/schedule.json').then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   } catch (e) {
     front(`<p class="kicker">THE PROJECTOR JAMMED</p><p class="fine">${esc(e.message || e)}<br>
       Run the game through its local server (python serve.py), not by opening the file directly.</p>`);
     return;
   }
-  film = films[(((day - 1) % films.length) + films.length) % films.length];
+  film = filmFor(day, films, schedule);
   paintHud();
 
   if (state.done) {

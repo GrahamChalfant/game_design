@@ -8,7 +8,9 @@
 #       Act I and Act II use one table and no join or window function;
 #       Act III uses exactly one of a join or a window function
 #   - tables are small enough to read quickly, and every film id is unique
+#   - data/schedule.json only names films that exist, and no film comes round again too soon
 # Run it after adding or editing a film.
+import datetime
 import json
 import os
 import sqlite3
@@ -16,6 +18,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BANK = os.path.join(HERE, '..', 'data', 'films.json')
+SCHEDULE = os.path.join(HERE, '..', 'data', 'schedule.json')
+MIN_DAYS_BETWEEN_RERUNS = 60
 
 
 def build(film):
@@ -66,6 +70,45 @@ def category_problems(i, act):
     if i == 3 and s['join'] == s['window']:
         return ['Act III must use exactly one of: a join, a window function']
     return []
+
+
+def schedule_problems(ids):
+    # Checks data/schedule.json and prints how far ahead it runs. Returns the number of problems.
+    if not os.path.exists(SCHEDULE):
+        print('note: no data/schedule.json; films will simply cycle in order')
+        return 0
+    with open(SCHEDULE, encoding='utf-8') as f:
+        schedule = json.load(f)
+    problems = 0
+    last_shown = {}
+    days = []
+    for key in sorted(schedule):
+        film_id = schedule[key]
+        try:
+            day = datetime.date.fromisoformat(key)
+        except ValueError:
+            print(f'FAIL schedule: {key!r} is not a YYYY-MM-DD date')
+            problems += 1
+            continue
+        days.append(day)
+        if film_id not in ids:
+            print(f'FAIL schedule {key}: no film with id {film_id!r}')
+            problems += 1
+        if film_id in last_shown and (day - last_shown[film_id]).days < MIN_DAYS_BETWEEN_RERUNS:
+            print(f'FAIL schedule {key}: {film_id} was already shown on {last_shown[film_id]}')
+            problems += 1
+        last_shown[film_id] = day
+    for a, b in zip(days, days[1:]):
+        if (b - a).days > 1:
+            print(f'FAIL schedule: nothing scheduled between {a} and {b}')
+            problems += 1
+    unscheduled = [i for i in ids if i not in schedule.values()]
+    if unscheduled:
+        print(f'note: not on the schedule yet (run tools/schedule.py): {", ".join(unscheduled)}')
+    if days:
+        left = (max(days) - datetime.date.today()).days
+        print(f'schedule: {len(days)} day(s), {min(days)} to {max(days)}, {left} day(s) of films left from today')
+    return problems
 
 
 def main():
@@ -121,6 +164,7 @@ def main():
                     except sqlite3.Error:
                         pass  # a starter that errors is a fine kind of broken
             print(f'ok   {tag}: {len(want)} rows  {want[:3]}{" ..." if len(want) > 3 else ""}')
+    problems += schedule_problems(ids)
     print(f'\n{len(films)} films, {problems} problem(s)')
     sys.exit(1 if problems else 0)
 
