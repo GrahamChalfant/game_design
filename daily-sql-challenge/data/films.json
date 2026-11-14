@@ -1017,5 +1017,482 @@
         "lesson": "Join the winner's callsign to find their role, then group by role."
       }
     ]
+  },
+  {
+    "id": "oz",
+    "title": "The Wizard of Oz",
+    "blurb": "There's no place like SELECT *.",
+    "tables": [
+      {
+        "name": "road",
+        "columns": [["stop", "INTEGER"], ["place", "TEXT"], ["joined", "TEXT"], ["miles", "INTEGER"]],
+        "rows": [
+          [1, "Munchkinland", "Dorothy", 0],
+          [2, "Cornfield", "Scarecrow", 6],
+          [3, "Orchard", "Tin Man", 4],
+          [4, "Dark Forest", "Lion", 9],
+          [5, "Poppy Field", null, 7],
+          [6, "Emerald City", null, 3],
+          [7, "Haunted Forest", null, 12],
+          [8, "Witch Castle", null, 5]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the place and who joined at every stop where somebody joined, but it returns nothing. Fix it.",
+        "starter": "SELECT\n  place,\n  joined\nFROM road\nWHERE joined != NULL;",
+        "solution": "SELECT\n  place,\n  joined\nFROM road\nWHERE joined IS NOT NULL;",
+        "ordered": false,
+        "lesson": "Comparing with NULL never works, even with !=. Use IS NOT NULL."
+      },
+      {
+        "prompt": "Show the 3 longest stretches of road: place and miles, longest first.",
+        "solution": "SELECT\n  place,\n  miles\nFROM road\nORDER BY miles DESC\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "Sort biggest first, then LIMIT to the top few."
+      },
+      {
+        "prompt": "For every stop show stop, place, miles, and the running total of miles walked so far (in stop order).",
+        "solution": "SELECT\n  stop,\n  place,\n  miles,\n  SUM(miles) OVER (ORDER BY stop) AS miles_so_far\nFROM road;",
+        "ordered": false,
+        "lesson": "SUM(...) OVER (ORDER BY ...) keeps a running total."
+      }
+    ]
+  },
+  {
+    "id": "wonka",
+    "title": "Willy Wonka & the Chocolate Factory",
+    "blurb": "Come with me, and you'll be in a world of pure aggregation.",
+    "tables": [
+      {
+        "name": "children",
+        "columns": [["name", "TEXT"], ["country", "TEXT"], ["vice", "TEXT"], ["room", "TEXT"]],
+        "rows": [
+          ["Augustus", "Germany", "gluttony", "Chocolate Room"],
+          ["Violet", "USA", "gum chewing", "Inventing Room"],
+          ["Charlie", "UK", "curiosity", "Fizzy Lifting Room"],
+          ["Veruca", "UK", "greed", "Golden Egg Room"],
+          ["Mike", "USA", "television", "Television Room"]
+        ]
+      },
+      {
+        "name": "rooms",
+        "columns": [["room", "TEXT"], ["hazard", "TEXT"], ["oompa_loompas", "INTEGER"], ["minutes_in_tour", "INTEGER"]],
+        "rows": [
+          ["Chocolate Room", "chocolate river", 12, 10],
+          ["Inventing Room", "experimental gum", 6, 25],
+          ["Fizzy Lifting Room", "ceiling fan", 2, 40],
+          ["Golden Egg Room", "garbage chute", 8, 55],
+          ["Television Room", "shrink ray", 5, 70],
+          ["Glass Elevator", "glass ceiling", 0, 85]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should return the largest number of oompa_loompas working in any one room, but it returns the smallest. Fix it.",
+        "starter": "SELECT\n  MIN(oompa_loompas) AS most\nFROM rooms;",
+        "solution": "SELECT\n  MAX(oompa_loompas) AS most\nFROM rooms;",
+        "ordered": false,
+        "lesson": "MIN finds the smallest value, MAX the largest."
+      },
+      {
+        "prompt": "Using the rooms table, show room and oompa_loompas for rooms with more than 4 oompa loompas, in tour order (minutes_in_tour).",
+        "solution": "SELECT\n  room,\n  oompa_loompas\nFROM rooms\nWHERE oompa_loompas > 4\nORDER BY minutes_in_tour;",
+        "ordered": true,
+        "lesson": "You can sort by a column you are not showing."
+      },
+      {
+        "prompt": "For each child show name and the hazard of the room they were in, in the order the tour reaches those rooms (minutes_in_tour).",
+        "solution": "SELECT\n  c.name,\n  r.hazard\nFROM children c\nJOIN rooms r ON r.room = c.room\nORDER BY r.minutes_in_tour;",
+        "ordered": true,
+        "lesson": "Join on the room name to borrow columns from rooms."
+      }
+    ]
+  },
+  {
+    "id": "incredibles",
+    "title": "The Incredibles",
+    "blurb": "No capes. No cross joins.",
+    "tables": [
+      {
+        "name": "supers",
+        "columns": [["name", "TEXT"], ["power", "TEXT"], ["status", "TEXT"], ["missions", "INTEGER"]],
+        "rows": [
+          ["Mr Incredible", "strength", "active", 120],
+          ["Elastigirl", "stretching", "active", 95],
+          ["Frozone", "ice", "active", 80],
+          ["Dash", "speed", "active", 3],
+          ["Violet", "force fields", "active", 2],
+          ["Jack-Jack", "everything", "active", 1],
+          ["Gazerbeam", "laser vision", "retired", 60],
+          ["Thunderhead", "storms", "retired", 44],
+          ["Dynaguy", "disintegration", "retired", 30],
+          ["Stratogale", "flight", "retired", 12],
+          ["Syndrome", "gadgets", "villain", 15]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the name and missions of every super with at least 80 missions, but it leaves one out. Fix it.",
+        "starter": "SELECT\n  name,\n  missions\nFROM supers\nWHERE missions > 80;",
+        "solution": "SELECT\n  name,\n  missions\nFROM supers\nWHERE missions >= 80;",
+        "ordered": false,
+        "lesson": "\"At least 80\" includes 80 itself: use >=, not >."
+      },
+      {
+        "prompt": "For each status show status, the number of supers, and their total missions.",
+        "solution": "SELECT\n  status,\n  COUNT(*) AS supers,\n  SUM(missions) AS total_missions\nFROM supers\nGROUP BY status;",
+        "ordered": false,
+        "lesson": "One GROUP BY can feed a count and a sum at once."
+      },
+      {
+        "prompt": "For every super show name, status, missions, and their rank by missions among supers with the same status (1 = most).",
+        "solution": "SELECT\n  name,\n  status,\n  missions,\n  RANK() OVER (PARTITION BY status ORDER BY missions DESC) AS status_rank\nFROM supers;",
+        "ordered": false,
+        "lesson": "PARTITION BY restarts the ranking for each status."
+      }
+    ]
+  },
+  {
+    "id": "pirates",
+    "title": "Pirates of the Caribbean",
+    "blurb": "The schema is more what you'd call guidelines.",
+    "tables": [
+      {
+        "name": "crew",
+        "columns": [["name", "TEXT"], ["ship", "TEXT"], ["role", "TEXT"], ["doubloons", "INTEGER"]],
+        "rows": [
+          ["Bosun", "Black Pearl", "bosun", 150],
+          ["Pintel", "Black Pearl", "gunner", 113],
+          ["Ragetti", "Black Pearl", "gunner", 97],
+          ["Twigg", "Black Pearl", "sailor", 88],
+          ["Gibbs", "Interceptor", "first mate", 40],
+          ["Anamaria", "Interceptor", "sailor", 30],
+          ["Cotton", "Interceptor", "helmsman", 25],
+          ["Marty", "Interceptor", "gunner", 22],
+          ["Gillette", "Dauntless", "lieutenant", 60],
+          ["Groves", "Dauntless", "lieutenant", 55],
+          ["Murtogg", "Dauntless", "marine", 12],
+          ["Mullroy", "Dauntless", "marine", 11]
+        ]
+      },
+      {
+        "name": "ships",
+        "columns": [["ship", "TEXT"], ["captain", "TEXT"], ["cannons", "INTEGER"]],
+        "rows": [
+          ["Black Pearl", "Barbossa", 32],
+          ["Interceptor", "Jack Sparrow", 16],
+          ["Dauntless", "Norrington", 100]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list the name and ship of everyone whose name starts with M, but it finds nobody. Fix it.",
+        "starter": "SELECT\n  name,\n  ship\nFROM crew\nWHERE name LIKE '%M';",
+        "solution": "SELECT\n  name,\n  ship\nFROM crew\nWHERE name LIKE 'M%';",
+        "ordered": false,
+        "lesson": "The % stands for \"anything\": put it after the M to match names that start with it."
+      },
+      {
+        "prompt": "Using the crew table, show the 3 richest roles: role and total doubloons, richest first.",
+        "solution": "SELECT\n  role,\n  SUM(doubloons) AS total_doubloons\nFROM crew\nGROUP BY role\nORDER BY total_doubloons DESC\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "Group, sum, sort by the sum, then LIMIT."
+      },
+      {
+        "prompt": "For each captain show captain and the total doubloons held by their crew, richest first.",
+        "solution": "SELECT\n  s.captain,\n  SUM(c.doubloons) AS total_doubloons\nFROM crew c\nJOIN ships s ON s.ship = c.ship\nGROUP BY s.captain\nORDER BY total_doubloons DESC;",
+        "ordered": true,
+        "lesson": "The ship name links each sailor to a captain."
+      }
+    ]
+  },
+  {
+    "id": "frozen",
+    "title": "Frozen",
+    "blurb": "Let it GROUP. Let it GROUP.",
+    "tables": [
+      {
+        "name": "storms",
+        "columns": [["day", "INTEGER"], ["place", "TEXT"], ["snowfall_cm", "INTEGER"]],
+        "rows": [
+          [1, "Arendelle", 5],
+          [1, "North Mountain", 40],
+          [2, "Arendelle", 12],
+          [2, "North Mountain", 35],
+          [2, "Trading Post", 20],
+          [3, "Arendelle", 30],
+          [3, "North Mountain", 50],
+          [3, "Trading Post", 25],
+          [4, "Arendelle", 45],
+          [4, "Troll Valley", 2]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should return the single biggest snowfall (place and snowfall_cm), but it just returns the first row in the table. Fix it.",
+        "starter": "SELECT\n  place,\n  snowfall_cm\nFROM storms\nLIMIT 1;",
+        "solution": "SELECT\n  place,\n  snowfall_cm\nFROM storms\nORDER BY snowfall_cm DESC\nLIMIT 1;",
+        "ordered": true,
+        "lesson": "LIMIT 1 only means \"the biggest\" if you sort first."
+      },
+      {
+        "prompt": "Show each place and its total snowfall_cm, snowiest first.",
+        "solution": "SELECT\n  place,\n  SUM(snowfall_cm) AS total_snow\nFROM storms\nGROUP BY place\nORDER BY total_snow DESC;",
+        "ordered": true,
+        "lesson": "Group by place, sum the snowfall, sort by the sum."
+      },
+      {
+        "prompt": "For every row show day, place, snowfall_cm, and the snowfall_cm at that same place on its previous recorded day (NULL if there is none).",
+        "solution": "SELECT\n  day,\n  place,\n  snowfall_cm,\n  LAG(snowfall_cm) OVER (PARTITION BY place ORDER BY day) AS previous_snow\nFROM storms;",
+        "ordered": false,
+        "lesson": "LAG with PARTITION BY looks back within each place separately."
+      }
+    ]
+  },
+  {
+    "id": "jumanji",
+    "title": "Jumanji",
+    "blurb": "Roll the dice, then ORDER BY them.",
+    "tables": [
+      {
+        "name": "rolls",
+        "columns": [["turn", "INTEGER"], ["player", "TEXT"], ["roll", "INTEGER"], ["hazard", "TEXT"]],
+        "rows": [
+          [1, "Alan", 5, "jungle trap"],
+          [2, "Sarah", 3, "bats"],
+          [3, "Judy", 6, "mosquitoes"],
+          [4, "Peter", 2, "monkeys"],
+          [5, "Peter", 4, "lion"],
+          [6, "Sarah", 7, "vines"],
+          [7, "Alan", 8, "hunter"],
+          [8, "Judy", 5, "stampede"],
+          [9, "Peter", 3, "monsoon"],
+          [10, "Sarah", 6, "quicksand"],
+          [11, "Alan", 9, "spiders"],
+          [12, "Alan", 4, "earthquake"]
+        ]
+      },
+      {
+        "name": "players",
+        "columns": [["player", "TEXT"], ["token", "TEXT"], ["age", "INTEGER"]],
+        "rows": [
+          ["Alan", "elephant", 38],
+          ["Sarah", "rhino", 39],
+          ["Judy", "monkey", 13],
+          ["Peter", "crocodile", 8]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should show how many turns each player has taken, but it adds up their dice instead. Fix it.",
+        "starter": "SELECT\n  player,\n  SUM(roll) AS turns\nFROM rolls\nGROUP BY player;",
+        "solution": "SELECT\n  player,\n  COUNT(*) AS turns\nFROM rolls\nGROUP BY player;",
+        "ordered": false,
+        "lesson": "SUM adds up a column's values; COUNT(*) counts the rows."
+      },
+      {
+        "prompt": "Using the rolls table, show the 3 highest rolls: player, roll, and hazard, highest first.",
+        "solution": "SELECT\n  player,\n  roll,\n  hazard\nFROM rolls\nORDER BY roll DESC\nLIMIT 3;",
+        "ordered": true,
+        "lesson": "ORDER BY ... DESC with LIMIT gives the top few."
+      },
+      {
+        "prompt": "Show each token and the total of all rolls made by its player, highest total first.",
+        "solution": "SELECT\n  p.token,\n  SUM(r.roll) AS total_rolled\nFROM rolls r\nJOIN players p ON p.player = r.player\nGROUP BY p.token\nORDER BY total_rolled DESC;",
+        "ordered": true,
+        "lesson": "Join on the player name, then group by the token you borrowed."
+      }
+    ]
+  },
+  {
+    "id": "princessbride",
+    "title": "The Princess Bride",
+    "blurb": "As you wish. As you WHERE.",
+    "tables": [
+      {
+        "name": "quest",
+        "columns": [["step", "INTEGER"], ["challenge", "TEXT"], ["opponent", "TEXT"], ["minutes", "INTEGER"]],
+        "rows": [
+          [1, "Sword Duel", "Inigo", 12],
+          [2, "Wrestling", "Fezzik", 6],
+          [3, "Battle of Wits", "Vizzini", 18],
+          [4, "Fire Swamp", "Giant Rats", 30],
+          [5, "Pit of Despair", "Rugen", 90],
+          [6, "Storming the Castle", "Guards", 24],
+          [7, "To the Pain", "Humperdinck", 36]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should show each challenge and how long it took in hours, as a decimal, but every answer comes out as 0 or 1. Fix it.",
+        "starter": "SELECT\n  challenge,\n  minutes / 60 AS hours\nFROM quest;",
+        "solution": "SELECT\n  challenge,\n  minutes / 60.0 AS hours\nFROM quest;",
+        "ordered": false,
+        "lesson": "Dividing two whole numbers throws away the remainder. Make one of them a decimal."
+      },
+      {
+        "prompt": "Show challenge, opponent, and minutes for every challenge longer than 15 minutes, longest first.",
+        "solution": "SELECT\n  challenge,\n  opponent,\n  minutes\nFROM quest\nWHERE minutes > 15\nORDER BY minutes DESC;",
+        "ordered": true,
+        "lesson": "Filter with WHERE, then sort what is left."
+      },
+      {
+        "prompt": "For every step show step, challenge, minutes, and the minutes of the next challenge (NULL for the last one).",
+        "solution": "SELECT\n  step,\n  challenge,\n  minutes,\n  LEAD(minutes) OVER (ORDER BY step) AS next_minutes\nFROM quest;",
+        "ordered": false,
+        "lesson": "LEAD looks one row ahead; LAG looks one row back."
+      }
+    ]
+  },
+  {
+    "id": "mib",
+    "title": "Men in Black",
+    "blurb": "The last suit you'll ever JOIN.",
+    "tables": [
+      {
+        "name": "aliens",
+        "columns": [["alien", "TEXT"], ["species", "TEXT"], ["disguise", "TEXT"], ["threat", "INTEGER"]],
+        "rows": [
+          ["Edgar", "Bug", "farmer", 10],
+          ["Mikey", "Unknown", "migrant", 6],
+          ["Redgick", "Squid", "cab driver", 4],
+          ["Jeebs", "Unknown", "pawnbroker", 3],
+          ["Rosenberg", "Arquillian", "jeweler", 2],
+          ["Frank", "Remoolian", "pug", 1],
+          ["The Worms", "Annelid", "office workers", 0]
+        ]
+      },
+      {
+        "name": "cases",
+        "columns": [["case_id", "INTEGER"], ["agent", "TEXT"], ["alien", "TEXT"], ["neuralyzed", "INTEGER"]],
+        "rows": [
+          [1, "K", "Mikey", 5],
+          [2, "J", "Jeebs", 0],
+          [3, "K", "Redgick", 2],
+          [4, "J", "Edgar", 3],
+          [5, "K", "Edgar", 8],
+          [6, "L", "Rosenberg", 1],
+          [7, "K", "Frank", 0],
+          [8, "J", "Redgick", 1]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list every alien and its threat, most dangerous first, but it crashes. Fix it.",
+        "starter": "SELECT\n  alien,\n  threat\nFROM aliens\nORDER BY treat DESC;",
+        "solution": "SELECT\n  alien,\n  threat\nFROM aliens\nORDER BY threat DESC;",
+        "ordered": true,
+        "lesson": "A misspelled column name is an error: SQL has no column called treat."
+      },
+      {
+        "prompt": "Using the cases table, show each agent and the total number of people they neuralyzed, most first.",
+        "solution": "SELECT\n  agent,\n  SUM(neuralyzed) AS total_neuralyzed\nFROM cases\nGROUP BY agent\nORDER BY total_neuralyzed DESC;",
+        "ordered": true,
+        "lesson": "Group by agent, sum, and sort by the sum."
+      },
+      {
+        "prompt": "For every case about an alien with a threat of 4 or higher show case_id, agent, and the alien's disguise, in case_id order.",
+        "solution": "SELECT\n  c.case_id,\n  c.agent,\n  a.disguise\nFROM cases c\nJOIN aliens a ON a.alien = c.alien\nWHERE a.threat >= 4\nORDER BY c.case_id;",
+        "ordered": true,
+        "lesson": "Join on the alien's name, then filter on the borrowed threat column."
+      }
+    ]
+  },
+  {
+    "id": "ratatouille",
+    "title": "Ratatouille",
+    "blurb": "Anyone can query.",
+    "tables": [
+      {
+        "name": "dishes",
+        "columns": [["dish", "TEXT"], ["chef", "TEXT"], ["course", "TEXT"], ["price_euros", "INTEGER"], ["stars", "INTEGER"]],
+        "rows": [
+          ["Ratatouille", "Remy", "main", 28, 5],
+          ["Omelette", "Remy", "starter", 10, 5],
+          ["Leek Soup", "Linguini", "starter", 12, 4],
+          ["Sweetbread", "Linguini", "main", 34, 3],
+          ["Salmon", "Colette", "main", 30, 4],
+          ["Sole Meuniere", "Colette", "main", 32, 3],
+          ["Creme Brulee", "Colette", "dessert", 13, 5],
+          ["Onion Tart", "Horst", "starter", 14, 3],
+          ["Bouillabaisse", "Lalo", "main", 29, 3],
+          ["Souffle", "Larousse", "dessert", 15, 4],
+          ["Frozen Burrito", "Skinner", "main", 6, 1]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should list mains and desserts that cost under 20 euros, but expensive mains are showing up too. Fix it.",
+        "starter": "SELECT\n  dish,\n  course,\n  price_euros\nFROM dishes\nWHERE course = 'main' OR course = 'dessert'\n  AND price_euros < 20;",
+        "solution": "SELECT\n  dish,\n  course,\n  price_euros\nFROM dishes\nWHERE (course = 'main' OR course = 'dessert')\n  AND price_euros < 20;",
+        "ordered": false,
+        "lesson": "AND is applied before OR. Parentheses make the OR happen first."
+      },
+      {
+        "prompt": "For chefs with at least 2 dishes, show chef and their average stars, best first.",
+        "solution": "SELECT\n  chef,\n  AVG(stars) AS avg_stars\nFROM dishes\nGROUP BY chef\nHAVING COUNT(*) >= 2\nORDER BY avg_stars DESC;",
+        "ordered": true,
+        "lesson": "HAVING keeps only the chefs with enough dishes."
+      },
+      {
+        "prompt": "For every dish show dish, course, price_euros, and the average price_euros of all dishes in the same course.",
+        "solution": "SELECT\n  dish,\n  course,\n  price_euros,\n  AVG(price_euros) OVER (PARTITION BY course) AS course_avg\nFROM dishes;",
+        "ordered": false,
+        "lesson": "AVG(...) OVER (PARTITION BY ...) puts each course's average on every row."
+      }
+    ]
+  },
+  {
+    "id": "rocky",
+    "title": "Rocky",
+    "blurb": "Yo, Adrian! It returned rows!",
+    "tables": [
+      {
+        "name": "fights",
+        "columns": [["fight_no", "INTEGER"], ["film", "TEXT"], ["opponent", "TEXT"], ["rounds", "INTEGER"], ["result", "TEXT"]],
+        "rows": [
+          [1, "Rocky", "Spider Rico", 2, "win"],
+          [2, "Rocky", "Apollo Creed", 15, "loss"],
+          [3, "Rocky II", "Apollo Creed", 15, "win"],
+          [4, "Rocky III", "Thunderlips", 3, "draw"],
+          [5, "Rocky III", "Clubber Lang", 2, "loss"],
+          [6, "Rocky III", "Clubber Lang", 3, "win"],
+          [7, "Rocky IV", "Ivan Drago", 15, "win"],
+          [8, "Rocky V", "Tommy Gunn", 1, "win"],
+          [9, "Rocky Balboa", "Mason Dixon", 10, "loss"]
+        ]
+      }
+    ],
+    "acts": [
+      {
+        "prompt": "This query should count the fights for each result (win, loss, draw), but it only returns one row. Fix it.",
+        "starter": "SELECT\n  result,\n  COUNT(*) AS fight_count\nFROM fights;",
+        "solution": "SELECT\n  result,\n  COUNT(*) AS fight_count\nFROM fights\nGROUP BY result;",
+        "ordered": false,
+        "lesson": "An aggregate next to a plain column needs GROUP BY on that column."
+      },
+      {
+        "prompt": "Which opponents did Rocky fight more than once? Show opponent and the number of fights.",
+        "solution": "SELECT\n  opponent,\n  COUNT(*) AS fight_count\nFROM fights\nGROUP BY opponent\nHAVING COUNT(*) > 1;",
+        "ordered": false,
+        "lesson": "HAVING filters on the count after grouping."
+      },
+      {
+        "prompt": "For every fight show fight_no, opponent, and which meeting with that opponent it was (1 for the first time they fought, 2 for the second).",
+        "solution": "SELECT\n  fight_no,\n  opponent,\n  ROW_NUMBER() OVER (PARTITION BY opponent ORDER BY fight_no) AS meeting\nFROM fights;",
+        "ordered": false,
+        "lesson": "ROW_NUMBER numbers the rows inside each partition, starting again at 1."
+      }
+    ]
   }
 ]
